@@ -31,7 +31,7 @@ You are validating FDA device numbers against the official FDA database files.
    ```
 
 3. **Report results for each number:**
-   - Valid: Show the full database record
+   - Found: Show the full database record
    - Invalid format: Explain correct format
    - Not found: May be too new, typo, or OCR error
 
@@ -47,7 +47,6 @@ Example: K24O717 might be K240717
 
 ## Output Format
 
-For each validated number, provide:
+For each number, provide:
 - **Number**: The device number
-- **Status**: Valid / Invalid Format / Not Found
-- **Details**: Database record if found, or suggestions if not
+- **Details**: Database record if found, or suggestions if not found
