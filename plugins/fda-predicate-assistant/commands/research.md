@@ -1,6 +1,6 @@
 ---
 description: Research and plan a 510(k) submission — predicate selection, testing strategy, IFU landscape, regulatory intelligence, and competitive analysis
-allowed-tools: Read, Glob, Grep, Bash
+allowed-tools: Read, Glob, Grep, Bash, Write, WebFetch
 argument-hint: "<product-code> [--project NAME] [--device-description TEXT] [--intended-use TEXT]"
 ---
 
@@ -215,11 +215,68 @@ If the user provided `--intended-use`, compare their intended use against the in
 
 If the user provided `--device-description` with novel features not found in the primary product code, include a **Secondary Predicates** section with candidates from other product codes that support those features.
 
+## Step 4.5: Automatically Fetch Key Predicate Summaries
+
+**CRITICAL: Do NOT ask the user to download PDFs separately.** After identifying the top 3-5 predicate candidates, check if their summary text is available. If not, **fetch it yourself**.
+
+### Check if text is already cached
+
+```python
+import json
+with open('/mnt/c/510k/Python/PredicateExtraction/pdf_data.json') as f:
+    data = json.load(f)
+# Check each top candidate
+for knumber in top_candidates:
+    if knumber + '.pdf' in data:
+        print(f'{knumber}: text already cached')
+    else:
+        print(f'{knumber}: NOT cached — need to fetch')
+```
+
+### Fetch missing summaries directly from FDA
+
+FDA 510(k) summary PDFs follow a predictable URL pattern:
+
+```
+https://www.accessdata.fda.gov/cdrh_docs/pdf{YY}/{KNUMBER}.pdf
+```
+
+Where `{YY}` is derived from the K-number:
+- K241335 → pdf24 (first 2 digits after K)
+- K183206 → pdf18
+- K253710 → pdf25
+- For older devices (K0xxxxx): pdf (no number) or pdf0, pdf1, etc.
+- De Novo: `https://www.accessdata.fda.gov/cdrh_docs/reviews/DEN230052.pdf`
+
+**For each top predicate NOT already cached**, use WebFetch to download and extract the text:
+
+```
+Use WebFetch tool:
+  url: https://www.accessdata.fda.gov/cdrh_docs/pdf24/K241335.pdf
+  prompt: "Extract the full text of this FDA 510(k) summary document. Include all sections: Indications for Use, Device Description, Substantial Equivalence Comparison, Non-Clinical Testing, Clinical Testing, Biocompatibility, Sterilization, and any other sections present."
+```
+
+**For standard depth**: Fetch the top 2-3 most important predicate summaries (primary predicate + strongest secondary).
+**For deep depth**: Fetch up to 5 predicate summaries.
+**For quick depth**: Skip fetching — use database records only.
+
+After fetching, use the extracted text for Steps 5 (Testing Strategy), 6 (IFU Landscape), and predicate comparison analysis. This is what makes the research report truly useful — the user gets actual data from the predicate devices, not just K-numbers.
+
+### What to extract from fetched summaries
+
+For each fetched predicate summary, extract and report:
+- **Indications for Use** — exact IFU text for comparison with user's intended use
+- **Device Description** — what the predicate device is and how it works
+- **Testing performed** — specific test methods, standards, sample sizes, results
+- **Clinical data** — study design, endpoints, patient count, outcomes
+- **Predicates cited** — what the predicate itself cited (chain analysis)
+- **Key differences** — anything that might differentiate from user's device
+
 ## Step 5: Testing Strategy
 
-### From PDF text (pdf_data.json)
+### From PDF text (cached in pdf_data.json OR freshly fetched in Step 4.5)
 
-If PDF text is available for devices with this product code, analyze the testing sections directly. Use regex to search for testing-related content:
+Analyze the testing sections from predicate summaries. Use regex to search for testing-related content:
 
 ```python
 patterns = {
@@ -320,7 +377,7 @@ Structure the research package as:
    [Specific actionable next steps — NOT "run this command"]
 ```
 
-**IMPORTANT**: The output should NOT have a "Data Gaps" section that lists files the user needs to create. If you can do the analysis with available data, just do it. Only mention data limitations if they genuinely limit the analysis AND explain what the limitation means in plain language (e.g., "No PDFs are available for this product code, so testing strategy and IFU analysis are based on database records only" — NOT "output.csv is missing, run /fda:extract stage2").
+**IMPORTANT**: The output should NOT have a "Data Gaps" section that lists files the user needs to create or commands to run. If a PDF is needed, fetch it yourself in Step 4.5. If a fetch fails, note the limitation gracefully (e.g., "The K241335 summary PDF was not accessible, so testing analysis is based on regulatory patterns for this device class") — do NOT tell the user to run another command.
 
 ## Depth Levels
 
@@ -355,4 +412,4 @@ End with specific, actionable next steps in plain language:
 - If novel features found: "Your [feature] has limited precedent in [product code]. Consider consulting with your regulatory team about whether a secondary predicate from [other product code] strengthens your submission."
 - Always: "Consult with regulatory affairs counsel before finalizing your submission strategy"
 
-**NEVER recommend**: "Run `/fda:extract stage1`" or "Run `/fda:extract stage2`" — these are pipeline internals. If PDFs aren't available, say "No summary PDFs are available for analysis yet. You can use `/fda:extract` to download them if needed."
+**NEVER recommend**: "Run `/fda:extract stage1`" or "Run `/fda:extract stage2`" or "Use `/fda:extract` to download PDFs" — the research command should fetch what it needs automatically. If a PDF fetch fails (404, access denied), note it gracefully and proceed with available data.
