@@ -46,7 +46,10 @@ This project uses a two-stage pipeline for FDA 510(k) predicate analysis:
 | FDA database files | `~/fda-510k-data/extraction/` | `data_dir` |
 | Dependencies | `$FDA_PLUGIN_ROOT/scripts/requirements.txt` | (bundled with plugin) |
 
-**Before running any command**, read `~/.claude/fda-predicate-assistant.local.md` to get the user's configured paths. If a path is not set in settings, use the defaults above. If data is not found at the configured path, check the default path before reporting "not found".
+**Before running any command:**
+1. **Resolve plugin root** — Run the plugin root resolution snippet from `references/path-resolution.md` to set `$FDA_PLUGIN_ROOT` (reads `~/.claude/plugins/installed_plugins.json`)
+2. **Read user settings** — Read `~/.claude/fda-predicate-assistant.local.md` for configured data paths
+3. If a path is not set in settings, use the defaults above. If data is not found at the configured path, check the default path before reporting "not found".
 
 When answering questions about specific devices, check these data sources for real information before relying solely on general knowledge.
 

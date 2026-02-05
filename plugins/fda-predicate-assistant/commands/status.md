@@ -7,6 +7,29 @@ allowed-tools: Bash, Read, Glob, Grep
 
 You are reporting the current state of all FDA data across the pipeline. This answers: "What do I have to work with?"
 
+## Resolve Plugin Root
+
+**Before running any checks**, resolve the plugin install path so you can find bundled scripts:
+
+```bash
+FDA_PLUGIN_ROOT=$(python3 -c "
+import json, os
+f = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
+if os.path.exists(f):
+    d = json.load(open(f))
+    for k, v in d.get('plugins', {}).items():
+        if k.startswith('fda-predicate-assistant@'):
+            for e in v:
+                p = e.get('installPath', '')
+                if os.path.isdir(p):
+                    print(p); exit()
+print('')
+")
+echo "FDA_PLUGIN_ROOT=$FDA_PLUGIN_ROOT"
+```
+
+If `$FDA_PLUGIN_ROOT` is empty, report that the plugin installation could not be located and skip script checks.
+
 ## Check All Data Sources
 
 Run these checks and compile a status report:

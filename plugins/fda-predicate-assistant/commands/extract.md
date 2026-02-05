@@ -6,6 +6,31 @@ argument-hint: "[stage1|stage2|both] [--product-codes CODE] [--years RANGE] [--p
 
 # FDA 510(k) Extraction Pipeline
 
+## Resolve Plugin Root
+
+**Before running any bash commands that reference `$FDA_PLUGIN_ROOT`**, resolve the plugin install path:
+
+```bash
+FDA_PLUGIN_ROOT=$(python3 -c "
+import json, os
+f = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
+if os.path.exists(f):
+    d = json.load(open(f))
+    for k, v in d.get('plugins', {}).items():
+        if k.startswith('fda-predicate-assistant@'):
+            for e in v:
+                p = e.get('installPath', '')
+                if os.path.isdir(p):
+                    print(p); exit()
+print('')
+")
+echo "FDA_PLUGIN_ROOT=$FDA_PLUGIN_ROOT"
+```
+
+If `$FDA_PLUGIN_ROOT` is empty, report an error: "Could not locate the FDA Predicate Assistant plugin installation. Make sure the plugin is installed and enabled."
+
+---
+
 You are guiding the user through the FDA device data pipeline. This is a **two-stage process**:
 
 - **Stage 1** (BatchFetch): Filter the FDA catalog and download 510(k) PDF documents

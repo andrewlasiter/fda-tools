@@ -6,6 +6,28 @@ argument-hint: "[--show | --set KEY VALUE | --setup-key | --test-api | --migrate
 
 # FDA Predicate Assistant Configuration
 
+## Resolve Plugin Root
+
+**Before referencing any bundled scripts**, resolve the plugin install path:
+
+```bash
+FDA_PLUGIN_ROOT=$(python3 -c "
+import json, os
+f = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
+if os.path.exists(f):
+    d = json.load(open(f))
+    for k, v in d.get('plugins', {}).items():
+        if k.startswith('fda-predicate-assistant@'):
+            for e in v:
+                p = e.get('installPath', '')
+                if os.path.isdir(p):
+                    print(p); exit()
+print('')
+")
+```
+
+---
+
 You are managing configuration settings for the FDA predicate extraction pipeline.
 
 ## Settings File Location

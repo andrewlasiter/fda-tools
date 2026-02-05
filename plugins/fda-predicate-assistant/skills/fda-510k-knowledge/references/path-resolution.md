@@ -1,8 +1,34 @@
 # Path Resolution for FDA Plugin Commands
 
-All commands that access data files MUST resolve paths from user settings before using defaults. This ensures the plugin works on any system, not just the original development machine.
+All commands that access data files or bundled scripts MUST resolve paths before use. This ensures the plugin works on any system, not just the original development machine.
 
-## Standard Path Resolution
+## Plugin Root Resolution
+
+Commands that reference bundled scripts (`predicate_extractor.py`, `batchfetch.py`, `requirements.txt`) MUST resolve the plugin's install location first. **Do NOT rely on the `$FDA_PLUGIN_ROOT` environment variable** — it may not be set due to plugin load timing.
+
+Resolve the plugin root by reading `installed_plugins.json`:
+
+```bash
+FDA_PLUGIN_ROOT=$(python3 -c "
+import json, os
+f = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
+if os.path.exists(f):
+    d = json.load(open(f))
+    for k, v in d.get('plugins', {}).items():
+        if k.startswith('fda-predicate-assistant@'):
+            for e in v:
+                p = e.get('installPath', '')
+                if os.path.isdir(p):
+                    print(p); exit()
+print('')
+")
+```
+
+After running this, `$FDA_PLUGIN_ROOT` will contain the absolute path to the plugin cache directory (e.g., `/home/user/.claude/plugins/cache/local/fda-predicate-assistant/abc123/`).
+
+**Always check the result**: If `$FDA_PLUGIN_ROOT` is empty, the plugin may not be installed. Report an error to the user.
+
+## Standard Data Path Resolution
 
 Before accessing any data file, read the user's settings and resolve paths:
 
