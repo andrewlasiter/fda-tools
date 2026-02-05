@@ -189,15 +189,61 @@ The plugin integrates with all 7 openFDA Device API endpoints for real-time data
 
 ### API-Enhanced Commands
 - **`/fda:validate`**: API-first validation with MAUDE event counts and recall checks
-- **`/fda:safety`** (NEW): Full MAUDE + recall analysis for pre-submission preparation
+- **`/fda:safety`**: Full MAUDE + recall analysis for pre-submission preparation
 - **`/fda:research`**: API classification, safety intelligence, API-enriched predicate profiles
+- **`/fda:review`**: Confidence scoring with API-powered risk flags (recalls, MAUDE events)
+- **`/fda:guidance`**: Classification lookup and guidance document search
 - **`/fda:compare-se`**: API fallback for predicate metadata when flat files don't have the record
+- **`/fda:presub`**: Classification data for Pre-Sub package generation
+- **`/fda:submission-outline`**: Classification and gap analysis powered by API data
 - **`/fda:analyze`**: Optional API enrichment with event counts per device
 - **`/fda:status`**: Reports API connectivity, key status, and rate limit tier
-- **`/fda:configure`**: `--test-api`, `--set openfda_api_key`, `--set openfda_enabled`
+- **`/fda:configure`**: `--test-api`, `--set openfda_api_key`, `--set openfda_enabled`, `--add-exclusion`
 
 ### Reference
 See `references/openfda-api.md` for the full API reference with query templates, field mappings, and error handling patterns.
+
+## Recommended Workflow
+
+The full 510(k) submission preparation workflow:
+
+```
+1. /fda:research PRODUCT_CODE        — Research the landscape (clearances, predicates, guidance, safety)
+2. /fda:extract both                  — Download PDFs + extract predicates
+3. /fda:review --project NAME         — Score, flag, accept/reject predicates
+4. /fda:guidance PRODUCT_CODE --save  — Find guidance + extract requirements
+5. /fda:presub PRODUCT_CODE           — Plan Pre-Submission meeting with FDA
+6. /fda:submission-outline CODE       — Generate submission outline + gap analysis
+7. /fda:compare-se --predicates ...   — Build SE comparison table for submission
+```
+
+Each step builds on previous data but degrades gracefully if run independently.
+
+**Supporting commands** (use anytime):
+- `/fda:validate K123456` — Validate a device number against FDA databases
+- `/fda:safety --product-code CODE` — Deep MAUDE + recall analysis
+- `/fda:analyze --project NAME` — Analyze extraction data
+- `/fda:summarize --knumbers K123456` — Summarize 510(k) PDF sections
+- `/fda:status` — Check pipeline data, file freshness, API connectivity
+- `/fda:configure` — View/modify settings, manage exclusion list
+
+## Available Commands (13)
+
+| Command | Purpose |
+|---------|---------|
+| `/fda:extract` | Run the two-stage pipeline (download PDFs + extract predicates) |
+| `/fda:research` | Comprehensive 510(k) submission research package |
+| `/fda:review` | Interactive predicate review with confidence scoring and risk flags |
+| `/fda:guidance` | Look up FDA guidance documents and extract requirements |
+| `/fda:presub` | Plan a Pre-Submission meeting with FDA |
+| `/fda:submission-outline` | Generate 510(k) submission outline with gap analysis |
+| `/fda:compare-se` | Generate Substantial Equivalence comparison tables |
+| `/fda:validate` | Validate device numbers against FDA databases |
+| `/fda:safety` | Analyze adverse events (MAUDE) and recall history |
+| `/fda:analyze` | Analyze FDA data from any pipeline stage |
+| `/fda:summarize` | Summarize sections from 510(k) summary PDFs |
+| `/fda:configure` | View/modify settings, API key setup, exclusion list |
+| `/fda:status` | Show available data, file freshness, script availability |
 
 ## Resources
 
@@ -207,6 +253,9 @@ For detailed reference information, see:
 - `references/predicate-types.md` - Predicate selection guidance
 - `references/common-issues.md` - Troubleshooting extraction problems
 - `references/section-patterns.md` - PDF section detection patterns
+- `references/confidence-scoring.md` - Predicate confidence scoring algorithm
+- `references/guidance-lookup.md` - FDA guidance document lookup reference
+- `references/submission-structure.md` - 510(k) submission structure and Pre-Sub format
 
 ## Disclaimers (always include when providing regulatory guidance)
 

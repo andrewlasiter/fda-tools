@@ -277,6 +277,68 @@ PYEOF
 
 Search for FDA guidance documents applicable to the user's device. Use data already obtained from Step 2 — `regulation_number`, `device_name`, and `device_class` from the openFDA classification API response.
 
+### Check for Cached Guidance First
+
+Before searching the web, check if `/fda:guidance --save` was previously run for this product code:
+
+```bash
+python3 << 'PYEOF'
+import json, os, re, glob
+
+settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+projects_dir = os.path.expanduser('~/fda-510k-data/projects')
+if os.path.exists(settings_path):
+    with open(settings_path) as f:
+        m = re.search(r'projects_dir:\s*(.+)', f.read())
+        if m:
+            projects_dir = os.path.expanduser(m.group(1).strip())
+
+product_code = "PRODUCTCODE"  # Replace
+
+# Search all projects for cached guidance for this product code
+for idx_path in glob.glob(os.path.join(projects_dir, '*/guidance_cache/guidance_index.json')):
+    try:
+        with open(idx_path) as f:
+            idx = json.load(f)
+        if idx.get('product_code') == product_code:
+            print(f"GUIDANCE_CACHED:true")
+            print(f"CACHE_PATH:{os.path.dirname(idx_path)}")
+            print(f"CACHED_AT:{idx.get('cached_at', '?')}")
+            # Output cached guidance data
+            for g in idx.get('device_specific_guidance', []):
+                print(f"DEVICE_GUIDANCE:{g.get('title', '?')}|{g.get('url', '?')}|{g.get('year', '?')}")
+            for g in idx.get('cross_cutting_guidance', []):
+                print(f"CROSS_CUTTING:{g.get('topic', '?')}|{g.get('title', '?')}")
+            for s in idx.get('standards', []):
+                print(f"STANDARD:{s.get('standard', '?')}|{s.get('purpose', '?')}|{'required' if s.get('required') else 'recommended'}")
+            exit(0)
+    except:
+        continue
+
+# Also check global guidance cache
+global_cache = os.path.expanduser(f'~/fda-510k-data/guidance_cache/{product_code}/guidance_index.json')
+if os.path.exists(global_cache):
+    with open(global_cache) as f:
+        idx = json.load(f)
+    print(f"GUIDANCE_CACHED:true")
+    print(f"CACHE_PATH:{os.path.dirname(global_cache)}")
+    print(f"CACHED_AT:{idx.get('cached_at', '?')}")
+    for g in idx.get('device_specific_guidance', []):
+        print(f"DEVICE_GUIDANCE:{g.get('title', '?')}|{g.get('url', '?')}|{g.get('year', '?')}")
+    for g in idx.get('cross_cutting_guidance', []):
+        print(f"CROSS_CUTTING:{g.get('topic', '?')}|{g.get('title', '?')}")
+    for s in idx.get('standards', []):
+        print(f"STANDARD:{s.get('standard', '?')}|{s.get('purpose', '?')}|{'required' if s.get('required') else 'recommended'}")
+    exit(0)
+
+print("GUIDANCE_CACHED:false")
+PYEOF
+```
+
+**If cached guidance is found**: Use it directly — read the cached guidance files and incorporate into the report. Skip the WebSearch queries below. Note in the output: "Guidance data loaded from cache (cached {date}). Run `/fda:guidance {PRODUCT_CODE} --save` to refresh."
+
+**If no cache found**: Proceed with the live web search below.
+
 ### Guidance Document Search
 
 Run WebSearch queries to find applicable guidance:

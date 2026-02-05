@@ -421,6 +421,40 @@ What is your device's sensor duration?
 | Shelf Life | Duration, conditions | Shelf Life section |
 | Clinical Data | Study type, N, outcomes | Clinical section |
 
+## Step 7: Integration with Submission Outline
+
+After generating the SE comparison table, check if a `submission_outline.md` exists in the project folder:
+
+```bash
+ls "$PROJECTS_DIR/$PROJECT_NAME/submission_outline.md" 2>/dev/null
+```
+
+If found, offer to export the SE table as a section for the submission:
+
+```
+A submission outline exists for this project. Would you like to:
+1. Export this SE table as Section 9 of the submission outline
+2. Keep the SE table as a standalone file
+3. Both — save standalone and update the outline
+```
+
+If the user chooses to export, append or replace the SE Comparison section in `submission_outline.md`:
+
+```markdown
+### 9. Substantial Equivalence Comparison
+**Applicable:** Yes
+**Status:** Ready
+
+{THE FULL SE COMPARISON TABLE}
+
+**Generated:** {date}
+**Predicates:** {K-numbers}
+**Cells requiring input:** {count}
+**Cells requiring review:** {count}
+```
+
+Also update the Submission Readiness Summary table in the outline to mark SE Comparison as "✓".
+
 ## Important Notes
 
 - **NEVER recommend** "Use /fda:extract" or "Run another command to get this data". Fetch what you need.

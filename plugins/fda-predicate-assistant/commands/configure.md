@@ -53,6 +53,8 @@ Settings are stored in: `~/.claude/fda-predicate-assistant.local.md`
 | `default_product_code` | `null` | Default product code filter |
 | `openfda_api_key` | `null` | openFDA API key for higher rate limits (120K/day vs 1K/day). Set via env var `OPENFDA_API_KEY` or settings file — never paste in chat. |
 | `openfda_enabled` | `true` | Enable/disable openFDA API calls (set false for offline-only mode) |
+| `exclusion_list` | `~/fda-510k-data/exclusion_list.json` | Path to device exclusion list JSON file (used by `/fda:review`) |
+| `auto_review` | `false` | If true, `/fda:review` auto-accepts predicates scoring 80+ and auto-rejects below 20 |
 
 ## Commands
 
@@ -234,6 +236,8 @@ default_year: null
 default_product_code: null
 openfda_api_key: null
 openfda_enabled: true
+exclusion_list: ~/fda-510k-data/exclusion_list.json
+auto_review: false
 ---
 
 # FDA Predicate Assistant Settings
@@ -269,6 +273,128 @@ This file stores your preferences for the FDA 510(k) pipeline.
 
 - **openfda_api_key**: API key for higher rate limits (get free key at https://open.fda.gov/apis/authentication/). **Set via env var `OPENFDA_API_KEY` or edit this file directly — do not paste in chat.**
 - **openfda_enabled**: Set to false to disable all API calls (offline mode)
+
+## Review & Validation
+
+- **exclusion_list**: Path to JSON file listing device numbers to flag/skip during review (see `/fda:review`)
+- **auto_review**: If true, `/fda:review` auto-accepts predicates scoring 80+ and auto-rejects below 20
+```
+
+### Manage Exclusion List
+
+The exclusion list tracks device numbers that should be flagged or skipped during `/fda:review`. It prevents known-bad predicates from being repeatedly considered across review sessions.
+
+#### Show Exclusions (`--show-exclusions`)
+
+If `$ARGUMENTS` is `--show-exclusions`, read and display the current exclusion list:
+
+```bash
+python3 << 'PYEOF'
+import json, os, re
+
+settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+exclusion_path = os.path.expanduser('~/fda-510k-data/exclusion_list.json')
+
+if os.path.exists(settings_path):
+    with open(settings_path) as f:
+        m = re.search(r'exclusion_list:\s*(.+)', f.read())
+        if m:
+            exclusion_path = os.path.expanduser(m.group(1).strip())
+
+if os.path.exists(exclusion_path):
+    with open(exclusion_path) as f:
+        data = json.load(f)
+    devices = data.get("devices", {})
+    if devices:
+        print(f"Exclusion list: {exclusion_path}")
+        print(f"Total excluded devices: {len(devices)}")
+        print()
+        for kn, info in sorted(devices.items()):
+            print(f"  {kn}: {info.get('reason', 'No reason given')}")
+            print(f"    Added: {info.get('added', '?')} by {info.get('added_by', '?')}")
+    else:
+        print(f"Exclusion list exists but is empty: {exclusion_path}")
+else:
+    print(f"No exclusion list found at: {exclusion_path}")
+    print("Create one with: /fda:configure --add-exclusion K123456 \"reason\"")
+PYEOF
+```
+
+#### Add Exclusion (`--add-exclusion K123456 "reason"`)
+
+If `$ARGUMENTS` starts with `--add-exclusion`, parse the K-number and reason, then add to the exclusion list:
+
+```bash
+python3 << 'PYEOF'
+import json, os, re
+from datetime import datetime
+
+# Parse arguments — replace KNUMBER and REASON with actual values
+knumber = "KNUMBER"  # Replace
+reason = "REASON"    # Replace
+
+settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+exclusion_path = os.path.expanduser('~/fda-510k-data/exclusion_list.json')
+
+if os.path.exists(settings_path):
+    with open(settings_path) as f:
+        m = re.search(r'exclusion_list:\s*(.+)', f.read())
+        if m:
+            exclusion_path = os.path.expanduser(m.group(1).strip())
+
+# Load or create exclusion list
+if os.path.exists(exclusion_path):
+    with open(exclusion_path) as f:
+        data = json.load(f)
+else:
+    os.makedirs(os.path.dirname(exclusion_path), exist_ok=True)
+    data = {"version": 1, "devices": {}}
+
+# Add the device
+data["devices"][knumber.upper()] = {
+    "reason": reason,
+    "added": datetime.utcnow().isoformat() + "Z",
+    "added_by": "manual"
+}
+
+with open(exclusion_path, 'w') as f:
+    json.dump(data, f, indent=2)
+
+print(f"Added {knumber.upper()} to exclusion list: {reason}")
+print(f"Total excluded devices: {len(data['devices'])}")
+PYEOF
+```
+
+Validate the K-number format before adding (must match `K\d{6}`, `P\d{6}`, `DEN\d{6}`, or `N\d{4,5}`).
+
+#### Clear Exclusions (`--clear-exclusions`)
+
+If `$ARGUMENTS` is `--clear-exclusions`, confirm with the user before clearing:
+
+Ask the user: "This will remove all {N} devices from the exclusion list. Are you sure?"
+
+If confirmed:
+```bash
+python3 << 'PYEOF'
+import json, os, re
+
+settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+exclusion_path = os.path.expanduser('~/fda-510k-data/exclusion_list.json')
+
+if os.path.exists(settings_path):
+    with open(settings_path) as f:
+        m = re.search(r'exclusion_list:\s*(.+)', f.read())
+        if m:
+            exclusion_path = os.path.expanduser(m.group(1).strip())
+
+if os.path.exists(exclusion_path):
+    data = {"version": 1, "devices": {}}
+    with open(exclusion_path, 'w') as f:
+        json.dump(data, f, indent=2)
+    print("Exclusion list cleared.")
+else:
+    print("No exclusion list found — nothing to clear.")
+PYEOF
 ```
 
 ### Migrate Cache Format

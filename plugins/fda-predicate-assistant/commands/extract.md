@@ -250,11 +250,118 @@ Once either stage completes:
 2. **Report a summary:**
    - Stage 1: How many records in 510k_download.csv, how many PDFs downloaded
    - Stage 2: How many devices in output.csv, how many had predicates, any errors
-3. **Offer next steps:**
+3. **If Stage 2 just finished — Quick Safety Scan:**
+
+   Automatically scan the top 5 most-cited predicates for recalls. This takes ~10 seconds and catches critical safety issues early.
+
+   ```bash
+   python3 << 'PYEOF'
+   import csv, os, re, urllib.request, urllib.parse, json, time
+   from collections import Counter
+
+   # Read output.csv to find most-cited predicates
+   project_dir = os.path.expanduser(f'$PROJECTS_DIR/$PROJECT_NAME')  # Replace with actual path
+   output_csv = os.path.join(project_dir, 'output.csv')
+
+   if not os.path.exists(output_csv):
+       print("SAFETY_SKIP:no_output_csv")
+       exit(0)
+
+   # Count predicate citations
+   predicate_counts = Counter()
+   with open(output_csv, newline='', encoding='utf-8') as f:
+       reader = csv.reader(f)
+       header = next(reader, None)
+       if header:
+           # Find predicate columns (columns containing "Predicate" in header)
+           pred_cols = [i for i, h in enumerate(header) if 'predicate' in h.lower()]
+           for row in reader:
+               for col in pred_cols:
+                   if col < len(row) and row[col].strip():
+                       predicate_counts[row[col].strip().upper()] += 1
+
+   top_5 = [kn for kn, _ in predicate_counts.most_common(5)]
+   if not top_5:
+       print("SAFETY_SKIP:no_predicates_found")
+       exit(0)
+
+   # Check settings for API key
+   settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+   api_key = os.environ.get('OPENFDA_API_KEY')
+   api_enabled = True
+   if os.path.exists(settings_path):
+       with open(settings_path) as f:
+           content = f.read()
+       if not api_key:
+           m = re.search(r'openfda_api_key:\s*(\S+)', content)
+           if m and m.group(1) != 'null':
+               api_key = m.group(1)
+       m = re.search(r'openfda_enabled:\s*(\S+)', content)
+       if m and m.group(1).lower() == 'false':
+           api_enabled = False
+
+   if not api_enabled:
+       print("SAFETY_SKIP:api_disabled")
+       exit(0)
+
+   print("=== QUICK SAFETY SCAN ===")
+   recalled = []
+   for knumber in top_5:
+       # Look up product code first
+       params = {"search": f'k_number:"{knumber}"', "limit": "1"}
+       if api_key:
+           params["api_key"] = api_key
+       url = f"https://api.fda.gov/device/510k.json?{urllib.parse.urlencode(params)}"
+       req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/1.0)"})
+       try:
+           with urllib.request.urlopen(req, timeout=15) as resp:
+               data = json.loads(resp.read())
+               if data.get("results"):
+                   r = data["results"][0]
+                   pc = r.get("product_code", "")
+                   applicant = r.get("applicant", "")
+                   # Check recalls for this applicant + product code
+                   time.sleep(0.5)
+                   rparams = {"search": f'product_code:"{pc}"+AND+recalling_firm:"{applicant}"', "limit": "1"}
+                   if api_key:
+                       rparams["api_key"] = api_key
+                   rurl = f"https://api.fda.gov/device/recall.json?{urllib.parse.urlencode(rparams)}"
+                   rreq = urllib.request.Request(rurl, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/1.0)"})
+                   try:
+                       with urllib.request.urlopen(rreq, timeout=15) as rresp:
+                           rdata = json.loads(rresp.read())
+                           total = rdata.get("meta", {}).get("results", {}).get("total", 0)
+                           if total > 0:
+                               recall = rdata["results"][0]
+                               recalled.append(f"{knumber}|{applicant}|{recall.get('classification', '?')}|{recall.get('reason_for_recall', 'N/A')[:80]}")
+                               print(f"RECALLED:{knumber}|{applicant}|Class {recall.get('classification', '?')}|{recall.get('reason_for_recall', 'N/A')[:80]}")
+                           else:
+                               print(f"CLEAN:{knumber}")
+                   except:
+                       print(f"RECALL_CHECK_FAILED:{knumber}")
+       except:
+           print(f"LOOKUP_FAILED:{knumber}")
+       time.sleep(0.5)
+
+   if recalled:
+       print(f"\nWARNING:Found {len(recalled)} predicate(s) with recall history")
+   else:
+       print(f"\nALL_CLEAN:Top {len(top_5)} predicates have no recall history")
+   PYEOF
+   ```
+
+   **Report safety scan results to the user:**
+   - If any recalled predicates found: Display a warning with the recall details
+   - If all clean: Brief "Top predicates have clean recall history" note
+   - If API unavailable: Skip silently (don't block the extraction workflow)
+
+4. **Offer next steps:**
    - If Stage 1 just finished → offer to run Stage 2 on this project
-   - If Stage 2 just finished → offer `/fda:analyze --project PROJECT_NAME`
-   - Offer `/fda:summarize --project PROJECT_NAME` for section analysis
-   - Offer `/fda:research PRODUCTCODE` for submission planning
+   - If Stage 2 just finished:
+     - **Always suggest**: "Run `/fda:review --project PROJECT_NAME` to score, flag, and validate predicates"
+     - Offer `/fda:analyze --project PROJECT_NAME`
+     - Offer `/fda:summarize --project PROJECT_NAME` for section analysis
+     - Offer `/fda:research PRODUCTCODE` for submission planning
    - Offer `/fda:status` to see all projects
 
 ## Error Handling

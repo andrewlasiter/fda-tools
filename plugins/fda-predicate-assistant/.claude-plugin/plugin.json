@@ -1,6 +1,6 @@
 {
   "name": "fda-predicate-assistant",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "description": "FDA 510(k) predicate extraction and analysis assistant for medical device regulatory workflows",
   "author": {
     "name": "PredicateExtraction"
