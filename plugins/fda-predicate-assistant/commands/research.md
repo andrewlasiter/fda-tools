@@ -1,6 +1,6 @@
 ---
 description: Research and plan a 510(k) submission — predicate selection, testing strategy, IFU landscape, regulatory intelligence, and competitive analysis
-allowed-tools: Read, Glob, Grep, Bash, Write, WebFetch
+allowed-tools: Read, Glob, Grep, Bash, Write, WebFetch, WebSearch
 argument-hint: "<product-code> [--project NAME] [--device-description TEXT] [--intended-use TEXT]"
 ---
 
@@ -248,13 +248,112 @@ Where `{YY}` is derived from the K-number:
 - For older devices (K0xxxxx): pdf (no number) or pdf0, pdf1, etc.
 - De Novo: `https://www.accessdata.fda.gov/cdrh_docs/reviews/DEN230052.pdf`
 
-**For each top predicate NOT already cached**, use WebFetch to download and extract the text:
+**IMPORTANT: FDA blocks simple HTTP requests.** You MUST use the same anti-detection techniques as the BatchFetch pipeline. Use **Bash with Python requests** (Method 1 below), NOT WebFetch, as the primary download method. FDA requires browser-like headers and consent cookies.
+
+#### Method 1 (PRIMARY): Python requests with browser headers + FDA cookies
+
+For each top predicate NOT already cached, download and extract text using Bash:
+
+```bash
+python3 << 'PYEOF'
+import requests, sys, os, tempfile
+
+knumber = "K241335"  # Replace with actual K-number
+yy = knumber[1:3]    # e.g., "24" from K241335
+
+# Try multiple URL patterns
+urls = [
+    f"https://www.accessdata.fda.gov/cdrh_docs/pdf{yy}/{knumber}.pdf",
+    f"https://www.accessdata.fda.gov/cdrh_docs/reviews/{knumber}.pdf",
+]
+# For De Novo: urls = [f"https://www.accessdata.fda.gov/cdrh_docs/reviews/{denovo_number}.pdf",
+#                       f"https://www.accessdata.fda.gov/cdrh_docs/pdf{yy}/{denovo_number}.pdf"]
+
+# Use the same session/headers as BatchFetch (510BAtchFetch Working2.py)
+session = requests.Session()
+session.headers.update({
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.5',
+    'Accept-Encoding': 'gzip, deflate',
+    'Connection': 'keep-alive',
+    'Upgrade-Insecure-Requests': '1',
+})
+session.cookies.update({
+    'fda_gdpr': 'true',
+    'fda_consent': 'true',
+})
+
+for url in urls:
+    try:
+        response = session.get(url, timeout=60, allow_redirects=True)
+        if response.status_code == 200 and 'application/pdf' in response.headers.get('Content-Type', ''):
+            # Save to temp file and extract text
+            tmp = tempfile.NamedTemporaryFile(suffix='.pdf', delete=False)
+            tmp.write(response.content)
+            tmp.close()
+
+            # Try PyMuPDF first, then pdfplumber
+            text = ""
+            try:
+                import fitz  # PyMuPDF
+                doc = fitz.open(tmp.name)
+                text = "\n".join(page.get_text() for page in doc)
+                doc.close()
+            except ImportError:
+                try:
+                    import pdfplumber
+                    with pdfplumber.open(tmp.name) as pdf:
+                        text = "\n".join(page.extract_text() or "" for page in pdf.pages)
+                except ImportError:
+                    print(f"ERROR: Neither PyMuPDF nor pdfplumber installed. Install with: pip install PyMuPDF pdfplumber")
+                    sys.exit(1)
+
+            os.unlink(tmp.name)
+
+            if len(text.strip()) > 100:
+                print(f"SUCCESS: Downloaded {knumber} from {url}")
+                print(f"TEXT_LENGTH: {len(text)}")
+                print(f"---BEGIN_TEXT---")
+                print(text)
+                print(f"---END_TEXT---")
+                sys.exit(0)
+            else:
+                print(f"WARNING: PDF from {url} had minimal text ({len(text)} chars) — may be scanned/image PDF")
+                os.unlink(tmp.name) if os.path.exists(tmp.name) else None
+    except Exception as e:
+        print(f"FAILED: {url} — {e}")
+
+print(f"FAILED: Could not download {knumber} from any URL pattern")
+sys.exit(1)
+PYEOF
+```
+
+**Rate limiting**: If downloading multiple PDFs, add a 5-second delay between downloads:
+```python
+import time
+time.sleep(5)  # Between each PDF download
+```
+
+#### Method 2 (FALLBACK): WebSearch for summary details
+
+If the Python download fails (e.g., dependencies not installed, FDA changes their blocking), fall back to WebSearch:
 
 ```
-Use WebFetch tool:
-  url: https://www.accessdata.fda.gov/cdrh_docs/pdf24/K241335.pdf
-  prompt: "Extract the full text of this FDA 510(k) summary document. Include all sections: Indications for Use, Device Description, Substantial Equivalence Comparison, Non-Clinical Testing, Clinical Testing, Biocompatibility, Sterilization, and any other sections present."
+Use WebSearch tool:
+  query: "K241335 510k summary indications testing biocompatibility clinical study MARD site:accessdata.fda.gov"
 ```
+
+WebSearch can retrieve substantial text from FDA pages via search result snippets — often enough for testing strategy and IFU analysis even when direct PDF download fails.
+
+#### Method 3 (LAST RESORT): WebFetch on non-FDA sources
+
+If both Method 1 and Method 2 fail, try fetching from secondary sources that may have the document:
+- PubMed/PMC clinical study publications
+- Manufacturer press releases with clinical data
+- FDA Devices@FDA listing pages
+
+### Depth controls for fetching
 
 **For standard depth**: Fetch the top 2-3 most important predicate summaries (primary predicate + strongest secondary).
 **For deep depth**: Fetch up to 5 predicate summaries.
