@@ -1,7 +1,7 @@
 ---
 name: FDA 510(k) Knowledge
 description: Use this skill when discussing 510(k) submissions, predicate devices, substantial equivalence, FDA clearance, K-numbers, PMA approval, De Novo pathways, product codes, or medical device classification.
-version: 1.1.0
+version: 1.2.0
 ---
 
 # FDA 510(k) Regulatory Knowledge
@@ -12,20 +12,22 @@ You have expertise in FDA medical device regulations, particularly the 510(k) pr
 
 This project uses a two-stage pipeline for FDA 510(k) predicate analysis:
 
-### Stage 1: 510kBF (Batch Fetch)
-- **Script:** `/mnt/c/510k/Python/510kBF/510BAtchFetch Working2.py`
+### Stage 1: BatchFetch
+- **Script:** `$CLAUDE_PLUGIN_ROOT/scripts/batchfetch.py`
 - **Purpose:** Filter the FDA device catalog by year, product code, applicant, etc., then download 510(k) PDF documents
+- **CLI flags:** `--date-range`, `--years`, `--product-codes`, `--applicants`, `--committees`, `--decision-codes`, `--output-dir`, `--download-dir`, `--data-dir`, `--save-excel`, `--no-download`, `--interactive`
 - **Outputs:**
   - `510k_download.csv` — Full metadata (24 cols: KNUMBER, APPLICANT, DECISIONDATE, PRODUCTCODE, TYPE, STATEORSUMM, REVIEWADVISECOMM, THIRDPARTY, EXPEDITEDREVIEW, etc.)
   - `Applicant_ProductCode_Tables.xlsx` — Analytics workbook (3 sheets)
   - `merged_data.csv` — K-number + up to 6 predicates (7 cols)
-  - Downloaded PDFs in: `510ks/YEAR/APPLICANT/PRODUCTCODE/TYPE/`
+  - Downloaded PDFs in: `DOWNLOAD_DIR/YEAR/APPLICANT/PRODUCTCODE/TYPE/`
 
 ### Stage 2: PredicateExtraction
-- **Script:** `/mnt/c/510k/Python/PredicateExtraction/Test79.py` (latest version)
+- **Script:** `$CLAUDE_PLUGIN_ROOT/scripts/predicate_extractor.py`
 - **Purpose:** Extract predicate device numbers from PDF documents using text extraction, regex parsing, and OCR error correction
+- **CLI flags:** `--directory`, `--use-cache`, `--no-cache`, `--output-dir`, `--data-dir`, `--batch-size`, `--workers`
 - **Outputs:**
-  - `output.csv` — K-number, ProductCode, DocType, Predicate1..Predicate100
+  - `output.csv` — K-number, ProductCode, Predicate1..PredicateN, ReferenceDevice1..N
   - `supplement.csv` — Devices with supplement suffixes
   - `pdf_data.json` — Cached PDF text keyed by filename
   - `error_log.txt` — Failed PDFs
@@ -34,11 +36,13 @@ This project uses a two-stage pipeline for FDA 510(k) predicate analysis:
 
 | Data | Path |
 |------|------|
-| 510kBF scripts & output | `/mnt/c/510k/Python/510kBF/` |
-| PredicateExtraction scripts & output | `/mnt/c/510k/Python/PredicateExtraction/` |
+| Plugin scripts | `$CLAUDE_PLUGIN_ROOT/scripts/` |
+| 510kBF output | `/mnt/c/510k/Python/510kBF/` |
+| PredicateExtraction output | `/mnt/c/510k/Python/PredicateExtraction/` |
 | Downloaded PDFs | `/mnt/c/510k/Python/510kBF/510ks/` |
 | Organized PDFs (by year) | `/mnt/c/510k/Python/PredicateExtraction/2024/`, `2025/` |
-| FDA database files | `/mnt/c/510k/Python/PredicateExtraction/pmn*.txt` |
+| FDA database files | `/mnt/c/510k/Python/PredicateExtraction/pmn*.txt` or configurable via `--data-dir` |
+| Dependencies | `$CLAUDE_PLUGIN_ROOT/scripts/requirements.txt` |
 
 When answering questions about specific devices, check these data sources for real information before relying solely on general knowledge.
 

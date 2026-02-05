@@ -1,0 +1,19 @@
+# Shared
+requests>=2.31.0
+tqdm>=4.66.0
+
+# PredicateExtraction (predicate_extractor.py)
+PyMuPDF>=1.23.0
+pdfplumber>=0.10.0
+orjson>=3.9.0
+ijson>=3.2.0
+
+# BatchFetch (batchfetch.py)
+pandas>=2.0.0
+pytesseract>=0.3.10
+pdf2image>=1.16.0
+PyPDF2>=3.0.0
+reportlab>=4.0.0
+colorama>=0.4.6
+numpy>=1.24.0
+openpyxl>=3.1.0

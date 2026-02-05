@@ -15,11 +15,14 @@ You are analyzing FDA 510(k) data from across the full pipeline. Multiple data s
 | `510k_download.csv` | `/mnt/c/510k/Python/510kBF/` | 510kBF metadata (24 cols: KNUMBER, APPLICANT, DECISIONDATE, PRODUCTCODE, TYPE, STATEORSUMM, REVIEWADVISECOMM, THIRDPARTY, EXPEDITEDREVIEW, etc.) |
 | `Applicant_ProductCode_Tables.xlsx` | `/mnt/c/510k/Python/510kBF/` | Analytics workbook (3 sheets: Applicant, ProductCode, Full data) |
 | `merged_data.csv` | `/mnt/c/510k/Python/510kBF/` | K-number + up to 6 predicates (7 cols) |
-| `output.csv` | `/mnt/c/510k/Python/PredicateExtraction/` | Extraction results: K-number, ProductCode, DocType, Predicate1..Predicate100 |
+| `output.csv` | `/mnt/c/510k/Python/PredicateExtraction/` | Extraction results: K-number, ProductCode, Predicate1..PredicateN |
 | `supplement.csv` | `/mnt/c/510k/Python/PredicateExtraction/` | Devices with supplement suffixes |
 | `pdf_data.json` | `/mnt/c/510k/Python/PredicateExtraction/` | Cached PDF text keyed by filename |
 | `error_log.txt` | `/mnt/c/510k/Python/PredicateExtraction/` | Failed PDFs |
-| `pmn*.txt` | `/mnt/c/510k/Python/PredicateExtraction/` | FDA 510(k) database flat files |
+| `pmn*.txt` | `/mnt/c/510k/Python/PredicateExtraction/` or `fda_data/` | FDA 510(k) database flat files |
+| `foiaclass.txt` | `/mnt/c/510k/Python/510kBF/fda_data/` | FDA device classification data |
+
+**Note:** FDA database files may also be in configurable `--data-dir` locations. Check `~/.claude/fda-predicate-assistant.local.md` for configured `data_dir` path.
 
 ## Parse Arguments
 

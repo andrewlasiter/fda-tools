@@ -22,16 +22,20 @@ Parse all device numbers from `$ARGUMENTS`. Handle comma-separated, space-separa
 
 ### Step 2: Primary Validation — FDA Database Files
 
-For each number, search the official FDA database files in `/mnt/c/510k/Python/PredicateExtraction/`:
+FDA database files may be in multiple locations. Check these in order:
+
+1. `/mnt/c/510k/Python/PredicateExtraction/` (legacy location)
+2. `/mnt/c/510k/Python/510kBF/fda_data/` (BatchFetch data-dir)
+3. `$CLAUDE_PLUGIN_ROOT/scripts/` (if --data-dir pointed here)
 
 For K-numbers (510(k)):
 ```bash
-grep -i "KNUMBER" /mnt/c/510k/Python/PredicateExtraction/pmn*.txt 2>/dev/null
+grep -i "KNUMBER" /mnt/c/510k/Python/PredicateExtraction/pmn*.txt /mnt/c/510k/Python/510kBF/fda_data/pmn*.txt 2>/dev/null
 ```
 
 For P-numbers (PMA):
 ```bash
-grep -i "PNUMBER" /mnt/c/510k/Python/PredicateExtraction/pma*.txt 2>/dev/null
+grep -i "PNUMBER" /mnt/c/510k/Python/PredicateExtraction/pma*.txt /mnt/c/510k/Python/510kBF/fda_data/pma*.txt 2>/dev/null
 ```
 
 Report: Found/Not Found + full database record if found.

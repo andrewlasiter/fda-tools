@@ -1,5 +1,5 @@
 ---
-description: Show available FDA pipeline data, file freshness, and record counts
+description: Show available FDA pipeline data, file freshness, script availability, and record counts
 allowed-tools: Bash, Read, Glob, Grep
 argument-hint: ""
 ---
@@ -12,10 +12,35 @@ You are reporting the current state of all FDA data across the pipeline. This an
 
 Run these checks and compile a status report:
 
+### 0. Plugin Scripts & Dependencies
+
+Check if bundled scripts are available:
+```bash
+ls -la "$CLAUDE_PLUGIN_ROOT/scripts/predicate_extractor.py" "$CLAUDE_PLUGIN_ROOT/scripts/batchfetch.py" "$CLAUDE_PLUGIN_ROOT/scripts/requirements.txt" 2>/dev/null
+```
+
+Check if dependencies are installed:
+```bash
+python -c "import requests, tqdm, fitz, pdfplumber, orjson, ijson" 2>&1 && echo "Stage 2 deps: OK" || echo "Stage 2 deps: MISSING"
+python -c "import requests, pandas, tqdm, colorama, numpy" 2>&1 && echo "Stage 1 deps: OK" || echo "Stage 1 deps: MISSING"
+```
+
+Report:
+- Script availability (predicate_extractor.py, batchfetch.py)
+- Dependency status for each stage
+- If missing: `pip install -r "$CLAUDE_PLUGIN_ROOT/scripts/requirements.txt"`
+
 ### 1. FDA Database Files (pmn*.txt, pma*.txt, foiaclass.txt)
 
+Check multiple possible locations for FDA database files:
+
 ```bash
+# Check PredicateExtraction directory
 ls -la /mnt/c/510k/Python/PredicateExtraction/pmn*.txt /mnt/c/510k/Python/PredicateExtraction/pma*.txt /mnt/c/510k/Python/PredicateExtraction/foiaclass.txt 2>/dev/null
+# Check plugin scripts directory (if --data-dir was used)
+ls -la "$CLAUDE_PLUGIN_ROOT/scripts/"pmn*.txt "$CLAUDE_PLUGIN_ROOT/scripts/"pma*.txt 2>/dev/null
+# Check BatchFetch fda_data directory
+ls -la /mnt/c/510k/Python/510kBF/fda_data/pmn*.txt /mnt/c/510k/Python/510kBF/fda_data/foiaclass.txt 2>/dev/null
 ```
 
 For each file found, report:
@@ -111,6 +136,12 @@ Present a clean status table:
 FDA Pipeline Status
 ===================
 
+Plugin Scripts
+  predicate_extractor.py   ✓  Available
+  batchfetch.py            ✓  Available
+  Stage 1 dependencies     ✓  Installed
+  Stage 2 dependencies     ✓  Installed
+
 Source Data (FDA Databases)
   pmn96-00.txt     ✓  42,351 records  (3 days old)
   pmn01-05.txt     ✓  38,122 records  (3 days old)
@@ -137,6 +168,7 @@ Use ✓ for present and ✗ for missing. Adapt the format to what actually exist
 ## Recommendations
 
 After the status report, suggest logical next steps:
+- If dependencies missing: "Run `pip install -r \"$CLAUDE_PLUGIN_ROOT/scripts/requirements.txt\"`"
 - If no FDA database files: "Run `/fda:extract stage2` to download FDA databases"
 - If no 510k_download.csv: "Run `/fda:extract stage1` to filter and download PDFs"
 - If PDFs exist but no output.csv: "Run `/fda:extract stage2` to extract predicates"
