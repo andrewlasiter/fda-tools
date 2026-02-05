@@ -16,7 +16,8 @@ Settings are stored in: `~/.claude/fda-predicate-assistant.local.md`
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `batchfetch_dir` | `/mnt/c/510k/Python/510kBF` | Directory containing 510kBF output (510k_download.csv, merged_data.csv) |
+| `projects_dir` | `/mnt/c/510k/Python/510k_projects` | Root directory for all project folders (each extraction query gets its own folder) |
+| `batchfetch_dir` | `/mnt/c/510k/Python/510kBF` | Legacy directory containing 510kBF output (510k_download.csv, merged_data.csv) |
 | `extraction_dir` | `/mnt/c/510k/Python/PredicateExtraction` | Directory containing extraction output (output.csv, pdf_data.json) |
 | `pdf_storage_dir` | `/mnt/c/510k/Python/510kBF/510ks` | Where downloaded PDFs are stored |
 | `data_dir` | `/mnt/c/510k/Python/PredicateExtraction` | Where FDA database files (pmn*.txt, pma.txt, foiaclass.txt) are stored |
@@ -57,6 +58,7 @@ The settings file uses YAML frontmatter:
 
 ```markdown
 ---
+projects_dir: /mnt/c/510k/Python/510k_projects
 batchfetch_dir: /mnt/c/510k/Python/510kBF
 extraction_dir: /mnt/c/510k/Python/PredicateExtraction
 pdf_storage_dir: /mnt/c/510k/Python/510kBF/510ks
@@ -77,8 +79,9 @@ This file stores your preferences for the FDA 510(k) pipeline.
 
 ## Directory Paths
 
-- **batchfetch_dir**: Where 510kBF output resides (has 510k_download.csv, merged_data.csv)
-- **extraction_dir**: Where PredicateExtraction output resides (has output.csv, pdf_data.json)
+- **projects_dir**: Root for all project folders — each `/fda:extract` query gets its own subfolder
+- **batchfetch_dir**: Legacy location for 510kBF output (510k_download.csv, merged_data.csv)
+- **extraction_dir**: Legacy location for PredicateExtraction output (output.csv, pdf_data.json)
 - **pdf_storage_dir**: Where downloaded PDFs are organized by year/applicant/productcode
 - **data_dir**: Where FDA database files are stored (pmn*.txt, pma.txt, foiaclass.txt)
 

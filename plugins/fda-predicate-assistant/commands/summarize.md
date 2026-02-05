@@ -1,7 +1,7 @@
 ---
 description: Summarize sections from 510(k) summary PDFs — compare indications, testing, device descriptions, or any section across filtered documents
 allowed-tools: Read, Glob, Grep, Bash
-argument-hint: "[--product-codes CODE] [--years RANGE] [--sections NAMES] [--applicants NAME]"
+argument-hint: "[--project NAME] [--product-codes CODE] [--years RANGE] [--sections NAMES]"
 ---
 
 # FDA 510(k) Section Summarization
@@ -17,6 +17,7 @@ Parse filters and section selection from `$ARGUMENTS`:
 - `--applicants NAME[;NAME]` — Filter by applicant/company name (semicolon-separated)
 - `--committees CODE[,CODE]` — Advisory committee codes
 - `--sections NAME[,NAME]` — Which sections to summarize (or `all`)
+- `--project NAME` — Use data from a specific project folder
 - `--knumbers K123456[,K234567]` — Specific K-numbers to analyze
 - Free text query — Interpret as a natural language request (e.g., "clinical testing for KGN devices 2020-2024")
 
@@ -24,13 +25,34 @@ If no arguments provided, ask the user what they want to summarize.
 
 ## Step 1: Locate Data Sources
 
+### If `--project NAME` is provided — Use project folder
+
+```bash
+PROJECTS_DIR="/mnt/c/510k/Python/510k_projects"  # or from settings
+ls "$PROJECTS_DIR/$PROJECT_NAME/pdf_data.json" "$PROJECTS_DIR/$PROJECT_NAME/510k_download.csv" "$PROJECTS_DIR/$PROJECT_NAME/output.csv" 2>/dev/null
+cat "$PROJECTS_DIR/$PROJECT_NAME/query.json" 2>/dev/null
+```
+
+Use the project's data files. The `query.json` tells you what filters were already applied, so additional filtering may not be needed.
+
+### If no project — Use legacy locations
+
 ```bash
 ls -la /mnt/c/510k/Python/PredicateExtraction/pdf_data.json 2>/dev/null
 ls -la /mnt/c/510k/Python/510kBF/510k_download.csv 2>/dev/null
 ls -la /mnt/c/510k/Python/PredicateExtraction/output.csv 2>/dev/null
 ```
 
-**Required**: `pdf_data.json` must exist. If not, tell the user to run `/fda:extract stage2` first.
+### Also check for projects that match the filter criteria
+
+If no `--project` but `--product-codes` is specified, check if a matching project exists:
+```bash
+ls /mnt/c/510k/Python/510k_projects/*/query.json 2>/dev/null
+```
+
+If found, suggest using that project's data.
+
+**Required**: `pdf_data.json` must exist (in project or legacy location). If not, tell the user to run `/fda:extract stage2` first.
 
 **Helpful**: `510k_download.csv` provides metadata (product code, applicant, decision date, Statement vs Summary) for filtering. If unavailable, filtering is limited to filename patterns.
 

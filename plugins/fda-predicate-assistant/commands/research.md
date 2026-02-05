@@ -1,7 +1,7 @@
 ---
 description: Research and plan a 510(k) submission — predicate selection, testing strategy, IFU landscape, regulatory intelligence, and competitive analysis
 allowed-tools: Read, Glob, Grep, Bash
-argument-hint: "<product-code> [--device-description TEXT] [--intended-use TEXT]"
+argument-hint: "<product-code> [--project NAME] [--device-description TEXT] [--intended-use TEXT]"
 ---
 
 # FDA 510(k) Submission Research
@@ -25,13 +25,34 @@ grep -i "DEVICE_KEYWORD" /mnt/c/510k/Python/PredicateExtraction/foiaclass.txt /m
 
 ## Step 1: Discover Available Data
 
-Check all data sources and report what's available:
+### If `--project NAME` is provided — Use project data
 
 ```bash
+PROJECTS_DIR="/mnt/c/510k/Python/510k_projects"  # or from settings
+ls "$PROJECTS_DIR/$PROJECT_NAME/"*.csv "$PROJECTS_DIR/$PROJECT_NAME/"*.json 2>/dev/null
+cat "$PROJECTS_DIR/$PROJECT_NAME/query.json" 2>/dev/null
+```
+
+### Also check for matching projects automatically
+
+If no `--project` specified, check if a project exists for this product code:
+```bash
+ls /mnt/c/510k/Python/510k_projects/*/query.json 2>/dev/null
+```
+
+If a matching project is found, use its data and tell the user.
+
+### Check all data sources (project + legacy + global)
+
+```bash
+# Project data (if applicable)
+ls "$PROJECTS_DIR/$PROJECT_NAME/"*.csv "$PROJECTS_DIR/$PROJECT_NAME/pdf_data.json" 2>/dev/null
+# Legacy locations
 ls -la /mnt/c/510k/Python/510kBF/510k_download.csv 2>/dev/null
 ls -la /mnt/c/510k/Python/PredicateExtraction/output.csv 2>/dev/null
 ls -la /mnt/c/510k/Python/PredicateExtraction/pdf_data.json 2>/dev/null
 ls -la /mnt/c/510k/Python/510kBF/merged_data.csv 2>/dev/null
+# Global FDA databases (shared across projects)
 ls -la /mnt/c/510k/Python/PredicateExtraction/pmn96cur.txt /mnt/c/510k/Python/PredicateExtraction/pma.txt 2>/dev/null
 ls -la /mnt/c/510k/Python/510kBF/fda_data/foiaclass.txt /mnt/c/510k/Python/PredicateExtraction/foiaclass.txt 2>/dev/null
 ```

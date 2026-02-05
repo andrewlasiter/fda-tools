@@ -1,7 +1,7 @@
 ---
 description: Run the FDA 510(k) two-stage pipeline — download PDFs with BatchFetch then extract predicates
-allowed-tools: Bash, Read, Glob, Grep
-argument-hint: "[stage1|stage2|both] [--year YEAR] [--product-code CODE] [--directory PATH]"
+allowed-tools: Bash, Read, Glob, Grep, Write
+argument-hint: "[stage1|stage2|both] [--product-codes CODE] [--years RANGE] [--project NAME]"
 ---
 
 # FDA 510(k) Extraction Pipeline
@@ -10,6 +10,88 @@ You are guiding the user through the FDA device data pipeline. This is a **two-s
 
 - **Stage 1** (BatchFetch): Filter the FDA catalog and download 510(k) PDF documents
 - **Stage 2** (PredicateExtraction): Extract predicate device numbers from downloaded PDFs
+
+## Project-Based Output Management
+
+**Every extraction run saves to a project folder.** This prevents overwriting previous results and keeps each query's data self-contained.
+
+### Projects Directory
+
+Default: `/mnt/c/510k/Python/510k_projects/`
+Configurable via `/fda:configure --set projects_dir /path/to/projects`
+
+Check settings file for custom path:
+```bash
+cat ~/.claude/fda-predicate-assistant.local.md 2>/dev/null
+```
+
+### Project Naming
+
+If `--project NAME` is provided, use that name. Otherwise, **auto-generate** from the filter criteria:
+
+- Product codes + years: `KGN_2020-2025`
+- Product codes + applicant: `KGN_MEDTRONIC`
+- Multiple codes: `KGN_DXY_2023`
+- Just years: `all_2024`
+- No filters: `unfiltered_YYYYMMDD_HHMMSS`
+
+Sanitize the name: lowercase, replace spaces with underscores, remove special characters.
+
+### Project Structure
+
+```
+510k_projects/
+  KGN_2020-2025/
+    query.json               ← Filters used to create this project
+    510k_download.csv        ← Stage 1 output
+    Applicant_ProductCode_Tables.xlsx  ← Stage 1 analytics
+    510ks/                   ← Downloaded PDFs
+    output.csv               ← Stage 2 output
+    supplement.csv           ← Stage 2 supplements
+    pdf_data.json            ← Cached PDF text
+    error_log.txt            ← Failed PDFs
+    fda_data/                ← FDA database files for this run
+```
+
+### Creating the Project
+
+Before running any script, create the project folder and save query metadata:
+
+```bash
+mkdir -p "$PROJECTS_DIR/$PROJECT_NAME/510ks"
+mkdir -p "$PROJECTS_DIR/$PROJECT_NAME/fda_data"
+```
+
+Write `query.json` with the filter metadata:
+
+```json
+{
+  "project_name": "KGN_2020-2025",
+  "created": "2026-02-05T12:00:00Z",
+  "stage1": {
+    "date_range": "pmn96cur",
+    "years": "2020-2025",
+    "product_codes": ["KGN"],
+    "decision_codes": ["SESE"],
+    "applicants": [],
+    "committees": [],
+    "submission_types": []
+  },
+  "stage2": {
+    "batch_size": 100,
+    "workers": 4,
+    "ocr_mode": "smart",
+    "use_cache": false
+  },
+  "results": {
+    "stage1_records": null,
+    "stage1_pdfs_downloaded": null,
+    "stage2_devices_extracted": null,
+    "stage2_errors": null,
+    "last_updated": null
+  }
+}
+```
 
 ## Bundled Scripts
 
@@ -25,21 +107,20 @@ Parse `$ARGUMENTS` to determine which stage(s) to run:
 - `stage1` → Run only BatchFetch (download PDFs)
 - `stage2` → Run only PredicateExtraction (extract predicates)
 - `both` → Run Stage 1 then Stage 2
-- No argument → Ask the user which stage they want
+- No stage argument → Ask the user which stage they want
+
+Also parse filter arguments: `--product-codes`, `--years`, `--applicants`, `--committees`, `--decision-codes`, `--project`
 
 ## Dependencies Check
 
 Before running either stage, verify dependencies are installed:
 
 ```bash
-pip install -r "$CLAUDE_PLUGIN_ROOT/scripts/requirements.txt" 2>/dev/null || echo "Warning: Some dependencies may be missing"
+python3 -c "import requests, tqdm, fitz, pdfplumber" 2>/dev/null || echo "Missing Stage 2 deps"
+python3 -c "import requests, pandas, tqdm" 2>/dev/null || echo "Missing Stage 1 deps"
 ```
 
-Quick check:
-```bash
-python -c "import requests, tqdm, fitz, pdfplumber" 2>/dev/null || echo "Missing Stage 2 deps - run: pip install -r $CLAUDE_PLUGIN_ROOT/scripts/requirements.txt"
-python -c "import requests, pandas, tqdm" 2>/dev/null || echo "Missing Stage 1 deps - run: pip install -r $CLAUDE_PLUGIN_ROOT/scripts/requirements.txt"
-```
+If missing: `pip install -r "$CLAUDE_PLUGIN_ROOT/scripts/requirements.txt"`
 
 ## Stage 1: BatchFetch — Filter & Download PDFs
 
@@ -56,38 +137,39 @@ python -c "import requests, pandas, tqdm" 2>/dev/null || echo "Missing Stage 1 d
 | `--decision-codes` | Decision codes | `SESE,SESK` |
 | `--applicants` | Semicolon-separated names | `"MEDTRONIC;ABBOTT"` |
 | `--product-codes` | Comma-separated codes | `KGN,DXY` |
-| `--output-dir` | Where to save CSV | `/path/to/output` |
-| `--download-dir` | Where to download PDFs | `/path/to/510ks` |
-| `--data-dir` | Where FDA database files go | `/path/to/fda_data` |
+| `--output-dir` | Where to save CSV | **Set to project folder** |
+| `--download-dir` | Where to download PDFs | **Set to project/510ks** |
+| `--data-dir` | Where FDA database files go | **Set to project/fda_data** |
 | `--save-excel` | Save Excel workbook | (flag) |
 | `--no-download` | Skip PDF download, just CSV | (flag) |
 | `--interactive` | Force interactive prompts | (flag) |
 
-### Non-Interactive Example
+### Running Stage 1
+
+**Always point output to the project folder:**
 
 ```bash
-python "$CLAUDE_PLUGIN_ROOT/scripts/batchfetch.py" \
+python3 "$CLAUDE_PLUGIN_ROOT/scripts/batchfetch.py" \
   --date-range pmn96cur \
   --years 2020-2025 \
   --product-codes KGN \
   --decision-codes SESE \
-  --output-dir /mnt/c/510k/Python/510kBF \
-  --download-dir /mnt/c/510k/Python/510kBF/510ks \
-  --data-dir /mnt/c/510k/Python/510kBF/fda_data
+  --output-dir "$PROJECTS_DIR/$PROJECT_NAME" \
+  --download-dir "$PROJECTS_DIR/$PROJECT_NAME/510ks" \
+  --data-dir "$PROJECTS_DIR/$PROJECT_NAME/fda_data" \
+  --save-excel
 ```
 
-### Interactive Mode
+### After Stage 1
 
-If the user wants to browse available options interactively:
+Update `query.json` with results:
 ```bash
-python "$CLAUDE_PLUGIN_ROOT/scripts/batchfetch.py" --interactive
+# Count records and PDFs
+wc -l "$PROJECTS_DIR/$PROJECT_NAME/510k_download.csv"
+find "$PROJECTS_DIR/$PROJECT_NAME/510ks" -name "*.pdf" | wc -l
 ```
 
-### Outputs
-
-- `510k_download.csv` — Full metadata (24 columns: KNUMBER, APPLICANT, DECISIONDATE, PRODUCTCODE, TYPE, etc.)
-- `Applicant_ProductCode_Tables.xlsx` — Analytics (if --save-excel)
-- Downloaded PDFs in: `DOWNLOAD_DIR/YEAR/APPLICANT/PRODUCTCODE/TYPE/`
+Update the `results` section of `query.json` with actual counts.
 
 ## Stage 2: PredicateExtraction — Extract Predicates from PDFs
 
@@ -97,50 +179,58 @@ python "$CLAUDE_PLUGIN_ROOT/scripts/batchfetch.py" --interactive
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `--directory`, `-d` | Path to PDF directory | (required for headless) |
+| `--directory`, `-d` | Path to PDF directory | **Set to project/510ks** |
 | `--use-cache` | Use existing pdf_data.json | |
 | `--no-cache` | Re-extract all PDF text | |
-| `--output-dir`, `-o` | Where to write output CSV | Same as --directory |
-| `--data-dir` | Where FDA database files go | Script directory |
+| `--output-dir`, `-o` | Where to write output CSV | **Set to project folder** |
+| `--data-dir` | Where FDA database files go | **Set to project/fda_data** |
 | `--batch-size`, `-b` | PDFs per batch | 100 |
 | `--workers`, `-w` | Parallel workers | 4 |
 
-### Non-Interactive Example
+### Running Stage 2
+
+**Point to the project's PDF directory and output to the project folder:**
 
 ```bash
-python "$CLAUDE_PLUGIN_ROOT/scripts/predicate_extractor.py" \
-  --directory /mnt/c/510k/Python/510kBF/510ks \
-  --use-cache \
-  --output-dir /mnt/c/510k/Python/PredicateExtraction \
-  --data-dir /mnt/c/510k/Python/PredicateExtraction
+python3 "$CLAUDE_PLUGIN_ROOT/scripts/predicate_extractor.py" \
+  --directory "$PROJECTS_DIR/$PROJECT_NAME/510ks" \
+  --output-dir "$PROJECTS_DIR/$PROJECT_NAME" \
+  --data-dir "$PROJECTS_DIR/$PROJECT_NAME/fda_data"
 ```
 
-### Interactive Mode
+If running Stage 2 on a project that already ran Stage 1, add `--use-cache` if pdf_data.json exists.
 
-When `--directory` is omitted, falls back to tkinter GUI:
+If running Stage 2 without a project context (e.g., on an arbitrary PDF directory), still create a project folder for the output.
+
+### After Stage 2
+
+Update `query.json` with results:
 ```bash
-python "$CLAUDE_PLUGIN_ROOT/scripts/predicate_extractor.py"
+wc -l "$PROJECTS_DIR/$PROJECT_NAME/output.csv"
+wc -l "$PROJECTS_DIR/$PROJECT_NAME/error_log.txt" 2>/dev/null
 ```
 
-### Outputs
+## Running on an Existing Project
 
-- `output.csv` — Main results: K-number, ProductCode, Predicate1..PredicateN, ReferenceDevice1..N
-- `supplement.csv` — Devices with supplement suffixes (e.g., K240717/S001)
-- `pdf_data.json` — Cached extracted text keyed by filename
-- `error_log.txt` — List of PDFs that failed processing
+If the user specifies `--project NAME` and the project already exists:
+1. Read `query.json` to understand the previous filters
+2. For Stage 1: warn that `510k_download.csv` will be overwritten, offer to create a new project instead
+3. For Stage 2: can reuse the existing PDFs, just re-extract
 
 ## After Extraction
 
 Once either stage completes:
 
-1. **Check output files exist** using Glob in the appropriate directory
+1. **Report the project location**: Tell the user where all files are saved
 2. **Report a summary:**
    - Stage 1: How many records in 510k_download.csv, how many PDFs downloaded
    - Stage 2: How many devices in output.csv, how many had predicates, any errors
 3. **Offer next steps:**
-   - If Stage 1 just finished → offer to run Stage 2
-   - If Stage 2 just finished → offer to run `/fda:analyze`
-   - Always offer `/fda:status` to see what data is available
+   - If Stage 1 just finished → offer to run Stage 2 on this project
+   - If Stage 2 just finished → offer `/fda:analyze --project PROJECT_NAME`
+   - Offer `/fda:summarize --project PROJECT_NAME` for section analysis
+   - Offer `/fda:research PRODUCTCODE` for submission planning
+   - Offer `/fda:status` to see all projects
 
 ## Error Handling
 
@@ -148,3 +238,4 @@ Once either stage completes:
 - If dependencies missing: run `pip install -r "$CLAUDE_PLUGIN_ROOT/scripts/requirements.txt"`
 - If GUI-related error (tkinter): use CLI flags instead (`--directory`, `--use-cache`)
 - If FDA download fails: script provides manual download URLs
+- If projects directory doesn't exist: create it automatically

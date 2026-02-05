@@ -1,7 +1,7 @@
 ---
 description: Analyze FDA data from any pipeline stage — extraction results, download metadata, predicate relationships, or device lookups
 allowed-tools: Read, Glob, Grep, Bash
-argument-hint: "[file-path | device-name | product-code | K-number]"
+argument-hint: "[--project NAME | file-path | product-code | K-number]"
 ---
 
 # FDA Multi-Source Data Analysis
@@ -22,7 +22,21 @@ You are analyzing FDA 510(k) data from across the full pipeline. Multiple data s
 | `pmn*.txt` | `/mnt/c/510k/Python/PredicateExtraction/` or `fda_data/` | FDA 510(k) database flat files |
 | `foiaclass.txt` | `/mnt/c/510k/Python/510kBF/fda_data/` | FDA device classification data |
 
-**Note:** FDA database files may also be in configurable `--data-dir` locations. Check `~/.claude/fda-predicate-assistant.local.md` for configured `data_dir` path.
+**Note:** FDA database files may also be in configurable `--data-dir` locations. Check `~/.claude/fda-predicate-assistant.local.md` for configured paths.
+
+## Project Support
+
+If `--project NAME` is provided, look for data in the project folder first:
+
+```bash
+PROJECTS_DIR="/mnt/c/510k/Python/510k_projects"  # or from settings
+ls "$PROJECTS_DIR/$PROJECT_NAME/" 2>/dev/null
+cat "$PROJECTS_DIR/$PROJECT_NAME/query.json" 2>/dev/null
+```
+
+When a project is specified, use its data files (510k_download.csv, output.csv, pdf_data.json, etc.) instead of the legacy global locations. Also read `query.json` to understand the query context.
+
+If no project is specified, fall back to legacy locations.
 
 ## Parse Arguments
 
