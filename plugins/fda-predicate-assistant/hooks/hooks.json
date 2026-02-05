@@ -1,0 +1,16 @@
+{
+  "description": "FDA Predicate Assistant — exports plugin root path for script access",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/export-plugin-root.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

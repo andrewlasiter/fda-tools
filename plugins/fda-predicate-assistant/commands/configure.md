@@ -16,11 +16,11 @@ Settings are stored in: `~/.claude/fda-predicate-assistant.local.md`
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `projects_dir` | `/mnt/c/510k/Python/510k_projects` | Root directory for all project folders (each extraction query gets its own folder) |
-| `batchfetch_dir` | `/mnt/c/510k/Python/510kBF` | Legacy directory containing 510kBF output (510k_download.csv, merged_data.csv) |
-| `extraction_dir` | `/mnt/c/510k/Python/PredicateExtraction` | Directory containing extraction output (output.csv, pdf_data.json) |
-| `pdf_storage_dir` | `/mnt/c/510k/Python/510kBF/510ks` | Where downloaded PDFs are stored |
-| `data_dir` | `/mnt/c/510k/Python/PredicateExtraction` | Where FDA database files (pmn*.txt, pma.txt, foiaclass.txt) are stored |
+| `projects_dir` | `~/fda-510k-data/projects` | Root directory for all project folders (each extraction query gets its own folder) |
+| `batchfetch_dir` | `~/fda-510k-data/batchfetch` | Legacy directory containing 510kBF output (510k_download.csv, merged_data.csv) |
+| `extraction_dir` | `~/fda-510k-data/extraction` | Directory containing extraction output (output.csv, pdf_data.json) |
+| `pdf_storage_dir` | `~/fda-510k-data/batchfetch/510ks` | Where downloaded PDFs are stored |
+| `data_dir` | `~/fda-510k-data/extraction` | Where FDA database files (pmn*.txt, pma.txt, foiaclass.txt) are stored |
 | `extraction_script` | `predicate_extractor.py` | Which extraction script to use (bundled in plugin) |
 | `batchfetch_script` | `batchfetch.py` | Which batch fetch script to use (bundled in plugin) |
 | `ocr_mode` | `smart` | OCR processing mode: smart, always, never |
@@ -42,7 +42,7 @@ Read the settings file at `~/.claude/fda-predicate-assistant.local.md`. If it do
 
 Also report on bundled scripts:
 ```
-Plugin Scripts (at $CLAUDE_PLUGIN_ROOT/scripts/):
+Plugin Scripts (at $FDA_PLUGIN_ROOT/scripts/):
   predicate_extractor.py  — Stage 2: Extract predicates from PDFs
   batchfetch.py           — Stage 1: Filter catalog & download PDFs
   requirements.txt        — Python dependencies for both scripts
@@ -71,7 +71,7 @@ Option 2 — Settings file (recommended for Claude Desktop users):
     openfda_api_key: your-key-here
 
 Option 3 — Setup script (interactive, outside Claude):
-  python3 "$CLAUDE_PLUGIN_ROOT/scripts/setup_api_key.py"
+  python3 "$FDA_PLUGIN_ROOT/scripts/setup_api_key.py"
 
 Get a free key at: https://open.fda.gov/apis/authentication/
 ```
@@ -197,11 +197,11 @@ The settings file uses YAML frontmatter:
 
 ```markdown
 ---
-projects_dir: /mnt/c/510k/Python/510k_projects
-batchfetch_dir: /mnt/c/510k/Python/510kBF
-extraction_dir: /mnt/c/510k/Python/PredicateExtraction
-pdf_storage_dir: /mnt/c/510k/Python/510kBF/510ks
-data_dir: /mnt/c/510k/Python/PredicateExtraction
+projects_dir: ~/fda-510k-data/projects
+batchfetch_dir: ~/fda-510k-data/batchfetch
+extraction_dir: ~/fda-510k-data/extraction
+pdf_storage_dir: ~/fda-510k-data/batchfetch/510ks
+data_dir: ~/fda-510k-data/extraction
 extraction_script: predicate_extractor.py
 batchfetch_script: batchfetch.py
 ocr_mode: smart
@@ -228,8 +228,8 @@ This file stores your preferences for the FDA 510(k) pipeline.
 
 ## Script Configuration
 
-- **extraction_script**: predicate_extractor.py (bundled in plugin at $CLAUDE_PLUGIN_ROOT/scripts/)
-- **batchfetch_script**: batchfetch.py (bundled in plugin at $CLAUDE_PLUGIN_ROOT/scripts/)
+- **extraction_script**: predicate_extractor.py (bundled in plugin at $FDA_PLUGIN_ROOT/scripts/)
+- **batchfetch_script**: batchfetch.py (bundled in plugin at $FDA_PLUGIN_ROOT/scripts/)
 
 ## Processing Options
 
@@ -257,7 +257,7 @@ If `$ARGUMENTS` is `--migrate-cache`, migrate from monolithic `pdf_data.json` to
 python3 << 'PYEOF'
 import json, os
 
-extraction_dir = '/mnt/c/510k/Python/PredicateExtraction'
+extraction_dir = os.path.expanduser('~/fda-510k-data/extraction')
 pdf_json = os.path.join(extraction_dir, 'pdf_data.json')
 cache_dir = os.path.join(extraction_dir, 'cache')
 devices_dir = os.path.join(cache_dir, 'devices')

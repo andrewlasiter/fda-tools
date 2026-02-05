@@ -19,27 +19,12 @@ import json
 
 SETTINGS_PATH = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
 
-SETTINGS_TEMPLATE = """---
-projects_dir: /mnt/c/510k/Python/510k_projects
-batchfetch_dir: /mnt/c/510k/Python/510kBF
-extraction_dir: /mnt/c/510k/Python/PredicateExtraction
-pdf_storage_dir: /mnt/c/510k/Python/510kBF/510ks
-data_dir: /mnt/c/510k/Python/PredicateExtraction
-extraction_script: predicate_extractor.py
-batchfetch_script: batchfetch.py
-ocr_mode: smart
-batch_size: 100
-workers: 4
-cache_days: 5
-default_year: null
-default_product_code: null
+SETTINGS_TEMPLATE = """# FDA Predicate Assistant - Local Settings
+# This file is NOT checked into git. It stores user-specific configuration.
+# Edit paths below to match your local environment, then restart your session.
+
 openfda_api_key: {api_key}
 openfda_enabled: true
----
-
-# FDA Predicate Assistant Settings
-
-This file stores your preferences for the FDA 510(k) pipeline.
 """
 
 

@@ -13,7 +13,7 @@ You have expertise in FDA medical device regulations, particularly the 510(k) pr
 This project uses a two-stage pipeline for FDA 510(k) predicate analysis:
 
 ### Stage 1: BatchFetch
-- **Script:** `$CLAUDE_PLUGIN_ROOT/scripts/batchfetch.py`
+- **Script:** `$FDA_PLUGIN_ROOT/scripts/batchfetch.py`
 - **Purpose:** Filter the FDA device catalog by year, product code, applicant, etc., then download 510(k) PDF documents
 - **CLI flags:** `--date-range`, `--years`, `--product-codes`, `--applicants`, `--committees`, `--decision-codes`, `--output-dir`, `--download-dir`, `--data-dir`, `--save-excel`, `--no-download`, `--interactive`
 - **Outputs:**
@@ -23,7 +23,7 @@ This project uses a two-stage pipeline for FDA 510(k) predicate analysis:
   - Downloaded PDFs in: `DOWNLOAD_DIR/YEAR/APPLICANT/PRODUCTCODE/TYPE/`
 
 ### Stage 2: PredicateExtraction
-- **Script:** `$CLAUDE_PLUGIN_ROOT/scripts/predicate_extractor.py`
+- **Script:** `$FDA_PLUGIN_ROOT/scripts/predicate_extractor.py`
 - **Purpose:** Extract predicate device numbers from PDF documents using text extraction, regex parsing, and OCR error correction
 - **CLI flags:** `--directory`, `--use-cache`, `--no-cache`, `--output-dir`, `--data-dir`, `--batch-size`, `--workers`
 - **Outputs:**
@@ -34,15 +34,19 @@ This project uses a two-stage pipeline for FDA 510(k) predicate analysis:
 
 ### Key Data Locations
 
-| Data | Path |
-|------|------|
-| Plugin scripts | `$CLAUDE_PLUGIN_ROOT/scripts/` |
-| 510kBF output | `/mnt/c/510k/Python/510kBF/` |
-| PredicateExtraction output | `/mnt/c/510k/Python/PredicateExtraction/` |
-| Downloaded PDFs | `/mnt/c/510k/Python/510kBF/510ks/` |
-| Organized PDFs (by year) | `/mnt/c/510k/Python/PredicateExtraction/2024/`, `2025/` |
-| FDA database files | `/mnt/c/510k/Python/PredicateExtraction/pmn*.txt` or configurable via `--data-dir` |
-| Dependencies | `$CLAUDE_PLUGIN_ROOT/scripts/requirements.txt` |
+**All data directories are configurable** via `~/.claude/fda-predicate-assistant.local.md`. Run `/fda:configure --show` to see current paths.
+
+| Data | Default Path | Settings Key |
+|------|-------------|-------------|
+| Plugin scripts | `$FDA_PLUGIN_ROOT/scripts/` | (bundled with plugin) |
+| Projects root | `~/fda-510k-data/projects/` | `projects_dir` |
+| 510kBF output | `~/fda-510k-data/batchfetch/` | `batchfetch_dir` |
+| Extraction output | `~/fda-510k-data/extraction/` | `extraction_dir` |
+| Downloaded PDFs | `~/fda-510k-data/batchfetch/510ks/` | `pdf_storage_dir` |
+| FDA database files | `~/fda-510k-data/extraction/` | `data_dir` |
+| Dependencies | `$FDA_PLUGIN_ROOT/scripts/requirements.txt` | (bundled with plugin) |
+
+**Before running any command**, read `~/.claude/fda-predicate-assistant.local.md` to get the user's configured paths. If a path is not set in settings, use the defaults above. If data is not found at the configured path, check the default path before reporting "not found".
 
 When answering questions about specific devices, check these data sources for real information before relying solely on general knowledge.
 

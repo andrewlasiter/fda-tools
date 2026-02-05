@@ -17,8 +17,8 @@ You are guiding the user through the FDA device data pipeline. This is a **two-s
 
 ### Projects Directory
 
-Default: `/mnt/c/510k/Python/510k_projects/`
 Configurable via `/fda:configure --set projects_dir /path/to/projects`
+Default: `~/fda-510k-data/projects/` (or custom path from settings)
 
 Check settings file for custom path:
 ```bash
@@ -95,7 +95,7 @@ Write `query.json` with the filter metadata:
 
 ## Bundled Scripts
 
-Both scripts are bundled in the plugin at `$CLAUDE_PLUGIN_ROOT/scripts/`:
+Both scripts are bundled in the plugin at `$FDA_PLUGIN_ROOT/scripts/`:
 
 - `batchfetch.py` — Stage 1: Filter & download
 - `predicate_extractor.py` — Stage 2: Extract predicates
@@ -120,11 +120,11 @@ python3 -c "import requests, tqdm, fitz, pdfplumber" 2>/dev/null || echo "Missin
 python3 -c "import requests, pandas, tqdm" 2>/dev/null || echo "Missing Stage 1 deps"
 ```
 
-If missing: `pip install -r "$CLAUDE_PLUGIN_ROOT/scripts/requirements.txt"`
+If missing: `pip install -r "$FDA_PLUGIN_ROOT/scripts/requirements.txt"`
 
 ## Stage 1: BatchFetch — Filter & Download PDFs
 
-**Script:** `$CLAUDE_PLUGIN_ROOT/scripts/batchfetch.py`
+**Script:** `$FDA_PLUGIN_ROOT/scripts/batchfetch.py`
 
 ### CLI Flags
 
@@ -149,7 +149,7 @@ If missing: `pip install -r "$CLAUDE_PLUGIN_ROOT/scripts/requirements.txt"`
 **Always point output to the project folder:**
 
 ```bash
-python3 "$CLAUDE_PLUGIN_ROOT/scripts/batchfetch.py" \
+python3 "$FDA_PLUGIN_ROOT/scripts/batchfetch.py" \
   --date-range pmn96cur \
   --years 2020-2025 \
   --product-codes KGN \
@@ -173,7 +173,7 @@ Update the `results` section of `query.json` with actual counts.
 
 ## Stage 2: PredicateExtraction — Extract Predicates from PDFs
 
-**Script:** `$CLAUDE_PLUGIN_ROOT/scripts/predicate_extractor.py`
+**Script:** `$FDA_PLUGIN_ROOT/scripts/predicate_extractor.py`
 
 ### CLI Flags
 
@@ -192,7 +192,7 @@ Update the `results` section of `query.json` with actual counts.
 **Point to the project's PDF directory and output to the project folder:**
 
 ```bash
-python3 "$CLAUDE_PLUGIN_ROOT/scripts/predicate_extractor.py" \
+python3 "$FDA_PLUGIN_ROOT/scripts/predicate_extractor.py" \
   --directory "$PROJECTS_DIR/$PROJECT_NAME/510ks" \
   --output-dir "$PROJECTS_DIR/$PROJECT_NAME" \
   --data-dir "$PROJECTS_DIR/$PROJECT_NAME/fda_data"
@@ -235,7 +235,7 @@ Once either stage completes:
 ## Error Handling
 
 - If Python is not found: suggest `python3` or check PATH
-- If dependencies missing: run `pip install -r "$CLAUDE_PLUGIN_ROOT/scripts/requirements.txt"`
+- If dependencies missing: run `pip install -r "$FDA_PLUGIN_ROOT/scripts/requirements.txt"`
 - If GUI-related error (tkinter): use CLI flags instead (`--directory`, `--use-cache`)
 - If FDA download fails: script provides manual download URLs
 - If projects directory doesn't exist: create it automatically

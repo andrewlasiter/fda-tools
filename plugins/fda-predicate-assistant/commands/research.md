@@ -23,7 +23,7 @@ From `$ARGUMENTS`, extract:
 
 If no product code provided, ask the user for it. If they're unsure of their product code, help them find it:
 ```bash
-grep -i "DEVICE_KEYWORD" /mnt/c/510k/Python/PredicateExtraction/foiaclass.txt /mnt/c/510k/Python/510kBF/fda_data/foiaclass.txt 2>/dev/null | head -20
+grep -i "DEVICE_KEYWORD" ~/fda-510k-data/extraction/foiaclass.txt ~/fda-510k-data/batchfetch/fda_data/foiaclass.txt 2>/dev/null | head -20
 ```
 
 ## Step 1: Discover Available Data
@@ -31,7 +31,7 @@ grep -i "DEVICE_KEYWORD" /mnt/c/510k/Python/PredicateExtraction/foiaclass.txt /m
 ### If `--project NAME` is provided — Use project data first
 
 ```bash
-PROJECTS_DIR="/mnt/c/510k/Python/510k_projects"  # or from settings
+PROJECTS_DIR="~/fda-510k-data/projects"  # or from settings
 ls "$PROJECTS_DIR/$PROJECT_NAME/"*.csv "$PROJECTS_DIR/$PROJECT_NAME/"*.json 2>/dev/null
 cat "$PROJECTS_DIR/$PROJECT_NAME/query.json" 2>/dev/null
 ```
@@ -40,7 +40,7 @@ cat "$PROJECTS_DIR/$PROJECT_NAME/query.json" 2>/dev/null
 
 If no `--project` specified, check if a project exists for this product code:
 ```bash
-ls /mnt/c/510k/Python/510k_projects/*/query.json 2>/dev/null
+ls ~/fda-510k-data/projects/*/query.json 2>/dev/null
 ```
 
 ### Check data sources silently — only report what's RELEVANT
@@ -49,16 +49,16 @@ Check these locations, but **only mention sources to the user if they contain da
 
 ```bash
 # FDA database files (always relevant — contain ALL product codes)
-ls /mnt/c/510k/Python/PredicateExtraction/pmn*.txt 2>/dev/null
+ls ~/fda-510k-data/extraction/pmn*.txt 2>/dev/null
 
 # PDF text cache (check if it has relevant PDFs)
-ls -la /mnt/c/510k/Python/PredicateExtraction/pdf_data.json 2>/dev/null
+ls -la ~/fda-510k-data/extraction/pdf_data.json 2>/dev/null
 
 # Download metadata (check if it has relevant product code records)
-ls -la /mnt/c/510k/Python/510kBF/510k_download.csv 2>/dev/null
+ls -la ~/fda-510k-data/batchfetch/510k_download.csv 2>/dev/null
 
 # Device classification
-ls /mnt/c/510k/Python/510kBF/fda_data/foiaclass.txt /mnt/c/510k/Python/PredicateExtraction/foiaclass.txt 2>/dev/null
+ls ~/fda-510k-data/batchfetch/fda_data/foiaclass.txt ~/fda-510k-data/extraction/foiaclass.txt 2>/dev/null
 ```
 
 **IMPORTANT**: Do NOT report files that exist but contain no data for this query. For example, if `merged_data.csv` has 100 records but none match the requested product code, do not mention it at all. The user doesn't care about files that aren't relevant to their device.
@@ -139,12 +139,12 @@ PYEOF
 If API is unavailable, fall back to foiaclass.txt:
 
 ```bash
-grep "^PRODUCTCODE" /mnt/c/510k/Python/510kBF/fda_data/foiaclass.txt /mnt/c/510k/Python/PredicateExtraction/foiaclass.txt 2>/dev/null
+grep "^PRODUCTCODE" ~/fda-510k-data/batchfetch/fda_data/foiaclass.txt ~/fda-510k-data/extraction/foiaclass.txt 2>/dev/null
 ```
 
 And count total clearances from flat files:
 ```bash
-grep -c "|PRODUCTCODE|" /mnt/c/510k/Python/PredicateExtraction/pmn96cur.txt /mnt/c/510k/Python/PredicateExtraction/pmn9195.txt 2>/dev/null
+grep -c "|PRODUCTCODE|" ~/fda-510k-data/extraction/pmn96cur.txt ~/fda-510k-data/extraction/pmn9195.txt 2>/dev/null
 ```
 
 Report:
@@ -162,7 +162,7 @@ Report:
 Filter all records for this product code:
 
 ```bash
-grep "|PRODUCTCODE|" /mnt/c/510k/Python/PredicateExtraction/pmn96cur.txt 2>/dev/null
+grep "|PRODUCTCODE|" ~/fda-510k-data/extraction/pmn96cur.txt 2>/dev/null
 ```
 
 Analyze and report:
@@ -177,7 +177,7 @@ Analyze and report:
 ### From 510k_download.csv (only if it contains this product code)
 
 ```bash
-grep "PRODUCTCODE" /mnt/c/510k/Python/510kBF/510k_download.csv 2>/dev/null
+grep "PRODUCTCODE" ~/fda-510k-data/batchfetch/510k_download.csv 2>/dev/null
 ```
 
 Additional metadata available: expedited review, review advisory committee details.
@@ -288,14 +288,14 @@ cited_by = Counter()
 graph = {}
 
 # Try per-device cache first (scalable)
-cache_dir = '/mnt/c/510k/Python/PredicateExtraction/cache'
+cache_dir = os.path.expanduser('~/fda-510k-data/extraction/cache')
 index_file = os.path.join(cache_dir, 'index.json')
 
 if os.path.exists(index_file):
     with open(index_file) as f:
         index = json.load(f)
     for knumber, meta in index.items():
-        device_path = os.path.join('/mnt/c/510k/Python/PredicateExtraction', meta['file_path'])
+        device_path = os.path.join(os.path.expanduser('~/fda-510k-data/extraction'), meta['file_path'])
         if os.path.exists(device_path):
             with open(device_path) as f:
                 device_data = json.load(f)
@@ -307,7 +307,7 @@ if os.path.exists(index_file):
                 cited_by[d] += 1
 else:
     # Legacy: monolithic pdf_data.json
-    pdf_json = '/mnt/c/510k/Python/PredicateExtraction/pdf_data.json'
+    pdf_json = os.path.expanduser('~/fda-510k-data/extraction/pdf_data.json')
     if os.path.exists(pdf_json):
         with open(pdf_json) as f:
             data = json.load(f)
@@ -352,7 +352,7 @@ For example, if the user describes a "collagen wound dressing with silver antimi
 python3 -c "
 import csv
 results = []
-with open('/mnt/c/510k/Python/PredicateExtraction/pmn96cur.txt', encoding='latin-1') as f:
+with open(os.path.expanduser('~/fda-510k-data/extraction/pmn96cur.txt'), encoding='latin-1') as f:
     reader = csv.reader(f, delimiter='|')
     header = next(reader)
     for row in reader:
@@ -407,7 +407,7 @@ If the user provided `--device-description` with novel features not found in the
 ```python
 import json, os
 
-cache_dir = '/mnt/c/510k/Python/PredicateExtraction/cache'
+cache_dir = os.path.expanduser('~/fda-510k-data/extraction/cache')
 index_file = os.path.join(cache_dir, 'index.json')
 
 # Try per-device cache first (scalable)
@@ -416,7 +416,7 @@ if os.path.exists(index_file):
         index = json.load(f)
     for knumber in top_candidates:
         if knumber in index:
-            device_path = os.path.join('/mnt/c/510k/Python/PredicateExtraction', index[knumber]['file_path'])
+            device_path = os.path.join(os.path.expanduser('~/fda-510k-data/extraction'), index[knumber]['file_path'])
             if os.path.exists(device_path):
                 print(f'{knumber}: text cached (per-device)')
             else:
@@ -425,7 +425,7 @@ if os.path.exists(index_file):
             print(f'{knumber}: NOT cached — need to fetch')
 else:
     # Legacy: monolithic pdf_data.json
-    pdf_json = '/mnt/c/510k/Python/PredicateExtraction/pdf_data.json'
+    pdf_json = os.path.expanduser('~/fda-510k-data/extraction/pdf_data.json')
     if os.path.exists(pdf_json):
         with open(pdf_json) as f:
             data = json.load(f)
@@ -640,7 +640,7 @@ Search for IFU content in PDF text for this product code. Analyze:
 ### Top applicants
 
 ```bash
-grep "|PRODUCTCODE|" /mnt/c/510k/Python/PredicateExtraction/pmn96cur.txt 2>/dev/null | cut -d'|' -f2 | sort | uniq -c | sort -rn | head -15
+grep "|PRODUCTCODE|" ~/fda-510k-data/extraction/pmn96cur.txt 2>/dev/null | cut -d'|' -f2 | sort | uniq -c | sort -rn | head -15
 ```
 
 Report:

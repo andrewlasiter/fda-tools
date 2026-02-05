@@ -15,7 +15,7 @@ Run these checks and compile a status report:
 
 Check if bundled scripts are available:
 ```bash
-ls -la "$CLAUDE_PLUGIN_ROOT/scripts/predicate_extractor.py" "$CLAUDE_PLUGIN_ROOT/scripts/batchfetch.py" "$CLAUDE_PLUGIN_ROOT/scripts/requirements.txt" 2>/dev/null
+ls -la "$FDA_PLUGIN_ROOT/scripts/predicate_extractor.py" "$FDA_PLUGIN_ROOT/scripts/batchfetch.py" "$FDA_PLUGIN_ROOT/scripts/requirements.txt" 2>/dev/null
 ```
 
 Check if dependencies are installed:
@@ -27,7 +27,7 @@ python -c "import requests, pandas, tqdm, colorama, numpy" 2>&1 && echo "Stage 1
 Report:
 - Script availability (predicate_extractor.py, batchfetch.py)
 - Dependency status for each stage
-- If missing: `pip install -r "$CLAUDE_PLUGIN_ROOT/scripts/requirements.txt"`
+- If missing: `pip install -r "$FDA_PLUGIN_ROOT/scripts/requirements.txt"`
 
 ### 0.5. openFDA API Status
 
@@ -91,7 +91,7 @@ If the API is reachable and no key is configured, add a recommendation: "Get a f
 Check for project folders:
 
 ```bash
-ls -d /mnt/c/510k/Python/510k_projects/*/ 2>/dev/null
+ls -d ~/fda-510k-data/projects/*/ 2>/dev/null
 ```
 
 Also check settings for custom `projects_dir`:
@@ -101,7 +101,7 @@ cat ~/.claude/fda-predicate-assistant.local.md 2>/dev/null
 
 For each project found, read its `query.json` to get metadata:
 ```bash
-cat /mnt/c/510k/Python/510k_projects/*/query.json 2>/dev/null
+cat ~/fda-510k-data/projects/*/query.json 2>/dev/null
 ```
 
 Report each project:
@@ -119,11 +119,11 @@ Check multiple possible locations for FDA database files:
 
 ```bash
 # Check PredicateExtraction directory
-ls -la /mnt/c/510k/Python/PredicateExtraction/pmn*.txt /mnt/c/510k/Python/PredicateExtraction/pma*.txt /mnt/c/510k/Python/PredicateExtraction/foiaclass.txt 2>/dev/null
+ls -la ~/fda-510k-data/extraction/pmn*.txt ~/fda-510k-data/extraction/pma*.txt ~/fda-510k-data/extraction/foiaclass.txt 2>/dev/null
 # Check plugin scripts directory (if --data-dir was used)
-ls -la "$CLAUDE_PLUGIN_ROOT/scripts/"pmn*.txt "$CLAUDE_PLUGIN_ROOT/scripts/"pma*.txt 2>/dev/null
+ls -la "$FDA_PLUGIN_ROOT/scripts/"pmn*.txt "$FDA_PLUGIN_ROOT/scripts/"pma*.txt 2>/dev/null
 # Check BatchFetch fda_data directory
-ls -la /mnt/c/510k/Python/510kBF/fda_data/pmn*.txt /mnt/c/510k/Python/510kBF/fda_data/foiaclass.txt 2>/dev/null
+ls -la ~/fda-510k-data/batchfetch/fda_data/pmn*.txt ~/fda-510k-data/batchfetch/fda_data/foiaclass.txt 2>/dev/null
 ```
 
 For each file found, report:
@@ -135,7 +135,7 @@ For each file found, report:
 ### 3. 510kBF Downloads (Legacy) (510k_download.csv)
 
 ```bash
-ls -la /mnt/c/510k/Python/510kBF/510k_download.csv 2>/dev/null
+ls -la ~/fda-510k-data/batchfetch/510k_download.csv 2>/dev/null
 ```
 
 If found:
@@ -147,28 +147,28 @@ If found:
 ### 4. Downloaded PDFs (Legacy)
 
 ```bash
-find /mnt/c/510k/Python/510kBF/510ks/ -name "*.pdf" 2>/dev/null | wc -l
+find ~/fda-510k-data/batchfetch/510ks/ -name "*.pdf" 2>/dev/null | wc -l
 ```
 
 If PDFs exist:
 - Total PDF count
-- Year directories present: `ls /mnt/c/510k/Python/510kBF/510ks/`
-- Approximate disk usage: `du -sh /mnt/c/510k/Python/510kBF/510ks/`
+- Year directories present: `ls ~/fda-510k-data/batchfetch/510ks/`
+- Approximate disk usage: `du -sh ~/fda-510k-data/batchfetch/510ks/`
 
 Also check the PredicateExtraction directory:
 ```bash
-find /mnt/c/510k/Python/PredicateExtraction/ -maxdepth 1 -name "*.pdf" 2>/dev/null | wc -l
+find ~/fda-510k-data/extraction/ -maxdepth 1 -name "*.pdf" 2>/dev/null | wc -l
 ```
 
 And organized PDF storage:
 ```bash
-ls -d /mnt/c/510k/Python/PredicateExtraction/2024 /mnt/c/510k/Python/PredicateExtraction/2025 2>/dev/null
+ls -d ~/fda-510k-data/extraction/2024 ~/fda-510k-data/extraction/2025 2>/dev/null
 ```
 
 ### 5. Extraction Results (Legacy) (output.csv, supplement.csv)
 
 ```bash
-ls -la /mnt/c/510k/Python/PredicateExtraction/output.csv /mnt/c/510k/Python/PredicateExtraction/supplement.csv 2>/dev/null
+ls -la ~/fda-510k-data/extraction/output.csv ~/fda-510k-data/extraction/supplement.csv 2>/dev/null
 ```
 
 If found:
@@ -179,7 +179,7 @@ If found:
 ### 6. Cached PDF Text (Legacy) (pdf_data.json)
 
 ```bash
-ls -la /mnt/c/510k/Python/PredicateExtraction/pdf_data.json 2>/dev/null
+ls -la ~/fda-510k-data/extraction/pdf_data.json 2>/dev/null
 ```
 
 If found:
@@ -189,7 +189,7 @@ If found:
 ### 7. Merged Data (Legacy) (merged_data.csv)
 
 ```bash
-ls -la /mnt/c/510k/Python/510kBF/merged_data.csv 2>/dev/null
+ls -la ~/fda-510k-data/batchfetch/merged_data.csv 2>/dev/null
 ```
 
 If found:
@@ -199,13 +199,13 @@ If found:
 ### 8. Analytics Workbook (Legacy)
 
 ```bash
-ls -la /mnt/c/510k/Python/510kBF/Applicant_ProductCode_Tables.xlsx 2>/dev/null
+ls -la ~/fda-510k-data/batchfetch/Applicant_ProductCode_Tables.xlsx 2>/dev/null
 ```
 
 ### 9. Error Log (Legacy)
 
 ```bash
-ls -la /mnt/c/510k/Python/PredicateExtraction/error_log.txt 2>/dev/null
+ls -la ~/fda-510k-data/extraction/error_log.txt 2>/dev/null
 ```
 
 If found:
@@ -251,7 +251,7 @@ Use ✓ for present and ✗ for missing. Adapt the format to what actually exist
 ## Recommendations
 
 After the status report, suggest logical next steps:
-- If dependencies missing: "Run `pip install -r \"$CLAUDE_PLUGIN_ROOT/scripts/requirements.txt\"`"
+- If dependencies missing: "Run `pip install -r \"$FDA_PLUGIN_ROOT/scripts/requirements.txt\"`"
 - If no FDA database files: "Run `/fda:extract stage2` to download FDA databases"
 - If no 510k_download.csv: "Run `/fda:extract stage1` to filter and download PDFs"
 - If PDFs exist but no output.csv: "Run `/fda:extract stage2` to extract predicates"

@@ -20,7 +20,7 @@ You are validating FDA device numbers against official databases AND enriching r
 If `--project NAME` is provided, check the project folder first for all data files:
 
 ```bash
-PROJECTS_DIR="/mnt/c/510k/Python/510k_projects"  # or from settings
+PROJECTS_DIR="~/fda-510k-data/projects"  # or from settings
 cat ~/.claude/fda-predicate-assistant.local.md 2>/dev/null
 ls "$PROJECTS_DIR/$PROJECT_NAME/output.csv" "$PROJECTS_DIR/$PROJECT_NAME/510k_download.csv" "$PROJECTS_DIR/$PROJECT_NAME/pdf_data.json" 2>/dev/null
 ```
@@ -36,12 +36,12 @@ When a project is specified, search its files first, then fall back to legacy lo
 ```bash
 # Check ALL possible data locations
 echo "=== Checking data sources ==="
-ls -la /mnt/c/510k/Python/PredicateExtraction/output.csv 2>/dev/null || echo "output.csv: NOT FOUND"
-ls -la /mnt/c/510k/Python/PredicateExtraction/cache/index.json 2>/dev/null || echo "Per-device cache: NOT FOUND"
-ls -la /mnt/c/510k/Python/PredicateExtraction/pdf_data.json 2>/dev/null || echo "pdf_data.json (legacy): NOT FOUND"
-ls -la /mnt/c/510k/Python/510kBF/510k_download.csv 2>/dev/null || echo "510k_download.csv: NOT FOUND"
-ls -la /mnt/c/510k/Python/510kBF/merged_data.csv 2>/dev/null || echo "merged_data.csv: NOT FOUND"
-ls /mnt/c/510k/Python/PredicateExtraction/pmn*.txt 2>/dev/null || echo "pmn*.txt: NOT FOUND"
+ls -la ~/fda-510k-data/extraction/output.csv 2>/dev/null || echo "output.csv: NOT FOUND"
+ls -la ~/fda-510k-data/extraction/cache/index.json 2>/dev/null || echo "Per-device cache: NOT FOUND"
+ls -la ~/fda-510k-data/extraction/pdf_data.json 2>/dev/null || echo "pdf_data.json (legacy): NOT FOUND"
+ls -la ~/fda-510k-data/batchfetch/510k_download.csv 2>/dev/null || echo "510k_download.csv: NOT FOUND"
+ls -la ~/fda-510k-data/batchfetch/merged_data.csv 2>/dev/null || echo "merged_data.csv: NOT FOUND"
+ls ~/fda-510k-data/extraction/pmn*.txt 2>/dev/null || echo "pmn*.txt: NOT FOUND"
 ```
 
 Track which sources exist — you'll use this in the final report.
@@ -165,28 +165,28 @@ If the API was unavailable, disabled, or returned no results, fall back to flat 
 FDA database files may be in multiple locations. Check these in order:
 
 1. Project `fda_data/` directory (if `--project` specified)
-2. `/mnt/c/510k/Python/PredicateExtraction/` (legacy location)
-3. `/mnt/c/510k/Python/510kBF/fda_data/` (BatchFetch data-dir)
+2. `~/fda-510k-data/extraction/` (legacy location)
+3. `~/fda-510k-data/batchfetch/fda_data/` (BatchFetch data-dir)
 
 For K-numbers (510(k)):
 ```bash
-grep -i "KNUMBER" /mnt/c/510k/Python/PredicateExtraction/pmn*.txt /mnt/c/510k/Python/510kBF/fda_data/pmn*.txt 2>/dev/null
+grep -i "KNUMBER" ~/fda-510k-data/extraction/pmn*.txt ~/fda-510k-data/batchfetch/fda_data/pmn*.txt 2>/dev/null
 ```
 
 For P-numbers (PMA):
 ```bash
-grep -i "PNUMBER" /mnt/c/510k/Python/PredicateExtraction/pma*.txt /mnt/c/510k/Python/510kBF/fda_data/pma*.txt 2>/dev/null
+grep -i "PNUMBER" ~/fda-510k-data/extraction/pma*.txt ~/fda-510k-data/batchfetch/fda_data/pma*.txt 2>/dev/null
 ```
 
 For DEN numbers (De Novo):
 ```bash
-grep -i "DENNUMBER" /mnt/c/510k/Python/PredicateExtraction/pmn*.txt /mnt/c/510k/Python/510kBF/fda_data/pmn*.txt 2>/dev/null
+grep -i "DENNUMBER" ~/fda-510k-data/extraction/pmn*.txt ~/fda-510k-data/batchfetch/fda_data/pmn*.txt 2>/dev/null
 ```
 Note: Some DEN numbers appear in the pmn*.txt files. If not found, the device may only be in the FDA De Novo database (not available as a flat file).
 
 For N-numbers (Pre-Amendments):
 ```bash
-grep -i "NNUMBER" /mnt/c/510k/Python/PredicateExtraction/pmn*.txt /mnt/c/510k/Python/510kBF/fda_data/pmn*.txt 2>/dev/null
+grep -i "NNUMBER" ~/fda-510k-data/extraction/pmn*.txt ~/fda-510k-data/batchfetch/fda_data/pmn*.txt 2>/dev/null
 ```
 Note: N-numbers are legacy Pre-Amendments devices. They are not in openFDA and may not appear in all flat files.
 
@@ -199,7 +199,7 @@ Report: Found/Not Found + full database record if found.
 Check project folder first (if applicable), then legacy location:
 
 ```bash
-grep -i "KNUMBER" /mnt/c/510k/Python/510kBF/510k_download.csv 2>/dev/null
+grep -i "KNUMBER" ~/fda-510k-data/batchfetch/510k_download.csv 2>/dev/null
 ```
 
 If found, report additional metadata:
@@ -216,7 +216,7 @@ If found, report additional metadata:
 Check project folder first (if applicable), then legacy:
 
 ```bash
-grep -i "KNUMBER" /mnt/c/510k/Python/PredicateExtraction/output.csv 2>/dev/null
+grep -i "KNUMBER" ~/fda-510k-data/extraction/output.csv 2>/dev/null
 ```
 
 **If `output.csv` does NOT exist**: Do NOT just say "Not in output.csv". Instead report:
@@ -232,13 +232,13 @@ If found, report:
 
 Also check if this device is cited AS a predicate by others:
 ```bash
-grep -i "KNUMBER" /mnt/c/510k/Python/PredicateExtraction/output.csv 2>/dev/null
+grep -i "KNUMBER" ~/fda-510k-data/extraction/output.csv 2>/dev/null
 ```
 (Search across all columns, not just the first)
 
-If `/mnt/c/510k/Python/510kBF/merged_data.csv` exists, also check:
+If `~/fda-510k-data/batchfetch/merged_data.csv` exists, also check:
 ```bash
-grep -i "KNUMBER" /mnt/c/510k/Python/510kBF/merged_data.csv 2>/dev/null
+grep -i "KNUMBER" ~/fda-510k-data/batchfetch/merged_data.csv 2>/dev/null
 ```
 
 ### Step 5: Enrichment — PDF Text Availability
@@ -250,7 +250,7 @@ python3 -c "
 import json, os
 
 knumber = 'KNUMBER'
-cache_dir = '/mnt/c/510k/Python/PredicateExtraction/cache'
+cache_dir = os.path.expanduser('~/fda-510k-data/extraction/cache')
 index_file = os.path.join(cache_dir, 'index.json')
 
 # Try per-device cache first (preferred — scalable)
@@ -258,7 +258,7 @@ if os.path.exists(index_file):
     with open(index_file) as f:
         index = json.load(f)
     if knumber in index:
-        device_path = os.path.join('/mnt/c/510k/Python/PredicateExtraction', index[knumber]['file_path'])
+        device_path = os.path.join(os.path.expanduser('~/fda-510k-data/extraction'), index[knumber]['file_path'])
         if os.path.exists(device_path):
             with open(device_path) as f:
                 device_data = json.load(f)
@@ -271,7 +271,7 @@ if os.path.exists(index_file):
         print('NOT CACHED (not in per-device index)')
 else:
     # Legacy: monolithic pdf_data.json
-    pdf_json = '/mnt/c/510k/Python/PredicateExtraction/pdf_data.json'
+    pdf_json = os.path.expanduser('~/fda-510k-data/extraction/pdf_data.json')
     if os.path.exists(pdf_json):
         with open(pdf_json) as f:
             data = json.load(f)
@@ -405,7 +405,7 @@ If a number is NOT found in the primary database, suggest possible OCR correctio
 
 Try common corrections and check if the corrected number exists:
 ```bash
-grep -i "CORRECTED_NUMBER" /mnt/c/510k/Python/PredicateExtraction/pmn*.txt 2>/dev/null
+grep -i "CORRECTED_NUMBER" ~/fda-510k-data/extraction/pmn*.txt 2>/dev/null
 ```
 
 ## Output Format

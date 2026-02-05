@@ -150,7 +150,7 @@ Example:
 ocr_mode: smart
 batch_size: 100
 workers: 4
-python_script_path: /mnt/c/510k/Python/PredicateExtraction/Test69a_final_ocr_smart_v2.py
+python_script_path: ~/fda-510k-data/extraction/Test69a_final_ocr_smart_v2.py
 ---
 
 # FDA Predicate Assistant Settings

@@ -12,15 +12,15 @@ You are analyzing FDA 510(k) data from across the full pipeline. Multiple data s
 
 | File | Location | Description |
 |------|----------|-------------|
-| `510k_download.csv` | `/mnt/c/510k/Python/510kBF/` | 510kBF metadata (24 cols: KNUMBER, APPLICANT, DECISIONDATE, PRODUCTCODE, TYPE, STATEORSUMM, REVIEWADVISECOMM, THIRDPARTY, EXPEDITEDREVIEW, etc.) |
-| `Applicant_ProductCode_Tables.xlsx` | `/mnt/c/510k/Python/510kBF/` | Analytics workbook (3 sheets: Applicant, ProductCode, Full data) |
-| `merged_data.csv` | `/mnt/c/510k/Python/510kBF/` | K-number + up to 6 predicates (7 cols) |
-| `output.csv` | `/mnt/c/510k/Python/PredicateExtraction/` | Extraction results: K-number, ProductCode, Predicate1..PredicateN |
-| `supplement.csv` | `/mnt/c/510k/Python/PredicateExtraction/` | Devices with supplement suffixes |
-| `pdf_data.json` | `/mnt/c/510k/Python/PredicateExtraction/` | Cached PDF text keyed by filename |
-| `error_log.txt` | `/mnt/c/510k/Python/PredicateExtraction/` | Failed PDFs |
-| `pmn*.txt` | `/mnt/c/510k/Python/PredicateExtraction/` or `fda_data/` | FDA 510(k) database flat files |
-| `foiaclass.txt` | `/mnt/c/510k/Python/510kBF/fda_data/` | FDA device classification data |
+| `510k_download.csv` | `~/fda-510k-data/batchfetch/` | 510kBF metadata (24 cols: KNUMBER, APPLICANT, DECISIONDATE, PRODUCTCODE, TYPE, STATEORSUMM, REVIEWADVISECOMM, THIRDPARTY, EXPEDITEDREVIEW, etc.) |
+| `Applicant_ProductCode_Tables.xlsx` | `~/fda-510k-data/batchfetch/` | Analytics workbook (3 sheets: Applicant, ProductCode, Full data) |
+| `merged_data.csv` | `~/fda-510k-data/batchfetch/` | K-number + up to 6 predicates (7 cols) |
+| `output.csv` | `~/fda-510k-data/extraction/` | Extraction results: K-number, ProductCode, Predicate1..PredicateN |
+| `supplement.csv` | `~/fda-510k-data/extraction/` | Devices with supplement suffixes |
+| `pdf_data.json` | `~/fda-510k-data/extraction/` | Cached PDF text keyed by filename |
+| `error_log.txt` | `~/fda-510k-data/extraction/` | Failed PDFs |
+| `pmn*.txt` | `~/fda-510k-data/extraction/` or `fda_data/` | FDA 510(k) database flat files |
+| `foiaclass.txt` | `~/fda-510k-data/batchfetch/fda_data/` | FDA device classification data |
 
 **Note:** FDA database files may also be in configurable `--data-dir` locations. Check `~/.claude/fda-predicate-assistant.local.md` for configured paths.
 
@@ -29,7 +29,7 @@ You are analyzing FDA 510(k) data from across the full pipeline. Multiple data s
 If `--project NAME` is provided, look for data in the project folder first:
 
 ```bash
-PROJECTS_DIR="/mnt/c/510k/Python/510k_projects"  # or from settings
+PROJECTS_DIR="~/fda-510k-data/projects"  # or from settings
 ls "$PROJECTS_DIR/$PROJECT_NAME/" 2>/dev/null
 cat "$PROJECTS_DIR/$PROJECT_NAME/query.json" 2>/dev/null
 ```
@@ -53,7 +53,7 @@ Determine the analysis mode from `$ARGUMENTS`:
 Always start by checking which data files exist:
 
 ```bash
-ls -la /mnt/c/510k/Python/510kBF/510k_download.csv /mnt/c/510k/Python/510kBF/merged_data.csv /mnt/c/510k/Python/PredicateExtraction/output.csv /mnt/c/510k/Python/PredicateExtraction/supplement.csv /mnt/c/510k/Python/PredicateExtraction/pdf_data.json /mnt/c/510k/Python/PredicateExtraction/error_log.txt 2>/dev/null
+ls -la ~/fda-510k-data/batchfetch/510k_download.csv ~/fda-510k-data/batchfetch/merged_data.csv ~/fda-510k-data/extraction/output.csv ~/fda-510k-data/extraction/supplement.csv ~/fda-510k-data/extraction/pdf_data.json ~/fda-510k-data/extraction/error_log.txt 2>/dev/null
 ```
 
 **Only report sources that have relevant data for the user's query.** If a file exists but contains no records matching the user's product code or device, skip it silently. Don't list empty or irrelevant files.

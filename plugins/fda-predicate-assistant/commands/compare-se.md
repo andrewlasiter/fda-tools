@@ -29,7 +29,7 @@ If no `--predicates` provided, ask the user. If they're unsure, suggest running 
 ### Detect product code
 If `--product-code` not provided, look up the first predicate:
 ```bash
-grep "KNUMBER" /mnt/c/510k/Python/PredicateExtraction/pmn96cur.txt 2>/dev/null | head -1
+grep "KNUMBER" ~/fda-510k-data/extraction/pmn96cur.txt 2>/dev/null | head -1
 ```
 Extract the product code field.
 
@@ -62,7 +62,7 @@ For each predicate and reference K-number, check if text is available:
 import json, os
 
 # Try per-device cache first
-cache_dir = '/mnt/c/510k/Python/PredicateExtraction/cache'
+cache_dir = os.path.expanduser('~/fda-510k-data/extraction/cache')
 index_file = os.path.join(cache_dir, 'index.json')
 
 if os.path.exists(index_file):
@@ -70,13 +70,13 @@ if os.path.exists(index_file):
         index = json.load(f)
     for knumber in all_devices:
         if knumber in index:
-            device_path = os.path.join('/mnt/c/510k/Python/PredicateExtraction', index[knumber]['file_path'])
+            device_path = os.path.join(os.path.expanduser('~/fda-510k-data/extraction'), index[knumber]['file_path'])
             with open(device_path) as f:
                 device_data = json.load(f)
             text = device_data['text']
 else:
     # Legacy: monolithic pdf_data.json
-    pdf_json = '/mnt/c/510k/Python/PredicateExtraction/pdf_data.json'
+    pdf_json = os.path.expanduser('~/fda-510k-data/extraction/pdf_data.json')
     if os.path.exists(pdf_json):
         with open(pdf_json) as f:
             data = json.load(f)
@@ -196,7 +196,7 @@ PYEOF
 If the API returned `SOURCE:fallback`, use flat files:
 
 ```bash
-grep "KNUMBER" /mnt/c/510k/Python/PredicateExtraction/pmn96cur.txt 2>/dev/null
+grep "KNUMBER" ~/fda-510k-data/extraction/pmn96cur.txt 2>/dev/null
 ```
 
 Extract: applicant, decision date, product code, decision code, review time, submission type, summary/statement.

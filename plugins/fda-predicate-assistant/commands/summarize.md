@@ -28,7 +28,7 @@ If no arguments provided, ask the user what they want to summarize.
 ### If `--project NAME` is provided — Use project folder
 
 ```bash
-PROJECTS_DIR="/mnt/c/510k/Python/510k_projects"  # or from settings
+PROJECTS_DIR="~/fda-510k-data/projects"  # or from settings
 ls "$PROJECTS_DIR/$PROJECT_NAME/pdf_data.json" "$PROJECTS_DIR/$PROJECT_NAME/510k_download.csv" "$PROJECTS_DIR/$PROJECT_NAME/output.csv" 2>/dev/null
 cat "$PROJECTS_DIR/$PROJECT_NAME/query.json" 2>/dev/null
 ```
@@ -41,14 +41,14 @@ Check for per-device cache first (scalable), then fall back to legacy monolithic
 
 ```bash
 # Per-device cache (preferred — scalable to 30K+ devices)
-ls -la /mnt/c/510k/Python/PredicateExtraction/cache/index.json 2>/dev/null
+ls -la ~/fda-510k-data/extraction/cache/index.json 2>/dev/null
 
 # Legacy monolithic file (fallback)
-ls -la /mnt/c/510k/Python/PredicateExtraction/pdf_data.json 2>/dev/null
+ls -la ~/fda-510k-data/extraction/pdf_data.json 2>/dev/null
 
 # Metadata sources
-ls -la /mnt/c/510k/Python/510kBF/510k_download.csv 2>/dev/null
-ls -la /mnt/c/510k/Python/PredicateExtraction/output.csv 2>/dev/null
+ls -la ~/fda-510k-data/batchfetch/510k_download.csv 2>/dev/null
+ls -la ~/fda-510k-data/extraction/output.csv 2>/dev/null
 ```
 
 **Per-device cache structure**: `cache/index.json` maps K-numbers to file paths. Each device has its own JSON file at `cache/devices/K241335.json` containing `{"text": "...", "extraction_method": "...", "page_count": N}`. This is faster and more memory-efficient than loading a monolithic JSON file.
@@ -57,7 +57,7 @@ ls -la /mnt/c/510k/Python/PredicateExtraction/output.csv 2>/dev/null
 
 If no `--project` but `--product-codes` is specified, check if a matching project exists:
 ```bash
-ls /mnt/c/510k/Python/510k_projects/*/query.json 2>/dev/null
+ls ~/fda-510k-data/projects/*/query.json 2>/dev/null
 ```
 
 If found, suggest using that project's data.
@@ -73,7 +73,7 @@ If found, suggest using that project's data.
 Read the CSV header and filter rows matching user criteria:
 
 ```bash
-head -1 /mnt/c/510k/Python/510kBF/510k_download.csv
+head -1 ~/fda-510k-data/batchfetch/510k_download.csv
 ```
 
 Apply filters:
@@ -91,7 +91,7 @@ Extract the list of matching K-numbers.
 
 **Legacy pdf_data.json**: K-numbers are embedded in filenames:
 ```bash
-grep -o '"[^"]*\.pdf"' /mnt/c/510k/Python/PredicateExtraction/pdf_data.json | head -20
+grep -o '"[^"]*\.pdf"' ~/fda-510k-data/extraction/pdf_data.json | head -20
 ```
 
 Filter by K-number patterns if `--knumbers` provided.
