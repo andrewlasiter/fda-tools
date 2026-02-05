@@ -1,7 +1,6 @@
 ---
-name: FDA 510(k) Knowledge
+name: fda-510k-knowledge
 description: Use this skill when discussing 510(k) submissions, predicate devices, substantial equivalence, FDA clearance, K-numbers, PMA approval, De Novo pathways, product codes, or medical device classification.
-version: 1.3.0
 ---
 
 # FDA 510(k) Regulatory Knowledge
