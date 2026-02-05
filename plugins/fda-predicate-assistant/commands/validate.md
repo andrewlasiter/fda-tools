@@ -36,7 +36,8 @@ When a project is specified, search its files first, then fall back to legacy lo
 # Check ALL possible data locations
 echo "=== Checking data sources ==="
 ls -la /mnt/c/510k/Python/PredicateExtraction/output.csv 2>/dev/null || echo "output.csv: NOT FOUND"
-ls -la /mnt/c/510k/Python/PredicateExtraction/pdf_data.json 2>/dev/null || echo "pdf_data.json: NOT FOUND"
+ls -la /mnt/c/510k/Python/PredicateExtraction/cache/index.json 2>/dev/null || echo "Per-device cache: NOT FOUND"
+ls -la /mnt/c/510k/Python/PredicateExtraction/pdf_data.json 2>/dev/null || echo "pdf_data.json (legacy): NOT FOUND"
 ls -la /mnt/c/510k/Python/510kBF/510k_download.csv 2>/dev/null || echo "510k_download.csv: NOT FOUND"
 ls -la /mnt/c/510k/Python/510kBF/merged_data.csv 2>/dev/null || echo "merged_data.csv: NOT FOUND"
 ls /mnt/c/510k/Python/PredicateExtraction/pmn*.txt 2>/dev/null || echo "pmn*.txt: NOT FOUND"
@@ -117,24 +118,48 @@ grep -i "KNUMBER" /mnt/c/510k/Python/510kBF/merged_data.csv 2>/dev/null
 
 ### Step 5: Enrichment — PDF Text Availability
 
-Check project folder first (if applicable), then legacy.
-
-**IMPORTANT**: `pdf_data.json` is a JSON object keyed by filename (e.g., `"K022854.pdf"`). To correctly check if a device's text is cached, search for the filename key pattern:
+Check project folder first (if applicable), then default locations. Try per-device cache first (scalable), then fall back to legacy monolithic file.
 
 ```bash
-# Correct check — search for the filename KEY in the JSON
 python3 -c "
-import json
-with open('/mnt/c/510k/Python/PredicateExtraction/pdf_data.json') as f:
-    data = json.load(f)
-key = 'KNUMBER.pdf'
-if key in data:
-    text = data[key]
-    print(f'CACHED: {len(text)} characters of text available')
-    # Show first 200 chars as preview
-    print(f'Preview: {text[:200]}...')
+import json, os
+
+knumber = 'KNUMBER'
+cache_dir = '/mnt/c/510k/Python/PredicateExtraction/cache'
+index_file = os.path.join(cache_dir, 'index.json')
+
+# Try per-device cache first (preferred — scalable)
+if os.path.exists(index_file):
+    with open(index_file) as f:
+        index = json.load(f)
+    if knumber in index:
+        device_path = os.path.join('/mnt/c/510k/Python/PredicateExtraction', index[knumber]['file_path'])
+        if os.path.exists(device_path):
+            with open(device_path) as f:
+                device_data = json.load(f)
+            text = device_data.get('text', '')
+            print(f'CACHED (per-device): {len(text)} characters of text available')
+            print(f'Preview: {text[:200]}...')
+        else:
+            print('INDEX ENTRY EXISTS but file missing')
+    else:
+        print('NOT CACHED (not in per-device index)')
 else:
-    print('NOT CACHED')
+    # Legacy: monolithic pdf_data.json
+    pdf_json = '/mnt/c/510k/Python/PredicateExtraction/pdf_data.json'
+    if os.path.exists(pdf_json):
+        with open(pdf_json) as f:
+            data = json.load(f)
+        key = knumber + '.pdf'
+        if key in data:
+            entry = data[key]
+            text = entry.get('text', '') if isinstance(entry, dict) else str(entry)
+            print(f'CACHED (legacy pdf_data.json): {len(text)} characters of text available')
+            print(f'Preview: {text[:200]}...')
+        else:
+            print('NOT CACHED (not in pdf_data.json)')
+    else:
+        print('NO CACHE: Neither per-device cache nor pdf_data.json found')
 " 2>/dev/null
 ```
 

@@ -1,7 +1,7 @@
 ---
 description: View or modify FDA predicate assistant settings and data directory paths
 allowed-tools: Read, Write
-argument-hint: "[--show | --set KEY VALUE]"
+argument-hint: "[--show | --set KEY VALUE | --migrate-cache]"
 ---
 
 # FDA Predicate Assistant Configuration
@@ -102,6 +102,79 @@ This file stores your preferences for the FDA 510(k) pipeline.
 - **default_year**: Set to filter by year automatically
 - **default_product_code**: Set to filter by product code automatically
 ```
+
+### Migrate Cache Format
+
+If `$ARGUMENTS` is `--migrate-cache`, migrate from monolithic `pdf_data.json` to per-device cache:
+
+```bash
+python3 << 'PYEOF'
+import json, os
+
+extraction_dir = '/mnt/c/510k/Python/PredicateExtraction'
+pdf_json = os.path.join(extraction_dir, 'pdf_data.json')
+cache_dir = os.path.join(extraction_dir, 'cache')
+devices_dir = os.path.join(cache_dir, 'devices')
+index_file = os.path.join(cache_dir, 'index.json')
+
+if not os.path.exists(pdf_json):
+    print('ERROR: pdf_data.json not found — nothing to migrate')
+    exit(1)
+
+if os.path.exists(index_file):
+    print('WARNING: Per-device cache already exists. Merging new entries only.')
+    with open(index_file) as f:
+        index = json.load(f)
+else:
+    index = {}
+
+os.makedirs(devices_dir, exist_ok=True)
+
+print(f'Loading pdf_data.json...')
+with open(pdf_json) as f:
+    data = json.load(f)
+
+migrated = 0
+skipped = 0
+for filename, content in data.items():
+    knumber = filename.replace('.pdf', '')
+    if knumber in index:
+        skipped += 1
+        continue
+
+    # Normalize content format
+    if isinstance(content, dict):
+        device_data = content
+    else:
+        device_data = {'text': str(content)}
+
+    # Write individual device file
+    device_file = os.path.join(devices_dir, f'{knumber}.json')
+    with open(device_file, 'w') as f:
+        json.dump(device_data, f)
+
+    # Add to index
+    rel_path = os.path.relpath(device_file, extraction_dir)
+    index[knumber] = {
+        'file_path': rel_path,
+        'text_length': len(device_data.get('text', '')),
+        'extraction_method': device_data.get('extraction_method', 'unknown'),
+        'page_count': device_data.get('page_count', 0)
+    }
+    migrated += 1
+
+# Write index
+with open(index_file, 'w') as f:
+    json.dump(index, f, indent=2)
+
+print(f'Migration complete: {migrated} devices migrated, {skipped} already existed')
+print(f'Index: {index_file} ({len(index)} total devices)')
+print(f'Per-device files: {devices_dir}/')
+print(f'Original pdf_data.json preserved (can delete manually when ready)')
+PYEOF
+```
+
+Report the migration results and note that the original `pdf_data.json` is preserved as a backup.
 
 ## Creating Default Settings
 

@@ -114,28 +114,50 @@ Additional metadata available: expedited review, review advisory committee detai
 
 ### Extract predicates directly from PDF text
 
-**Do NOT tell the user to run `/fda:extract stage2`.** Instead, extract predicate K-numbers yourself from `pdf_data.json`:
+**Do NOT tell the user to run `/fda:extract stage2`.** Instead, extract predicate K-numbers yourself from cached PDF text.
+
+**Cache format detection**: The system may use either per-device cache (new) or a monolithic pdf_data.json (legacy). Check both:
 
 ```python
-# Extract K-numbers cited in each document's text
-import json, re
+import json, re, os
 from collections import Counter
 
-with open('pdf_data.json') as f:
-    data = json.load(f)
-
 k_pattern = re.compile(r'K\d{6}')
-cited_by = Counter()  # predicate -> count of devices citing it
-graph = {}  # device -> set of predicates it cites
+cited_by = Counter()
+graph = {}
 
-for filename, content in data.items():
-    text = content.get('text', '') if isinstance(content, dict) else str(content)
-    source_k = filename.replace('.pdf', '')
-    found_ks = set(k_pattern.findall(text))
-    found_ks.discard(source_k)  # Remove self-reference
-    graph[source_k] = found_ks
-    for k in found_ks:
-        cited_by[k] += 1
+# Try per-device cache first (scalable)
+cache_dir = '/mnt/c/510k/Python/PredicateExtraction/cache'
+index_file = os.path.join(cache_dir, 'index.json')
+
+if os.path.exists(index_file):
+    with open(index_file) as f:
+        index = json.load(f)
+    for knumber, meta in index.items():
+        device_path = os.path.join('/mnt/c/510k/Python/PredicateExtraction', meta['file_path'])
+        if os.path.exists(device_path):
+            with open(device_path) as f:
+                device_data = json.load(f)
+            text = device_data.get('text', '')
+            found_ks = set(k_pattern.findall(text))
+            found_ks.discard(knumber)
+            graph[knumber] = found_ks
+            for k in found_ks:
+                cited_by[k] += 1
+else:
+    # Legacy: monolithic pdf_data.json
+    pdf_json = '/mnt/c/510k/Python/PredicateExtraction/pdf_data.json'
+    if os.path.exists(pdf_json):
+        with open(pdf_json) as f:
+            data = json.load(f)
+        for filename, content in data.items():
+            text = content.get('text', '') if isinstance(content, dict) else str(content)
+            source_k = filename.replace('.pdf', '')
+            found_ks = set(k_pattern.findall(text))
+            found_ks.discard(source_k)
+            graph[source_k] = found_ks
+            for k in found_ks:
+                cited_by[k] += 1
 ```
 
 This gives you the same predicate relationships that `output.csv` would contain, without requiring any separate extraction step.
@@ -222,15 +244,37 @@ If the user provided `--device-description` with novel features not found in the
 ### Check if text is already cached
 
 ```python
-import json
-with open('/mnt/c/510k/Python/PredicateExtraction/pdf_data.json') as f:
-    data = json.load(f)
-# Check each top candidate
-for knumber in top_candidates:
-    if knumber + '.pdf' in data:
-        print(f'{knumber}: text already cached')
+import json, os
+
+cache_dir = '/mnt/c/510k/Python/PredicateExtraction/cache'
+index_file = os.path.join(cache_dir, 'index.json')
+
+# Try per-device cache first (scalable)
+if os.path.exists(index_file):
+    with open(index_file) as f:
+        index = json.load(f)
+    for knumber in top_candidates:
+        if knumber in index:
+            device_path = os.path.join('/mnt/c/510k/Python/PredicateExtraction', index[knumber]['file_path'])
+            if os.path.exists(device_path):
+                print(f'{knumber}: text cached (per-device)')
+            else:
+                print(f'{knumber}: index entry exists but file missing — need to fetch')
+        else:
+            print(f'{knumber}: NOT cached — need to fetch')
+else:
+    # Legacy: monolithic pdf_data.json
+    pdf_json = '/mnt/c/510k/Python/PredicateExtraction/pdf_data.json'
+    if os.path.exists(pdf_json):
+        with open(pdf_json) as f:
+            data = json.load(f)
+        for knumber in top_candidates:
+            if knumber + '.pdf' in data:
+                print(f'{knumber}: text cached (legacy pdf_data.json)')
+            else:
+                print(f'{knumber}: NOT cached — need to fetch')
     else:
-        print(f'{knumber}: NOT cached — need to fetch')
+        print('No cache found — all candidates need fetching')
 ```
 
 ### Fetch missing summaries directly from FDA
@@ -373,20 +417,23 @@ For each fetched predicate summary, extract and report:
 
 ## Step 5: Testing Strategy
 
-### From PDF text (cached in pdf_data.json OR freshly fetched in Step 4.5)
+### From PDF text (cached in per-device cache or legacy pdf_data.json, OR freshly fetched in Step 4.5)
 
-Analyze the testing sections from predicate summaries. Use regex to search for testing-related content:
+Analyze the testing sections from predicate summaries. Use the centralized patterns from `references/section-patterns.md` for section detection. Key patterns:
 
 ```python
+# Universal section patterns (from references/section-patterns.md)
 patterns = {
-    'ISO 10993': r'(?i)ISO\s*10993',
-    'Biocompatibility': r'(?i)(biocompatib|cytotox|sensitiz|irritat)',
-    'Sterilization': r'(?i)(steriliz|sterility|ethylene oxide|EtO|gamma)',
-    'Shelf Life': r'(?i)(shelf\s*life|stability|accelerated\s*aging)',
-    'Clinical': r'(?i)(clinical\s*(study|trial|data|evidence|testing))',
-    'Animal Testing': r'(?i)(animal\s*(study|model|testing)|in\s*vivo)',
-    # Add patterns specific to the user's device features
+    'Biocompatibility': r'(?i)(biocompatib(ility|le)?|biological\s+(evaluation|testing|safety|assessment)|iso\s*10993|cytotoxicity|sensitization\s+test|irritation\s+test|systemic\s+toxicity|genotoxicity|implantation\s+(testing|studies|study)|hemocompatibility|material\s+characterization|extractables?\s+and\s+leachables?)',
+    'Sterilization': r'(?i)(steriliz(ation|ed|ing)|sterility\s+(assurance|testing|validation)|ethylene\s+oxide|eto|gamma\s+(radiation|irradiation|steriliz)|electron\s+beam|e[-]?beam|steam\s+steriliz|autoclave|iso\s*11135|iso\s*11137|sal\s+10)',
+    'Shelf Life': r'(?i)(shelf[-]?life|stability\s+(testing|studies|data)|accelerated\s+aging|real[-]?time\s+aging|package\s+(integrity|testing|validation|aging)|astm\s*f1980|expiration\s+dat(e|ing)|storage\s+condition)',
+    'Non-Clinical Testing': r'(?i)(non[-]?clinical\s+(testing|studies|data|performance)|performance\s+(testing|data|evaluation|characteristics|bench)|bench\s+(testing|top\s+testing)|in\s+vitro\s+(testing|studies)|mechanical\s+(testing|characterization)|laboratory\s+testing|verification\s+(testing|studies)|validation\s+testing|analytical\s+performance)',
+    'Clinical': r'(?i)(clinical\s+(testing|trial|study|studies|data|evidence|information|evaluation|investigation|performance)|human\s+(subjects?|study|clinical)|patient\s+study|pivotal\s+(study|trial)|feasibility\s+study|post[-]?market\s+(clinical\s+)?follow[-]?up|pmcf|literature\s+(review|search|summary|based)|clinical\s+experience)',
+    'Software': r'(?i)(software\s+(description|validation|verification|documentation|testing|v&v|lifecycle|architecture|design)|firmware|algorithm\s+(description|validation)|cybersecurity|iec\s*62304)',
+    'Electrical Safety': r'(?i)(electrical\s+safety|iec\s*60601|electromagnetic\s+(compatibility|interference)|emc|emi|wireless\s+(coexistence|testing))',
 }
+# Also apply device-type-specific patterns from references/section-patterns.md
+# based on the product code (CGM, wound dressings, orthopedic, cardiovascular, IVD)
 ```
 
 For each type of testing found, summarize:
@@ -502,13 +549,53 @@ Structure the research package as:
 - IFU evolution timeline
 - Export-ready tables and findings
 
+## Step 4.75: Inline Validation for Top Predicates
+
+**For standard depth or higher**: After identifying the top 3-5 predicate candidates and fetching their PDFs, automatically include the detailed validation profile for each — the SAME information `/fda:validate` would show. Do NOT tell the user to run `/fda:validate` separately.
+
+For each top predicate candidate, include in the report:
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{KNUMBER} — DETAILED PROFILE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Applicant: {from pmn database}
+Decision: {SESE/DENG/etc.} on {date} ({review_days} days)
+Product Code: {CODE} | Type: {Traditional/Special/etc.} | Summary: {Yes/No}
+FDA URL: https://www.accessdata.fda.gov/cdrh_docs/pdf{YY}/{KNUMBER}.pdf
+
+Indications for Use:
+"{exact IFU text extracted from PDF}"
+
+Predicates cited by this device: {list from PDF text}
+Cited BY these other devices: {list from citation analysis}
+PDF Summary: {text_length} chars available ({extraction status})
+```
+
+This eliminates the need for the user to run `/fda:validate` as a separate step.
+
+## Step 5.5: Cross-Device Testing Comparison (Deep Depth Only)
+
+**For deep depth**: After extracting testing information from predicate PDFs (Step 5), automatically compare test methods across the top 3 predicates — the SAME analysis `/fda:summarize --sections "Non-Clinical Testing"` would produce.
+
+Use section patterns from `references/section-patterns.md` to extract testing sections from each predicate, then present as a comparison table:
+
+```
+| Test Category    | {K-number 1} | {K-number 2} | {K-number 3} |
+|------------------|--------------|--------------|--------------|
+| Biocompatibility | ISO 10993-5, -10 (n=X) | ISO 10993-5, -10, -23 | ISO 10993-5, -10 |
+| Sterilization    | EO, ISO 11135 | Gamma, ISO 11137 | EO, ISO 11135 |
+| Performance      | ASTM D1777 (n=30) | ASTM D1777 (n=20) | Not specified |
+```
+
+This eliminates the need for the user to run `/fda:summarize` as a separate step.
+
 ## Recommendations Section
 
-End with specific, actionable next steps in plain language:
+End with specific, actionable next steps:
 
-- If predicate candidates identified: "Use `/fda:validate K123456 K234567` to get detailed profiles of these predicate candidates"
-- If testing strategy identified: "Use `/fda:summarize --product-codes PRODUCTCODE --sections 'Non-Clinical Testing'` to compare exact test methods across devices"
+- If predicate candidates identified and user provided device description: "Use `/fda:compare-se --predicates K123456,K234567 --device-description \"your device\" --intended-use \"your IFU\"` to generate a formal Substantial Equivalence comparison table for your submission."
 - If novel features found: "Your [feature] has limited precedent in [product code]. Consider consulting with your regulatory team about whether a secondary predicate from [other product code] strengthens your submission."
 - Always: "Consult with regulatory affairs counsel before finalizing your submission strategy"
 
-**NEVER recommend**: "Run `/fda:extract stage1`" or "Run `/fda:extract stage2`" or "Use `/fda:extract` to download PDFs" — the research command should fetch what it needs automatically. If a PDF fetch fails (404, access denied), note it gracefully and proceed with available data.
+**NEVER recommend**: "Run `/fda:extract stage1`", "Run `/fda:extract stage2`", "Use `/fda:extract` to download PDFs", "Use `/fda:validate`" (inline it instead), or "Use `/fda:summarize --sections`" for content already covered in the research. The research command should do the work automatically. If a PDF fetch fails (404, access denied), note it gracefully and proceed with available data.

@@ -6,7 +6,7 @@ argument-hint: "[--project NAME] [--product-codes CODE] [--years RANGE] [--secti
 
 # FDA 510(k) Section Summarization
 
-You are summarizing and comparing sections from 510(k) summary PDF documents. The full text of processed PDFs is stored in `pdf_data.json`. You will filter documents by user criteria, detect section structure, and produce cross-document summaries.
+You are summarizing and comparing sections from 510(k) summary PDF documents. The full text of processed PDFs is stored in a per-device cache (`cache/index.json` + `cache/devices/*.json`) or legacy `pdf_data.json`. You will filter documents by user criteria, detect section structure using centralized patterns from `references/section-patterns.md`, and produce cross-document summaries.
 
 ## Parse Arguments
 
@@ -35,13 +35,23 @@ cat "$PROJECTS_DIR/$PROJECT_NAME/query.json" 2>/dev/null
 
 Use the project's data files. The `query.json` tells you what filters were already applied, so additional filtering may not be needed.
 
-### If no project — Use legacy locations
+### If no project — Use default locations
+
+Check for per-device cache first (scalable), then fall back to legacy monolithic file:
 
 ```bash
+# Per-device cache (preferred — scalable to 30K+ devices)
+ls -la /mnt/c/510k/Python/PredicateExtraction/cache/index.json 2>/dev/null
+
+# Legacy monolithic file (fallback)
 ls -la /mnt/c/510k/Python/PredicateExtraction/pdf_data.json 2>/dev/null
+
+# Metadata sources
 ls -la /mnt/c/510k/Python/510kBF/510k_download.csv 2>/dev/null
 ls -la /mnt/c/510k/Python/PredicateExtraction/output.csv 2>/dev/null
 ```
+
+**Per-device cache structure**: `cache/index.json` maps K-numbers to file paths. Each device has its own JSON file at `cache/devices/K241335.json` containing `{"text": "...", "extraction_method": "...", "page_count": N}`. This is faster and more memory-efficient than loading a monolithic JSON file.
 
 ### Also check for projects that match the filter criteria
 
@@ -52,7 +62,7 @@ ls /mnt/c/510k/Python/510k_projects/*/query.json 2>/dev/null
 
 If found, suggest using that project's data.
 
-**Required**: `pdf_data.json` must exist (in project or legacy location). If not, tell the user: "No PDF text is available for analysis yet. Use `/fda:extract` to download and process PDFs for this product code."
+**Required**: PDF text must be available — either per-device cache (`cache/index.json`) or legacy `pdf_data.json` (in project or default location). If neither exists, tell the user: "No PDF text is available for analysis yet. Use `/fda:extract` to download and process PDFs for this product code."
 
 **Helpful**: `510k_download.csv` provides metadata (product code, applicant, decision date, Statement vs Summary) for filtering. If unavailable, filtering is limited to filename patterns.
 
@@ -75,10 +85,11 @@ Apply filters:
 
 Extract the list of matching K-numbers.
 
-### If only `pdf_data.json` exists — Use filename matching
+### If only per-device cache or pdf_data.json exists — Use K-number matching
 
-K-numbers are embedded in PDF filenames. Search for matching entries:
+**Per-device cache**: Read `cache/index.json` to get all available K-numbers. Filter by criteria.
 
+**Legacy pdf_data.json**: K-numbers are embedded in filenames:
 ```bash
 grep -o '"[^"]*\.pdf"' /mnt/c/510k/Python/PredicateExtraction/pdf_data.json | head -20
 ```
@@ -107,18 +118,31 @@ Tell the user how many documents matched their filter before proceeding. If more
 | Shelf Life | Stability, Package Testing, Shelf Life Testing |
 | Labeling | Labels, Labeling Review |
 
-For each matched document, read its text from `pdf_data.json` and identify which sections are present by searching for section headers. Use case-insensitive regex patterns like:
+For each matched document, read its text from the per-device cache (load `cache/devices/{knumber}.json`) or legacy `pdf_data.json`, and identify which sections are present by searching for section headers.
 
-- `(?i)(indications?\s+for\s+use|intended\s+use)`
-- `(?i)(device\s+description|product\s+description)`
-- `(?i)(substantial\s+equivalence|predicate\s+comparison|comparison\s+to\s+predicate|technological\s+characteristics)`
-- `(?i)(non[- ]?clinical\s+testing|performance\s+(testing|data)|bench\s+testing)`
-- `(?i)(clinical\s+(testing|data|studies|evidence|information))`
-- `(?i)(biocompatib|biological\s+evaluation)`
-- `(?i)(sterilization|sterility)`
-- `(?i)(software\s+(description|validation|documentation))`
-- `(?i)(electrical\s+safety|iec\s+60601)`
-- `(?i)(shelf\s+life|stability|package\s+testing)`
+**Use the centralized patterns from `references/section-patterns.md`** for robust fuzzy matching. These patterns handle variations across years, sponsors, and document styles. Key patterns include:
+
+- **Indications for Use**: `(?i)(indications?\s+for\s+use|intended\s+use|ifu|indication\s+statement|device\s+indications?|clinical\s+indications?|approved\s+use)`
+- **Device Description**: `(?i)(device\s+description|product\s+description|description\s+of\s+(the\s+)?device|device\s+characteristics|physical\s+description|device\s+composition|device\s+components|system\s+description|system\s+overview)`
+- **SE Comparison**: `(?i)(substantial\s+equivalence|se\s+comparison|predicate\s+(comparison|device|analysis|identification)|comparison\s+to\s+predicate|technological\s+characteristics|comparison\s+(table|chart|matrix)|similarities\s+and\s+differences)`
+- **Non-Clinical Testing**: `(?i)(non[-]?clinical\s+(testing|studies|data|performance)|performance\s+(testing|data|evaluation|characteristics|bench)|bench\s+(testing|top\s+testing)|in\s+vitro\s+(testing|studies)|mechanical\s+(testing|characterization)|laboratory\s+testing|verification\s+(testing|studies)|validation\s+testing|analytical\s+performance)`
+- **Clinical Testing**: `(?i)(clinical\s+(testing|trial|study|studies|data|evidence|information|evaluation|investigation|performance)|human\s+(subjects?|study|clinical)|patient\s+study|pivotal\s+(study|trial)|feasibility\s+study|literature\s+(review|search|summary|based)|clinical\s+experience)`
+- **Biocompatibility**: `(?i)(biocompatib(ility|le)?|biological\s+(evaluation|testing|safety|assessment)|iso\s*10993|cytotoxicity|sensitization\s+test|irritation\s+test|systemic\s+toxicity|genotoxicity|implantation\s+(testing|studies|study)|hemocompatibility|material\s+characterization|extractables?\s+and\s+leachables?)`
+- **Sterilization**: `(?i)(steriliz(ation|ed|ing)|sterility\s+(assurance|testing|validation)|ethylene\s+oxide|eto|gamma\s+(radiation|irradiation|steriliz)|electron\s+beam|steam\s+steriliz|autoclave|iso\s*11135|iso\s*11137|sal\s+10)`
+- **Software**: `(?i)(software\s+(description|validation|verification|documentation|testing|v&v|lifecycle|architecture|design)|firmware|algorithm\s+(description|validation)|cybersecurity|iec\s*62304)`
+- **Electrical Safety**: `(?i)(electrical\s+safety|iec\s*60601|electromagnetic\s+(compatibility|interference|disturbance)|emc|emi|wireless\s+(coexistence|testing))`
+- **Shelf Life**: `(?i)(shelf[-]?life|stability\s+(testing|studies|data)|accelerated\s+aging|real[-]?time\s+aging|package\s+(integrity|testing|validation|aging)|astm\s*f1980|expiration\s+dat(e|ing)|storage\s+condition)`
+
+Also apply **device-type-specific patterns** from `references/section-patterns.md` based on the product code (CGM, wound dressings, orthopedic, cardiovascular, IVD).
+
+**Section extraction strategy** (from `references/section-patterns.md`):
+1. Try header matching first — scan for patterns at start of lines or after page breaks
+2. Handle numbered sections (`1.`, `I.`, `Section 1:`)
+3. Handle ALL CAPS headers
+4. Handle table-formatted SE sections (look for `|` or tab-delimited structures)
+5. Fallback to semantic detection — if no header match, scan for keyword density (3+ domain keywords within 200 words)
+6. Handle very short sections (<50 words) — check next 30 lines for continuation
+7. Multi-page sections — skip page break indicators
 
 ### Present available sections
 
@@ -218,8 +242,10 @@ Structure the output as:
 
 ## Tips
 
-- `pdf_data.json` can be large. Use Grep to search for specific K-numbers rather than reading the whole file
+- **Per-device cache** (`cache/devices/*.json`): Load individual device files directly — no need to parse the entire dataset
+- **Legacy pdf_data.json**: Can be large. Use Grep to search for specific K-numbers rather than reading the whole file
 - For very large result sets (>20 documents), summarize in batches and then synthesize
 - Cross-reference with `510k_download.csv` to enrich summaries with metadata (applicant, decision date, review time)
 - If a section is not found in a document, note it as "Section not present" rather than omitting silently
 - Offer to export findings to a file if the summary is lengthy
+- Consult `references/section-patterns.md` for the full set of fuzzy patterns and device-type-specific patterns
