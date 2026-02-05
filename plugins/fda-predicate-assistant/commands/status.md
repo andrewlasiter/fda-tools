@@ -39,14 +39,15 @@ import urllib.request, urllib.parse, json, os, re, time
 
 # Read settings
 settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
-api_key = None
+api_key = os.environ.get('OPENFDA_API_KEY')  # Env var takes priority (never enters chat)
 api_enabled = True
 if os.path.exists(settings_path):
     with open(settings_path) as f:
         content = f.read()
-    m = re.search(r'openfda_api_key:\s*(\S+)', content)
-    if m and m.group(1) != 'null':
-        api_key = m.group(1)
+    if not api_key:  # Only check file if env var not set
+        m = re.search(r'openfda_api_key:\s*(\S+)', content)
+        if m and m.group(1) != 'null':
+            api_key = m.group(1)
     m = re.search(r'openfda_enabled:\s*(\S+)', content)
     if m and m.group(1).lower() == 'false':
         api_enabled = False
@@ -68,7 +69,8 @@ try:
         elapsed = (time.time() - start) * 1000
         print(f"STATUS:online")
         print(f"LATENCY:{elapsed:.0f}ms")
-        print(f"API_KEY:{'yes' if api_key else 'no'}")
+        key_source = 'env' if os.environ.get('OPENFDA_API_KEY') else ('file' if api_key else 'none')
+        print(f"API_KEY:{'yes' if api_key else 'no'} (source: {key_source})")
         print(f"RATE_TIER:{'120K/day' if api_key else '1K/day'}")
 except Exception as e:
     print(f"STATUS:unreachable")
@@ -82,7 +84,7 @@ Report in the status output:
 - If `STATUS:online`: Show `openFDA API  ✓  Online ({LATENCY}ms) | Key: {yes/no} | Rate: {RATE_TIER}`
 - If `STATUS:unreachable`: Show `openFDA API  ✗  Unreachable — check network connection`
 
-If the API is reachable and no key is configured, add a recommendation: "Get a free API key at https://open.fda.gov/apis/authentication/ for 120K requests/day (vs 1K/day without key). Set with: `/fda:configure --set openfda_api_key YOUR_KEY`"
+If the API is reachable and no key is configured, add a recommendation: "Get a free API key at https://open.fda.gov/apis/authentication/ for 120K requests/day (vs 1K/day without key). Run `/fda:configure --setup-key` for secure setup instructions."
 
 ### 1. Projects
 

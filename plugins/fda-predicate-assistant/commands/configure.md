@@ -1,7 +1,7 @@
 ---
 description: View or modify FDA predicate assistant settings and data directory paths
 allowed-tools: Read, Write, Bash
-argument-hint: "[--show | --set KEY VALUE | --test-api | --migrate-cache]"
+argument-hint: "[--show | --set KEY VALUE | --setup-key | --test-api | --migrate-cache]"
 ---
 
 # FDA Predicate Assistant Configuration
@@ -29,7 +29,7 @@ Settings are stored in: `~/.claude/fda-predicate-assistant.local.md`
 | `cache_days` | `5` | Days to cache FDA database files |
 | `default_year` | `null` | Default year filter (null = all years) |
 | `default_product_code` | `null` | Default product code filter |
-| `openfda_api_key` | `null` | openFDA API key for higher rate limits (120K/day vs 1K/day) |
+| `openfda_api_key` | `null` | openFDA API key for higher rate limits (120K/day vs 1K/day). Set via env var `OPENFDA_API_KEY` or settings file — never paste in chat. |
 | `openfda_enabled` | `true` | Enable/disable openFDA API calls (set false for offline-only mode) |
 
 ## Commands
@@ -55,9 +55,52 @@ If `$ARGUMENTS` starts with `--set`, parse KEY and VALUE, then update the settin
 Validate the key is one of the known settings before writing. For directory paths, verify the directory exists.
 
 Special handling for `openfda_api_key`:
-- Accept the key value and store it in settings
-- After storing, run a quick validation by hitting the 510k endpoint with `limit=1` to confirm the key works
-- Report success/failure
+- **Do NOT accept the API key directly in chat** — it would be stored in conversation history.
+- Instead, instruct the user to set it via one of the safe methods below, then offer to validate it:
+
+```
+To set your openFDA API key securely (without it appearing in chat):
+
+Option 1 — Environment variable (recommended for CLI users):
+  Add to your ~/.bashrc or ~/.zshrc:
+    export OPENFDA_API_KEY="your-key-here"
+  Then restart your terminal or run: source ~/.bashrc
+
+Option 2 — Settings file (recommended for Claude Desktop users):
+  Edit ~/.claude/fda-predicate-assistant.local.md directly:
+    openfda_api_key: your-key-here
+
+Option 3 — Setup script (interactive, outside Claude):
+  python3 "$CLAUDE_PLUGIN_ROOT/scripts/setup_api_key.py"
+
+Get a free key at: https://open.fda.gov/apis/authentication/
+```
+
+After the user confirms they've set it, run the `--test-api` flow to validate.
+
+### Setup API Key
+
+If `$ARGUMENTS` is `--setup-key`, display the secure key setup instructions (same as the special handling above). Then check if a key is already configured (via env var or settings file) and report the current status without revealing the key value:
+
+```python
+import os, re
+api_key = os.environ.get('OPENFDA_API_KEY')
+source = 'environment variable' if api_key else None
+if not api_key:
+    settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+    if os.path.exists(settings_path):
+        with open(settings_path) as f:
+            content = f.read()
+        m = re.search(r'openfda_api_key:\s*(\S+)', content)
+        if m and m.group(1) != 'null':
+            api_key = m.group(1)
+            source = 'settings file'
+if api_key:
+    print(f"KEY_STATUS:configured (via {source})")
+    print(f"KEY_PREVIEW:{api_key[:4]}...{api_key[-4:]}")  # Show only first/last 4 chars
+else:
+    print("KEY_STATUS:not configured")
+```
 
 ### Test openFDA API
 
@@ -71,14 +114,15 @@ import urllib.request, urllib.parse, json, os, re, time
 
 # Read settings for API key
 settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
-api_key = None
+api_key = os.environ.get('OPENFDA_API_KEY')  # Env var takes priority (never enters chat)
 api_enabled = True
 if os.path.exists(settings_path):
     with open(settings_path) as f:
         content = f.read()
-    m = re.search(r'openfda_api_key:\s*(\S+)', content)
-    if m and m.group(1) != 'null':
-        api_key = m.group(1)
+    if not api_key:  # Only check file if env var not set
+        m = re.search(r'openfda_api_key:\s*(\S+)', content)
+        if m and m.group(1) != 'null':
+            api_key = m.group(1)
     m = re.search(r'openfda_enabled:\s*(\S+)', content)
     if m and m.group(1).lower() == 'false':
         api_enabled = False
@@ -201,7 +245,7 @@ This file stores your preferences for the FDA 510(k) pipeline.
 
 ## openFDA API
 
-- **openfda_api_key**: API key for higher rate limits (get free key at https://open.fda.gov/apis/authentication/)
+- **openfda_api_key**: API key for higher rate limits (get free key at https://open.fda.gov/apis/authentication/). **Set via env var `OPENFDA_API_KEY` or edit this file directly — do not paste in chat.**
 - **openfda_enabled**: Set to false to disable all API calls (offline mode)
 ```
 

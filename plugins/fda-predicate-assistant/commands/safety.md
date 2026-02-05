@@ -29,16 +29,17 @@ python3 << 'PYEOF'
 import os, re
 settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
 api_enabled = True
-api_key = None
+api_key = os.environ.get('OPENFDA_API_KEY')  # Env var takes priority (never enters chat)
 if os.path.exists(settings_path):
     with open(settings_path) as f:
         content = f.read()
     m = re.search(r'openfda_enabled:\s*(\S+)', content)
     if m and m.group(1).lower() == 'false':
         api_enabled = False
-    m = re.search(r'openfda_api_key:\s*(\S+)', content)
-    if m and m.group(1) != 'null':
-        api_key = m.group(1)
+    if not api_key:  # Only check file if env var not set
+        m = re.search(r'openfda_api_key:\s*(\S+)', content)
+        if m and m.group(1) != 'null':
+            api_key = m.group(1)
 print(f"API_ENABLED:{api_enabled}")
 print(f"API_KEY:{'yes' if api_key else 'no'}")
 PYEOF
@@ -55,13 +56,14 @@ python3 << 'PYEOF'
 import urllib.request, urllib.parse, json, os, re
 
 settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
-api_key = None
+api_key = os.environ.get('OPENFDA_API_KEY')  # Env var takes priority (never enters chat)
 if os.path.exists(settings_path):
     with open(settings_path) as f:
         content = f.read()
-    m = re.search(r'openfda_api_key:\s*(\S+)', content)
-    if m and m.group(1) != 'null':
-        api_key = m.group(1)
+    if not api_key:  # Only check file if env var not set
+        m = re.search(r'openfda_api_key:\s*(\S+)', content)
+        if m and m.group(1) != 'null':
+            api_key = m.group(1)
 
 product_code = "PRODUCTCODE"  # Replace
 params = {"search": f'product_code:"{product_code}"', "limit": "1"}
@@ -106,13 +108,14 @@ python3 << 'PYEOF'
 import urllib.request, urllib.parse, json, os, re
 
 settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
-api_key = None
+api_key = os.environ.get('OPENFDA_API_KEY')  # Env var takes priority (never enters chat)
 if os.path.exists(settings_path):
     with open(settings_path) as f:
         content = f.read()
-    m = re.search(r'openfda_api_key:\s*(\S+)', content)
-    if m and m.group(1) != 'null':
-        api_key = m.group(1)
+    if not api_key:  # Only check file if env var not set
+        m = re.search(r'openfda_api_key:\s*(\S+)', content)
+        if m and m.group(1) != 'null':
+            api_key = m.group(1)
 
 product_code = "PRODUCTCODE"  # Replace
 
@@ -187,13 +190,14 @@ python3 << 'PYEOF'
 import urllib.request, urllib.parse, json, os, re
 
 settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
-api_key = None
+api_key = os.environ.get('OPENFDA_API_KEY')  # Env var takes priority (never enters chat)
 if os.path.exists(settings_path):
     with open(settings_path) as f:
         content = f.read()
-    m = re.search(r'openfda_api_key:\s*(\S+)', content)
-    if m and m.group(1) != 'null':
-        api_key = m.group(1)
+    if not api_key:  # Only check file if env var not set
+        m = re.search(r'openfda_api_key:\s*(\S+)', content)
+        if m and m.group(1) != 'null':
+            api_key = m.group(1)
 
 product_code = "PRODUCTCODE"  # Replace
 
@@ -249,13 +253,14 @@ python3 << 'PYEOF'
 import urllib.request, urllib.parse, json, os, re, time
 
 settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
-api_key = None
+api_key = os.environ.get('OPENFDA_API_KEY')  # Env var takes priority (never enters chat)
 if os.path.exists(settings_path):
     with open(settings_path) as f:
         content = f.read()
-    m = re.search(r'openfda_api_key:\s*(\S+)', content)
-    if m and m.group(1) != 'null':
-        api_key = m.group(1)
+    if not api_key:  # Only check file if env var not set
+        m = re.search(r'openfda_api_key:\s*(\S+)', content)
+        if m and m.group(1) != 'null':
+            api_key = m.group(1)
 
 product_code = "PRODUCTCODE"  # Replace
 
@@ -349,13 +354,14 @@ python3 << 'PYEOF'
 import urllib.request, urllib.parse, json, os, re
 
 settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
-api_key = None
+api_key = os.environ.get('OPENFDA_API_KEY')  # Env var takes priority (never enters chat)
 if os.path.exists(settings_path):
     with open(settings_path) as f:
         content = f.read()
-    m = re.search(r'openfda_api_key:\s*(\S+)', content)
-    if m and m.group(1) != 'null':
-        api_key = m.group(1)
+    if not api_key:  # Only check file if env var not set
+        m = re.search(r'openfda_api_key:\s*(\S+)', content)
+        if m and m.group(1) != 'null':
+            api_key = m.group(1)
 
 knumber = "KNUMBER"  # Replace
 

@@ -173,7 +173,10 @@ The plugin integrates with all 7 openFDA Device API endpoints for real-time data
 | `/device/udi` | Unique Device Identification | (available for queries) |
 
 ### Configuration
-- **API key**: Optional, stored in settings (`openfda_api_key`). Without key: 1K requests/day. With key: 120K/day.
+- **API key**: Optional. Without key: 1K requests/day. With key: 120K/day.
+  - **Priority 1**: Environment variable `OPENFDA_API_KEY` (recommended — never enters chat history)
+  - **Priority 2**: Settings file `~/.claude/fda-predicate-assistant.local.md` field `openfda_api_key`
+  - **Never paste your API key into chat** — use `/fda:configure --setup-key` for safe setup instructions
 - **Kill switch**: `openfda_enabled: false` disables all API calls for offline environments.
 - **Fallback**: All commands fall back to flat files (pmn*.txt, foiaclass.txt) when the API is unavailable.
 - **Test connectivity**: `/fda:configure --test-api` tests all 7 endpoints.
