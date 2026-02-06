@@ -16,7 +16,7 @@ Changes to recognized standards can affect:
 | Standard | Title | Key for |
 |----------|-------|---------|
 | ISO 13485:2016 | Medical devices — Quality management systems | All medical device manufacturers (foundational QMS standard) |
-| 21 CFR 820 | Quality System Regulation (cGMP) | US market requirement for all manufacturers |
+| 21 CFR 820 | Quality Management System Regulation (QMSR) | US market requirement for all manufacturers (incorporates ISO 13485, effective Feb 2, 2026) |
 
 ### Risk Management
 | Standard | Title | Key for |
@@ -136,11 +136,11 @@ Cross-reference found standards against project's guidance_cache/standards_list.
   "type": "standard_update",
   "standard": "ISO 10993-1",
   "old_version": "2018",
-  "new_version": "2024",
-  "recognition_date": "2025-06-15",
-  "transition_deadline": "2026-06-15",
+  "new_version": "2025",
+  "recognition_date": "2025-11-18",
+  "transition_deadline": "2027-11-18",
   "affected_requirements": ["REQ-BIOCOMPAT-001"],
   "severity": "warning",
-  "action_required": "Update biocompatibility testing plan to reference ISO 10993-1:2024"
+  "action_required": "Update biocompatibility testing plan to reference ISO 10993-1:2025"
 }
 ```

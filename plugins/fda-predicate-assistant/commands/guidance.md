@@ -327,7 +327,8 @@ APPLICABLE STANDARDS
 Required:
   • ISO 10993-1 — Biological evaluation framework
   • ISO 10993-5 — Cytotoxicity testing
-  • ISO 10993-10 — Sensitization and irritation
+  • ISO 10993-10 — Sensitization
+  • ISO 10993-23 — Irritation
   • ISO 11135 — EO sterilization validation
   • ASTM F1980 — Accelerated aging
   • ISO 14971 — Risk management

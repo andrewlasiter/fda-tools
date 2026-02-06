@@ -14,6 +14,8 @@ Reference for eSTAR (electronic Submission Template And Resource) structure, sec
 
 ## eSTAR Section Structure (nIVD v6)
 
+> **Note:** The actual eSTAR template uses 22 lettered pages (A-V). The numbered sections below (01-17) are a **plugin convention** for organizing submission content and do not correspond to the FDA 2019 guidance 20-section format or actual eSTAR page letters. XFA field paths are derived from observed template structures and may vary across eSTAR versions.
+
 | # | Section | eSTAR Tab/Page | Required? | Auto-Populate? |
 |---|---------|----------------|-----------|----------------|
 | 01 | Cover Letter | Cover Letter | Yes | Partial |

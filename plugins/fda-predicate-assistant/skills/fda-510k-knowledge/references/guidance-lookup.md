@@ -52,7 +52,7 @@ These guidances apply based on device characteristics, regardless of product cod
 | **All 510(k) devices** | Labeling | "Medical Device Labeling — 510(k) Guidance" | 21 CFR 801 |
 | **Class II devices** | Special controls | Product-code-specific special controls guidance | Varies by regulation |
 | **Sterile devices** (description mentions "sterile", "sterilization", or product implies sterile) | Sterilization validation | "Submission and Review of Sterility Information in Premarket Notification (510(k)) Submissions" | ISO 11135 (EO), ISO 11137 (radiation), ISO 17665 (steam) |
-| **Sterile devices** | Shelf life / aging | "Shelf Life of Medical Devices" | ASTM F1980 (accelerated aging), ASTM F2097 (aging design) |
+| **Sterile devices** | Shelf life / aging | "Shelf Life of Medical Devices" | ASTM F1980 (accelerated aging), ASTM F2097 (flexible packaging evaluation) |
 | **Devices with patient contact** | Biocompatibility (extended) | "Use of ISO 10993-1" | ISO 10993-1 through -18 as applicable |
 | **Software-containing devices** (description mentions "software", "algorithm", "app", "firmware", "SaMD") | Software documentation | "Content of Premarket Submissions for Device Software Functions" | IEC 62304, IEC 82304-1 |
 | **Software-containing devices** | Cybersecurity | "Cybersecurity in Medical Devices: Quality System Considerations and Content of Premarket Submissions" | AAMI TIR57 |

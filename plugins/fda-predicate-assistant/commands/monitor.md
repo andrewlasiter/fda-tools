@@ -311,7 +311,7 @@ WebSearch: site:fda.gov "{standard_name}" recognition medical device 2025 OR 202
 
 | Standard | Current | Latest Recognized | Status | Impact |
 |----------|---------|-------------------|--------|--------|
-| ISO 10993-1 | 2018 | 2024 | UPDATE AVAILABLE | Update biocompat plan |
+| ISO 10993-1 | 2018 | 2025 | UPDATE AVAILABLE | Update biocompat plan |
 | IEC 62304 | 2015 | 2015 | CURRENT | No action |
 | ISO 11135 | 2014 | 2014 | CURRENT | No action |
 | ASTM F1980 | 2016 | 2021 | UPDATE AVAILABLE | Review aging protocol |

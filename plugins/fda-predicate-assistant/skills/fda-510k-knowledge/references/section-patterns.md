@@ -46,10 +46,10 @@ For each section you need to extract:
 - ISO 10993-5: Cytotoxicity (in vitro)
 - ISO 10993-6: Implantation effects
 - ISO 10993-7: EO sterilization residuals
-- ISO 10993-10: Sensitization and irritation
+- ISO 10993-10: Sensitization
 - ISO 10993-11: Systemic toxicity
 - ISO 10993-12: Sample preparation
-- ISO 10993-17: Allowable limits for leachables
+- ISO 10993-17: Toxicological risk assessment of device constituents
 - ISO 10993-18: Chemical characterization
 - ISO 10993-23: Irritation tests
 

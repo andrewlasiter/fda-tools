@@ -101,7 +101,8 @@ Based on device classification, description, and guidance:
 |----------|----------|-------------|---------------------|----------|-----------|
 | Biocompatibility | ISO 10993-1 | Risk-based evaluation | Per ISO 10993 endpoints | Required | High |
 | Biocompatibility | ISO 10993-5 | Cytotoxicity (MEM elution) | Grade 0-1 reactivity | Required | High |
-| Biocompatibility | ISO 10993-10 | Sensitization (GPMT/LLNA) + Irritation | No sensitization/irritation | Required | High |
+| Biocompatibility | ISO 10993-10 | Sensitization (GPMT/LLNA) | No sensitization | Required | High |
+| Biocompatibility | ISO 10993-23 | Irritation (in vitro/in vivo) | No irritation | Required | High |
 | Sterilization | ISO 11135 or 11137 | EO/Gamma validation | SAL 10^-6 | Required (if sterile) | High |
 | Shelf Life | ASTM F1980 | Accelerated aging | Package integrity at EOL | Required (if expiration) | Medium |
 | Performance | Device-specific | Per guidance | Per guidance criteria | Required | High |

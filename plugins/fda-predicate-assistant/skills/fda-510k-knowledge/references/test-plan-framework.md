@@ -14,7 +14,7 @@
 ## Common Testing Categories by Device Type
 
 ### Orthopedic Implants (OVE, MAX, etc.)
-- Mechanical testing: ASTM F2077 (static/dynamic), ASTM F1717 (spinal), ASTM F2267 (cervical)
+- Mechanical testing: ASTM F2077 (static/dynamic), ASTM F1717 (spinal), ASTM F2267 (subsidence)
 - Fatigue testing: ASTM F2077 Annex (dynamic fatigue)
 - Wear testing: ASTM F2423
 - Corrosion: ASTM F2129

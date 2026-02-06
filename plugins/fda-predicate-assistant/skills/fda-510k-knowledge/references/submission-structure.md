@@ -191,27 +191,30 @@ Per FDA guidance "Recommended Content of a Traditional 510(k) Submission":
 
 ### eSTAR (Electronic Submission Template)
 
-FDA's recommended electronic submission format. Same content as above but organized into the eSTAR template:
+FDA's mandatory electronic submission format (required since October 1, 2023 per 88 FR 42012). The actual eSTAR template uses 22 lettered pages (A-V), not numbered sections. The plugin uses a simplified 17-section numbering convention for internal tracking:
 
 ```
-eSTAR Sections:
-1.  Applicant Information
-2.  Device Information
-3.  Predicate Device Information
-4.  Device Description
-5.  Substantial Equivalence Comparison
-6.  Proposed Labeling
-7.  Sterilization
-8.  Shelf Life
-9.  Biocompatibility
-10. Software
-11. EMC / Electrical Safety
-12. Performance Testing
-13. Clinical Testing
-14. Other
+Plugin eSTAR Section Mapping:
+01. Cover Letter
+02. Cover Sheet (FDA 3514)
+03. 510(k) Summary or Statement
+04. Truthful & Accuracy Statement
+05. Financial Certification
+06. Device Description
+07. SE Comparison
+08. Standards / Conformity
+09. Labeling
+10. Sterilization
+11. Shelf Life
+12. Biocompatibility
+13. Software / Cybersecurity
+14. EMC / Electrical Safety
+15. Performance Testing
+16. Clinical
+17. Other
 ```
 
-The eSTAR maps directly to the Traditional 510(k) ToC. FDA strongly recommends using eSTAR format.
+> **Note:** This numbering is a plugin convention for organizing submission content. It does not match the FDA 2019 guidance 20-section format or the actual eSTAR template page lettering (A-V). See `references/estar-structure.md` for XFA field mappings.
 
 ## Pre-Submission (Pre-Sub) Meeting Format
 

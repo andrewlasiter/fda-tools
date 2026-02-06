@@ -77,7 +77,7 @@ Is the device exempt from 510(k)?
 - **Fee**: Third-party reviewer fees (set by the reviewer, not FDA) PLUS reduced MDUFA fee
 - **Eligible devices**: Specific product codes listed by FDA; generally lower-risk Class II devices
 - **Key advantage**: Faster review timeline with independent qualified review
-- **FDA citation**: Section 523 of the FD&C Act; 21 CFR 801 Subpart H
+- **FDA citation**: Section 523 of the FD&C Act (Accredited Persons program)
 
 ### Breakthrough Device Designation
 - **When**: Device provides more effective treatment/diagnosis of life-threatening or irreversibly debilitating conditions AND meets one of: (a) represents breakthrough technology, (b) no approved alternative exists, (c) offers significant advantages, (d) is in best interest of patients

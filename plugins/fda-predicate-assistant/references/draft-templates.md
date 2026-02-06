@@ -112,7 +112,7 @@ See existing `se-discussion` section in draft.md.
 [TODO: Company-specific — List contraindications based on device type and clinical data]
 
 **Warnings:**
-[TODO: Company-specific — Warnings per 21 CFR 801.109 and applicable special controls]
+[TODO: Company-specific — Warnings per applicable special controls and 21 CFR 801.109 (prescription device labeling)]
 
 **Precautions:**
 [TODO: Company-specific — Precautions for safe use]
@@ -121,10 +121,10 @@ See existing `se-discussion` section in draft.md.
 [TODO: Company-specific — Step-by-step usage instructions]
 
 ### 9.3 Patient Labeling
-[TODO: Company-specific — Patient-facing labeling if applicable (per 21 CFR 801.6)]
+[TODO: Company-specific — Patient-facing labeling if applicable (per 21 CFR Part 801)]
 
 ### 9.4 Promotional Materials
-[TODO: Company-specific — Any promotional materials submitted per 21 CFR 807.87(k)]
+[TODO: Company-specific — Any promotional materials submitted per 21 CFR 807.87(e)]
 ```
 
 ## Section 10: Sterilization
@@ -241,7 +241,7 @@ Per ISO 10993-1:2018, the following endpoints were evaluated:
 |----------|-----------|--------|--------|
 | Cytotoxicity | Yes | ISO 10993-5 | [TODO] |
 | Sensitization | Yes | ISO 10993-10 | [TODO] |
-| Irritation | Yes | ISO 10993-10 | [TODO] |
+| Irritation | Yes | ISO 10993-23 | [TODO] |
 | Systemic Toxicity | {Conditional} | ISO 10993-11 | [TODO] |
 | Genotoxicity | {Conditional} | ISO 10993-3 | [TODO] |
 | Implantation | {Conditional} | ISO 10993-6 | [TODO] |
