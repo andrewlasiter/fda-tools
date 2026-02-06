@@ -250,13 +250,101 @@ If the user specifies `--project NAME` and the project already exists:
 
 ## After Extraction
 
-Once either stage completes:
+Once either stage completes, present results using the standard FDA Professional CLI format (see `references/output-formatting.md`):
 
-1. **Report the project location**: Tell the user where all files are saved
-2. **Report a summary:**
-   - Stage 1: How many records in 510k_download.csv, how many PDFs downloaded
-   - Stage 2: How many devices in output.csv, how many had predicates, any errors
-3. **If Stage 2 just finished — Quick Safety Scan:**
+### Stage 1 Summary
+
+```
+  FDA BatchFetch Summary
+  {product_code} — Stage 1 Complete
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Generated: {date} | Project: {name} | v4.0.0
+
+RESULTS
+────────────────────────────────────────
+
+  | Metric            | Value           |
+  |-------------------|-----------------|
+  | Records found     | {N}             |
+  | PDFs downloaded   | {N}             |
+  | Download errors   | {N}             |
+  | Year range        | {start} - {end} |
+  | Product codes     | {codes}         |
+
+FILES WRITTEN
+────────────────────────────────────────
+
+  510k_download.csv              {path}
+  Applicant_ProductCode_Tables   {path}
+  PDFs                           {path}/510ks/
+
+NEXT STEPS
+────────────────────────────────────────
+
+  1. Extract predicates — `/fda:extract stage2 --project {NAME}`
+  2. Check data status — `/fda:status`
+
+────────────────────────────────────────
+  This report is AI-generated from public FDA data.
+  Verify independently. Not regulatory advice.
+────────────────────────────────────────
+```
+
+### Stage 2 Summary
+
+```
+  FDA Predicate Extraction Summary
+  {product_code} — Stage 2 Complete
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Generated: {date} | Project: {name} | v4.0.0
+
+RESULTS
+────────────────────────────────────────
+
+  | Metric                    | Value |
+  |---------------------------|-------|
+  | Devices processed         | {N}   |
+  | Devices with predicates   | {N}   |
+  | Total predicates found    | {N}   |
+  | Avg predicates per device | {N}   |
+  | Processing errors         | {N}   |
+
+TOP CITED PREDICATES
+────────────────────────────────────────
+
+  | K-Number | Citations | Status |
+  |----------|-----------|--------|
+  | {kn}     | {count}   | {✓/⚠} |
+
+QUICK SAFETY SCAN
+────────────────────────────────────────
+
+  {safety scan results — ✓ clean or ⚠ recalls found}
+
+FILES WRITTEN
+────────────────────────────────────────
+
+  output.csv       {path}
+  supplement.csv   {path}
+  pdf_data.json    {path}
+  error_log.txt    {path}
+
+NEXT STEPS
+────────────────────────────────────────
+
+  1. Review and score predicates — `/fda:review --project {NAME}`
+  2. Analyze extraction data — `/fda:analyze --project {NAME}`
+  3. Summarize PDF sections — `/fda:summarize --project {NAME}`
+
+────────────────────────────────────────
+  This report is AI-generated from public FDA data.
+  Verify independently. Not regulatory advice.
+────────────────────────────────────────
+```
+
+### Quick Safety Scan (after Stage 2)
+
+**If Stage 2 just finished — Quick Safety Scan:**
 
    Automatically scan the top 5 most-cited predicates for recalls. This takes ~10 seconds and catches critical safety issues early.
 

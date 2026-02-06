@@ -271,9 +271,10 @@ Each step builds on previous data but degrades gracefully if run independently.
 | `/fda:configure` | Set up API keys, data paths, and preferences |
 | `/fda:status` | Check what data you have and what's available |
 
-## Resources (17 references)
+## Resources (18 references)
 
 For detailed reference information, see:
+- `references/output-formatting.md` - FDA Professional CLI output formatting guide (rules R1-R12)
 - `references/openfda-api.md` - openFDA Device API reference (all 7 endpoints)
 - `references/device-classes.md` - Device classification details
 - `references/predicate-types.md` - Predicate selection guidance

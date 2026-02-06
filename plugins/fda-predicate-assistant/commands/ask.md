@@ -107,23 +107,40 @@ From `$ARGUMENTS`, extract:
 
 ## Answer Format
 
+Present answers using the standard FDA Professional CLI format (see `references/output-formatting.md`):
+
 ```
-Q: {user's question}
+  FDA Regulatory Q&A
+  {question_topic}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Generated: {date} | v4.0.0
 
-A: {Direct answer}
+QUESTION
+────────────────────────────────────────
 
-{Supporting details with data}
+  {user's question}
 
-{If applicable: relevant table or comparison}
+ANSWER
+────────────────────────────────────────
 
-Sources:
+  {Direct answer}
+
+  {Supporting details with data}
+
+  {If applicable: relevant table or comparison}
+
+SOURCES
+────────────────────────────────────────
+
   • openFDA API: {specific query used}
   • FDA Guidance: "{guidance title}" ({year})
   • Project data: {if used}
   • Classification: 21 CFR {regulation}
 
-⚠ This is AI-generated regulatory information, not legal or regulatory advice.
-  Verify all answers with qualified regulatory professionals.
+────────────────────────────────────────
+  This report is AI-generated from public FDA data.
+  Verify independently. Not regulatory advice.
+────────────────────────────────────────
 ```
 
 ## Error Handling

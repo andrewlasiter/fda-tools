@@ -74,28 +74,54 @@ If error_log.txt exists:
 Structure your report as:
 
 ```
-## Executive Summary
-[2-3 sentence overview of key findings]
+  FDA Extraction Analysis Report
+  {product_code} — {device_name}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Generated: {date} | v4.0.0
 
-## Statistics
-| Metric | Value |
-|--------|-------|
-| Total Submissions | X |
-| Unique Predicates | Y |
-| Avg Predicates/Submission | Z |
-...
+EXECUTIVE SUMMARY
+────────────────────────────────────────
 
-## Top Predicates
-[Most frequently cited devices]
+  {2-3 sentence overview of key findings}
 
-## Notable Patterns
-[Interesting relationships discovered]
+STATISTICS
+────────────────────────────────────────
 
-## Quality Issues
-[Problems requiring attention]
+  | Metric                    | Value |
+  |---------------------------|-------|
+  | Total Submissions         | {N}   |
+  | Unique Predicates         | {N}   |
+  | Avg Predicates/Submission | {N}   |
+  | Product Codes             | {N}   |
+  | Document Types            | {summary/statement ratio} |
 
-## Recommendations
-[Specific actionable suggestions]
+TOP PREDICATES
+────────────────────────────────────────
+
+  | # | K-Number | Cited By | Device Name |
+  |---|----------|----------|-------------|
+  | 1 | {K-num}  | {N} submissions | {name} |
+
+NOTABLE PATTERNS
+────────────────────────────────────────
+
+  {Interesting relationships discovered}
+
+QUALITY ISSUES
+────────────────────────────────────────
+
+  {Problems requiring attention, using ✓/✗/⚠/○ indicators}
+
+RECOMMENDATIONS
+────────────────────────────────────────
+
+  1. {Specific actionable suggestion}
+  2. {Next step}
+
+────────────────────────────────────────
+  This report is AI-generated from public FDA data.
+  Verify independently. Not regulatory advice.
+────────────────────────────────────────
 ```
 
 ## Regulatory Context

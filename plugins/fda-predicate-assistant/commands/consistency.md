@@ -175,62 +175,66 @@ No `[INSERT: ...]` placeholders should remain in final documents.
 
 ## Step 4: Generate Report
 
-```markdown
-# Consistency Validation Report
-## Project: {project_name}
+Present the report using the standard FDA Professional CLI format (see `references/output-formatting.md`):
 
-**Validated:** {date}
-**Files checked:** {count}
-**Result:** {PASS / N warnings / N failures}
+```
+  FDA Consistency Validation Report
+  Project: {project_name}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Generated: {date} | Files: {count} | v4.0.0
 
----
+RESULTS SUMMARY
+────────────────────────────────────────
 
-## Results Summary
+  | Check              | Status | Details      |
+  |--------------------|--------|--------------|
+  | Product Code       | ✓      | {details}    |
+  | Predicate List     | ✗      | {details}    |
+  | Device Description | ⚠      | {details}    |
+  | Intended Use       | ✓      | {details}    |
+  | Pathway            | ✓      | {details}    |
+  | Standards Coverage | ⚠      | {details}    |
+  | Dates/Freshness    | ○      | {details}    |
+  | Placeholder Scan   | ✓      | {details}    |
 
-| Check | Status | Details |
-|-------|--------|---------|
-| Product Code | {PASS/WARN/FAIL} | {details} |
-| Predicate List | {PASS/WARN/FAIL} | {details} |
-| Device Description | {PASS/WARN/FAIL} | {details} |
-| Intended Use | {PASS/WARN/FAIL} | {details} |
-| Pathway | {PASS/WARN/FAIL} | {details} |
-| Standards Coverage | {PASS/WARN/FAIL} | {details} |
-| Dates/Freshness | {PASS/WARN/FAIL} | {details} |
-| Placeholder Scan | {PASS/WARN/FAIL} | {details} |
+  Status: ✓ pass, ✗ fail, ⚠ warning, ○ not checked
 
----
+FAILURES (MUST FIX)
+────────────────────────────────────────
 
-## Failures (must fix before submission)
+  {For each ✗:}
+  **{Check Name}**
+  Issue: {description}
+  Found in: {file1} says X, {file2} says Y
+  → {how to fix}
 
-{For each FAIL:}
-### {Check Name}
-**Issue:** {description}
-**Found in:** {file1} says X, {file2} says Y
-**Recommendation:** {how to fix}
+WARNINGS (REVIEW RECOMMENDED)
+────────────────────────────────────────
 
----
+  {For each ⚠:}
+  **{Check Name}**
+  Issue: {description}
+  → {action}
 
-## Warnings (review recommended)
+VERIFIED CONSISTENT FACTS
+────────────────────────────────────────
 
-{For each WARN:}
-### {Check Name}
-**Issue:** {description}
-**Recommendation:** {action}
+  Product Code: {CODE} (consistent across {N} files)
+  Predicates:   {K-numbers} (consistent across {N} files)
+  Pathway:      {pathway} (consistent across {N} files)
+  IFU:          "{first 80 chars...}" (consistent across {N} files)
 
----
+NEXT STEPS
+────────────────────────────────────────
 
-## Verified Consistent Facts
+  1. Fix all ✗ failures before submission
+  2. Review ⚠ warnings with regulatory team
+  3. Re-run after fixes — `/fda:consistency --project NAME`
 
-- Product Code: {CODE} (consistent across {N} files)
-- Predicates: {K-numbers} (consistent across {N} files)
-- Pathway: {pathway} (consistent across {N} files)
-- IFU: "{first 80 chars...}" (consistent across {N} files)
-
----
-
-⚠ This consistency check validates internal alignment of project files.
-It does not validate regulatory correctness or completeness.
-Review all submission components with your regulatory team.
+────────────────────────────────────────
+  This report is AI-generated from public FDA data.
+  Verify independently. Not regulatory advice.
+────────────────────────────────────────
 ```
 
 ## Error Handling

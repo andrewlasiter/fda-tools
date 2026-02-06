@@ -287,40 +287,45 @@ At pipeline completion, also write `$PROJECTS_DIR/$PROJECT_NAME/pipeline_audit.j
 
 ## Pipeline Completion Report
 
-After all steps complete, present a summary:
+After all steps complete, present a summary using the standard FDA Professional CLI format (see `references/output-formatting.md`):
 
 ```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-FDA 510(k) PIPELINE COMPLETE — {PROJECT_NAME}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  FDA Pipeline Completion Report
+  {CODE} — {device_name}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Generated: {date} | Project: {PROJECT_NAME} | v4.0.0
 
-Product Code: {CODE} — {device_name}
-Project Dir:  {PROJECTS_DIR}/{PROJECT}
+STEP RESULTS
+────────────────────────────────────────
 
-Step Results:
-  1. Extract:          {DONE/SKIPPED/FAILED} — {details}
-  2. Review:           {DONE/SKIPPED/FAILED} — {details}
-  3. Safety:           {DONE/SKIPPED/FAILED} — {details}
-  4. Guidance:         {DONE/SKIPPED/FAILED} — {details}
-  5. Pre-Sub Plan:     {DONE/SKIPPED/FAILED} — {details}
-  6. Submission Outline: {DONE/SKIPPED/FAILED} — {details}
-  7. SE Comparison:    {DONE/SKIPPED/FAILED} — {details}
+  1. Extract            ✓  {details}
+  2. Review             ✓  {details}
+  3. Safety             ⚠  DEGRADED — {details}
+  4. Guidance           ✓  {details}
+  5. Pre-Sub Plan       ✓  {details}
+  6. Submission Outline ✓  {details}
+  7. SE Comparison      ✗  FAILED — {details}
 
-Files Generated:
+  Use status indicators: ✓ done, ✗ failed, ⚠ degraded, ○ skipped
+
+FILES GENERATED
+────────────────────────────────────────
+
   {list each file with size}
 
-Steps Skipped: {list with reason}
-Steps Failed:  {list with error}
+NEXT STEPS
+────────────────────────────────────────
 
-Next Steps for Manual Review:
   1. Review accepted predicates in review.json
   2. Fill in [INSERT: ...] placeholders in presub_plan.md
   3. Complete [YOUR DEVICE: ...] cells in SE comparison table
   4. Review submission outline gap analysis
   5. Consult regulatory affairs team before FDA submission
 
-⚠ All generated documents are AI-assisted starting points.
-  Review with your regulatory team before submission.
+────────────────────────────────────────
+  This report is AI-generated from public FDA data.
+  Verify independently. Not regulatory advice.
+────────────────────────────────────────
 ```
 
 ## Error Handling

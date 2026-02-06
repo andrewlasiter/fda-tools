@@ -180,9 +180,8 @@ For each modification implemented under this PCCP:
 
 ---
 
-⚠ DISCLAIMER: This PCCP template is AI-generated based on publicly available
-FDA guidance. PCCPs must be reviewed by regulatory affairs and quality
-professionals. This is not regulatory advice.
+> **Disclaimer:** This PCCP is AI-generated from public FDA data.
+> Verify independently. Not regulatory advice.
 ```
 
 ## Step 4: Write Output

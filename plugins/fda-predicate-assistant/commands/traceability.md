@@ -187,6 +187,11 @@ Assign test IDs: `TEST-{category}-{number}` (e.g., TEST-BIOCOMPAT-001)
 {For each risk without a mapped requirement:}
 - **{Risk ID}**: {Risk} — Identified from {source} but no formal requirement addresses it.
   → Recommendation: {specific action}
+
+---
+
+> **Disclaimer:** This traceability matrix is AI-generated from public FDA data.
+> Verify independently. Not regulatory advice.
 ```
 
 ## Step 6: Write Output

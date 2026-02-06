@@ -213,26 +213,41 @@ Write `$ESTAR_DIR/eSTAR_index.md`:
 ## Step 5: Report
 
 ```
-eSTAR Package Assembly Complete
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Project: {name}
-Output: {estar_dir}/
+  FDA eSTAR Assembly Report
+  {product_code} — {device_name}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Generated: {date} | Project: {name} | v4.0.0
 
-Sections Created: {total}
-  Ready:    {count} (data available)
-  Partial:  {count} (some data, needs completion)
-  Template: {count} (starter template only)
-  N/A:      {count} (not applicable to this device)
+ASSEMBLY SUMMARY
+────────────────────────────────────────
 
-Key Files:
-  eSTAR_index.md — Master index with readiness status
-  {section}/README.md — Requirements for each section
+  Output: {estar_dir}/
 
-Next Steps:
+  | Status     | Count | Description                    |
+  |------------|-------|--------------------------------|
+  | ✓ Ready    | {N}   | Data available from pipeline   |
+  | ⚠ Partial  | {N}   | Some data, needs completion    |
+  | ○ Template | {N}   | Starter template only          |
+  | — N/A      | {N}   | Not applicable to this device  |
+
+KEY FILES
+────────────────────────────────────────
+
+  eSTAR_index.md          Master index with readiness status
+  {section}/README.md     Requirements for each section
+
+NEXT STEPS
+────────────────────────────────────────
+
   1. Review eSTAR_index.md for gap summary
-  2. Complete TEMPLATE sections with device-specific data
+  2. Complete ○ Template sections with device-specific data
   3. Add test reports to performance and biocompatibility sections
   4. Have regulatory team review for completeness
+
+────────────────────────────────────────
+  This report is AI-generated from public FDA data.
+  Verify independently. Not regulatory advice.
+────────────────────────────────────────
 ```
 
 ## Error Handling

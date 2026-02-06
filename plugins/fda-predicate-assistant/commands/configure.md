@@ -166,11 +166,18 @@ endpoints = [
     ("udi", 'product_codes.code:"KGN"'),
 ]
 
-print("openFDA Device API Connectivity Test")
-print("=" * 50)
-print(f"API Key: {'Configured' if api_key else 'Not set (1K/day limit)'}")
-print(f"Rate Tier: {'120K/day (with key)' if api_key else '1K/day (no key)'}")
+print("  FDA API Connectivity Test")
+print("  openFDA Device Endpoints")
+print("━" * 56)
+print(f"  Generated: {__import__('datetime').date.today()} | v4.0.0")
 print()
+print("API CONFIGURATION")
+print("─" * 40)
+print(f"  API Key: {'Configured' if api_key else 'Not set (1K/day limit)'}")
+print(f"  Rate Tier: {'120K/day (with key)' if api_key else '1K/day (no key)'}")
+print()
+print("ENDPOINT STATUS")
+print("─" * 40)
 
 passed = 0
 failed = 0
@@ -186,30 +193,37 @@ for endpoint, search in endpoints:
             data = json.loads(resp.read())
             elapsed = (time.time() - start) * 1000
             total = data.get("meta", {}).get("results", {}).get("total", "?")
-            print(f"  {endpoint:25s}  OK  ({elapsed:.0f}ms, {total} total records)")
+            print(f"  {endpoint:25s}  ✓  ({elapsed:.0f}ms, {total} total records)")
             passed += 1
     except urllib.error.HTTPError as e:
         elapsed = (time.time() - start) * 1000
         if e.code == 404:
-            print(f"  {endpoint:25s}  OK  ({elapsed:.0f}ms, 0 results for test query)")
+            print(f"  {endpoint:25s}  ✓  ({elapsed:.0f}ms, 0 results for test query)")
             passed += 1
         else:
-            print(f"  {endpoint:25s}  FAIL  (HTTP {e.code}: {e.reason})")
+            print(f"  {endpoint:25s}  ✗  (HTTP {e.code}: {e.reason})")
             failed += 1
     except Exception as e:
         elapsed = (time.time() - start) * 1000
-        print(f"  {endpoint:25s}  FAIL  ({e})")
+        print(f"  {endpoint:25s}  ✗  ({e})")
         failed += 1
     time.sleep(0.5)  # Brief pause between requests
 
 print()
-print(f"Results: {passed}/7 endpoints reachable, {failed} failed")
+print("RESULTS")
+print("─" * 40)
+print(f"  {passed}/7 endpoints reachable, {failed} failed")
 if failed == 0:
-    print("All endpoints operational.")
+    print("  ✓ All endpoints operational")
 elif failed == 7:
-    print("No endpoints reachable — check network connectivity.")
+    print("  ✗ No endpoints reachable — check network connectivity")
 else:
-    print("Some endpoints failed — may be temporary. Retry in a few minutes.")
+    print("  ⚠ Some endpoints failed — may be temporary, retry in a few minutes")
+print()
+print("─" * 40)
+print("  This report is AI-generated from public FDA data.")
+print("  Verify independently. Not regulatory advice.")
+print("─" * 40)
 PYEOF
 ```
 

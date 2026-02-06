@@ -342,11 +342,8 @@ Look for `[REVIEW NEEDED]` cells — verify the auto-generated comparison is cor
 3. For any "Different" characteristics, add justification explaining how differences don't raise new questions of safety/effectiveness
 4. Have your regulatory team review for completeness per 21 CFR 807.87(f)
 
-⚠ IMPORTANT: This comparison table is AI-generated from publicly available
-FDA data. Accuracy is not guaranteed — verify all entries independently.
-This is not regulatory advice. Do not include private or IP-protected
-information in your inputs. Anything you send may be used for Anthropic
-model training depending on your account settings.
+> **Disclaimer:** This comparison table is AI-generated from public FDA data.
+> Verify independently. Not regulatory advice.
 ```
 
 ### File output (--output)

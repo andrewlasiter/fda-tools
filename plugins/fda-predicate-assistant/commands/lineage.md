@@ -178,9 +178,13 @@ Calculate a "Chain Health Score" (0-100) based on:
 ### Text Tree (always generated)
 
 ```
-Predicate Lineage: K241335 (Your Predicate)
-Chain Health Score: 72/100 (Moderate)
-═══════════════════════════════════════════
+  FDA Predicate Lineage Report
+  K241335 — Cervical Fusion Cage
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Generated: {date} | Chain Health: 72/100 (Moderate) | v4.0.0
+
+LINEAGE TREE
+────────────────────────────────────────
 
 K241335 (2024) — Cervical Fusion Cage — COMPANY A [CLEAN]
 ├── K200123 (2020) — Cervical Interbody Device — COMPANY B [CLEAN]
@@ -192,8 +196,8 @@ K241335 (2024) — Cervical Fusion Cage — COMPANY A [CLEAN]
     └── K150333 (2015) — Cervical Interbody — COMPANY F [CLEAN]
         └── K100111 (2010) — Spinal Implant — COMPANY G [CLEAN]
 
-Legend: [CLEAN] = No recalls  [RECALLED Class X] = Recall found
-        (YYYY) = Clearance year
+  Legend: [CLEAN] = No recalls  [RECALLED Class X] = Recall found
+          (YYYY) = Clearance year
 ```
 
 ### Lineage JSON (for programmatic use)
@@ -236,22 +240,34 @@ Write `lineage.json` to the project folder:
 Based on the lineage analysis:
 
 ```
-Lineage Recommendations:
-━━━━━━━━━━━━━━━━━━━━━━━
+RECOMMENDATIONS
+────────────────────────────────────────
 
-1. RECALLED ANCESTOR: K170456 (Gen 2) has a Class II recall.
-   → Impact: This device is 2 generations removed from your predicate.
-   → Action: Address the recall failure mode (fracture) in your testing plan.
-   → Mention in Pre-Sub: Yes — FDA may ask about this.
+  1. RECALLED ANCESTOR: K170456 (Gen 2) has a Class II recall.
+     → Impact: This device is 2 generations removed from your predicate.
+     → Action: Address the recall failure mode (fracture) in your testing plan.
+     → Mention in Pre-Sub: Yes — FDA may ask about this.
 
-2. CHAIN DIVERSITY: Your predicate chain has 2 independent paths.
-   → This is good — not a single-thread dependency.
+  2. CHAIN DIVERSITY: Your predicate chain has 2 independent paths.
+     → This is good — not a single-thread dependency.
 
-3. PRODUCT CODE: All ancestors share product code OVE.
-   → Strong consistency — supports SE argument.
+  3. PRODUCT CODE: All ancestors share product code OVE.
+     → Strong consistency — supports SE argument.
 
-4. AGE: Oldest ancestor is K100111 (2010, 16 years ago).
-   → Consider if the technology has evolved significantly since then.
+  4. AGE: Oldest ancestor is K100111 (2010, 16 years ago).
+     → Consider if the technology has evolved significantly since then.
+
+NEXT STEPS
+────────────────────────────────────────
+
+  1. Address recalled ancestor in testing plan — `/fda:test-plan`
+  2. Discuss chain concerns in Pre-Sub — `/fda:presub`
+  3. Run safety analysis on the product code — `/fda:safety --product-code OVE`
+
+────────────────────────────────────────
+  This report is AI-generated from public FDA data.
+  Verify independently. Not regulatory advice.
+────────────────────────────────────────
 ```
 
 ## Error Handling

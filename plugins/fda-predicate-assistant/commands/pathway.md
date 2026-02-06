@@ -161,52 +161,58 @@ Apply the scoring algorithm. Each pathway gets a score from 0-100:
 
 ## Step 3: Present Recommendations
 
-Rank pathways by score and present:
+Rank pathways by score and present using the standard FDA Professional CLI format (see `references/output-formatting.md`):
 
 ```
-FDA Regulatory Pathway Recommendation
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Product Code: {CODE} — {device_name}
-Device Class: {class}
-Regulation: 21 CFR {regulation}
+  FDA Regulatory Pathway Recommendation
+  {CODE} — {device_name}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Generated: {date} | Class: {class} | 21 CFR {regulation} | v4.0.0
 
-RECOMMENDED PATHWAY: {Top pathway} (Score: {score}/100)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+RECOMMENDED PATHWAY
+────────────────────────────────────────
 
-Rationale:
-  {bullet points explaining why this pathway scored highest}
+  {Top pathway} — Score: {score}/100 ({Rating})
 
-Estimated Timeline: {timeline}
-Estimated Review Fee: {fee range}
+  Rationale:
+  - {bullet points explaining why this pathway scored highest}
 
-Score Breakdown:
+  Estimated Timeline: {timeline}
+  Estimated Review Fee: {fee range}
+
+SCORE BREAKDOWN
+────────────────────────────────────────
+
   {factor}: +{points} — {explanation}
   {factor}: +{points} — {explanation}
-  ...
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ALL PATHWAYS RANKED
+────────────────────────────────────────
 
-All Pathways Ranked:
+  | # | Pathway | Score | Key Factor | Timeline | Fee |
+  |---|---------|-------|-----------|----------|-----|
+  | 1 | {pathway} | {score}/100 ({Rating}) | {reason} | {time} | {fee} |
+  | 2 | {pathway} | {score}/100 ({Rating}) | {reason} | {time} | {fee} |
+  | 3 | {pathway} | {score}/100 ({Rating}) | {reason} | {time} | {fee} |
+  | 4 | {pathway} | {score}/100 ({Rating}) | {reason} | {time} | {fee} |
+  | 5 | {pathway} | {score}/100 ({Rating}) | {reason} | {time} | {fee} |
 
-| # | Pathway | Score | Key Factor | Timeline | Fee |
-|---|---------|-------|-----------|----------|-----|
-| 1 | {pathway} | {score}/100 | {key reason} | {timeline} | {fee} |
-| 2 | {pathway} | {score}/100 | {key reason} | {timeline} | {fee} |
-| 3 | {pathway} | {score}/100 | {key reason} | {timeline} | {fee} |
-| 4 | {pathway} | {score}/100 | {key reason} | {timeline} | {fee} |
-| 5 | {pathway} | {score}/100 | {key reason} | {timeline} | {fee} |
+KEY CONSIDERATIONS
+────────────────────────────────────────
 
-Key Considerations:
   {pathway-specific considerations and risks}
 
-Next Steps:
+NEXT STEPS
+────────────────────────────────────────
+
   1. {Based on recommended pathway}
   2. {Specific actions}
-  3. Consider Pre-Sub meeting to confirm pathway with FDA
+  3. Confirm pathway with FDA — `/fda:presub {CODE}`
 
-DISCLAIMER: Pathway recommendation is algorithmic and AI-generated.
-  FDA makes final classification and pathway decisions. Consult regulatory
-  affairs professionals. This is not regulatory advice.
+────────────────────────────────────────
+  This report is AI-generated from public FDA data.
+  Verify independently. Not regulatory advice.
+────────────────────────────────────────
 ```
 
 ## Error Handling

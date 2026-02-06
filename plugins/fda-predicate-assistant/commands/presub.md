@@ -391,9 +391,8 @@ After receiving FDA feedback:
 
 ---
 
-⚠ DISCLAIMER: This Pre-Submission plan is AI-generated from publicly available
-FDA data. It is a starting point — not a final document. Review with your
-regulatory affairs team before submitting to FDA. This is not regulatory advice.
+> **Disclaimer:** This Pre-Submission plan is AI-generated from public FDA data.
+> Verify independently. Not regulatory advice.
 ```
 
 ## Audit Logging

@@ -417,75 +417,93 @@ PYEOF
 
 ## Output Format
 
-Structure the report as:
+Structure the report using the standard FDA Professional CLI format (see `references/output-formatting.md`):
 
 ```
-Safety Intelligence Report: [PRODUCT CODE] — [DEVICE NAME]
-============================================================
-Product Code: {CODE} | Class: {CLASS} | Regulation: {REG} | Panel: {PANEL}
-Total 510(k) Clearances: {N}
+  FDA Safety Intelligence Report
+  {CODE} — {DEVICE NAME}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Generated: {date} | Class: {CLASS} | Regulation: {REG} | v4.0.0
 
-1. ADVERSE EVENT SUMMARY (MAUDE)
-   Total events: {N} (last updated: weekly)
-   ┌────────────────┬──────────┬──────────┐
-   │ Event Type     │ Count    │ % of Total│
-   ├────────────────┼──────────┼──────────┤
-   │ Malfunction    │ {N}      │ {%}      │
-   │ Injury         │ {N}      │ {%}      │
-   │ Death          │ {N}      │ {%}      │
-   └────────────────┴──────────┴──────────┘
+DEVICE CONTEXT
+────────────────────────────────────────
 
-   Events per clearance: {ratio} ({Low/Moderate/High})
+  Product Code: {CODE} | Panel: {PANEL}
+  Total 510(k) Clearances: {N}
 
-   Year    Events
-   2020    {N}  ████████
-   2021    {N}  ██████████
-   2022    {N}  ████████████
-   2023    {N}  ██████████████
-   2024    {N}  ████████████
-   2025    {N}  ██████
+ADVERSE EVENT SUMMARY (MAUDE)
+────────────────────────────────────────
 
-   Top Device Names: {list}
-   Top Manufacturers: {list}
+  Total events: {N} (updated weekly)
 
-2. COMMON FAILURE MODES
-   Based on analysis of {N} recent event narratives:
-   - {Mode 1}: {count} events — {brief description}
-   - {Mode 2}: {count} events — {brief description}
-   - {Mode 3}: {count} events — {brief description}
+  | Event Type   | Count | % of Total |
+  |--------------|-------|------------|
+  | Malfunction  | {N}   | {%}        |
+  | Injury       | {N}   | {%}        |
+  | Death        | {N}   | {%}        |
 
-3. RECALL HISTORY
-   Total recalls: {N}
-   ┌──────────┬──────────┬──────────┐
-   │ Class    │ Count    │ Severity │
-   ├──────────┼──────────┼──────────┤
-   │ Class I  │ {N}      │ Serious  │
-   │ Class II │ {N}      │ Moderate │
-   │ Class III│ {N}      │ Low      │
-   └──────────┴──────────┴──────────┘
+  Events per clearance: {ratio} ({Low/Moderate/High})
 
-   Active recalls: {N}
-   Top recalling firms: {list}
+  Year    Events
+  2020    {N}  ████████░░░░░░░░░░░░
+  2021    {N}  ██████████░░░░░░░░░░
+  2022    {N}  ████████████████████
+  2023    {N}  ██████████████░░░░░░
+  2024    {N}  ████████████░░░░░░░░
+  2025    {N}  ██████░░░░░░░░░░░░░░
 
-   Recent Recalls:
-   - {Event#}: {Firm} — Class {I/II/III} ({status}) — {reason summary}
-   - ...
+  Top Device Names: {list}
+  Top Manufacturers: {list}
 
-4. RISK PROFILE
-   Event Rate:     {Low/Moderate/High} ({ratio} events per clearance)
-   Recall Severity: {Low/Moderate/Serious} ({Class I count} Class I recalls)
-   Trend:          {Increasing/Stable/Decreasing} event volume
-   Death Events:   {N} ({flag if >0})
+COMMON FAILURE MODES
+────────────────────────────────────────
 
-   Pre-Submission Considerations:
-   - {Specific safety considerations based on the data}
-   - {Common failure modes to address in design/testing}
-   - {Recall root causes to mitigate}
+  Based on analysis of {N} recent event narratives:
+  - {Mode 1}: {count} events — {brief description}
+  - {Mode 2}: {count} events — {brief description}
+  - {Mode 3}: {count} events — {brief description}
 
-5. RECOMMENDATIONS
-   - Based on {failure modes}, consider {testing/design mitigations}
-   - If {high event rate}: Discuss with FDA in pre-submission meeting
-   - For SE comparison: Your device should address {specific safety concerns}
+RECALL HISTORY
+────────────────────────────────────────
+
+  Total recalls: {N}
+
+  | Class     | Count | Severity |
+  |-----------|-------|----------|
+  | Class I   | {N}   | Serious  |
+  | Class II  | {N}   | Moderate |
+  | Class III | {N}   | Low      |
+
+  Active recalls: {N}
+  Top recalling firms: {list}
+
+  Recent Recalls:
+  - {Event#}: {Firm} — Class {I/II/III} ({status}) — {reason}
+
+RISK PROFILE
+────────────────────────────────────────
+
+  Event Rate:      {Low/Moderate/High} ({ratio} events per clearance)
+  Recall Severity: {Low/Moderate/Serious} ({Class I count} Class I recalls)
+  Trend:           {Increasing/Stable/Decreasing} event volume
+  Death Events:    {N} ({flag if >0})
+
+  Pre-Submission Considerations:
+  - {Specific safety considerations based on the data}
+  - {Common failure modes to address in design/testing}
+  - {Recall root causes to mitigate}
+
+NEXT STEPS
+────────────────────────────────────────
+
+  1. Address failure modes in testing plan — `/fda:test-plan CODE`
+  2. Discuss high-risk findings in Pre-Sub — `/fda:presub CODE`
+  3. Build SE comparison addressing safety — `/fda:compare-se`
+
+────────────────────────────────────────
+  This report is AI-generated from public FDA data.
+  Verify independently. Not regulatory advice.
+────────────────────────────────────────
 ```
 
 Adapt the format to what data is actually available. If a section has no data (e.g., zero recalls), note it briefly rather than showing an empty table.

@@ -170,6 +170,9 @@ Next steps:
   2. Fill in [TODO:] items with company-specific data
   3. Verify [CITATION NEEDED] items
   4. Have regulatory team review for compliance
+
+> **Disclaimer:** This draft is AI-generated from public FDA data.
+> Verify independently. Not regulatory advice.
 ```
 
 ## Error Handling

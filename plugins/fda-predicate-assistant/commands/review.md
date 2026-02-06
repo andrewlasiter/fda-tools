@@ -460,30 +460,37 @@ Full-Auto Review Results:
 For each predicate that needs manual review (or all predicates if `--auto` not set), present:
 
 ```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PREDICATE REVIEW: K234567  (Score: 62/100 — Moderate)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  FDA Predicate Review Card
+  K234567 — Score: 62/100 (Moderate)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Device: {device_name} by {applicant}
-Product Code: {code} | Cleared: {date} | Review: {days} days
-Classification: Predicate → Uncertain (reclassified)
+DEVICE INFO
+────────────────────────────────────────
 
-Score Breakdown:
+  Device: {device_name} by {applicant}
+  Product Code: {code} | Cleared: {date} | Review: {days} days
+  Classification: Predicate → Uncertain (reclassified)
+
+SCORE BREAKDOWN
+────────────────────────────────────────
+
   Section Context:    10/40  (general text only)
   Citation Frequency: 15/20  (cited by 3 source documents)
   Product Code Match: 15/15  (same product code)
   Recency:           12/15  (cleared 4 years ago)
   Regulatory History: 10/10  (clean)
 
-Flags: OLD
+  Flags: OLD
 
-Context (where found):
+CONTEXT
+────────────────────────────────────────
+
   - K241335: general text, paragraph about "prior art wound dressings..."
   - K251234: SE comparison section, row 3 of comparison table
   - K248765: general text, literature review section
 
-Original classification: Predicate (from extraction script)
-Section-aware reclassification: Uncertain (found in SE section of 1/3 sources)
+  Original: Predicate (extraction script)
+  Reclassified: Uncertain (SE section in 1/3 sources)
 ```
 
 Then ask the user using AskUserQuestion:
@@ -588,35 +595,53 @@ Write to: `$PROJECTS_DIR/$PROJECT_NAME/output_reviewed.csv`
 After all predicates are reviewed, present a summary:
 
 ```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-REVIEW COMPLETE — PROJECT: {name}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  FDA Predicate Review Summary
+  Project: {name}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Generated: {date} | v4.0.0
 
-Results:
+RESULTS
+────────────────────────────────────────
+
   Accepted predicates:     8
   Rejected (reference):    4
   Rejected (noise):        1
   Deferred:                2
   Reclassified:            3 (2 upgraded, 1 downgraded)
 
-Top Accepted Predicates:
-  1. K241335 (Score: 92) — Collagen Wound Dressing by COMPANY A
-  2. K238901 (Score: 87) — Foam Dressing by COMPANY B
-  3. K225678 (Score: 85) — Antimicrobial Dressing by COMPANY C
+TOP ACCEPTED PREDICATES
+────────────────────────────────────────
 
-Risk Flags Summary:
+  | # | K-Number | Score | Device | Applicant |
+  |---|----------|-------|--------|-----------|
+  | 1 | K241335  | 92/100 (Strong) | Collagen Wound Dressing | COMPANY A |
+  | 2 | K238901  | 87/100 (Strong) | Foam Dressing | COMPANY B |
+  | 3 | K225678  | 85/100 (Strong) | Antimicrobial Dressing | COMPANY C |
+
+RISK FLAGS
+────────────────────────────────────────
+
   RECALLED: 1 device (K111111 — excluded)
   OLD: 3 devices (all >10 years)
   HIGH_MAUDE: 0
 
-Files Written:
+FILES WRITTEN
+────────────────────────────────────────
+
   review.json          — Full review data with scores and decisions
   output_reviewed.csv  — Reclassified output with confidence column
 
-Next Steps:
-  • Use accepted predicates in /fda:compare-se to build SE comparison table
-  • Run /fda:guidance {PRODUCT_CODE} to find applicable guidance documents
-  • Review deferred predicates when more data is available
+NEXT STEPS
+────────────────────────────────────────
+
+  1. Build SE comparison table — `/fda:compare-se --predicates K241335,K238901`
+  2. Look up guidance documents — `/fda:guidance {PRODUCT_CODE}`
+  3. Review deferred predicates when more data is available
+
+────────────────────────────────────────
+  This report is AI-generated from public FDA data.
+  Verify independently. Not regulatory advice.
+────────────────────────────────────────
 ```
 
 ## Error Handling

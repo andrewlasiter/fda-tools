@@ -194,8 +194,8 @@ Write the complete test plan:
 
 ---
 
-DISCLAIMER: This test plan is AI-generated. Verify all requirements with
-current FDA guidance and your regulatory/quality team. This is not regulatory advice.
+> **Disclaimer:** This test plan is AI-generated from public FDA data.
+> Verify independently. Not regulatory advice.
 ```
 
 ## Step 5: Write Output

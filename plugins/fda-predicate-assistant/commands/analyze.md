@@ -117,13 +117,67 @@ If the user provided a specific device, product code, or company name:
 
 ## Output Format
 
-Provide a structured report:
-1. **Data Sources Found** — What files are available and their freshness
-2. **Executive Summary** — Key findings in 2-3 sentences
-3. **Statistics** — Tables with counts and percentages
-4. **Notable Patterns** — Interesting relationships discovered
-5. **Issues Found** — Problems requiring attention (OCR errors, missing data, zero-predicate submissions)
-6. **Recommendations** — Actionable next steps
+Present the analysis using the standard FDA Professional CLI format (see `references/output-formatting.md`):
+
+```
+  FDA Data Analysis Report
+  {product_code} — {device_name} (or {analysis_mode})
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Generated: {date} | Project: {name} | v4.0.0
+
+DATA SOURCES
+────────────────────────────────────────
+
+  | Source             | Records | Freshness |
+  |--------------------|---------|-----------|
+  | 510k_download.csv  | {N}     | {date}    |
+  | output.csv         | {N}     | {date}    |
+  | pdf_data.json      | {N}     | {date}    |
+
+EXECUTIVE SUMMARY
+────────────────────────────────────────
+
+  {Key findings in 2-3 sentences}
+
+STATISTICS
+────────────────────────────────────────
+
+  | Metric                        | Value |
+  |-------------------------------|-------|
+  | Total submissions analyzed    | {N}   |
+  | Unique predicates found       | {N}   |
+  | Avg predicates per submission | {N}   |
+  | Zero-predicate submissions    | {N}   |
+
+PREDICATE HUBS
+────────────────────────────────────────
+
+  | K-Number | Citations | Applicant  | Year |
+  |----------|-----------|------------|------|
+  | {kn}     | {count}   | {company}  | {yr} |
+
+NOTABLE PATTERNS
+────────────────────────────────────────
+
+  {Interesting relationships discovered}
+
+ISSUES FOUND
+────────────────────────────────────────
+
+  {Problems requiring attention — OCR errors, missing data, etc.}
+
+NEXT STEPS
+────────────────────────────────────────
+
+  1. Review predicate scoring — `/fda:review --project NAME`
+  2. Run safety analysis — `/fda:safety --product-code CODE`
+  3. Trace predicate lineage — `/fda:lineage --project NAME`
+
+────────────────────────────────────────
+  This report is AI-generated from public FDA data.
+  Verify independently. Not regulatory advice.
+────────────────────────────────────────
+```
 
 ## Step 4: API Enrichment (Optional)
 

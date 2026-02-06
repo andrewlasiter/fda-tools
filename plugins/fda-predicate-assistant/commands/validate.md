@@ -410,24 +410,47 @@ grep -i "CORRECTED_NUMBER" ~/fda-510k-data/extraction/pmn*.txt 2>/dev/null
 
 ## Output Format
 
-For each number, provide a consolidated report:
+For each number, present a report using the standard FDA Professional CLI format (see `references/output-formatting.md`):
 
-**KNUMBER** — [FOUND/NOT FOUND] (source: openFDA API / flat files)
-- **Applicant**: Company name
-- **Device Name**: Official device name
-- **Decision**: Date, decision code, description
-- **Product Code**: Code and description
-- **Clearance Type**: Traditional / Special / Abbreviated
-- **Advisory Committee**: Review panel
-- **Review Time**: Days (received to decision)
-- **Third Party Review**: Yes/No
-- **Statement/Summary**: Which type of public document
-- **Predicates**: List of cited predicates — or clear explanation of why unavailable
-- **Cited By**: Other devices that cite this as a predicate
-- **MAUDE Events**: X total (Y Injury, Z Malfunction) for this product code — or "API unavailable"
-- **Recalls**: X recalls for this device / Y total for product code — or "None found"
-- **PDF Text**: Cached (X chars) / Not cached — with actionable guidance
-- **URL**: FDA submission link
+```
+  FDA Device Validation Report
+  {KNUMBER} — {FOUND/NOT FOUND}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Generated: {date} | Source: {openFDA API / flat files} | v4.0.0
+
+DEVICE RECORD
+────────────────────────────────────────
+
+  Applicant:         {Company name}
+  Device Name:       {Official device name}
+  Decision:          {date} — {code} ({description})
+  Product Code:      {code}
+  Clearance Type:    {Traditional / Special / Abbreviated}
+  Advisory Committee:{panel}
+  Review Time:       {days} days
+  Third Party:       {Yes/No}
+  Statement/Summary: {type}
+  URL:               {FDA submission link}
+
+PREDICATE RELATIONSHIPS
+────────────────────────────────────────
+
+  Predicates cited:  {list or explanation of why unavailable}
+  Cited by:          {list of devices citing this as predicate}
+
+SAFETY SIGNALS
+────────────────────────────────────────
+
+  MAUDE Events:      {X total (Y Injury, Z Malfunction)}
+  Recalls (device):  {X recalls or "None found"}
+  Recalls (product): {Y total for product code}
+
+PDF TEXT
+────────────────────────────────────────
+
+  Status:            {✓ Cached (X chars) / ✗ Not cached}
+  Action:            {guidance on what to do}
+```
 
 **IMPORTANT**: For every field where data is unavailable, explain WHY it's unavailable and HOW to get it. Never just say "Not found" without context.
 
@@ -436,21 +459,30 @@ For each number, provide a consolidated report:
 After presenting all device results, add a **Data Gaps & Next Steps** section that aggregates all missing data into actionable commands:
 
 ```
-Data Gaps & Next Steps
-──────────────────────
-The following data sources are missing or incomplete:
+DATA GAPS
+────────────────────────────────────────
 
   ✗ output.csv — No predicate extraction results exist
-    → Run: /fda:extract stage2
-    → This will extract predicates from 209 cached PDFs in pdf_data.json
+    → Run: `/fda:extract stage2`
 
-  ✓ pdf_data.json — 209 PDFs cached (text available for analysis)
-    → Run: /fda:summarize --knumbers K022854 --sections all
-    → To analyze specific sections of this device's summary
+  ✓ pdf_data.json — 209 PDFs cached (text available)
+    → Run: `/fda:summarize --knumbers K022854 --sections all`
 
   ✓ 510k_download.csv — 118 records with metadata
   ✓ pmn96cur.txt — FDA database available
-  ✗ merged_data.csv — Not found (alternative predicate source)
+  ✗ merged_data.csv — Not found
+
+NEXT STEPS
+────────────────────────────────────────
+
+  1. Extract predicates — `/fda:extract stage2`
+  2. Analyze device sections — `/fda:summarize --knumbers {KNUMBER}`
+  3. Run safety analysis — `/fda:safety --product-code {CODE}`
+
+────────────────────────────────────────
+  This report is AI-generated from public FDA data.
+  Verify independently. Not regulatory advice.
+────────────────────────────────────────
 ```
 
 This section should:

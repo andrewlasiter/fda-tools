@@ -233,13 +233,54 @@ Create a matrix: rows = documents (identified by K-number + applicant), columns 
 
 ## Output Format
 
-Structure the output as:
+Present the summary using the standard FDA Professional CLI format (see `references/output-formatting.md`):
 
-1. **Filter Summary** — What was searched and how many documents matched
-2. **Section Coverage** — Which sections found, frequency across documents
-3. **Synthesis** — The actual summary/comparison content
-4. **Notable Findings** — Anything unusual, interesting, or important
-5. **Recommendations** — Suggested next steps (deeper analysis, additional filters, related commands)
+```
+  FDA Section Comparison Report
+  {product_code} — {section_name}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Generated: {date} | Documents: {N} matched | v4.0.0
+
+FILTER SUMMARY
+────────────────────────────────────────
+
+  Product Codes: {codes}
+  Years:         {range}
+  Sections:      {section_names}
+  Documents:     {N} matched, {N} with requested section
+
+SECTION COVERAGE
+────────────────────────────────────────
+
+  | Section                  | Present | Coverage |
+  |--------------------------|---------|----------|
+  | Indications for Use      | {N}/{N} | ████████████████████ |
+  | Device Description       | {N}/{N} | ██████████████████░░ |
+  | Non-Clinical Testing     | {N}/{N} | ████████████████░░░░ |
+  | Clinical Testing         | {N}/{N} | ████████░░░░░░░░░░░░ |
+
+SYNTHESIS
+────────────────────────────────────────
+
+  {The actual summary/comparison content}
+
+NOTABLE FINDINGS
+────────────────────────────────────────
+
+  {Anything unusual, interesting, or important}
+
+NEXT STEPS
+────────────────────────────────────────
+
+  1. Compare specific sections — `/fda:summarize --sections "Non-Clinical Testing"`
+  2. Run full research — `/fda:research PRODUCT_CODE`
+  3. Generate SE comparison — `/fda:compare-se --predicates K123456`
+
+────────────────────────────────────────
+  This report is AI-generated from public FDA data.
+  Verify independently. Not regulatory advice.
+────────────────────────────────────────
+```
 
 ## Step 6: Write Output
 

@@ -126,27 +126,44 @@ Identify standards referenced across multiple projects.
 ## Step 3: Generate Portfolio Report
 
 ```
-FDA Device Portfolio Dashboard
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Projects: {N} total
+  FDA Device Portfolio Dashboard
+  All Projects Summary
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Generated: {date} | Projects: {N} total | v4.0.0
 
-| Project | Product Code | Extractions | Predicates | Pipeline Stage | Completeness |
-|---------|-------------|------------|-----------|---------------|-------------|
-| {name} | {codes} | {count} | {count} | {stage} | {N}/6 ██████░░ |
-| {name} | {codes} | {count} | {count} | {stage} | {N}/6 ████░░░░ |
+PROJECT SUMMARY
+────────────────────────────────────────
 
-Cross-Project Intelligence:
+  | Project | Product Code | Extractions | Predicates | Stage | Completeness |
+  |---------|-------------|------------|-----------|-------|-------------|
+  | {name} | {codes} | {count} | {count} | {stage} | {N}/6 ██████░░░░░░░░░░░░░░ |
+  | {name} | {codes} | {count} | {count} | {stage} | {N}/6 ████░░░░░░░░░░░░░░░░ |
+
+CROSS-PROJECT INTELLIGENCE
+────────────────────────────────────────
+
   Shared Predicates: {count} predicates used in 2+ projects
-  Common Standards: {list}
-  Common Guidance: {list}
+  Common Standards:  {list}
+  Common Guidance:   {list}
 
-Portfolio Status:
-  Ready for submission: {count} projects
-  In progress:          {count} projects
-  Early stage:          {count} projects
+PORTFOLIO STATUS
+────────────────────────────────────────
 
-Next Steps:
-  {project-specific recommendations}
+  Ready for submission  {count}  ████████████████████
+  In progress           {count}  ████████████░░░░░░░░
+  Early stage           {count}  ████░░░░░░░░░░░░░░░░
+
+NEXT STEPS
+────────────────────────────────────────
+
+  1. {project-specific recommendations}
+  2. Run consistency checks — `/fda:consistency --project NAME`
+  3. Check for new clearances — `/fda:monitor --check`
+
+────────────────────────────────────────
+  This report is AI-generated from public FDA data.
+  Verify independently. Not regulatory advice.
+────────────────────────────────────────
 ```
 
 ## Error Handling

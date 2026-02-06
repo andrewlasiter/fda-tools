@@ -103,7 +103,7 @@ PYEOF
 ```
 
 Report in the status output:
-- If `STATUS:disabled`: Show `openFDA API  ⊘  Disabled (offline mode) — /fda:configure --set openfda_enabled true`
+- If `STATUS:disabled`: Show `openFDA API  ○  Disabled (offline mode) — /fda:configure --set openfda_enabled true`
 - If `STATUS:online`: Show `openFDA API  ✓  Online ({LATENCY}ms) | Key: {yes/no} | Rate: {RATE_TIER}`
 - If `STATUS:unreachable`: Show `openFDA API  ✗  Unreachable — check network connection`
 
@@ -236,40 +236,63 @@ If found:
 
 ## Output Format
 
-Present a clean status table:
+Present a clean status report using the standard FDA Professional CLI format (see `references/output-formatting.md`):
 
 ```
-FDA Pipeline Status
-===================
+  FDA Pipeline Status
+  Data inventory and connectivity check
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Generated: {date} | v4.0.0
 
-Plugin Scripts
+PLUGIN SCRIPTS
+────────────────────────────────────────
+
   predicate_extractor.py   ✓  Available
   batchfetch.py            ✓  Available
   Stage 1 dependencies     ✓  Installed
   Stage 2 dependencies     ✓  Installed
 
-openFDA API
+OPENFDA API
+────────────────────────────────────────
+
   Connectivity             ✓  Online (245ms)
   API Key                  ✗  Not configured (1K/day limit)
   Rate Tier                   1K/day (get free key for 120K/day)
 
-Projects (510k_projects/)
-  KGN_2020-2025/     ✓  Stage 1: 247 records, 195 PDFs | Stage 2: 180 devices
-  DXY_2023/          ✓  Stage 1: 52 records, 48 PDFs   | Stage 2: not run
-  QAS_MEDTRONIC/     ✓  Stage 1: 31 records, 31 PDFs   | Stage 2: 28 devices
+PROJECTS
+────────────────────────────────────────
 
-Source Data (FDA Databases)
+  | Project | Stage 1 | Stage 2 | Status |
+  |---------|---------|---------|--------|
+  | KGN_2020-2025 | 247 records, 195 PDFs | 180 devices | ✓ Complete |
+  | DXY_2023 | 52 records, 48 PDFs | not run | ○ Partial |
+
+SOURCE DATA
+────────────────────────────────────────
+
   pmn96cur.txt     ✓  98,580 records  (3 days old)
   pma.txt          ✓  55,663 records  (3 days old)
   foiaclass.txt    ✗  Not found
 
-Legacy Data (pre-project files)
-  510k_download.csv    ✓  118 records  (from previous runs)
+LEGACY DATA
+────────────────────────────────────────
+
+  510k_download.csv    ✓  118 records
   output.csv           ✗  Not found
   pdf_data.json        ✓  2.4 MB cached
+
+NEXT STEPS
+────────────────────────────────────────
+
+  1. {based on what's missing}
+
+────────────────────────────────────────
+  This report is AI-generated from public FDA data.
+  Verify independently. Not regulatory advice.
+────────────────────────────────────────
 ```
 
-Use ✓ for present and ✗ for missing. Adapt the format to what actually exists — don't show sections where nothing is found.
+Use ✓ for present, ✗ for missing, ○ for pending/disabled, and ⚠ for degraded. Adapt sections to what actually exists — don't show sections where nothing is found.
 
 ## Recommendations
 

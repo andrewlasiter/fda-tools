@@ -180,33 +180,44 @@ If `--project` has guidance_cache, compare literature findings against guidance 
 
 Write `literature_review.md` to the project folder:
 
+This is a document-format command (writes to file). Use markdown headings per R11 from `references/output-formatting.md`, but include standard status indicators (R5), score format (R6), and disclaimer:
+
 ```markdown
 # Literature Review: {Product Code} — {Device Name}
 
-**Generated:** {date}
-**Search Strategy:** {summary of terms and databases}
-**Depth:** {quick|standard|deep}
+**Generated:** {date} | **Depth:** {quick|standard|deep} | **v4.0.0**
+
+---
 
 ## Search Summary
-- Total unique sources found: {N}
-- Clinical studies: {N}
-- Bench testing: {N}
-- Biocompatibility: {N}
-- Adverse events: {N}
-- Standards: {N}
 
-{Categorized results tables}
+| Category          | Sources Found |
+|-------------------|---------------|
+| Clinical studies  | {N}           |
+| Bench testing     | {N}           |
+| Biocompatibility  | {N}           |
+| Adverse events    | {N}           |
+| Standards         | {N}           |
+| **Total unique**  | **{N}**       |
+
+## Categorized Results
+
+{Results tables per category}
+
+## Gap Analysis
 
 {Gap analysis if guidance data available}
 
 ## Recommendations
+
 {Based on gap analysis}
 
 ## Search Reproducibility
-Search terms used:
+
+**Search terms used:**
 {List all search queries executed}
 
-Databases searched:
+**Databases searched:**
 - PubMed (via WebSearch)
 - FDA MAUDE (via openFDA API)
 - FDA Recalls (via openFDA API)
@@ -214,10 +225,9 @@ Databases searched:
 
 ---
 
-⚠ DISCLAIMER: This literature review is AI-generated from web search results.
-It may not be comprehensive. A systematic literature review per your organization's
-SOPs is recommended before regulatory submission. This is not a substitute for
-a formal literature review by qualified personnel.
+> **Disclaimer:** This literature review is AI-generated from web search results.
+> It may not be comprehensive. A systematic review per your SOPs is recommended.
+> Verify independently. Not regulatory advice.
 ```
 
 ## Error Handling

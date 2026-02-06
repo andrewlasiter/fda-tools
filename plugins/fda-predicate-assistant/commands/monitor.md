@@ -151,13 +151,24 @@ Similar to --add-watch but removes from the list.
 
 Read monitors.json and display:
 ```
-FDA Monitor Status
-━━━━━━━━━━━━━━━━━
-Watched Product Codes: OVE, KGN
-Watched Companies:     MEDTRONIC, STRYKER
-Last Check:           2026-02-05 12:00 UTC
-Total Checks:         5
-Last Alert Count:     3 new clearances, 0 recalls
+  FDA Monitor Status
+  Device Watch Dashboard
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Generated: {date} | v4.0.0
+
+WATCH CONFIGURATION
+────────────────────────────────────────
+
+  Product Codes: OVE, KGN
+  Companies:     MEDTRONIC, STRYKER
+  Last Check:    2026-02-05 12:00 UTC
+  Total Checks:  5
+  Last Alerts:   3 new clearances, 0 recalls
+
+────────────────────────────────────────
+  This report is AI-generated from public FDA data.
+  Verify independently. Not regulatory advice.
+────────────────────────────────────────
 ```
 
 ## Subcommand: --check
@@ -234,22 +245,43 @@ Write alerts to `~/fda-510k-data/monitor_alerts/{today}.json`.
 
 Report:
 ```
-FDA Monitor Check Complete
-━━━━━━━━━━━━━━━━━━━━━━━━━
-Checked: {N} product codes, {N} companies
-Period: {last_check} to {now}
+  FDA Monitor Check Report
+  {product_codes} — Monitoring Results
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Generated: {date} | Period: {last_check} to {now} | v4.0.0
 
-Results:
-  New 510(k) clearances: {N}
-  New recalls:           {N}
-  New MAUDE events:      {N}
-  Guidance updates:      {N}
+CHECK RESULTS
+────────────────────────────────────────
+
+  | Category              | Count |
+  |-----------------------|-------|
+  | New 510(k) clearances | {N}   |
+  | New recalls           | {N}   |
+  | New MAUDE events      | {N}   |
+  | Guidance updates      | {N}   |
 
 {If any critical alerts (Class I recall, death events):}
-CRITICAL ALERTS:
+CRITICAL ALERTS
+────────────────────────────────────────
+
   {alert details}
 
-Alerts saved to: ~/fda-510k-data/monitor_alerts/{today}.json
+FILES WRITTEN
+────────────────────────────────────────
+
+  Alerts: ~/fda-510k-data/monitor_alerts/{today}.json
+
+NEXT STEPS
+────────────────────────────────────────
+
+  1. Review alert details — `/fda:monitor --alerts`
+  2. Run safety analysis on flagged codes — `/fda:safety --product-code CODE`
+  3. Update submission if new predicates found — `/fda:review --project NAME`
+
+────────────────────────────────────────
+  This report is AI-generated from public FDA data.
+  Verify independently. Not regulatory advice.
+────────────────────────────────────────
 ```
 
 ## Subcommand: --watch-standards

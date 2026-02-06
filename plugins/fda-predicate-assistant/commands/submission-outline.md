@@ -440,10 +440,8 @@ Based on available data:
 
 ---
 
-⚠ DISCLAIMER: This submission outline is AI-generated from publicly available
-FDA data and guidance documents. It is a planning tool — not a regulatory
-submission. Review with your regulatory affairs team. Verify all section
-requirements against current FDA guidance. This is not regulatory advice.
+> **Disclaimer:** This submission outline is AI-generated from public FDA data.
+> Verify independently. Not regulatory advice.
 ```
 
 ## Audit Logging

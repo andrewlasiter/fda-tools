@@ -289,8 +289,8 @@ For each extracted requirement, map to a testing category using the mapping tabl
 Combine device-specific guidance requirements, cross-cutting guidance requirements, and recognized consensus standards into a structured matrix:
 
 ```
-REQUIREMENTS MATRIX — {PRODUCT_CODE}: {DEVICE_NAME}
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+REQUIREMENTS MATRIX
+────────────────────────────────────────
 
 | Category | Requirement | Source | Standard | Priority |
 |----------|-------------|--------|----------|----------|
@@ -309,7 +309,7 @@ List all applicable recognized consensus standards with their purpose:
 
 ```
 APPLICABLE STANDARDS
-━━━━━━━━━━━━━━━━━━━
+────────────────────────────────────────
 
 Required:
   • ISO 10993-1 — Biological evaluation framework
@@ -333,11 +333,17 @@ If Applicable:
 
 ### Report format
 
+Use the standard FDA Professional CLI format (see `references/output-formatting.md`):
+
 ```
-FDA Guidance Analysis: {PRODUCT_CODE} — {DEVICE_NAME}
-═══════════════════════════════════════════════════════
+  FDA Guidance Analysis
+  {PRODUCT_CODE} — {DEVICE_NAME}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Generated: {date} | Class: {class} | 21 CFR {regulation} | v4.0.0
 
 DEVICE CLASSIFICATION
+────────────────────────────────────────
+
   Product Code: {CODE}
   Device Name: {name}
   Class: {class}
@@ -345,39 +351,55 @@ DEVICE CLASSIFICATION
   Panel: {review_panel}
 
 DEVICE-SPECIFIC GUIDANCE
+────────────────────────────────────────
+
   [If found]:
   ✓ "{Guidance Title}" ({Year}, {Status})
     {URL}
     Key Requirements:
-      • {requirement 1}
-      • {requirement 2}
-      • {requirement 3}
+    - {requirement 1}
+    - {requirement 2}
+    - {requirement 3}
 
   [If not found]:
   ✗ No device-specific guidance found for regulation {regulation_number}
     → Submission should rely on predicate precedent and general guidance
 
-CROSS-CUTTING GUIDANCE (applicable to this device)
-  • Biocompatibility: "Use of ISO 10993-1" (2023, Final)
+CROSS-CUTTING GUIDANCE
+────────────────────────────────────────
+
+  - Biocompatibility: "Use of ISO 10993-1" (2023, Final)
     → ISO 10993-5, -10 required; -11 if prolonged contact
-  • Sterilization: "Sterility Information in 510(k) Submissions" (2016, Final)
+  - Sterilization: "Sterility Information in 510(k) Submissions" (2016, Final)
     → Validate per ISO 11135 (EO) or ISO 11137 (radiation)
-  [additional items based on triggers]
 
 REQUIREMENTS MATRIX
-  [Structured table from Step 5]
+────────────────────────────────────────
+
+  [Structured pipe table from Step 5]
 
 APPLICABLE STANDARDS
+────────────────────────────────────────
+
   [Standards list from Step 5]
 
 NOTES
-  • [Any special considerations for this device type]
-  • [Any recent draft guidance that may affect requirements]
+────────────────────────────────────────
 
-⚠ DISCLAIMER: This guidance analysis is AI-generated from publicly available
-FDA data and web searches. Verify all guidance document applicability with
-your regulatory team. FDA guidance represents the agency's current thinking
-and is not legally binding. This is not regulatory advice.
+  - {Any special considerations for this device type}
+  - {Any recent draft guidance that may affect requirements}
+
+NEXT STEPS
+────────────────────────────────────────
+
+  1. Plan testing to requirements — `/fda:test-plan {CODE}`
+  2. Research predicate testing precedent — `/fda:research {CODE}`
+  3. Build traceability matrix — `/fda:traceability --project NAME`
+
+────────────────────────────────────────
+  This report is AI-generated from public FDA data.
+  Verify independently. Not regulatory advice.
+────────────────────────────────────────
 ```
 
 ## Step 7: Save to Cache (if `--save`)
