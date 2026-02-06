@@ -38,7 +38,9 @@ Restart the session after installing.
 
 ### Co-work / Autonomous Sessions
 
-Install using the same commands above, then run autonomous workflows with:
+Co-work uses your existing plugin installation — install from Claude Code or Desktop first (steps above). Once installed, the plugin is automatically available in all Co-work sessions.
+
+Use the `--full-auto` flag so the pipeline runs without prompts:
 
 ```
 /fda:pipeline OVE --project my-device --full-auto \
