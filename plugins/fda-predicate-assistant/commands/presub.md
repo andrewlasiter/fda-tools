@@ -197,21 +197,21 @@ Before generating the document, resolve all placeholders using this priority sys
 #### Standard Placeholder Rules
 
 **If `--device-description` provided:**
-- Replace `[INSERT: Detailed description of your device...]` with the provided description
-- Replace `[INSERT: How the device works...]` with a synthesized principle of operation based on the description
-- Replace `[INSERT: List all components...]` with "See device description above — [TODO: Company-specific — provide detailed BOM]"
-- Replace `[INSERT: Device photographs...]` with "[TODO: Company-specific — attach device images]"
+- Replace `[TODO: Company-specific — Detailed description of your device...]` with the provided description
+- Replace `[TODO: Company-specific — How the device works...]` with a synthesized principle of operation based on the description
+- Replace `[TODO: Company-specific — List all components...]` with "See device description above — [TODO: Company-specific — provide detailed BOM]"
+- Replace `[TODO: Company-specific — Device photographs...]` with "[TODO: Company-specific — attach device images]"
 
 **If `--intended-use` provided:**
-- Replace `[INSERT: Proposed indications for use text...]` with the provided intended use
+- Replace `[TODO: Company-specific — Proposed indications for use text...]` with the provided intended use
 
 **If `--project` has existing data (review.json, guidance_cache):**
-- Replace `[INSERT: Proposed predicate device(s)...]` with top accepted predicates from review.json
-- Replace `[INSERT: Proposed testing strategy...]` with requirements from guidance_cache
+- Replace `[TODO: Company-specific — Proposed predicate device(s)...]` with top accepted predicates from review.json
+- Replace `[TODO: Company-specific — Proposed testing strategy...]` with requirements from guidance_cache
 
 #### Final Placeholder Conversion
 
-**ALL remaining `[INSERT: ...]` placeholders** MUST be converted to `[TODO: Company-specific — {description}]` before writing the output file. No `[INSERT: ...]` placeholders should survive in the final output. This ensures:
+**VERIFY: No `[INSERT: ...]` placeholders** should appear in the final output. The template already uses `[TODO: Company-specific — ...]` format. If any `[INSERT: ...]` markers are inadvertently generated, convert them to `[TODO: Company-specific — {description}]` before writing. This ensures:
 - Users can clearly see what needs human input vs what was auto-filled
 - Automated tools can grep for `[TODO:` to find remaining work items
 - The document is always complete (no empty/broken sections)
@@ -263,23 +263,23 @@ Sincerely,
 
 ### 2.1 Overview
 {If --device-description provided: use it}
-{If not: "[INSERT: Detailed description of your device including principle of operation, key components, materials of construction, and intended patient population]"}
+{If not: "[TODO: Company-specific — Detailed description of your device including principle of operation, key components, materials of construction, and intended patient population]"}
 
 ### 2.2 Principle of Operation
-[INSERT: How the device works — sensing mechanism, therapeutic action, etc.]
+[TODO: Company-specific — How the device works — sensing mechanism, therapeutic action, etc.]
 
 ### 2.3 Key Components and Materials
-[INSERT: List all components, especially patient-contacting materials]
+[TODO: Company-specific — List all components, especially patient-contacting materials]
 
 ### 2.4 Illustrations
-[INSERT: Device photographs, diagrams, or schematics]
+[TODO: Company-specific — Device photographs, diagrams, or schematics]
 
 ---
 
 ## 3. Proposed Indications for Use
 
 {If --intended-use provided: use it}
-{If not: "[INSERT: Proposed indications for use text. Model on cleared IFU language for this product code.]"}
+{If not: "[TODO: Company-specific — Proposed indications for use text. Model on cleared IFU language for this product code.]"}
 
 ---
 
@@ -311,7 +311,7 @@ Sincerely,
   - {If different technology: explain why it doesn't raise new questions}
 
 {If no predicates:}
-[INSERT: Proposed predicate device(s) with K-numbers and justification]
+[TODO: Company-specific — Proposed predicate device(s) with K-numbers and justification]
 
 ### 4.3 Classification Analysis
 Product Code: {CODE}
@@ -364,7 +364,7 @@ Our proposed indications for use include {extended claims}. The predicate's IFU 
 | Performance | {device-specific tests} | {standards} | Planned |
 
 {If no guidance cache:}
-[INSERT: Proposed testing strategy. Run `/fda:guidance {CODE} --save` for requirements analysis.]
+[TODO: Company-specific — Proposed testing strategy. Run `/fda:guidance {CODE} --save` for requirements analysis.]
 
 ---
 
@@ -376,7 +376,7 @@ Our proposed indications for use include {extended claims}. The predicate's IFU 
 - Guidance analysis: {count} applicable guidance documents identified
 
 {If no data:}
-[INSERT: Any preliminary data, literature references, or prior testing results]
+[TODO: Company-specific — Any preliminary data, literature references, or prior testing results]
 
 ---
 
@@ -437,7 +437,7 @@ The plan includes:
   • Testing strategy: {from guidance / template}
 
 Next steps:
-  1. Fill in [INSERT: ...] placeholders with your device-specific information
+  1. Fill in [TODO: ...] placeholders with your device-specific information
   2. Review auto-generated FDA questions — add, modify, or remove as needed
   3. Have your regulatory team review the complete package
   4. Submit to FDA via the Pre-Submission program
