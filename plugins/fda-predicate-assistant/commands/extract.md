@@ -132,7 +132,10 @@ Parse `$ARGUMENTS` to determine which stage(s) to run:
 - `stage1` → Run only BatchFetch (download PDFs)
 - `stage2` → Run only PredicateExtraction (extract predicates)
 - `both` → Run Stage 1 then Stage 2
-- No stage argument → Ask the user which stage they want
+- No stage argument:
+  - If `--project` is provided → Default to `both` (log: "No stage specified, defaulting to 'both' (--project provided)")
+  - If no `--project` → Default to `stage1` (log: "No stage specified, defaulting to 'stage1'")
+  - **NEVER prompt the user for stage selection**
 
 Also parse filter arguments: `--product-codes`, `--years`, `--applicants`, `--committees`, `--decision-codes`, `--project`
 

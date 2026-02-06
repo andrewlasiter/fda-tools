@@ -1,7 +1,7 @@
 ---
 description: Generate a 510(k) submission outline with section checklists, testing gap analysis, and IFU-to-testing mapping
 allowed-tools: Bash, Read, Glob, Grep, Write, WebSearch
-argument-hint: "<product-code> [--project NAME] [--pathway traditional|special|abbreviated|denovo]"
+argument-hint: "<product-code> [--project NAME] [--pathway traditional|special|abbreviated|denovo] [--infer]"
 ---
 
 # FDA 510(k) Submission Outline Generator
@@ -45,8 +45,17 @@ From `$ARGUMENTS`, extract:
 - `--device-description TEXT` — Description of the user's device
 - `--intended-use TEXT` — Proposed indications for use
 - `--output FILE` — Write outline to file (default: submission_outline.md in project folder)
+- `--infer` — Auto-detect product code from project data instead of requiring explicit input
 
-If no product code provided, ask the user for it.
+If no product code provided:
+- If `--infer` AND `--project NAME` specified:
+  1. Check `$PROJECTS_DIR/$PROJECT_NAME/query.json` for `product_codes` field → use first code
+  2. Check `$PROJECTS_DIR/$PROJECT_NAME/output.csv` → find most-common product code in data
+  3. Check `~/fda-510k-data/guidance_cache/` for directory names matching product codes
+  4. If inference succeeds: log "Inferred product code: {CODE} from {source}"
+  5. If inference fails: **ERROR** (not prompt): "Could not infer product code. Provide --product-code CODE or run /fda:extract first."
+- If `--infer` without `--project`: check if exactly 1 project exists in projects_dir and use it
+- If no `--infer` and no product code: ask the user for it.
 
 ## Step 1: Gather Data and Determine Pathway
 
@@ -283,6 +292,24 @@ Tip: Provide --intended-use "your IFU text" to auto-generate this table.
 ```
 
 ## Step 5: Generate Full Outline
+
+### Placeholder Resolution
+
+Before generating the outline, resolve all template placeholders:
+
+**If `--device-description` provided:**
+- Populate the Device Description section with the provided text
+- Use the description to determine section applicability (software, sterilization, etc.)
+
+**If `--intended-use` provided:**
+- Populate the IFU section and IFU claim-to-testing mapping
+
+**If project data available:**
+- Populate predicate strategy from review.json
+- Populate gap analysis from guidance_cache
+- Populate standards from guidance requirements matrix
+
+**Remaining unknowns** should use `[TODO: Company-specific — {description}]` format, NOT `[INSERT: ...]`.
 
 Write the complete submission outline document:
 

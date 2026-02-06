@@ -1,7 +1,7 @@
 ---
 description: Summarize sections from 510(k) summary PDFs — compare indications, testing, device descriptions, or any section across filtered documents
 allowed-tools: Read, Glob, Grep, Bash
-argument-hint: "[--project NAME] [--product-codes CODE] [--years RANGE] [--sections NAMES]"
+argument-hint: "[--project NAME] [--product-codes CODE] [--years RANGE] [--sections NAMES] [--output FILE]"
 ---
 
 # FDA 510(k) Section Summarization
@@ -19,6 +19,7 @@ Parse filters and section selection from `$ARGUMENTS`:
 - `--sections NAME[,NAME]` — Which sections to summarize (or `all`)
 - `--project NAME` — Use data from a specific project folder
 - `--knumbers K123456[,K234567]` — Specific K-numbers to analyze
+- `--output FILE` — Write summary to file instead of (or in addition to) console output
 - Free text query — Interpret as a natural language request (e.g., "clinical testing for KGN devices 2020-2024")
 
 If no arguments provided, ask the user what they want to summarize.
@@ -239,6 +240,20 @@ Structure the output as:
 3. **Synthesis** — The actual summary/comparison content
 4. **Notable Findings** — Anything unusual, interesting, or important
 5. **Recommendations** — Suggested next steps (deeper analysis, additional filters, related commands)
+
+## Step 6: Write Output
+
+If `--output FILE` specified, write the summary to the specified file using the Write tool.
+
+If `--project NAME` is specified but no `--output`, auto-write to:
+`$PROJECTS_DIR/$PROJECT_NAME/summaries/summary_{sections}_{timestamp}.md`
+
+Create the summaries directory if it doesn't exist:
+```bash
+mkdir -p "$PROJECTS_DIR/$PROJECT_NAME/summaries"
+```
+
+Report: "Summary written to {output_path}"
 
 ## Tips
 

@@ -232,6 +232,14 @@ def sortKey(item):
 
 
 def prompt_user(prompt_message, default_option=None):
+    # In non-TTY environments, skip interactive prompts
+    if not sys.stdin.isatty():
+        if default_option is not None:
+            print(f"[Non-TTY] Auto-selecting default for: {prompt_message.strip()[:80]}...")
+            return default_option
+        else:
+            print(f"[Non-TTY] Skipping prompt (no default available): {prompt_message.strip()[:80]}...")
+            return ''
     user_input = input(prompt_message).strip()
     if default_option is not None and user_input == '':
         return default_option
@@ -667,6 +675,15 @@ def main():
                            args.committees, args.decision_codes, args.applicants,
                            args.product_codes])
     interactive = args.interactive or not has_cli_filters
+
+    # Override: never go interactive in non-TTY environment
+    if interactive and not sys.stdin.isatty():
+        print("[Non-TTY] Interactive mode requested but no TTY available. Using CLI filters only.")
+        if not has_cli_filters:
+            print("Error: No CLI filters provided and no TTY for interactive mode.")
+            print("Usage: python batchfetch.py --date-range pmn96cur --years 2020-2025 --product-codes CODE")
+            sys.exit(1)
+        interactive = False
 
     # Failed downloads log
     log_file_path = os.path.join(output_dir, "failed_downloads_log.json")

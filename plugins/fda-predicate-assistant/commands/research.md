@@ -1,7 +1,7 @@
 ---
 description: Research and plan a 510(k) submission — predicate selection, testing strategy, IFU landscape, regulatory intelligence, and competitive analysis
 allowed-tools: Read, Glob, Grep, Bash, Write, WebFetch, WebSearch
-argument-hint: "<product-code> [--project NAME] [--device-description TEXT] [--intended-use TEXT]"
+argument-hint: "<product-code> [--project NAME] [--device-description TEXT] [--intended-use TEXT] [--infer] [--competitor-deep]"
 ---
 
 # FDA 510(k) Submission Research
@@ -20,8 +20,18 @@ From `$ARGUMENTS`, extract:
 - `--years RANGE` — Focus on specific year range (default: last 10 years)
 - `--depth quick|standard|deep` — Level of analysis (default: standard)
 - `--project NAME` — Use data from a specific project folder
+- `--infer` — Auto-detect product code from project data instead of requiring explicit input
+- `--competitor-deep` — Extended competitive analysis: applicant frequency, technology trends, market timeline, IFU evolution
 
-If no product code provided, ask the user for it. If they're unsure of their product code, help them find it:
+If no product code provided:
+- If `--infer` AND `--project NAME` specified:
+  1. Check `$PROJECTS_DIR/$PROJECT_NAME/query.json` for `product_codes` field → use first code
+  2. Check `$PROJECTS_DIR/$PROJECT_NAME/output.csv` → find most-common product code in data
+  3. Check `~/fda-510k-data/guidance_cache/` for directory names matching product codes
+  4. If inference succeeds: log "Inferred product code: {CODE} from {source}"
+  5. If inference fails: **ERROR** (not prompt): "Could not infer product code. Provide --product-code CODE or run /fda:extract first."
+- If `--infer` without `--project`: check if exactly 1 project exists in projects_dir and use it
+- If no `--infer` and no product code: ask the user for it. If they're unsure of their product code, help them find it:
 ```bash
 grep -i "DEVICE_KEYWORD" ~/fda-510k-data/extraction/foiaclass.txt ~/fda-510k-data/batchfetch/fda_data/foiaclass.txt 2>/dev/null | head -20
 ```
@@ -895,6 +905,118 @@ Report:
 ### Timeline
 
 - Clearance volume by year (chart-like visualization using text)
+
+### Deep Competitive Intelligence (if `--competitor-deep`)
+
+When `--competitor-deep` flag is provided, perform extended competitive analysis:
+
+#### Applicant Frequency Analysis
+
+```bash
+python3 << 'PYEOF'
+import csv, os, re
+from collections import Counter, defaultdict
+
+product_code = "CODE"  # Replace
+
+pmn_files = [
+    os.path.expanduser('~/fda-510k-data/extraction/pmn96cur.txt'),
+]
+
+applicant_counts = Counter()
+applicant_years = defaultdict(list)
+device_names = defaultdict(list)
+
+for pmn_file in pmn_files:
+    if not os.path.exists(pmn_file):
+        continue
+    with open(pmn_file, encoding='latin-1') as f:
+        reader = csv.reader(f, delimiter='|')
+        header = next(reader)
+        h = {name: i for i, name in enumerate(header)}
+        for row in reader:
+            if len(row) > h.get('PRODUCTCODE', 999) and row[h['PRODUCTCODE']] == product_code:
+                applicant = row[h.get('APPLICANT', 0)]
+                date = row[h.get('DECISIONDATE', 0)]
+                dname = row[h.get('DEVICENAME', 0)]
+                applicant_counts[applicant] += 1
+                if date and len(date) >= 4:
+                    applicant_years[applicant].append(date[:4])
+                device_names[applicant].append(dname)
+
+# Top 10 companies
+for company, count in applicant_counts.most_common(10):
+    years = sorted(set(applicant_years[company]))
+    year_range = f"{years[0]}-{years[-1]}" if years else "N/A"
+    unique_names = len(set(device_names[company]))
+    print(f"COMPANY:{company}|count={count}|years={year_range}|unique_devices={unique_names}")
+
+# Technology trends — device name keyword frequency by year
+all_names = []
+for pmn_file in pmn_files:
+    if not os.path.exists(pmn_file): continue
+    with open(pmn_file, encoding='latin-1') as f:
+        reader = csv.reader(f, delimiter='|')
+        header = next(reader)
+        h = {name: i for i, name in enumerate(header)}
+        for row in reader:
+            if len(row) > h.get('PRODUCTCODE', 999) and row[h['PRODUCTCODE']] == product_code:
+                date = row[h.get('DECISIONDATE', 0)]
+                dname = row[h.get('DEVICENAME', 0)]
+                if date and len(date) >= 4:
+                    all_names.append((date[:4], dname.upper()))
+
+# Keyword trends
+keywords = ['TITANIUM', 'PEEK', 'CARBON', 'POROUS', '3D PRINT', 'ADDITIVE', 'EXPANDABLE', 'MINIMALLY INVASIVE', 'NAVIGATION', 'ROBOTIC']
+from collections import defaultdict
+year_keywords = defaultdict(Counter)
+for year, name in all_names:
+    for kw in keywords:
+        if kw in name:
+            year_keywords[kw][year] += 1
+
+for kw in keywords:
+    if year_keywords[kw]:
+        trend = "|".join(f"{y}:{c}" for y, c in sorted(year_keywords[kw].items()))
+        print(f"TREND:{kw}|{trend}")
+PYEOF
+```
+
+#### Output Format for Deep Competitive Intelligence
+
+```
+COMPETITIVE INTELLIGENCE — {PRODUCT_CODE}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Top Companies by Clearance Volume:
+| # | Company | Clearances | Active Period | Device Variants |
+|---|---------|-----------|---------------|----------------|
+| 1 | {company} | {count} | {years} | {unique names} |
+| 2 | {company} | {count} | {years} | {unique names} |
+...
+
+Technology Trends:
+  {keyword}: {trend visualization — increasing/decreasing/stable}
+  {keyword}: {trend}
+
+Market Timeline:
+  {Year-by-year clearance volume bar chart using text}
+  2020: ████████ (25)
+  2021: ██████████ (32)
+  2022: ████████████ (38)
+  ...
+
+IFU Expansion Tracking:
+  {Analysis of how indications have broadened or narrowed over time}
+```
+
+Store competitive intelligence in project:
+```bash
+# Write to project file
+cat << 'EOF' > "$PROJECTS_DIR/$PROJECT_NAME/competitive_intelligence.json"
+{json data}
+EOF
+```
 
 ## Output Format
 

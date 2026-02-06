@@ -1,7 +1,7 @@
 ---
 description: Generate FDA Substantial Equivalence comparison tables for 510(k) submissions — device-type specific rows, multi-predicate support, auto-populated from FDA data
 allowed-tools: Read, Glob, Grep, Bash, Write, WebFetch, WebSearch
-argument-hint: "--predicates K241335[,K234567] [--references K345678] [--product-code CODE]"
+argument-hint: "--predicates K241335[,K234567] [--references K345678] [--product-code CODE] [--infer]"
 ---
 
 # FDA Substantial Equivalence Comparison Table Generator
@@ -21,8 +21,15 @@ From the arguments, extract:
 - `--intended-use TEXT` (optional) — Subject device intended use / IFU
 - `--output FILE` (optional) — Write table to a file (markdown or CSV)
 - `--depth quick|standard|deep` (optional, default: standard)
+- `--infer` — Auto-detect predicates from project data instead of requiring explicit input
 
-If no `--predicates` provided, ask the user. If they're unsure, suggest running `/fda:research` first.
+If no `--predicates` provided:
+- If `--infer` AND `--project NAME` specified:
+  1. Check `$PROJECTS_DIR/$PROJECT_NAME/review.json` for accepted predicates → use top 3 by score
+  2. Check `$PROJECTS_DIR/$PROJECT_NAME/output.csv` → find most-cited predicates
+  3. If inference succeeds: log "Inferred predicates: {K-numbers} from {source}"
+  4. If inference fails: **ERROR**: "Could not infer predicates. Provide --predicates K123456 or run /fda:review first."
+- If no `--infer` and no `--predicates`: ask the user. If they're unsure, suggest running `/fda:research` first.
 
 ## Step 1: Identify Product Code & Select Template
 
@@ -244,6 +251,13 @@ For each extracted characteristic:
 - If `--device-description` or `--intended-use` provided, use that text
 - Otherwise, mark each cell as `[YOUR DEVICE: specify]`
 - Always provide guidance on what to fill in: `[YOUR DEVICE: e.g., "14-day subcutaneous glucose sensor"]`
+
+**When `--device-description` and/or `--intended-use` provided:**
+- Auto-populate the Subject Device column cells using the provided text
+- For "Intended Use" row: use `--intended-use` text directly
+- For "Device Description" row: use `--device-description` text directly
+- For other rows: extract relevant details from `--device-description` if possible, otherwise use `[YOUR DEVICE: specify {specific detail needed}]`
+- Mark auto-populated cells as `{value} [auto-populated from --device-description]` so user knows to verify
 
 **Predicate columns:**
 - Auto-fill from extracted PDF text

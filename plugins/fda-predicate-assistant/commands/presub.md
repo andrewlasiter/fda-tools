@@ -1,7 +1,7 @@
 ---
 description: Plan a Pre-Submission meeting with FDA — generate cover letter template, meeting request, and discussion topics based on device and predicate analysis
 allowed-tools: Bash, Read, Glob, Grep, Write, WebSearch
-argument-hint: "<product-code> [--project NAME] [--device-description TEXT] [--intended-use TEXT]"
+argument-hint: "<product-code> [--project NAME] [--device-description TEXT] [--intended-use TEXT] [--infer]"
 ---
 
 # FDA Pre-Submission Meeting Planner
@@ -45,8 +45,17 @@ From `$ARGUMENTS`, extract:
 - `--intended-use TEXT` — Proposed indications for use
 - `--meeting-type written|teleconference|in-person` — Preferred meeting type (default: teleconference)
 - `--output FILE` — Write Pre-Sub plan to file (default: presub_plan.md in project folder)
+- `--infer` — Auto-detect product code from project data instead of requiring explicit input
 
-If no product code provided, ask the user for it.
+If no product code provided:
+- If `--infer` AND `--project NAME` specified:
+  1. Check `$PROJECTS_DIR/$PROJECT_NAME/query.json` for `product_codes` field → use first code
+  2. Check `$PROJECTS_DIR/$PROJECT_NAME/output.csv` → find most-common product code in data
+  3. Check `~/fda-510k-data/guidance_cache/` for directory names matching product codes
+  4. If inference succeeds: log "Inferred product code: {CODE} from {source}"
+  5. If inference fails: **ERROR** (not prompt): "Could not infer product code. Provide --product-code CODE or run /fda:extract first."
+- If `--infer` without `--project`: check if exactly 1 project exists in projects_dir and use it
+- If no `--infer` and no product code: ask the user for it.
 
 ## Step 1: Gather Available Data
 
@@ -173,6 +182,25 @@ Based on available data, generate appropriate Pre-Sub questions:
 Limit to 5-7 questions per FDA recommendation.
 
 ## Step 4: Generate Pre-Sub Package
+
+### Placeholder Resolution
+
+Before generating the document, resolve all placeholders:
+
+**If `--device-description` provided:**
+- Replace `[INSERT: Detailed description of your device...]` with the provided description
+- Replace `[INSERT: How the device works...]` with a synthesized principle of operation based on the description
+- Replace `[INSERT: List all components...]` with "See device description above — [TODO: Company-specific — provide detailed BOM]"
+- Replace `[INSERT: Device photographs...]` with "[TODO: Company-specific — attach device images]"
+
+**If `--intended-use` provided:**
+- Replace `[INSERT: Proposed indications for use text...]` with the provided intended use
+
+**If `--project` has existing data (review.json, guidance_cache):**
+- Replace `[INSERT: Proposed predicate device(s)...]` with top accepted predicates from review.json
+- Replace `[INSERT: Proposed testing strategy...]` with requirements from guidance_cache
+
+**Remaining placeholders** that cannot be auto-filled should be changed from `[INSERT: ...]` to `[TODO: Company-specific — {description}]` to clearly distinguish auto-fillable vs truly-needs-human items.
 
 Write the `presub_plan.md` document using the Pre-Sub format from `references/submission-structure.md`:
 

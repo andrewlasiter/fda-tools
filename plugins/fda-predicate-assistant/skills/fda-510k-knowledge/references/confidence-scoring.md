@@ -159,3 +159,55 @@ The extraction script (`predicate_extractor.py`) classifies devices based on pro
 | (new device found) | No | Yes | **Reference** (new finding from general text) |
 
 This reclassification uses the same SE_HEADER + SE_WINDOW=2000 + SE_WEIGHT=3x logic proven in `research.md`.
+
+## Extended Scoring Components (v2.1)
+
+The base 5-component scoring (100 pts) can be extended with additional defensibility metrics. These bonus points (up to +20) provide differentiation among similarly-scored predicates.
+
+### Predicate Chain Depth Score (+5 pts max)
+
+Predicates with longer citation chains are more defensible — they represent established regulatory acceptance.
+
+| Chain Depth | Bonus Points | Rationale |
+|-------------|-------------|-----------|
+| 3+ generations (cited by devices that are also cited as predicates) | +5 | Deep regulatory lineage |
+| 2 generations (cited by at least 1 device as predicate) | +3 | Moderate lineage |
+| 1 generation (cited but not as predicate by others) | +1 | Minimal lineage |
+| 0 (not cited by any other device) | +0 | No chain evidence |
+
+### SE Table Presence Score (+5 pts max)
+
+Predicates whose summary documents contain a visible SE/comparison table are easier to compare against and provide stronger precedent.
+
+| Condition | Bonus Points |
+|-----------|-------------|
+| Predicate has a detailed SE comparison table in its summary | +5 |
+| Predicate has minimal comparison section | +2 |
+| No comparison section found | +0 |
+
+### Applicant Similarity Score (+5 pts max)
+
+Predicates from the same company as the user's device are stronger (demonstrates product line evolution).
+
+| Condition | Bonus Points |
+|-----------|-------------|
+| Same applicant as user's company | +5 |
+| Same parent company (subsidiary match) | +3 |
+| Different company | +0 |
+
+### IFU Overlap Score (+5 pts max)
+
+Text similarity between the subject device's intended use and the predicate's cleared IFU.
+
+| Overlap Level | Bonus Points |
+|--------------|-------------|
+| High overlap (>80% keyword match) | +5 |
+| Moderate overlap (50-80% keyword match) | +3 |
+| Low overlap (20-50% keyword match) | +1 |
+| Minimal overlap (<20%) | +0 |
+
+### Updated Total Score Range
+
+With extended components: **0 to 120 points** (100 base + 20 bonus)
+
+Thresholds should be applied to the base 100-point score. Bonus points are used for tiebreaking and ranking differentiation.

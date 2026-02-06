@@ -1,7 +1,7 @@
 ---
 description: Look up FDA guidance documents for a device type — extract requirements, map to testing needs, and compare against predicate precedent
 allowed-tools: Bash, Read, Glob, Grep, Write, WebFetch, WebSearch
-argument-hint: "<product-code> [--regulation NUMBER] [--save] [--offline]"
+argument-hint: "<product-code> [--regulation NUMBER] [--save] [--offline] [--infer]"
 ---
 
 # FDA Guidance Document Lookup
@@ -46,8 +46,17 @@ From `$ARGUMENTS`, extract:
 - `--save` — Cache guidance data locally for offline reuse
 - `--offline` — Use only cached guidance data (no web searches)
 - `--depth quick|standard|deep` — Level of analysis (default: standard)
+- `--infer` — Auto-detect product code from project data instead of requiring explicit input
 
-If no product code provided, ask the user for it. If they're unsure, help them find it using foiaclass.txt or the openFDA classification API.
+If no product code provided:
+- If `--infer` AND `--project NAME` specified:
+  1. Check `$PROJECTS_DIR/$PROJECT_NAME/query.json` for `product_codes` field → use first code
+  2. Check `$PROJECTS_DIR/$PROJECT_NAME/output.csv` → find most-common product code in data
+  3. Check `~/fda-510k-data/guidance_cache/` for directory names matching product codes
+  4. If inference succeeds: log "Inferred product code: {CODE} from {source}"
+  5. If inference fails: **ERROR** (not prompt): "Could not infer product code. Provide --product-code CODE or run /fda:extract first."
+- If `--infer` without `--project`: check if exactly 1 project exists in projects_dir and use it
+- If no `--infer` and no product code: ask the user for it. If they're unsure, help them find it using foiaclass.txt or the openFDA classification API.
 
 ## Step 1: Get Device Classification
 

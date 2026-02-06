@@ -1,7 +1,7 @@
 ---
 description: Interactive review of extracted predicates — reclassify, score confidence, flag risks, accept or reject each predicate with tracked rationale
 allowed-tools: Bash, Read, Glob, Grep, Write
-argument-hint: "[--project NAME] [--knumber K123456] [--auto]"
+argument-hint: "[--project NAME] [--knumber K123456] [--auto] [--full-auto] [--auto-threshold N]"
 ---
 
 # FDA Predicate Review & Validation
@@ -42,6 +42,8 @@ From `$ARGUMENTS`, extract:
 - `--project NAME` — Use data from a specific project folder
 - `--knumber K123456` — Review predicates for a single device only
 - `--auto` — Auto-accept predicates scoring 80+, auto-reject scoring below 20, present 20-79 for manual review
+- `--full-auto` — Fully autonomous mode: all predicates get deterministic decisions based on score thresholds (never prompts user)
+- `--auto-threshold N` — Threshold for auto-accept in --full-auto mode (default: 70)
 - `--re-review` — Re-review previously reviewed predicates (overwrite existing review.json)
 - `--export csv|json|md` — Export format for reviewed results (default: both json and csv)
 
@@ -429,6 +431,28 @@ Auto-Review Results:
 Proceeding with manual review of 3 devices...
 ```
 
+### If `--full-auto` mode
+
+Fully autonomous processing — **NEVER call AskUserQuestion**. All decisions are deterministic:
+
+- **Score >= {auto-threshold, default 70}**: Auto-accept with rationale `"Auto-accepted (full-auto, score >= {threshold})"`
+- **Score 40 to {threshold-1}**: Auto-defer with rationale `"Auto-deferred for manual review (full-auto, ambiguous score {score})"`
+- **Score < 40**: Auto-reject with rationale `"Auto-rejected (full-auto, low confidence score {score})"`
+
+All auto-decisions are logged with `"auto_decision": true` in review.json.
+
+Report full-auto results:
+```
+Full-Auto Review Results:
+  Auto-accepted (score >= {threshold}): {N} predicates
+  Auto-deferred (score 40-{threshold-1}): {N} predicates
+  Auto-rejected (score < 40): {N} predicates
+
+  Total: {N} predicates processed with 0 user interactions
+```
+
+**Important**: When `--full-auto` is active, skip the entire "Interactive review" subsection. Do NOT present individual predicate cards or call AskUserQuestion.
+
 ### Interactive review
 
 For each predicate that needs manual review (or all predicates if `--auto` not set), present:
@@ -487,7 +511,7 @@ Write structured review data to the project folder:
   "version": 1,
   "project": "PROJECT_NAME",
   "reviewed_at": "2026-02-05T12:00:00Z",
-  "review_mode": "interactive",
+  "review_mode": "interactive|auto|full-auto",
   "summary": {
     "total_devices_reviewed": 15,
     "accepted_predicates": 8,
@@ -510,6 +534,7 @@ Write structured review data to the project folder:
       },
       "original_classification": "Predicate",
       "reclassification": "Predicate",
+      "auto_decision": false,
       "flags": ["OLD"],
       "cited_by": ["K241335", "K251234", "K248765"],
       "se_citations": 2,

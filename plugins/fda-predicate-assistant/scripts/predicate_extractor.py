@@ -364,6 +364,8 @@ Examples:
                         help='Number of PDFs to process per batch (default: 100)')
     parser.add_argument('--workers', '-w', type=int, default=4,
                         help='Number of parallel processing workers (default: 4)')
+    parser.add_argument('--headless', action='store_true',
+                        help='Enforce non-interactive mode (exit with error if GUI would be needed)')
     return parser.parse_args()
 
 
@@ -380,14 +382,27 @@ def main():
             print(f"Error: Directory not found: {directory}")
             sys.exit(1)
     else:
+        # Check if we can display a GUI
+        display_available = os.environ.get('DISPLAY') or sys.platform == 'win32' or sys.platform == 'darwin'
+
+        if args.headless or not display_available:
+            print("Error: No --directory specified and no display available for GUI.")
+            print("Usage: python predicate_extractor.py --directory /path/to/pdfs [--output-dir /path/to/output]")
+            print("Add --headless to enforce non-interactive mode.")
+            sys.exit(1)
+
         # Fall back to tkinter GUI
-        import tkinter as tk
-        from tkinter import filedialog, messagebox
-        root = tk.Tk()
-        root.withdraw()
-        directory = filedialog.askdirectory()
-        if not directory:
-            print("No directory selected. Exiting.")
+        try:
+            import tkinter as tk
+            from tkinter import filedialog, messagebox
+            root = tk.Tk()
+            root.withdraw()
+            directory = filedialog.askdirectory()
+            if not directory:
+                print("No directory selected. Exiting.")
+                sys.exit(1)
+        except (ImportError, Exception) as e:
+            print(f"Error: GUI not available ({e}). Use --directory to specify PDF path.")
             sys.exit(1)
 
     def generate_pdf_files(directory):
