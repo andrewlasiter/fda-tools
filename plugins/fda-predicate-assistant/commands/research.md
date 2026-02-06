@@ -272,7 +272,7 @@ else:
 # Recall count by classification
 time.sleep(0.5)
 print("\n=== RECALL SUMMARY ===")
-recalls = fda_query("recall", f'product_code:"{product_code}"', count_field="recall_status.exact")
+recalls = fda_query("recall", f'product_code:"{product_code}"', count_field="recall_status")
 if "results" in recalls:
     total_r = sum(r["count"] for r in recalls["results"])
     print(f"TOTAL_RECALLS:{total_r}")

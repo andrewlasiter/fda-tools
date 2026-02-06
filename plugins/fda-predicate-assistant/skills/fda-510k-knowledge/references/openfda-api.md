@@ -374,7 +374,7 @@ fda_api("recall", 'k_numbers:"K241335"')
 fda_api("recall", 'product_code:"KGN"', limit=50)
 
 # Count recalls by status
-fda_api("recall", 'product_code:"KGN"', count_field="recall_status.exact")
+fda_api("recall", 'product_code:"KGN"', count_field="recall_status")
 
 # Active recalls only
 fda_api("recall", 'product_code:"KGN"+AND+recall_status:"Ongoing"')

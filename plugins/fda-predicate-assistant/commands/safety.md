@@ -389,7 +389,7 @@ def fda_query(endpoint, search, limit=10, count_field=None):
 
 # Recall count by status
 print("=== RECALL STATUS DISTRIBUTION ===")
-class_result = fda_query("recall", f'product_code:"{product_code}"', count_field="recall_status.exact")
+class_result = fda_query("recall", f'product_code:"{product_code}"', count_field="recall_status")
 if "results" in class_result:
     total = sum(r["count"] for r in class_result["results"])
     print(f"TOTAL_RECALLS:{total}")
@@ -401,7 +401,7 @@ else:
 # Recall count by status
 time.sleep(0.5)
 print("\n=== RECALL STATUS ===")
-status_result = fda_query("recall", f'product_code:"{product_code}"', count_field="recall_status.exact")
+status_result = fda_query("recall", f'product_code:"{product_code}"', count_field="recall_status")
 if "results" in status_result:
     for r in status_result["results"]:
         print(f"RECALL_STATUS:{r['term']}:{r['count']}")

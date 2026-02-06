@@ -376,7 +376,7 @@ else:
     print("RECALL_COUNT:0")
 
 # 3. Also check recalls for the product code (broader)
-pc_recalls = fda_query("recall", f'product_code:"{product_code}"', count_field="recall_status.exact")
+pc_recalls = fda_query("recall", f'product_code:"{product_code}"', count_field="recall_status")
 if "results" in pc_recalls:
     total_pc = sum(r["count"] for r in pc_recalls["results"])
     print(f"PC_RECALL_TOTAL:{total_pc}")
