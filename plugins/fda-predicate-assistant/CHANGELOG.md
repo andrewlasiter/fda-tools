@@ -1,5 +1,52 @@
 # Changelog
 
+## [3.0.0] - 2026-02-06
+
+### Added — Tier 1: Autonomy
+- `--full-auto` and `--auto-threshold` on `/fda:review` for zero-prompt predicate review
+- `--infer` flag on guidance, presub, research, submission-outline, and compare-se for auto-detecting product codes from project data
+- `--output FILE` on `/fda:summarize` for file persistence
+- `--headless` flag on `predicate_extractor.py` with display detection
+- TTY-aware prompts in `batchfetch.py` with non-interactive fallback
+- `/fda:pipeline` command — full 7-step autonomous pipeline orchestrator
+- Placeholder auto-fill: `[INSERT: ...]` → populated from `--device-description` and `--intended-use`
+- Default stage selection in `/fda:extract` (no more prompts)
+
+### Added — Tier 2: Best-in-Class Features
+- `/fda:monitor` — real-time FDA clearance, recall, and MAUDE event monitoring
+- `/fda:pathway` — algorithmic regulatory pathway recommendation (5 pathways scored 0-100)
+- `/fda:test-plan` — risk-based testing plan with ISO 14971 gap analysis
+- `/fda:assemble` — eSTAR directory structure assembly (17 sections with readiness tracking)
+- `/fda:portfolio` — cross-project portfolio dashboard with shared predicate analysis
+- `/fda:pccp` — Predetermined Change Control Plan generator for AI/ML devices
+- `/fda:ask` — natural language regulatory Q&A
+- `--competitor-deep` on `/fda:research` for applicant frequency, technology trends, and market timeline
+- Extended confidence scoring (+20 bonus points: chain depth, SE table, applicant similarity, IFU overlap)
+
+### Added — References
+- `estar-structure.md` — eSTAR section structure and applicability matrix
+- `pathway-decision-tree.md` — regulatory pathway decision flow and scoring weights
+- `test-plan-framework.md` — ISO 14971 risk categories and device-type test lists
+- `pccp-guidance.md` — FDA PCCP guidance overview and modification categories
+
+## [2.0.0] - 2026-02-05
+
+### Added
+- `/fda:review` — interactive predicate review with 5-component confidence scoring
+- `/fda:guidance` — FDA guidance lookup with requirements extraction and testing mapping
+- `/fda:presub` — Pre-Submission meeting package generator
+- `/fda:submission-outline` — full 510(k) outline with gap analysis
+- `confidence-scoring.md` reference with scoring methodology
+- `guidance-lookup.md` reference with search strategies
+- `submission-structure.md` reference with outline templates
+
+### Changed
+- `/fda:extract` now includes safety scan integration
+- `/fda:configure` now supports exclusion lists
+- `/fda:research` now caches guidance for reuse
+- `/fda:compare-se` now integrates with submission outline data
+- Marketplace renamed from `local` to `fda-tools`
+
 ## [1.2.0] - 2026-02-05
 
 ### Added

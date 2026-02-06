@@ -11,15 +11,44 @@ A Claude Code plugin that helps you navigate FDA 510(k) submissions. It finds pr
 
 ## What it does
 
+### Core Pipeline
+
 | Command | Purpose |
 |---------|---------|
-| `/fda:research` | Full submission research — predicates, testing strategy, competitive landscape |
+| `/fda:pipeline` | Run the full 7-step pipeline autonomously (extract → review → safety → guidance → presub → outline → SE) |
 | `/fda:extract` | Download 510(k) PDFs and extract predicate relationships |
+| `/fda:review` | Score, flag, and accept/reject extracted predicates |
+| `/fda:safety` | MAUDE adverse events and recall history for a product code |
+| `/fda:guidance` | Look up FDA guidance documents and map to testing requirements |
+| `/fda:presub` | Generate a Pre-Submission meeting package |
+| `/fda:submission-outline` | Generate a full 510(k) submission outline with gap analysis |
+| `/fda:compare-se` | Generate substantial equivalence comparison tables |
+
+### Research and Analysis
+
+| Command | Purpose |
+|---------|---------|
+| `/fda:research` | Full submission research — predicates, testing, competitive landscape |
 | `/fda:validate` | Look up any device number (K, P, DEN, N) against FDA databases |
 | `/fda:analyze` | Statistics and patterns across your extraction results |
-| `/fda:safety` | MAUDE adverse events and recall history for a product code |
-| `/fda:compare-se` | Generate substantial equivalence comparison tables |
 | `/fda:summarize` | Compare sections (testing, IFU, device description) across devices |
+| `/fda:ask` | Natural language Q&A about FDA regulatory topics |
+
+### Planning and Decision Support
+
+| Command | Purpose |
+|---------|---------|
+| `/fda:pathway` | Recommend the optimal regulatory pathway with algorithmic scoring |
+| `/fda:test-plan` | Generate a risk-based testing plan with gap analysis |
+| `/fda:pccp` | Generate a Predetermined Change Control Plan (AI/ML devices) |
+| `/fda:monitor` | Watch FDA databases for new clearances, recalls, and MAUDE events |
+
+### Assembly and Management
+
+| Command | Purpose |
+|---------|---------|
+| `/fda:assemble` | Assemble an eSTAR-structured submission package from project data |
+| `/fda:portfolio` | Cross-project dashboard — shared predicates, common guidance, timelines |
 | `/fda:configure` | Set up API keys, data paths, and preferences |
 | `/fda:status` | Check what data you have and what's available |
 
@@ -50,13 +79,29 @@ A Claude Code plugin that helps you navigate FDA 510(k) submissions. It finds pr
 > The developers and Anthropic accept no liability for regulatory outcomes
 > based on this tool's output.
 
+## Autonomous mode
+
+The plugin can run fully headless with zero user prompts — ideal for co-work sessions and automated workflows:
+
+```
+/fda:pipeline OVE --project my-device --full-auto \
+  --device-description "Cervical interbody fusion cage" \
+  --intended-use "For fusion of the cervical spine"
+```
+
+Key autonomy flags:
+- `--full-auto` — Deterministic decisions based on score thresholds (never prompts)
+- `--infer` — Auto-detect product code from project data
+- `--headless` — Non-interactive mode for Python scripts
+
 ## Quick start
 
 ```
 /fda:status                          # See what data is available
 /fda:validate K241335                # Look up a device
 /fda:research QAS                    # Full research for a product code
-/fda:safety --product-code KGN       # Safety profile for wound dressings
+/fda:pipeline OVE --project demo     # Run full pipeline for a product code
+/fda:ask "What class is a cervical fusion cage?"  # Regulatory Q&A
 ```
 
 ## openFDA API
