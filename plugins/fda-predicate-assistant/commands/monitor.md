@@ -1,7 +1,7 @@
 ---
 description: Monitor FDA databases for new clearances, recalls, MAUDE events, and guidance updates for watched product codes
 allowed-tools: Bash, Read, Write, Glob, Grep, WebSearch
-argument-hint: "--check | --add-watch CODE | --remove-watch CODE | --status | --alerts | --watch-standards [--product-codes CODE] [--watch-companies NAME] [--project NAME]"
+argument-hint: "--check | --add-watch CODE | --remove-watch CODE | --status | --alerts | --watch-standards [--standards-report] [--notify email|webhook|stdout] [--cron] [--webhook-url URL] [--email-to ADDR] [--product-codes CODE] [--watch-companies NAME] [--project NAME]"
 ---
 
 # FDA Real-Time Database Monitor
@@ -46,6 +46,11 @@ From `$ARGUMENTS`, extract the subcommand:
 - `--watch-companies NAME[;NAME2]` — Companies to monitor
 - `--project NAME` — Associate alerts with a project
 - `--since YYYY-MM-DD` — Only show alerts since this date
+- `--notify email|webhook|stdout` — Send alerts via email, webhook POST, or stdout JSON after --check
+- `--cron` — Machine-readable JSON output suitable for cron scheduling
+- `--webhook-url URL` — Override webhook URL for this check
+- `--email-to ADDRESS` — Override email recipient for this check
+- `--standards-report` — Generate full standards currency report (use with --watch-standards)
 
 ## State Management
 
@@ -154,7 +159,7 @@ Read monitors.json and display:
   FDA Monitor Status
   Device Watch Dashboard
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | v4.6.0
+  Generated: {date} | v4.8.0
 
 WATCH CONFIGURATION
 ────────────────────────────────────────
@@ -248,7 +253,7 @@ Report:
   FDA Monitor Check Report
   {product_codes} — Monitoring Results
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | Period: {last_check} to {now} | v4.6.0
+  Generated: {date} | Period: {last_check} to {now} | v4.8.0
 
 CHECK RESULTS
 ────────────────────────────────────────
@@ -284,6 +289,69 @@ NEXT STEPS
 ────────────────────────────────────────
 ```
 
+## Subcommand: --notify (Alert Delivery)
+
+After `--check` completes and alerts are generated, deliver them via the specified method using the bundled `alert_sender.py`.
+
+### Usage Examples
+
+```bash
+# Email alerts after check
+/fda:monitor --check --product-code OVE --notify email
+
+# Webhook POST
+/fda:monitor --check --notify webhook --webhook-url https://hooks.slack.com/services/...
+
+# Machine-readable JSON for cron
+/fda:monitor --check --notify stdout --cron
+
+# Cron setup (check every hour, email alerts):
+# */60 * * * * claude -p "Run /fda:monitor --check --notify email"
+```
+
+### Delivery via alert_sender.py
+
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/alert_sender.py" \
+  --method {email|webhook|stdout} \
+  --alert-dir ~/fda-510k-data/monitor_alerts \
+  --since {last_check_date} \
+  {--cron if --cron flag set} \
+  {--webhook-url URL if provided} \
+  {--email-to ADDRESS if provided}
+```
+
+If `--cron` is set, always use `--method stdout --cron` regardless of `--notify` value. This outputs machine-readable JSON suitable for piping to downstream tools.
+
+### Email Configuration
+
+Email requires SMTP settings in `~/.claude/fda-predicate-assistant.local.md`:
+```yaml
+smtp_host: smtp.gmail.com
+smtp_port: 587
+smtp_user: your-email@gmail.com
+smtp_password: your-app-password
+email_to: recipient@example.com
+email_from: fda-monitor@example.com
+```
+
+Set via `/fda:configure --set smtp_host smtp.gmail.com` etc.
+
+### Webhook Payload Format
+
+```json
+{
+  "source": "fda-predicate-assistant-monitor",
+  "version": "4.8.0",
+  "timestamp": "2026-02-07T12:00:00Z",
+  "alert_count": 3,
+  "alerts": [
+    {"type": "new_clearance", "product_code": "OVE", ...},
+    {"type": "recall", "product_code": "OVE", ...}
+  ]
+}
+```
+
 ## Subcommand: --watch-standards
 
 Track FDA recognized consensus standards changes that affect your projects.
@@ -291,35 +359,158 @@ Track FDA recognized consensus standards changes that affect your projects.
 ### How it works
 
 1. Read the project's `guidance_cache/standards_list.json` to get the list of applicable standards
-2. Query FDA's standards database for updates:
+2. Load the built-in supersession data from `references/standards-tracking.md`
+3. Query FDA's standards database for updates:
 
 ```
 WebSearch: site:fda.gov "recognized consensus standards" update 2026
 WebSearch: site:fda.gov "{standard_name}" recognition medical device 2025 OR 2026
 ```
 
-3. For each standard in the project:
+4. For each standard in the project:
    - Check if a newer version has been recognized by FDA
-   - Check if the current version has been withdrawn
-   - Check transition deadlines
+   - Check if the current version has been withdrawn from FDA recognition
+   - Check transition deadlines (alert if within 6 months)
    - Assess impact on project requirements
 
-4. Generate standards impact report:
+5. **Supersession Detection** — Use built-in supersession database:
+
+```bash
+python3 << 'PYEOF'
+import json, os, re
+from datetime import datetime, date
+
+# Known supersessions (from standards-tracking.md)
+SUPERSESSIONS = {
+    "ISO 10993-1:2018": {"new": "ISO 10993-1:2025", "transition": "2027-11-18", "action": "Update biocompatibility testing plan to reference 2025 edition"},
+    "ISO 11137-1:2006": {"new": "ISO 11137-1:2025", "transition": "2027-06-01", "action": "Update radiation sterilization validation references"},
+    "ISO 17665-1:2006": {"new": "ISO 17665:2024", "transition": "2026-12-01", "action": "Update moist heat sterilization references"},
+    "ISO 10993-1:2009": {"new": "ISO 10993-1:2025", "transition": "2027-11-18", "action": "Update biocompatibility evaluation framework"},
+}
+
+# Load project's cited standards
+project_dir = os.path.expanduser("~/fda-510k-data/projects/PROJECT_NAME")  # Replace
+standards_files = [
+    os.path.join(project_dir, "test_plan.md"),
+    os.path.join(project_dir, "guidance_cache", "standards_list.json"),
+]
+
+cited = set()
+std_pattern = re.compile(r"(ISO|IEC|ASTM|AAMI|UL)\s*[\d]+(?:-\d+)?(?::\d{4})?")
+
+for sf in standards_files:
+    if os.path.exists(sf):
+        with open(sf) as f:
+            content = f.read()
+        for m in std_pattern.finditer(content):
+            cited.add(m.group())
+
+alerts = []
+for std_cited in sorted(cited):
+    if std_cited in SUPERSESSIONS:
+        info = SUPERSESSIONS[std_cited]
+        transition = datetime.strptime(info["transition"], "%Y-%m-%d").date()
+        days_remaining = (transition - date.today()).days
+        severity = "critical" if days_remaining < 90 else "warning" if days_remaining < 180 else "info"
+        alerts.append({
+            "type": "standard_update",
+            "standard": std_cited.split(":")[0],
+            "old_version": std_cited.split(":")[-1] if ":" in std_cited else "unknown",
+            "new_version": info["new"].split(":")[-1],
+            "transition_deadline": info["transition"],
+            "days_remaining": days_remaining,
+            "severity": severity,
+            "action_required": info["action"],
+        })
+        status = "SUPERSEDED" if days_remaining > 0 else "EXPIRED"
+        print(f"{status}:{std_cited}|{info['new']}|{info['transition']}|{days_remaining}d remaining")
+    else:
+        print(f"CURRENT:{std_cited}")
+
+if alerts:
+    # Save to alert file
+    today = date.today().isoformat()
+    alert_dir = os.path.expanduser("~/fda-510k-data/monitor_alerts")
+    os.makedirs(alert_dir, exist_ok=True)
+    alert_file = os.path.join(alert_dir, f"{today}.json")
+    if os.path.exists(alert_file):
+        with open(alert_file) as f:
+            existing = json.load(f)
+    else:
+        existing = {"date": today, "alerts": []}
+    existing["alerts"].extend(alerts)
+    with open(alert_file, "w") as f:
+        json.dump(existing, f, indent=2)
+    print(f"\nSaved {len(alerts)} standard alerts to {alert_file}")
+PYEOF
+```
+
+6. Generate standards impact report:
 
 ```markdown
 ## Standards Watch Report
 
-| Standard | Current | Latest Recognized | Status | Impact |
-|----------|---------|-------------------|--------|--------|
-| ISO 10993-1 | 2018 | 2025 | UPDATE AVAILABLE | Update biocompat plan |
-| IEC 62304 | 2015 | 2015 | CURRENT | No action |
-| ISO 11135 | 2014 | 2014 | CURRENT | No action |
-| ASTM F1980 | 2016 | 2021 | UPDATE AVAILABLE | Review aging protocol |
+| Standard | Current | Latest Recognized | Status | Transition | Impact |
+|----------|---------|-------------------|--------|------------|--------|
+| ISO 10993-1 | 2018 | 2025 | SUPERSEDED | 2027-11-18 | Update biocompat plan |
+| IEC 62304 | 2015 | 2015 | CURRENT | — | No action |
+| ISO 11135 | 2014 | 2014 | CURRENT | — | No action |
+| ISO 17665-1 | 2006 | 2024 | SUPERSEDED | 2026-12-01 | Update steam sterilization refs |
+| ASTM F1980 | 2016 | 2021 | UPDATE AVAILABLE | — | Review aging protocol |
 ```
 
-5. Save results to `~/fda-510k-data/monitor_alerts/{today}.json` with `type: "standard_update"`
+7. Save results to `~/fda-510k-data/monitor_alerts/{today}.json` with `type: "standard_update"`
 
-See `references/standards-tracking.md` for standard families and alert schema.
+### Standards Report (--standards-report)
+
+When `--standards-report` is combined with `--watch-standards`, generate a comprehensive standards currency report:
+
+```
+  FDA Standards Currency Report
+  {project_name} — Full Audit
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Generated: {date} | v4.8.0
+
+STANDARDS CURRENCY STATUS
+────────────────────────────────────────
+
+  ✓ Current:     {N} standards up to date
+  ⚠ Superseded:  {N} standards need updating
+  ✗ Expired:     {N} standards past transition deadline
+
+SUPERSEDED STANDARDS (Action Required)
+────────────────────────────────────────
+
+  ISO 10993-1:2018 → ISO 10993-1:2025
+    Transition deadline: 2027-11-18 ({N} days remaining)
+    Impact: Update biocompatibility testing plan
+    FDA Recognition: Recognized 2025-11-18
+
+  ISO 17665-1:2006 → ISO 17665:2024
+    Transition deadline: 2026-12-01 ({N} days remaining)
+    Impact: Update moist heat sterilization references
+
+CURRENT STANDARDS (No Action)
+────────────────────────────────────────
+
+  ✓ ISO 14971:2019        Risk management
+  ✓ IEC 62304:2006+A1     Software lifecycle
+  ✓ ISO 13485:2016        Quality management
+
+RECOMMENDATIONS
+────────────────────────────────────────
+
+  1. Update test plans to reference superseded standard editions
+  2. Review submission documents for outdated citations
+  3. For detailed standard lookup: /fda:standards --check-currency
+
+────────────────────────────────────────
+  This report is AI-generated from public FDA data.
+  Verify independently. Not regulatory advice.
+────────────────────────────────────────
+```
+
+See `references/standards-tracking.md` for standard families, supersession data, and alert schema.
 
 ## Subcommand: --alerts
 

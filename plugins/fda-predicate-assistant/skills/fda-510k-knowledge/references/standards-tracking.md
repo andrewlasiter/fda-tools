@@ -112,6 +112,36 @@ Changes to recognized standards can affect:
 | ISO 18113-1:2022 | IVD medical devices — Information supplied by manufacturer — Part 1 | IVD labeling |
 | ISO 15197:2013 | IVD — Requirements for blood-glucose monitoring systems | Glucose monitors |
 
+## Supersession Database
+
+Known supersession events with transition deadlines for automated currency checking.
+
+| Old Standard | New Standard | FDA Recognition Date | Transition Deadline | Impact Area |
+|-------------|-------------|---------------------|-------------------|-------------|
+| ISO 10993-1:2018 | ISO 10993-1:2025 | 2025-11-18 | 2027-11-18 | Biocompatibility evaluation framework |
+| ISO 10993-1:2009 | ISO 10993-1:2025 | 2025-11-18 | 2027-11-18 | Biocompatibility (legacy) |
+| ISO 11137-1:2006/A2:2019 | ISO 11137-1:2025 | 2025-06-01 | 2027-06-01 | Radiation sterilization validation |
+| ISO 17665-1:2006 | ISO 17665:2024 | 2024-12-01 | 2026-12-01 | Moist heat sterilization |
+| ASTM F1980-07(2021) | ASTM F1980-21 | 2022-03-15 | N/A (voluntary) | Accelerated aging |
+
+### Last Verified Dates
+
+Each standard family below was last verified against FDA RCSD on the date shown:
+
+| Standard Family | Last Verified | Status |
+|----------------|--------------|--------|
+| ISO 13485 (QMS) | 2026-02-07 | Current — 2016 edition recognized |
+| ISO 14971 (Risk) | 2026-02-07 | Current — 2019 edition recognized |
+| ISO 10993 (Biocompat) | 2026-02-07 | 2025 edition now recognized; 2018 in transition |
+| IEC 60601 (Electrical) | 2026-02-07 | Current — 2005+A2:2020 recognized |
+| IEC 62304 (Software) | 2026-02-07 | Current — 2006+A1:2015 recognized |
+| ISO 11135 (EO Steril) | 2026-02-07 | Current — 2014 edition recognized |
+| ISO 11137 (Radiation) | 2026-02-07 | 2025 edition now recognized; 2006 in transition |
+| ISO 17665 (Steam) | 2026-02-07 | 2024 edition now recognized; 2006 in transition |
+| ASTM F1980 (Aging) | 2026-02-07 | Current — 2021 edition recognized |
+| IEC 62366 (Usability) | 2026-02-07 | Current — 2015+A1:2020 recognized |
+| AAMI TIR57 (Cyber) | 2026-02-07 | Current — 2016/(R)2023 recognized |
+
 ## Monitor --watch-standards Usage
 
 The `/fda:monitor --watch-standards` flag enables tracking of:
@@ -120,6 +150,7 @@ The `/fda:monitor --watch-standards` flag enables tracking of:
 2. **Standard withdrawals**: Standards no longer recognized by FDA
 3. **Transition periods**: Time allowed to transition from old to new standard version
 4. **Impact assessment**: Which project requirements are affected by standard changes
+5. **Supersession detection**: Automatic comparison of cited standards against supersession database
 
 ### Check Method
 
@@ -127,7 +158,7 @@ The `/fda:monitor --watch-standards` flag enables tracking of:
 WebSearch: site:fda.gov "recognized consensus standards" update {YYYY}
 ```
 
-Cross-reference found standards against project's guidance_cache/standards_list.json to identify impacts.
+Cross-reference found standards against project's guidance_cache/standards_list.json to identify impacts. Also compare against the supersession database above for known edition changes.
 
 ### Alert Format
 
@@ -139,8 +170,19 @@ Cross-reference found standards against project's guidance_cache/standards_list.
   "new_version": "2025",
   "recognition_date": "2025-11-18",
   "transition_deadline": "2027-11-18",
+  "days_remaining": 650,
   "affected_requirements": ["REQ-BIOCOMPAT-001"],
   "severity": "warning",
   "action_required": "Update biocompatibility testing plan to reference ISO 10993-1:2025"
 }
 ```
+
+### Severity Levels
+
+| Condition | Severity |
+|-----------|----------|
+| Transition deadline > 6 months away | info |
+| Transition deadline 3-6 months away | warning |
+| Transition deadline < 3 months away | critical |
+| Transition deadline passed | critical |
+| Standard withdrawn from FDA recognition | critical |

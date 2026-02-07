@@ -282,3 +282,38 @@ class TestSearchFilters:
         """Search by device name keyword."""
         data = _api_get("510k", 'device_name:"fusion"+AND+product_code:"OVE"')
         assert "meta" in data
+
+
+class TestTimelineAnalytics:
+    """Verify review duration data availability for analytics."""
+
+    @pytest.fixture(autouse=True)
+    def _rate_limit(self):
+        yield
+        time.sleep(1)
+
+    def test_510k_has_date_received(self):
+        """Verify date_received field exists for duration calculation."""
+        data = _api_get("510k", 'product_code:"OVE"')
+        result = data["results"][0]
+        assert "date_received" in result
+
+    def test_510k_has_decision_date(self):
+        """Verify decision_date field exists for duration calculation."""
+        data = _api_get("510k", 'product_code:"OVE"')
+        result = data["results"][0]
+        assert "decision_date" in result
+
+    def test_review_duration_calculable(self):
+        """Verify both dates are present and parseable for duration."""
+        from datetime import datetime
+        data = _api_get("510k", 'product_code:"OVE"')
+        result = data["results"][0]
+        dr = result.get("date_received", "")
+        dd = result.get("decision_date", "")
+        assert dr and dd
+        fmt = '%Y-%m-%d' if '-' in dr else '%Y%m%d'
+        d1 = datetime.strptime(dr, fmt)
+        d2 = datetime.strptime(dd, fmt)
+        days = (d2 - d1).days
+        assert days > 0  # Decision should be after receipt

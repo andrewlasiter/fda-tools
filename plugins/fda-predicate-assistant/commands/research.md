@@ -1046,7 +1046,7 @@ Structure the research package as:
   FDA Submission Research Report
   {PRODUCT_CODE} — {DEVICE_NAME}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | Depth: {depth} | v4.6.0
+  Generated: {date} | Depth: {depth} | v4.8.0
 
 PRODUCT CODE PROFILE
 ────────────────────────────────────────
@@ -1424,6 +1424,174 @@ if types.get("results"):
     for r in types["results"]:
         print(f"TYPE:{r['term']}:{r['count']}")
 PYEOF
+```
+
+## Clearance Timeline Analytics (--analytics)
+
+When `--analytics` flag is set, calculate review duration statistics and clearance trends from openFDA data. This provides quantitative intelligence for submission planning.
+
+### Analytics Data Collection
+
+```bash
+python3 << 'PYEOF'
+import urllib.request, urllib.parse, json, os, re, time
+from datetime import datetime
+
+# Standard API setup
+settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+api_key = os.environ.get('OPENFDA_API_KEY')
+api_enabled = True
+if os.path.exists(settings_path):
+    with open(settings_path) as f:
+        content = f.read()
+    if not api_key:
+        m = re.search(r'openfda_api_key:\s*(\S+)', content)
+        if m and m.group(1) != 'null':
+            api_key = m.group(1)
+    m = re.search(r'openfda_enabled:\s*(\S+)', content)
+    if m and m.group(1).lower() == 'false':
+        api_enabled = False
+
+if not api_enabled:
+    print("ANALYTICS_SKIP:api_disabled")
+    exit(0)
+
+product_code = "PRODUCTCODE"  # Replace
+
+def fda_query(endpoint, search, limit=10, count_field=None):
+    params = {"search": search, "limit": str(limit)}
+    if count_field:
+        params["count"] = count_field
+    if api_key:
+        params["api_key"] = api_key
+    url = f"https://api.fda.gov/device/{endpoint}.json?{urllib.parse.urlencode(params)}"
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/4.8.0)"})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return {"results": []}
+        return {"error": f"HTTP {e.code}"}
+    except Exception as e:
+        return {"error": str(e)}
+
+# 1. Review duration statistics (last 5 years for relevance)
+print("=== REVIEW DURATION ===")
+recent = fda_query("510k", f'product_code:"{product_code}"+AND+decision_date:[20200101+TO+29991231]', limit=100)
+durations = []
+for r in recent.get("results", []):
+    dr = r.get("date_received", "")
+    dd = r.get("decision_date", "")
+    if dr and dd:
+        try:
+            fmt = '%Y-%m-%d' if '-' in dr else '%Y%m%d'
+            d1 = datetime.strptime(dr, fmt)
+            d2 = datetime.strptime(dd, fmt)
+            days = (d2 - d1).days
+            if 0 < days < 1000:
+                durations.append(days)
+        except:
+            pass
+
+if durations:
+    durations.sort()
+    n = len(durations)
+    median = durations[n // 2]
+    p25 = durations[n // 4]
+    p75 = durations[3 * n // 4]
+    avg = sum(durations) // n
+    print(f"DURATION:n={n}|median={median}|p25={p25}|p75={p75}|avg={avg}|min={min(durations)}|max={max(durations)}")
+else:
+    print("DURATION:insufficient_data")
+
+# 2. Clearance type distribution
+time.sleep(0.5)
+print("\n=== CLEARANCE TYPES ===")
+types = fda_query("510k", f'product_code:"{product_code}"', count_field="clearance_type.exact")
+if types.get("results"):
+    for r in types["results"]:
+        print(f"TYPE:{r['term']}:{r['count']}")
+
+# 3. Clearance trends by year
+time.sleep(0.5)
+print("\n=== YEARLY TRENDS ===")
+trends = fda_query("510k", f'product_code:"{product_code}"', count_field="decision_date")
+if trends.get("results"):
+    year_counts = {}
+    for r in trends["results"]:
+        year = r["time"][:4]
+        year_counts[year] = year_counts.get(year, 0) + r["count"]
+    for year in sorted(year_counts.keys())[-15:]:
+        print(f"YEAR:{year}:{year_counts[year]}")
+
+# 4. Top applicants by volume
+time.sleep(0.5)
+print("\n=== TOP APPLICANTS ===")
+applicants = fda_query("510k", f'product_code:"{product_code}"', count_field="applicant.exact")
+if applicants.get("results"):
+    for r in applicants["results"][:10]:
+        print(f"APPLICANT:{r['term']}:{r['count']}")
+
+# 5. Decision code distribution
+time.sleep(0.5)
+print("\n=== DECISION CODES ===")
+decisions = fda_query("510k", f'product_code:"{product_code}"', count_field="decision_code.exact")
+if decisions.get("results"):
+    for r in decisions["results"]:
+        print(f"DECISION:{r['term']}:{r['count']}")
+PYEOF
+```
+
+### Analytics Output Format
+
+```
+CLEARANCE TIMELINE ANALYTICS
+────────────────────────────────────────
+
+  Product Code: {CODE} — {device_name}
+  Analysis Period: 2020-Present ({N} clearances analyzed)
+
+  Review Duration:
+    Median: {median} days (IQR: {p25}–{p75})
+    Average: {avg} days
+    Fastest: {min} days | Slowest: {max} days
+
+    Distribution:
+    0-30d:   {'█' * scale} ({count})
+    31-60d:  {'█' * scale} ({count})
+    61-90d:  {'█' * scale} ({count})
+    91-120d: {'█' * scale} ({count})
+    121-180d:{'█' * scale} ({count})
+    180d+:   {'█' * scale} ({count})
+
+  Clearance Type Distribution:
+    Traditional: {count} ({pct}%)
+    Special:     {count} ({pct}%)
+    Abbreviated: {count} ({pct}%)
+
+  Yearly Clearance Volume:
+    {year}: {'█' * scale} ({count})
+    {year}: {'█' * scale} ({count})
+    ...
+
+  Top Applicants:
+  | # | Company                  | Clearances | Share  |
+  |---|--------------------------|-----------|--------|
+  | 1 | {company}                | {count}    | {pct}% |
+  | 2 | {company}                | {count}    | {pct}% |
+
+  Decision Code Breakdown:
+    SESE (Substantially Equivalent):  {count} ({pct}%)
+    SEKN (SE with Conditions):        {count} ({pct}%)
+    SESK (SE — Special 510k):         {count} ({pct}%)
+    DENG (Denied):                    {count} ({pct}%)
+
+  Submission Planning Insights:
+  - Expected review time for your submission: ~{median} days
+  - {clearance_type} is the most common pathway ({pct}%)
+  - Market is {trend: growing/stable/declining} ({5yr avg} vs {10yr avg})
+  - Top competitor: {company} ({count} clearances, {pct}% share)
 ```
 
 ### Browse Output Format
