@@ -331,7 +331,7 @@ Write the complete submission outline document (see `references/output-formattin
 **Pathway:** {Traditional/Special/Abbreviated/De Novo}
 **Product Code:** {CODE} — {device_name}
 **Classification:** Class {class}, 21 CFR {regulation}
-**Generated:** {today's date} | v4.6.0
+**Generated:** {today's date} | v5.0.0
 **Project:** {project_name or "N/A"}
 
 ---
@@ -484,9 +484,66 @@ Outline Summary:
 {Next steps based on gaps}
 ```
 
+## DHF Checklist (--dhf flag)
+
+When `--dhf` is specified, generate a Design History File completeness checklist alongside the submission outline.
+
+### Parse --dhf
+
+Add `--dhf` as optional flag. When present, append a DHF section to the output.
+
+### DHF Implementation
+
+Cross-reference project data against the checklist in `references/dhf-checklist.md`:
+
+```markdown
+## Design History File (DHF) Completeness Checklist
+### Per 21 CFR 820.30 / ISO 13485:2016 Section 7.3
+
+| DHF Section | Required? | Evidence Available | Status |
+|-------------|-----------|-------------------|--------|
+| Design Planning | Yes | {regulatory strategy from presub_plan.md} | {Complete/Gap} |
+| Design Input | Yes | {requirements from guidance_cache, test_plan.md} | {Complete/Gap} |
+| Design Output | Yes | {device specs from import_data.json, drafts} | {Complete/Gap} |
+| Design Review | Yes | {review records — typically manual} | [TODO] |
+| Design Verification | Yes | {test results from test_plan.md} | {Complete/Gap} |
+| Design Validation | Yes | {clinical data from literature.md, safety_report.md} | {Complete/Gap} |
+| Design Transfer | Yes | {manufacturing — typically manual} | [TODO] |
+| Design Changes | Yes | {change records — typically manual} | [TODO] |
+| Risk Management | Yes | {risk analysis from traceability_matrix.md} | {Complete/Gap} |
+| Requirements Traceability | Yes | {RTM from traceability_matrix.md} | {Complete/Gap} |
+```
+
+### Auto-Detection Logic
+
+For each DHF section, check if project data provides evidence:
+- **Design Input**: Check for `guidance_cache/`, `test_plan.md`
+- **Design Output**: Check for `draft_*.md` files, `import_data.json`
+- **Design Verification**: Check for `test_plan.md`, `se_comparison.md`
+- **Design Validation**: Check for `literature.md`, `safety_report.md`
+- **Risk Management**: Check for `traceability_matrix.md`
+- **Requirements Traceability**: Check for `traceability_matrix.md`
+
+Mark as "Complete" if evidence exists, "Gap" if not, "[TODO]" if requires manual input.
+
+### DHF Summary
+
+```markdown
+DHF Completeness: {complete_count}/10 sections
+  Evidence available: {count} sections
+  Gaps requiring data: {count} sections
+  Manual input needed: {count} sections
+
+Recommendations:
+  {If no risk analysis:} Run /fda:traceability --project NAME for requirements traceability (covers Risk Mgmt + RTM)
+  {If no test plan:} Run /fda:test-plan for design verification planning
+  {If no clinical:} Run /fda:literature for clinical evidence (design validation)
+```
+
 ## Error Handling
 
 - **No product code**: Ask the user for it
 - **Invalid pathway**: "'{pathway}' is not a valid pathway. Use traditional, special, abbreviated, or denovo."
 - **No project data**: Generate template outline. Note: "Outline generated without project data. Run the full pipeline for a data-enriched outline."
 - **API unavailable**: Use flat files. Note which sections have reduced data.
+- **--dhf without --project**: "DHF checklist requires a project. Use `--project NAME` to specify one."

@@ -205,6 +205,39 @@ Write test plan to file if `--output` or `--project` specified.
 
 Default path: `$PROJECTS_DIR/$PROJECT_NAME/test_plan.md`
 
+## Risk-Based Testing Prioritization
+
+When generating the test plan, each test is prioritized by the hazard it mitigates (using `references/risk-management-framework.md`):
+
+### Risk Priority Mapping
+
+For each test in the plan, map to the hazard(s) it addresses:
+
+| Priority | Risk Level | Criteria | Action |
+|----------|-----------|----------|--------|
+| P1 - Critical | Unacceptable | Severity: Critical/Catastrophic AND Probability: Occasional+ | Must test — regulatory requirement |
+| P2 - High | ALARP (high) | Severity: Serious AND Probability: Probable+ | Should test — strong recommendation |
+| P3 - Medium | ALARP (low) | Severity: Moderate AND Probability: Occasional | Recommended — standard practice |
+| P4 - Low | Acceptable | Severity: Minor/Negligible | Optional — if resources allow |
+
+### Test Plan Risk Column
+
+Add a `Risk Priority` column to the test plan output:
+
+```markdown
+| Test Category | Standard | Required? | Predicate Precedent | Risk Priority | Hazard Mitigated |
+|---------------|----------|-----------|--------------------|--------------|--------------------|
+| Biocompatibility | ISO 10993 | Yes | 3/3 predicates | P1 | HAZ-004: Biocompatibility failure |
+| Mechanical Testing | ASTM F2077 | Yes | 3/3 predicates | P1 | HAZ-002: Subsidence, HAZ-006: Fatigue |
+| Sterilization | ISO 11135 | Yes | 2/3 predicates | P1 | HAZ-007: Sterility failure |
+| Shelf Life | ASTM F1980 | Yes | 1/3 predicates | P2 | HAZ-007: Sterility failure (packaging) |
+| MRI Safety | ASTM F2052 | Conditional | 2/3 predicates | P2 | HAZ-008: MRI interaction |
+```
+
+For recognized standard verification, use `/fda:standards --product-code CODE` to verify current standard editions.
+
+For shelf life calculations, use `/fda:calc shelf-life` to calculate accelerated aging parameters.
+
 ## Error Handling
 
 - **No product code**: Use --infer or ask user

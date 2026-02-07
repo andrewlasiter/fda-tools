@@ -39,7 +39,7 @@ You are generating regulatory prose drafts for specific sections of a 510(k) sub
 
 From `$ARGUMENTS`, extract:
 
-- **Section name** (required) — One of: `device-description`, `se-discussion`, `performance-summary`, `testing-rationale`, `predicate-justification`, `510k-summary`, `labeling`, `sterilization`, `shelf-life`, `biocompatibility`, `software`, `emc-electrical`, `clinical`, `cover-letter`, `truthful-accuracy`, `financial-certification`
+- **Section name** (required) — One of: `device-description`, `se-discussion`, `performance-summary`, `testing-rationale`, `predicate-justification`, `510k-summary`, `labeling`, `sterilization`, `shelf-life`, `biocompatibility`, `software`, `emc-electrical`, `clinical`, `cover-letter`, `truthful-accuracy`, `financial-certification`, `doc`
 - `--project NAME` (required) — Project with pipeline data
 - `--device-description TEXT` — Description of the user's device
 - `--intended-use TEXT` — Proposed indications for use
@@ -247,6 +247,8 @@ Generates Section 11 of the eSTAR: Shelf Life.
 - 11.3 Testing protocol (package integrity, sterility, functionality)
 - 11.4 Results summary
 
+For accelerated aging parameter calculations, reference `/fda:calc shelf-life`. The ASTM F1980 Q10 formula: `AAF = Q10^((T_accel - T_ambient)/10)`.
+
 ### 10. biocompatibility
 
 Generates Section 12 of the eSTAR: Biocompatibility.
@@ -297,7 +299,7 @@ Auto-detect applicability from keywords: "powered", "electronic", "electrical", 
 Generates Section 16 of the eSTAR: Clinical Evidence.
 
 **Required data**: literature.md from `/fda:literature`, safety_report.md from `/fda:safety`
-**Enriched by**: review.json (predicate clinical data precedent), guidance_cache
+**Enriched by**: review.json (predicate clinical data precedent), guidance_cache, **clinical-study-framework.md**
 
 **Output structure**: See `references/draft-templates.md` Section 16. Includes:
 - 16.1 Clinical evidence strategy (data/literature/exemption)
@@ -306,6 +308,13 @@ Generates Section 16 of the eSTAR: Clinical Evidence.
 - 16.4 Clinical conclusion
 
 Auto-determine strategy: if predicates had no clinical data, default to "no clinical data needed" with predicate precedent rationale.
+
+**Clinical Study Design Framework**: When clinical data is needed, provide study design guidance from `references/clinical-study-framework.md`:
+- Decision tree for whether clinical data is needed
+- Study type recommendation (pivotal, feasibility, literature-based, retrospective)
+- Sample size guidance (reference `/fda:calc sample-size` for calculations)
+- Common clinical endpoints for the device type
+- FDA clinical guidance references
 
 ### 14. cover-letter
 
@@ -330,6 +339,53 @@ Generates Section 5 of the eSTAR: Financial Certification/Disclosure.
 **Required data**: None (template-only)
 **Output**: Template referencing FDA Forms 3454/3455 and 21 CFR Part 54. Indicates which form applies based on whether clinical data is submitted.
 
+### 17. doc
+
+Generates a Declaration of Conformity (DoC) for applicable standards.
+
+**Required data**: test_plan.md or test results indicating which standards were tested against
+**Enriched by**: guidance_cache, standards-tracking.md, `/fda:standards` data
+
+**Output structure**: One consolidated DoC or individual DoCs per standard:
+
+```markdown
+## Declaration of Conformity
+
+### Manufacturer Information
+- Company: [TODO: Company-specific — Legal entity name]
+- Address: [TODO: Company-specific — Full address]
+- Authorized Representative: [TODO: Company-specific — Name and title]
+
+### Device Identification
+- Device Trade Name: {trade_name or [TODO]}
+- Product Code: {product_code}
+- Device Class: {class}
+- Regulation Number: 21 CFR {regulation}
+
+### Standards Declared
+
+| Standard | Edition | Title | Conformity Status |
+|----------|---------|-------|-------------------|
+| {standard} | {edition} | {title} | [TODO: Full/Partial/N-A] |
+
+{Auto-populate from project's test_plan.md or guidance requirements:}
+{For each standard in the test plan, add a row}
+
+### Declaration Statement
+[TODO: Company-specific — We, {company_name}, declare under sole responsibility that the device identified above conforms to the standards listed. This declaration is based on testing and evaluation conducted by [accredited lab name].]
+
+### Signature
+Name: ___________________________________
+Title: ___________________________________
+Date: ___________________________________
+Signature: ________________________________
+```
+
+Auto-populate standards list from:
+1. Project's `test_plan.md` (if available) — extract all ISO/IEC/ASTM standards cited
+2. `references/standards-tracking.md` — verify current editions
+3. `/fda:standards` output (if available) — FDA recognized consensus standards
+
 ## Generation Rules
 
 1. **Regulatory tone**: Formal, factual, third-person. Use standard FDA regulatory language patterns.
@@ -337,7 +393,7 @@ Generates Section 5 of the eSTAR: Financial Certification/Disclosure.
 3. **DRAFT disclaimer**: Every generated section starts with:
    ```
    ⚠ DRAFT — AI-generated regulatory prose. Review with regulatory affairs team before submission.
-   Generated: {date} | Project: {name} | Plugin: fda-predicate-assistant v4.9.0
+   Generated: {date} | Project: {name} | Plugin: fda-predicate-assistant v5.0.0
    ```
 4. **Unverified claims**: Anything that cannot be substantiated from project data gets `[CITATION NEEDED]` or `[TODO: Company-specific — verify]`.
 5. **No fabrication**: Never invent test results, clinical data, or device specifications. If data isn't available, say so.

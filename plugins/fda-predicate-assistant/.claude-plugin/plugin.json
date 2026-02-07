@@ -1,7 +1,7 @@
 {
   "name": "fda-predicate-assistant",
-  "version": "4.9.0",
-  "description": "AI-powered FDA 510(k) regulatory assistant — 31 commands, 3 agents, PMA/De Novo search, standards database, interactive search, automated alerts, timeline analytics, UDI/GUDID lookup, AI/ML trends, correspondence tracking, eSTAR import/export, full submission drafting, and autonomous workflows",
+  "version": "5.0.0",
+  "description": "AI-powered FDA 510(k) regulatory assistant — 32 commands, 3 agents, PMA/De Novo search, standards database, interactive search, automated alerts, timeline analytics, UDI/GUDID lookup, AI/ML trends, correspondence tracking, DoC templates, risk management, DHF checklist, clinical study guidance, shelf life calculator, eSTAR import/export, full submission drafting, and autonomous workflows",
   "author": {
     "name": "PredicateExtraction"
   },

@@ -428,3 +428,74 @@ Signature: ________________________________
 
 This section addresses 21 CFR Part 54 — Financial Disclosure by Clinical Investigators.
 ```
+
+## Section 08: Standards & Declarations of Conformity
+
+```markdown
+## Declaration of Conformity
+
+### Manufacturer Information
+| Field | Value |
+|-------|-------|
+| Company Name | [TODO: Company-specific — Legal entity name] |
+| Address | [TODO: Company-specific — Full address] |
+| Authorized Representative | [TODO: Company-specific — Name and title] |
+
+### Device Identification
+| Field | Value |
+|-------|-------|
+| Device Trade Name | {trade_name} |
+| Product Code | {product_code} |
+| Device Class | Class {class} |
+| Regulation Number | 21 CFR {regulation} |
+
+### Applicable Standards
+
+| # | Standard | Edition | Title | Status | Test Lab |
+|---|----------|---------|-------|--------|----------|
+| 1 | {standard_1} | {year} | {title} | [TODO: Full Conformity / Partial / N-A] | [TODO: Lab name and accreditation] |
+| 2 | {standard_2} | {year} | {title} | [TODO: Full Conformity / Partial / N-A] | [TODO: Lab name and accreditation] |
+
+{Auto-populate from test_plan.md or guidance requirements}
+
+### Declaration
+We, [TODO: Company-specific — company name], declare under sole responsibility that the medical device identified above, when used in accordance with its intended purpose, conforms to the applicable standards listed above.
+
+This declaration is based on the following evidence:
+- Testing conducted by [TODO: Company-specific — accredited laboratory name(s)]
+- Test reports: [TODO: Company-specific — report numbers and dates]
+
+### Signature Block
+| Field | Value |
+|-------|-------|
+| Name | [TODO: Company-specific] |
+| Title | [TODO: Company-specific] |
+| Date | [TODO: Company-specific] |
+| Signature | ________________________________ |
+```
+
+## Section 11: Shelf Life — ASTM F1980 Reference
+
+### Accelerated Aging Formula (ASTM F1980)
+
+```
+Accelerated Aging Factor (AAF) = Q10^((T_accelerated - T_ambient) / 10)
+Accelerated Aging Duration = Real-Time Shelf Life / AAF
+```
+
+### Example Calculation
+
+| Parameter | Value |
+|-----------|-------|
+| Ambient temperature (T_ambient) | 25 C |
+| Accelerated temperature (T_accelerated) | 55 C |
+| Q10 factor | 2.0 (conservative per ASTM F1980) |
+| Desired shelf life | 24 months |
+| **AAF** | **2.0^((55-25)/10) = 2.0^3 = 8.0** |
+| **Required accelerated aging** | **24/8 = 3.0 months** |
+
+### Notes
+- Q10 = 2.0 is conservative default; range is 1.8-2.5
+- Real-time aging must be conducted concurrently
+- Accelerated aging results are preliminary until confirmed by real-time data
+- For calculation: `/fda:calc shelf-life --ambient 25 --accelerated 55 --q10 2.0 --shelf-life 2years`

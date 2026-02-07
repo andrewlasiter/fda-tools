@@ -39,7 +39,7 @@ BASE_BACKOFF = 1.0
 BASE_URL = "https://api.fda.gov/device"
 
 # User agent
-USER_AGENT = "Mozilla/5.0 (FDA-Plugin/4.9.0)"
+USER_AGENT = "Mozilla/5.0 (FDA-Plugin/5.0.0)"
 
 
 class FDAClient:

@@ -150,7 +150,7 @@ Generate the RTM document (see `references/output-formatting.md` for formatting 
 # Requirements Traceability Matrix
 ## {Device Description} — Product Code {CODE}
 
-**Generated:** {date} | v4.6.0
+**Generated:** {date} | v5.0.0
 **Project:** {project_name}
 **Requirements sources:** {list}
 
@@ -262,9 +262,46 @@ Also write `traceability_matrix.json` for programmatic use:
 }
 ```
 
+## Step 7: Risk Management Integration
+
+When building the traceability matrix, include a dedicated risk management row type that maps:
+
+```
+Hazard → Risk Control → Verification Test → Evidence
+```
+
+### Auto-Populate Hazards from Device Type
+
+Use `references/risk-management-framework.md` hazard templates to pre-populate risk rows based on device type:
+
+1. **Determine device type** from product code classification (implant, SaMD, wound care, electrical)
+2. **Load hazard template** matching the device type
+3. **Generate risk rows** with format: `RISK-HAZ-{number}`
+
+### Risk Management Rows in RTM
+
+```markdown
+## Risk Management Traceability
+
+| Hazard ID | Hazard | Severity | Risk Control | Verification | Evidence | Status |
+|-----------|--------|----------|-------------|-------------|----------|--------|
+| HAZ-001 | {hazard from template} | {severity} | {control measure} | TEST-{id} | {test method} | PLANNED |
+| HAZ-002 | {hazard from template} | {severity} | {control measure} | TEST-{id} | {test method} | PLANNED |
+```
+
+### Cross-Reference
+
+Each risk row should map to:
+- At least one requirement (REQ-*) that the risk control satisfies
+- At least one test (TEST-*) that verifies the risk control
+- The ISO 14971 risk evaluation (severity x probability = risk level)
+
+If a hazard has no mapped test: flag as **GAP** with recommendation.
+
 ## Error Handling
 
 - **No project**: ERROR: "Project name required."
 - **No guidance data**: Generate matrix from cross-cutting requirements only. Note: "Run /fda:guidance first for device-specific requirements."
 - **No safety data**: Generate matrix without risk mapping. Note: "Run /fda:safety for risk identification from MAUDE data."
 - **No test plan**: Generate requirements and risks, mark all tests as "NOT PLANNED". Note: "Run /fda:test-plan for test planning."
+- **Unknown device type for risk templates**: Use generic hazard categories from `references/risk-management-framework.md`. Note: "Using generic hazard template. Provide device description for device-specific risk analysis."
