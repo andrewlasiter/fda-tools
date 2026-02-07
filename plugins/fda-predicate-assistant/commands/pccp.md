@@ -99,11 +99,14 @@ For each modification category, define:
 
 ## Step 3: Generate PCCP Document
 
+Generate the PCCP document (see `references/output-formatting.md` for formatting standards):
+
 ```markdown
 # Predetermined Change Control Plan (PCCP)
 ## {Device Description} — Product Code {CODE}
 
 **Date:** {today}
+**Generated:** {today} | v4.6.0
 **Device Class:** {class}
 **Marketing Authorization:** {K-number or pending}
 **PCCP Version:** 1.0

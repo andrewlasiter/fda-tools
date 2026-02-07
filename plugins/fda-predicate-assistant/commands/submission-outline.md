@@ -322,7 +322,7 @@ Before generating the outline, resolve all template placeholders using this prio
 
 **ALL remaining `[INSERT: ...]` placeholders** MUST be converted to `[TODO: Company-specific — {description}]` before writing the output file. No `[INSERT: ...]` placeholders should survive in the final output. This ensures users can clearly distinguish auto-filled content from items requiring human input.
 
-Write the complete submission outline document:
+Write the complete submission outline document (see `references/output-formatting.md` for formatting standards):
 
 ```markdown
 # 510(k) Submission Outline
@@ -331,7 +331,7 @@ Write the complete submission outline document:
 **Pathway:** {Traditional/Special/Abbreviated/De Novo}
 **Product Code:** {CODE} — {device_name}
 **Classification:** Class {class}, 21 CFR {regulation}
-**Generated:** {today's date}
+**Generated:** {today's date} | v4.6.0
 **Project:** {project_name or "N/A"}
 
 ---

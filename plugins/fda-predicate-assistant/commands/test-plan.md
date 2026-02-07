@@ -136,13 +136,13 @@ Prioritize tests using ISO 14971 risk categories:
 
 ## Step 4: Generate Test Plan
 
-Write the complete test plan:
+Write the complete test plan (see `references/output-formatting.md` for formatting standards):
 
 ```markdown
 # 510(k) Testing Plan
 ## {Device Description} — Product Code {CODE}
 
-**Generated:** {date}
+**Generated:** {date} | v4.6.0
 **Risk Framework:** ISO 14971
 **Project:** {project_name or "N/A"}
 

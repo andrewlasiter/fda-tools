@@ -282,7 +282,7 @@ Each step builds on previous data but degrades gracefully if run independently.
 | `/fda:configure` | Set up API keys, data paths, and preferences |
 | `/fda:status` | Check what data you have and what's available |
 
-## Resources (26 references)
+## Resources (24 references)
 
 For detailed reference information, see:
 - `references/output-formatting.md` - FDA Professional CLI output formatting guide (rules R1-R12)
@@ -290,12 +290,12 @@ For detailed reference information, see:
 - `references/device-classes.md` - Device classification details
 - `references/predicate-types.md` - Predicate selection and defensibility guidance
 - `references/common-issues.md` - Troubleshooting extraction problems
-- `references/section-patterns.md` - PDF section detection patterns
+- `references/section-patterns.md` - PDF section detection patterns, regexes, and eSTAR XML element mapping
 - `references/confidence-scoring.md` - Predicate confidence scoring algorithm (with DEN handling)
 - `references/guidance-lookup.md` - FDA guidance document lookup reference
 - `references/submission-structure.md` - 510(k) submission structure and Pre-Sub format
 - `references/path-resolution.md` - Plugin root resolution patterns
-- `references/estar-structure.md` - eSTAR section structure, mandatory filing date, and applicability matrix
+- `references/estar-structure.md` - eSTAR section structure, XFA field mapping, XML schema, and applicability matrix
 - `references/pathway-decision-tree.md` - Regulatory pathway decision flow, scoring, exemptions, and breakthrough designation
 - `references/test-plan-framework.md` - ISO 14971 risk categories and device-type test lists (10+ device types)
 - `references/pccp-guidance.md` - FDA PCCP guidance, regulatory citations, and real-world examples
@@ -308,8 +308,6 @@ For detailed reference information, see:
 - `references/special-controls.md` - Class II special controls identification and conformance
 - `references/clinical-data-framework.md` - Clinical data decision tree and evidence types
 - `references/post-market-requirements.md` - Post-market obligations (MDR, recalls, registration, surveillance)
-- `references/estar-structure.md` - eSTAR section structure, XFA field mapping, and XML schema documentation
-- `references/section-patterns.md` - PDF section detection regexes and eSTAR XML element mapping
 - `references/draft-templates.md` - Prose templates for all 16 eSTAR sections with `[TODO:]` placeholders
 
 ## Disclaimers (always include when providing regulatory guidance)

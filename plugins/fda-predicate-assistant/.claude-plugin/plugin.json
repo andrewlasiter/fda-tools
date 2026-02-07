@@ -1,7 +1,7 @@
 {
   "name": "fda-predicate-assistant",
   "version": "4.6.0",
-  "description": "AI-powered FDA 510(k) regulatory assistant — 29 commands, 3 agents, eSTAR import/export, full submission drafting, and autonomous workflows",
+  "description": "AI-powered FDA 510(k) regulatory assistant — 28 commands, 3 agents, eSTAR import/export, full submission drafting, and autonomous workflows",
   "author": {
     "name": "PredicateExtraction"
   },

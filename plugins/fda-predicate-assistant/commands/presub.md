@@ -220,7 +220,7 @@ Before generating the document, resolve all placeholders using this priority sys
 - Automated tools can grep for `[TODO:` to find remaining work items
 - The document is always complete (no empty/broken sections)
 
-Write the `presub_plan.md` document using the Pre-Sub format from `references/submission-structure.md`:
+Write the `presub_plan.md` document using the Pre-Sub format from `references/submission-structure.md` and `references/output-formatting.md`:
 
 ```markdown
 # Pre-Submission Meeting Request
@@ -229,6 +229,7 @@ Write the `presub_plan.md` document using the Pre-Sub format from `references/su
 **Date:** {today's date}
 **Requested Meeting Type:** {meeting_type}
 **Product Code:** {CODE} — {device_name}
+**Generated:** {today's date} | v4.6.0
 **Classification:** Class {class}, 21 CFR {regulation}
 **Review Panel:** {panel}
 

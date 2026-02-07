@@ -310,7 +310,7 @@ def auto_compare(subject_text, predicate_text):
 
 ### Console output (default)
 
-Present the table in clean markdown format. Add header and footer:
+Present the table in clean markdown format (see `references/output-formatting.md`). Add header and footer:
 
 ```markdown
 # Substantial Equivalence Comparison Table
@@ -318,7 +318,7 @@ Present the table in clean markdown format. Add header and footer:
 **Predicate Device(s):** {K-numbers with device names}
 **Reference Device(s):** {K-numbers with device names, or "None"}
 **Product Code:** {CODE} — {Device Name} (Class {class})
-**Generated:** {date}
+**Generated:** {date} | v4.6.0
 
 ---
 
@@ -474,7 +474,7 @@ If the user chooses to export, append or replace the SE Comparison section in `s
 
 {THE FULL SE COMPARISON TABLE}
 
-**Generated:** {date}
+**Generated:** {date} | v4.6.0
 **Predicates:** {K-numbers}
 **Cells requiring input:** {count}
 **Cells requiring review:** {count}

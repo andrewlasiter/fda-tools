@@ -144,11 +144,13 @@ Assign test IDs: `TEST-{category}-{number}` (e.g., TEST-BIOCOMPAT-001)
 
 ## Step 5: Generate Traceability Matrix
 
+Generate the RTM document (see `references/output-formatting.md` for formatting standards):
+
 ```markdown
 # Requirements Traceability Matrix
 ## {Device Description} — Product Code {CODE}
 
-**Generated:** {date}
+**Generated:** {date} | v4.6.0
 **Project:** {project_name}
 **Requirements sources:** {list}
 
