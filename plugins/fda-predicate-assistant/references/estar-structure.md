@@ -10,7 +10,7 @@ Reference for eSTAR (electronic Submission Template And Resource) structure, sec
 | IVD eSTAR | v6 | In Vitro Diagnostic devices | `fda.gov/media/174459/download` |
 | PreSTAR | v2 | Pre-Submission requests | `fda.gov/media/169327/download` |
 
-**Mandatory filing date**: eSTAR required for all 510(k) submissions since **October 1, 2023** (per final rule 88 FR 42012).
+**Mandatory filing date**: eSTAR required for all 510(k) submissions since **October 1, 2023** (per final guidance 87 FR 57910, published September 22, 2022).
 
 ## eSTAR Section Structure (nIVD v6)
 

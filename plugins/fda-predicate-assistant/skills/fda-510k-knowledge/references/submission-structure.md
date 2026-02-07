@@ -191,7 +191,7 @@ Per FDA guidance "Recommended Content of a Traditional 510(k) Submission":
 
 ### eSTAR (Electronic Submission Template)
 
-FDA's mandatory electronic submission format (required since October 1, 2023 per 88 FR 42012). The actual eSTAR template uses 22 lettered pages (A-V), not numbered sections. The plugin uses a simplified 17-section numbering convention for internal tracking:
+FDA's mandatory electronic submission format (required since October 1, 2023 per 87 FR 57910). The actual eSTAR template uses 22 lettered pages (A-V), not numbered sections. The plugin uses a simplified 17-section numbering convention for internal tracking:
 
 ```
 Plugin eSTAR Section Mapping:

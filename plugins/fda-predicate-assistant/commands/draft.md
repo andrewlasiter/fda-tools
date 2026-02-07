@@ -187,7 +187,7 @@ Generates Section 12 of the eSTAR: Biocompatibility.
 **Enriched by**: guidance_cache, predicate materials from se_comparison.md
 
 **Output structure**: See `references/draft-templates.md` Section 12. Includes:
-- 12.1 Contact classification per ISO 10993-1:2018 Table A.1
+- 12.1 Contact classification per ISO 10993-1:2025 (or ISO 10993-1:2018 during transition)
 - 12.2 Biological evaluation plan with endpoint matrix
 - 12.3 Testing summary
 - 12.4 Predicate material equivalence justification (if applicable)
@@ -273,7 +273,7 @@ Generates Section 5 of the eSTAR: Financial Certification/Disclosure.
    ```
 4. **Unverified claims**: Anything that cannot be substantiated from project data gets `[CITATION NEEDED]` or `[TODO: Company-specific — verify]`.
 5. **No fabrication**: Never invent test results, clinical data, or device specifications. If data isn't available, say so.
-6. **Standard references**: Use proper CFR/ISO/ASTM citation format (e.g., "per 21 CFR 807.87(f)", "ISO 10993-1:2018").
+6. **Standard references**: Use proper CFR/ISO/ASTM citation format (e.g., "per 21 CFR 807.87(f)", "ISO 10993-1:2025").
 
 ## Output
 

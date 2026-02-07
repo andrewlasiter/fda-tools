@@ -148,9 +148,9 @@ The device is manufactured to a SAL of 10⁻⁶ per the applicable standard.
 {If EO:}
 Sterilization validation performed per ISO 11135 (EO sterilization).
 {If radiation:}
-Sterilization validation performed per ISO 11137-1/-2 (radiation sterilization).
+Sterilization validation performed per ISO 11137-1:2025/-2:2013 (radiation sterilization).
 {If steam:}
-Sterilization validation performed per ISO 17665-1 (moist heat sterilization).
+Sterilization validation performed per ISO 17665:2024 (moist heat sterilization).
 
 **Validation Summary:**
 [TODO: Company-specific — Summarize sterilization validation protocol and results:
@@ -229,13 +229,13 @@ Post-aging testing includes:
 [Source: import_data.json]
 
 {If not:}
-[TODO: Company-specific — Classify per ISO 10993-1:2018, Table A.1:
+[TODO: Company-specific — Classify per ISO 10993-1:2025:
 - Surface device / External communicating / Implant
 - Limited (<24h) / Prolonged (24h-30d) / Permanent (>30d)
 - Patient-contacting materials list]
 
 ### 12.2 Biological Evaluation Plan
-Per ISO 10993-1:2018, the following endpoints were evaluated:
+Per ISO 10993-1:2025 (or ISO 10993-1:2018 during transition), the following endpoints were evaluated:
 
 | Endpoint | Required? | Method | Status |
 |----------|-----------|--------|--------|
@@ -249,7 +249,7 @@ Per ISO 10993-1:2018, the following endpoints were evaluated:
 
 ### 12.3 Biocompatibility Testing Summary
 [TODO: Company-specific — For each test performed:
-- Test lab (ISO 17025 accredited)
+- Test lab (ISO/IEC 17025 accredited)
 - Test article description
 - Test method and acceptance criteria
 - Results and conclusion]
@@ -297,7 +297,7 @@ Per FDA guidance "Policy for Device Software Functions and Mobile Medical Applic
 
 ### 13.4 Cybersecurity (Section 524B)
 {If device has connectivity:}
-Per Section 524B of the FD&C Act (added by PATCH Act, effective March 29, 2023), cybersecurity documentation is required for cyber devices.
+Per Section 524B of the FD&C Act (added by Section 3305 of the Consolidated Appropriations Act, 2023, effective March 29, 2023), cybersecurity documentation is required for cyber devices.
 
 **Threat Model:**
 [TODO: Company-specific — Provide threat model per FDA "Cybersecurity in Medical Devices" guidance]
@@ -332,7 +332,7 @@ The subject device does not meet the definition of a "cyber device" under Sectio
 
 ### 14.2 EMC Testing Summary
 [TODO: Company-specific —
-- Test lab (ISO 17025 / A2LA accredited)
+- Test lab (ISO/IEC 17025 / A2LA accredited)
 - Emissions testing results (CISPR 11)
 - Immunity testing results (IEC 61000-4-X series)
 - Essential performance maintained during immunity tests?

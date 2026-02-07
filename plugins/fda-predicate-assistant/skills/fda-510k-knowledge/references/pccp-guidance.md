@@ -46,7 +46,8 @@ PCCPs must clearly define what changes are NOT covered:
 ## Regulatory Citations
 
 - **Statutory basis:** Section 515C of the FD&C Act (added by the Consolidated Appropriations Act, 2023)
-- **Primary guidance:** "Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence/Machine Learning (AI/ML)-Enabled Device Software Functions" (FDA-2023-D-0867)
+- **Primary guidance:** "Marketing Submission Recommendations for a Predetermined Change Control Plan for Artificial Intelligence/Machine Learning (AI/ML)-Enabled Device Software Functions" (Docket FDA-2022-D-2628; 88 FR 19648)
+- **Broader PCCP guidance:** "Predetermined Change Control Plans for Medical Devices" (Docket FDA-2023-D-3134, August 2024 draft)
 - **Regulation:** Section 515C of FD&C Act — statutory basis for PCCPs in premarket submissions
 - **Federal Register:** Published as final guidance; check fda.gov for current version
 
