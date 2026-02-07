@@ -1,8 +1,8 @@
-![Version](https://img.shields.io/badge/version-5.3.0-blue)
+![Version](https://img.shields.io/badge/version-5.4.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Commands](https://img.shields.io/badge/commands-33-orange)
 ![Agents](https://img.shields.io/badge/agents-4-purple)
-![Tests](https://img.shields.io/badge/tests-499-brightgreen)
+![Tests](https://img.shields.io/badge/tests-533-brightgreen)
 ![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-blueviolet)
 ![FDA 510(k)](https://img.shields.io/badge/FDA-510(k)-red)
 
@@ -45,7 +45,7 @@ Start a new session after installing to load the plugin.
 
 ### [FDA Predicate Assistant](./plugins/fda-predicate-assistant/)
 
-33 commands, 4 autonomous agents, and 499 tests covering every stage of the 510(k) workflow — from predicate research to FDA review simulation. Integrates with all 7 openFDA Device API endpoints and bundles Python scripts for batch PDF processing.
+33 commands, 4 autonomous agents, and 533 tests covering every stage of the 510(k) workflow — from predicate research through CDRH Portal submission. Integrates with all 7 openFDA Device API endpoints and bundles Python scripts for batch PDF processing.
 
 See the [full documentation](./plugins/fda-predicate-assistant/README.md) for commands, agents, installation details, and quick start examples.
 

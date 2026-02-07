@@ -1,8 +1,8 @@
-![Version](https://img.shields.io/badge/version-5.3.0-blue)
+![Version](https://img.shields.io/badge/version-5.4.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Commands](https://img.shields.io/badge/commands-33-orange)
 ![Agents](https://img.shields.io/badge/agents-4-purple)
-![Tests](https://img.shields.io/badge/tests-499-brightgreen)
+![Tests](https://img.shields.io/badge/tests-533-brightgreen)
 ![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-blueviolet)
 ![FDA 510(k)](https://img.shields.io/badge/FDA-510(k)-red)
 
@@ -10,7 +10,7 @@
 
 **Your AI-powered regulatory assistant for FDA 510(k) submissions.**
 
-From predicate research to FDA review simulation — 33 commands, 4 autonomous agents, and 499 tests that handle the data work so you can focus on the science and strategy. Search FDA databases, identify predicates, analyze safety histories, look up standards, generate substantial equivalence comparisons, draft all 18 eSTAR sections, simulate FDA review, and assemble submission-ready packages, all from within Claude.
+From predicate research to CDRH Portal submission — 33 commands, 4 autonomous agents, and 533 tests that handle the data work so you can focus on the science and strategy. Search FDA databases, identify predicates, analyze safety histories, look up standards, generate substantial equivalence comparisons, draft all 18 eSTAR sections, simulate FDA review, assemble submission-ready packages, and get step-by-step submission guidance, all from within Claude.
 
 ---
 

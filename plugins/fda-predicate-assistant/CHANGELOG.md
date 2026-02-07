@@ -1,5 +1,18 @@
 # Changelog
 
+## [5.4.0] - 2026-02-07
+
+### Added — CDRH Portal & eSTAR Template Selection
+- `references/cdrh-portal.md` — CDRH Portal submission guide: portal URL, file size limits (4 GB total / 1 GB per attachment), CDRH vs CBER routing, processing timeline, official correspondent rules, oversized file fallback, support contacts
+- eSTAR template selection matrix in `estar-structure.md` — which template (nIVD v6, IVD v6, PreSTAR v2) for which submission type, with OMB control numbers
+- Mandatory eSTAR dates: 510(k) Oct 1 2023, De Novo Oct 1 2025
+- QMSR alignment note: Feb 2 2026 nIVD/IVD templates align with new Quality Management System Regulation
+- Technical requirements: Adobe Acrobat Pro 2017+, FoxIt, PDF-XChange alternatives, file prep guidelines
+- "Submit to FDA" next steps in `/fda:export` and `/fda:assemble` with portal URL and pre-upload checklist
+- Template selection guide and QMSR note in `/fda:import`
+- CDRH Portal cross-references in `ectd-overview.md` with De Novo mandatory date and PMA voluntary eSTAR
+- 533 offline tests (up from 499), 38 API tests
+
 ## [5.3.0] - 2026-02-07
 
 ### Added — Tranche 7: FDA Review Simulation
