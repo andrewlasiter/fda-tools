@@ -299,24 +299,210 @@ Sincerely,
 
 **Rationale:** {Explain why this pathway is appropriate}
 
-### 4.2 Proposed Predicate Device(s)
+### 4.2 Proposed Predicate Device(s) — Deep Analysis
 
-{If predicates available from review.json:}
+**Flag:** `--deep-predicate-analysis` controls this section (default: ON when predicates available, OFF when no predicates). Use `--no-deep-predicate-analysis` to revert to the simple table.
 
-| # | K-Number | Device Name | Applicant | Cleared | Score |
-|---|----------|-------------|-----------|---------|-------|
-| 1 | {K-number} | {name} | {company} | {date} | {score}/100 |
-| 2 | {K-number} | {name} | {company} | {date} | {score}/100 |
+{If no predicates available:}
+[TODO: Company-specific — Proposed predicate device(s) with K-numbers and justification. Run `/fda:propose --predicates K123456 --project NAME` to declare predicates.]
 
-**Predicate Justification:**
-{For each predicate:}
-- **{K-number}**: Selected because {rationale from review.json or auto-generated}.
-  - Same intended use: {comparison}
-  - Same technological characteristics: {comparison}
-  - {If different technology: explain why it doesn't raise new questions}
+{If predicates available from review.json — proceed with all 7 subsections below:}
 
-{If no predicates:}
-[TODO: Company-specific — Proposed predicate device(s) with K-numbers and justification]
+#### 4.2.1 Predicate Summary Table
+
+| # | K-Number | Device Name | Applicant | Cleared | Score | Flags | Mode |
+|---|----------|-------------|-----------|---------|-------|-------|------|
+| 1 | {K-number} | {name} | {company} | {date} | {score}/100 | {flags} | {manual/extracted} |
+| 2 | {K-number} | {name} | {company} | {date} | {score}/100 | {flags} | {manual/extracted} |
+
+{If `review_mode == "manual"` in review.json:}
+**Note:** These predicates were manually proposed via `/fda:propose`, not extracted from PDF analysis. Confidence scores reflect manual proposal scoring (see `references/predicate-analysis-framework.md`).
+
+{If reference_devices key exists in review.json:}
+
+**Reference Devices** (cited for specific feature comparison, not as predicates):
+
+| # | K-Number | Device Name | Applicant | Cleared | Purpose |
+|---|----------|-------------|-----------|---------|---------|
+| 1 | {K-number} | {name} | {company} | {date} | {rationale} |
+
+#### 4.2.2 Intended Use Comparison
+
+For each accepted predicate, compare IFU against the subject device.
+
+**Data source:** Extract IFU from predicate PDF text (see `references/section-patterns.md` for IFU section patterns). If `--intended-use` was provided to propose or presub, use that as the subject IFU.
+
+{Fetch predicate PDF text using the same download approach as `compare-se.md` Step 2. Extract IFU section.}
+
+```markdown
+| Aspect | Subject Device | Predicate: {K-number} | Predicate: {K-number} |
+|--------|---------------|----------------------|----------------------|
+| Target population | {subject pop} | {predicate pop} | {predicate pop} |
+| Clinical indication | {subject indication} | {predicate indication} | {predicate indication} |
+| Anatomical site | {subject site} | {predicate site} | {predicate site} |
+| Duration of use | {subject duration} | {predicate duration} | {predicate duration} |
+| Use environment | {subject env} | {predicate env} | {predicate env} |
+```
+
+**Keyword Overlap Analysis:**
+
+| Predicate | Overlap Score | Shared Keywords | Assessment |
+|-----------|--------------|-----------------|------------|
+| {K-number} | {N}% | {top keywords} | {STRONG/MODERATE/LOW} OVERLAP |
+
+{If subject IFU not available:}
+[TODO: Company-specific — Provide intended use via `--intended-use TEXT` or fill in the Subject Device column to enable IFU comparison]
+
+Use the IFU comparison methodology from `references/predicate-analysis-framework.md` Section 1.
+
+#### 4.2.3 Technological Characteristics Comparison
+
+For each predicate, compare key technological characteristics:
+
+{Extract device description, materials, and technical specs from predicate PDF text using `references/section-patterns.md`.}
+
+```markdown
+| Characteristic | Subject Device | Predicate: {K-number} | Comparison |
+|----------------|---------------|----------------------|------------|
+| Principle of operation | {subject} | {predicate} | Same/Similar/Different |
+| Materials of construction | {subject} | {predicate} | Same/Similar/Different |
+| Energy source | {subject} | {predicate} | Same/Similar/Different |
+| Software | {subject} | {predicate} | Same/Similar/Different |
+| Key performance specs | {subject} | {predicate} | Same/Similar/Different |
+```
+
+{If `--device-description` available: auto-populate Subject Device column}
+{If not: mark as "[TODO: Company-specific — specify]"}
+
+For each "Different" entry, note: "May require additional testing per {applicable standard}."
+
+Use technological characteristics templates from `references/predicate-analysis-framework.md` Section 2, device-type-specific rows from `compare-se.md`.
+
+#### 4.2.4 Regulatory History Analysis
+
+For each predicate, assess regulatory history using openFDA data:
+
+```bash
+python3 << 'PYEOF'
+import urllib.request, urllib.parse, json, os, re
+
+settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+api_key = os.environ.get('OPENFDA_API_KEY')
+api_enabled = True
+if os.path.exists(settings_path):
+    with open(settings_path) as f:
+        content = f.read()
+    if not api_key:
+        m = re.search(r'openfda_api_key:\s*(\S+)', content)
+        if m and m.group(1) != 'null':
+            api_key = m.group(1)
+    m = re.search(r'openfda_enabled:\s*(\S+)', content)
+    if m and m.group(1).lower() == 'false':
+        api_enabled = False
+
+knumber = "KNUMBER"  # Replace per predicate
+product_code = "PRODUCTCODE"  # Replace
+
+if api_enabled:
+    # MAUDE events for product code
+    params = {"search": f'device.device_report_product_code:"{product_code}"', "count": "event_type.exact"}
+    if api_key:
+        params["api_key"] = api_key
+    url = f"https://api.fda.gov/device/event.json?{urllib.parse.urlencode(params)}"
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/5.2.0)"})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read())
+            for r in data.get('results', []):
+                print(f"EVENT:{r['term']}|{r['count']}")
+    except Exception as e:
+        print(f"MAUDE_ERROR:{e}")
+
+    # Recall check for specific K-number
+    params2 = {"search": f'k_number:"{knumber}"', "limit": "5"}
+    if api_key:
+        params2["api_key"] = api_key
+    url2 = f"https://api.fda.gov/device/recall.json?{urllib.parse.urlencode(params2)}"
+    req2 = urllib.request.Request(url2, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/5.2.0)"})
+    try:
+        with urllib.request.urlopen(req2, timeout=15) as resp2:
+            data2 = json.loads(resp2.read())
+            total = data2.get('meta', {}).get('results', {}).get('total', 0)
+            print(f"RECALL_TOTAL:{total}")
+    except:
+        print("RECALL_TOTAL:0")
+PYEOF
+```
+
+Present per-predicate regulatory history:
+
+```markdown
+| Predicate | MAUDE Events | Recalls | Risk Level | Predicate Age | Decision Type |
+|-----------|-------------|---------|------------|---------------|---------------|
+| {K-number} | {event_count} | {recall_count} | {Low/Moderate/High} | {years} years | {SESE/SESD/SESU} |
+```
+
+{For each high-risk predicate:}
+**{K-number} Risk Assessment:** {Explain the risk factors and how they may affect the Pre-Sub discussion. Reference specific MAUDE event types or recall root causes.}
+
+Use methodology from `references/predicate-analysis-framework.md` Section 3.
+
+#### 4.2.5 Predicate Chain Analysis
+
+For each primary predicate, trace the predicate chain 2 generations deep:
+
+{Use the simplified lineage approach from `lineage.md` — fetch predicate PDF, extract cited K-numbers from SE section, then repeat one more level.}
+
+```markdown
+#### Predicate Chain: {K-number}
+
+{K-number} (2023) ← {K-parent} (2018) ← {K-grandparent} (2014)
+Chain length: 3 generations | Span: 9 years
+Chain health: {score}/100 — {Healthy/Moderate/Concerning}
+
+{If chain health issues:}
+Issues:
+- {issue description}
+```
+
+**Chain Health Scoring** (from `references/predicate-analysis-framework.md` Section 4):
+- Deduct points for recalled devices, excessive chain length, IFU drift, technology drift
+- Score 80-100: Healthy chain, no issues
+- Score 50-79: Moderate — some concerns to discuss with FDA
+- Score <50: Concerning — consider alternative predicates
+
+#### 4.2.6 Gap Analysis
+
+Based on the IFU and technological characteristics comparisons, identify gaps that need testing or FDA discussion:
+
+```markdown
+| # | Gap | Type | Severity | Testing Needed | Pre-Sub Question? |
+|---|-----|------|----------|----------------|-------------------|
+| 1 | {description} | TESTING_GAP | {H/M/L} | {standard/method} | Yes — Q{N} |
+| 2 | {description} | DATA_GAP | {H/M/L} | {data source} | Yes — Q{N} |
+| 3 | {description} | SE_BARRIER | {H} | N/A — fundamental difference | Yes — Q{N} |
+```
+
+Use the gap analysis decision tree from `references/predicate-analysis-framework.md` Section 5.
+
+**Auto-Generate FDA Questions from Gaps:**
+For each identified gap, auto-generate a corresponding FDA question using the gap-to-question templates. These feed into Section 5 (Questions for FDA).
+
+#### 4.2.7 Predicate Justification Narrative
+
+For each accepted predicate, generate a 1-2 paragraph regulatory narrative:
+
+{Use the template from `references/predicate-analysis-framework.md` Section 6:}
+
+> **{K-number} ({device_name}, {applicant}, cleared {date})**
+>
+> {Paragraph 1: Predicate identification and relevance — same intended use, classification, applicant relationship}
+>
+> {Paragraph 2: SE basis — shared technological characteristics, addressed differences, planned testing}
+
+{Generate one narrative per predicate. Use professional regulatory tone — no marketing language.}
+
+---
 
 ### 4.3 Classification Analysis
 Product Code: {CODE}

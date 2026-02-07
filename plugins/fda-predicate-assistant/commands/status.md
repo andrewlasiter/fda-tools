@@ -127,11 +127,34 @@ For each project found, read its `query.json` to get metadata:
 cat ~/fda-510k-data/projects/*/query.json 2>/dev/null
 ```
 
+Also check for review.json to determine predicate source:
+```bash
+python3 << 'PYEOF'
+import json, os, glob
+projects_dir = os.path.expanduser("~/fda-510k-data/projects")
+for proj_dir in sorted(glob.glob(os.path.join(projects_dir, "*"))):
+    if not os.path.isdir(proj_dir):
+        continue
+    review_path = os.path.join(proj_dir, "review.json")
+    if os.path.exists(review_path):
+        with open(review_path) as f:
+            review = json.load(f)
+        mode = review.get("review_mode", "unknown")
+        manual = review.get("manual_proposal", False)
+        pred_count = len(review.get("predicates", {}))
+        ref_count = len(review.get("reference_devices", {}))
+        accepted = sum(1 for v in review.get("predicates", {}).values() if v.get("decision") == "accepted")
+        proj_name = os.path.basename(proj_dir)
+        print(f"REVIEW:{proj_name}|mode={mode}|manual={manual}|predicates={pred_count}|accepted={accepted}|references={ref_count}")
+PYEOF
+```
+
 Report each project:
 - Project name
 - Filters used (product codes, years, applicants)
 - Stage 1 status: records in 510k_download.csv, PDFs downloaded
 - Stage 2 status: devices in output.csv, errors
+- **Predicates**: If review.json exists, show: "{accepted} accepted predicates ({mode})" where mode is "extraction review", "manual proposal", or "auto review". If `manual_proposal == true`, display "Predicates: manual proposal ({N} predicates, {M} references)"
 - Created date and last updated
 
 If no projects exist, note that `/fda:extract` now saves to project folders.

@@ -26,6 +26,7 @@ From the arguments, extract:
 If no `--predicates` provided:
 - If `--infer` AND `--project NAME` specified, use this fallback chain (try each in order, stop at first success):
   1. Check `$PROJECTS_DIR/$PROJECT_NAME/review.json` for accepted predicates → use top 3 by score
+     - **Also check for `reference_devices` key** in review.json. If present, auto-populate the `--references` argument with those K-numbers. This ensures reference devices declared via `/fda:propose` carry through to SE comparison.
   2. Check `$PROJECTS_DIR/$PROJECT_NAME/output.csv` → find most-cited predicates (top 3 by citation count across all source documents)
   3. Check `$PROJECTS_DIR/$PROJECT_NAME/pdf_data.json` or extraction cache → grep for any K-numbers found in SE sections
   4. If all three fail: **ERROR**: "Could not infer predicates from project data. No accepted predicates in review.json, no citations in output.csv, and no K-numbers in extraction cache. Provide --predicates K123456 explicitly."

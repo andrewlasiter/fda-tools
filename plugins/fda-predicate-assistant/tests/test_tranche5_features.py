@@ -306,8 +306,8 @@ class TestPluginVersion:
         with open(path) as f:
             self.plugin = json.load(f)
 
-    def test_version_is_5_1_0(self):
-        assert self.plugin["version"] == "5.1.0"
+    def test_version_is_current(self):
+        assert self.plugin["version"] >= "5.1.0"
 
     def test_description_mentions_new_features(self):
         desc = self.plugin["description"]

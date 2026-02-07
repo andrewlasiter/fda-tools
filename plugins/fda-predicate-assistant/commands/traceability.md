@@ -83,6 +83,37 @@ else:
 PYEOF
 ```
 
+### From review.json (predicate and reference devices)
+
+```bash
+python3 << 'PYEOF'
+import json, os, re
+
+settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+projects_dir = os.path.expanduser('~/fda-510k-data/projects')
+if os.path.exists(settings_path):
+    with open(settings_path) as f:
+        m = re.search(r'projects_dir:\s*(.+)', f.read())
+        if m: projects_dir = os.path.expanduser(m.group(1).strip())
+
+project = "PROJECT"  # Replace
+review_path = os.path.join(projects_dir, project, 'review.json')
+if os.path.exists(review_path):
+    with open(review_path) as f:
+        review = json.load(f)
+    # Accepted predicates
+    for k, v in review.get('predicates', {}).items():
+        if v.get('decision') == 'accepted':
+            print(f"PREDICATE:{k}|{v.get('device_info', {}).get('product_code', '?')}|{v.get('confidence_score', 0)}")
+    # Reference devices (from /fda:propose)
+    for k, v in review.get('reference_devices', {}).items():
+        print(f"REFERENCE:{k}|{v.get('device_info', {}).get('product_code', '?')}|{v.get('rationale', 'N/A')}")
+    print(f"REVIEW_MODE:{review.get('review_mode', 'unknown')}")
+else:
+    print("REVIEW:not_found")
+PYEOF
+```
+
 ### From safety data (risk identification)
 
 ```bash
@@ -110,6 +141,11 @@ Compile all requirements from available sources:
 2. **Cross-cutting requirements**: From `references/guidance-lookup.md` (biocompatibility, sterilization, shelf life, etc.)
 3. **Safety-identified risks**: From safety data (common failure modes → requirements)
 4. **IFU claim requirements**: From intended use → each claim needs supporting evidence
+5. **Reference device requirements**: If review.json contains a `reference_devices` key (from `/fda:propose`), include requirements derived from reference device characteristics. For each reference device:
+   - Extract the device's product code and look up its classification requirements
+   - If the reference device was cited for a specific feature (stored in rationale), trace that feature's regulatory requirements
+   - Add requirements with source = "Reference Device: {K-number} — {rationale}"
+   - These appear in the RTM under a "Reference Device Requirements" category
 
 Assign each requirement a unique ID: `REQ-{category}-{number}` (e.g., REQ-BIOCOMPAT-001)
 
