@@ -209,6 +209,7 @@ See `references/openfda-api.md` for the full API reference with query templates,
 The full 510(k) submission preparation workflow:
 
 ```
+0. /fda:configure --setup-key            — Get a free openFDA API key (optional, 120K/day vs 1K)
 1. /fda:research PRODUCT_CODE        — Research the landscape (clearances, predicates, guidance, safety)
 2. /fda:extract both                  — Download PDFs + extract predicates
 3. /fda:review --project NAME         — Score, flag, accept/reject predicates
@@ -220,6 +221,7 @@ The full 510(k) submission preparation workflow:
 
 **Alternative start — import existing eSTAR:**
 ```
+0. /fda:configure --setup-key            — Get a free openFDA API key (optional, 120K/day vs 1K)
 1. /fda:import estar.pdf --project NAME  — Import existing eSTAR data
 2. /fda:review --project NAME            — Score imported predicates
 3. /fda:draft --project NAME             — Draft remaining sections

@@ -81,6 +81,9 @@ if not api_enabled:
     print("API_SKIP:disabled")
     exit(0)
 
+if not api_key:
+    print("API_KEY_NUDGE:true")
+
 device_number = "DEVICE_NUMBER"  # Replace with actual device number (K, P, DEN, or N)
 
 # Route to the correct endpoint based on device number type
@@ -479,6 +482,9 @@ NEXT STEPS
   1. Extract predicates — `/fda:extract stage2`
   2. Analyze device sections — `/fda:summarize --knumbers {KNUMBER}`
   3. Run safety analysis — `/fda:safety --product-code {CODE}`
+
+{If API_KEY_NUDGE:true was printed, add this line before the disclaimer:}
+  Tip: Get 120x more API requests/day with a free key → /fda:configure --setup-key
 
 ────────────────────────────────────────
   This report is AI-generated from public FDA data.

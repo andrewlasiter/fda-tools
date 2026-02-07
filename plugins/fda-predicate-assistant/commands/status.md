@@ -30,6 +30,20 @@ echo "FDA_PLUGIN_ROOT=$FDA_PLUGIN_ROOT"
 
 If `$FDA_PLUGIN_ROOT` is empty, report that the plugin installation could not be located and skip script checks.
 
+## Step 0: First-Run Detection
+
+Before running any checks, detect whether this is a first-time user by checking for the settings file:
+
+```bash
+python3 -c "
+import os
+settings = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+print('FIRST_RUN:' + ('true' if not os.path.exists(settings) else 'false'))
+"
+```
+
+If `FIRST_RUN:true`, set a flag to display the welcome banner in the output (see Output Format below).
+
 ## Check All Data Sources
 
 Run these checks and compile a status report:
@@ -259,7 +273,34 @@ If found:
 
 ## Output Format
 
-Present a clean status report using the standard FDA Professional CLI format (see `references/output-formatting.md`):
+Present a clean status report using the standard FDA Professional CLI format (see `references/output-formatting.md`).
+
+**If `FIRST_RUN:true`**, display this welcome banner **before** the normal status output:
+
+```
+WELCOME
+────────────────────────────────────────
+
+  First time using FDA Predicate Assistant?
+
+  1. Get a free openFDA API key (2 min):
+     https://open.fda.gov/apis/authentication/
+
+  2. Configure it securely:
+     /fda:configure --setup-key
+
+  Without a key: 1,000 requests/day
+  With a key:    120,000 requests/day
+
+  The plugin works without a key, but you'll
+  hit rate limits quickly during research.
+
+────────────────────────────────────────
+```
+
+This banner only appears when no settings file exists. After the user runs `/fda:configure` once (which creates the file), the banner never appears again.
+
+Then display the normal status report:
 
 ```
   FDA Pipeline Status

@@ -41,6 +41,8 @@ if os.path.exists(settings_path):
         m = re.search(r'openfda_api_key:\s*(\S+)', content)
         if m and m.group(1) != 'null':
             api_key = m.group(1)
+if not api_key:
+    print("API_KEY_NUDGE:true")
 print(f"API_ENABLED:{api_enabled}")
 print(f"API_KEY:{'yes' if api_key else 'no'}")
 PYEOF
@@ -597,6 +599,9 @@ NEXT STEPS
   1. Address failure modes in testing plan — `/fda:test-plan CODE`
   2. Discuss high-risk findings in Pre-Sub — `/fda:presub CODE`
   3. Build SE comparison addressing safety — `/fda:compare-se`
+
+{If API_KEY_NUDGE:true was printed, add this line before the disclaimer:}
+  Tip: Get 120x more API requests/day with a free key → /fda:configure --setup-key
 
 ────────────────────────────────────────
   This report is AI-generated from public FDA data.

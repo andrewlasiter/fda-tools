@@ -284,6 +284,9 @@ NEXT STEPS
   1. Extract predicates — `/fda:extract stage2 --project {NAME}`
   2. Check data status — `/fda:status`
 
+{If API_KEY_NUDGE:true was printed, add this line before the disclaimer:}
+  Tip: Get 120x more API requests/day with a free key → /fda:configure --setup-key
+
 ────────────────────────────────────────
   This report is AI-generated from public FDA data.
   Verify independently. Not regulatory advice.
@@ -335,6 +338,9 @@ NEXT STEPS
   1. Review and score predicates — `/fda:review --project {NAME}`
   2. Analyze extraction data — `/fda:analyze --project {NAME}`
   3. Summarize PDF sections — `/fda:summarize --project {NAME}`
+
+{If API_KEY_NUDGE:true was printed, add this line before the disclaimer:}
+  Tip: Get 120x more API requests/day with a free key → /fda:configure --setup-key
 
 ────────────────────────────────────────
   This report is AI-generated from public FDA data.
@@ -393,6 +399,9 @@ NEXT STEPS
        m = re.search(r'openfda_enabled:\s*(\S+)', content)
        if m and m.group(1).lower() == 'false':
            api_enabled = False
+
+   if not api_key:
+       print("API_KEY_NUDGE:true")
 
    if not api_enabled:
        print("SAFETY_SKIP:api_disabled")

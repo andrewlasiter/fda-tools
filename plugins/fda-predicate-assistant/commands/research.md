@@ -117,6 +117,9 @@ if os.path.exists(settings_path):
     if m and m.group(1).lower() == 'false':
         api_enabled = False
 
+if not api_key:
+    print("API_KEY_NUDGE:true")
+
 product_code = "PRODUCTCODE"  # Replace
 
 if api_enabled:
@@ -1096,6 +1099,9 @@ RECOMMENDATIONS & NEXT STEPS
 ────────────────────────────────────────
 
   [Specific actionable next steps]
+
+{If API_KEY_NUDGE:true was printed, add this line before the disclaimer:}
+  Tip: Get 120x more API requests/day with a free key → /fda:configure --setup-key
 
 ────────────────────────────────────────
   This report is AI-generated from public FDA data.
