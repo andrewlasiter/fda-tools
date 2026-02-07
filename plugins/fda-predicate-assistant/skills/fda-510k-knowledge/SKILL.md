@@ -224,6 +224,7 @@ The full 510(k) submission preparation workflow:
 2. /fda:review --project NAME            — Score imported predicates
 3. /fda:draft --project NAME             — Draft remaining sections
 4. /fda:export --project NAME            — Export as eSTAR XML
+5. Submit via CDRH Portal                — https://ccp.fda.gov/prweb/PRAuth/app/default/extsso
 ```
 
 Each step builds on previous data but degrades gracefully if run independently.
@@ -236,7 +237,7 @@ Each step builds on previous data but degrades gracefully if run independently.
 - `/fda:status` — Check pipeline data, file freshness, API connectivity
 - `/fda:configure` — View/modify settings, manage exclusion list
 
-## Available Commands (29)
+## Available Commands (33)
 
 ### Core Pipeline
 | Command | Purpose |
@@ -282,7 +283,7 @@ Each step builds on previous data but degrades gracefully if run independently.
 | `/fda:configure` | Set up API keys, data paths, and preferences |
 | `/fda:status` | Check what data you have and what's available |
 
-## Resources (24 references)
+## Resources (25 references)
 
 For detailed reference information, see:
 - `references/output-formatting.md` - FDA Professional CLI output formatting guide (rules R1-R12)
@@ -309,6 +310,7 @@ For detailed reference information, see:
 - `references/clinical-data-framework.md` - Clinical data decision tree and evidence types
 - `references/post-market-requirements.md` - Post-market obligations (MDR, recalls, registration, surveillance)
 - `references/draft-templates.md` - Prose templates for all 16 eSTAR sections with `[TODO:]` placeholders
+- `references/cdrh-portal.md` - CDRH Portal submission guide, file size limits, CDRH vs CBER routing
 
 ## Disclaimers (always include when providing regulatory guidance)
 

@@ -265,7 +265,22 @@ NEXT STEPS
   1. Review eSTAR_index.md for gap summary
   2. Complete ○ Template sections with device-specific data
   3. Add test reports to performance and biocompatibility sections
-  4. Have regulatory team review for completeness
+  4. Run /fda:export --project NAME to generate eSTAR XML
+  5. Have regulatory team review for completeness
+  6. Run /fda:pre-check to simulate FDA review
+  7. Submit via CDRH Portal (see below)
+
+SUBMIT TO FDA
+────────────────────────────────────────
+
+  Portal: https://ccp.fda.gov/prweb/PRAuth/app/default/extsso
+
+  Before uploading:
+  - Verify total package is under 4 GB (1 GB per attachment)
+  - Ensure no PDF passwords are set on any document
+  - Confirm official correspondent email is correct
+
+  For full submission procedures, see references/cdrh-portal.md
 
 ────────────────────────────────────────
   This report is AI-generated from public FDA data.

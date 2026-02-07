@@ -304,6 +304,25 @@ NEXT STEPS
   4. Add attachments (test reports, images, declarations)
   5. Complete remaining [TODO:] sections
   6. Have regulatory team perform final review
+  7. Run /fda:pre-check to simulate FDA review
+  8. Submit via CDRH Portal (see below)
+
+SUBMIT TO FDA
+────────────────────────────────────────
+
+  Portal: https://ccp.fda.gov/prweb/PRAuth/app/default/extsso
+
+  Before uploading:
+  - Verify total package is under 4 GB (1 GB per attachment)
+  - Ensure no PDF passwords are set on any document
+  - Confirm official correspondent email is correct
+  - Run eSTAR built-in validation (no red X indicators)
+
+  After submitting:
+  - Save your confirmation number
+  - Monitor the portal dashboard for status updates
+
+  For full portal details, see references/cdrh-portal.md
 
 ────────────────────────────────────────
   This report is AI-generated from public FDA data.

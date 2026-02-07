@@ -10,7 +10,61 @@ Reference for eSTAR (electronic Submission Template And Resource) structure, sec
 | IVD eSTAR | v6 | In Vitro Diagnostic devices | `fda.gov/media/174459/download` |
 | PreSTAR | v2 | Pre-Submission requests | `fda.gov/media/169327/download` |
 
-**Mandatory filing date**: eSTAR required for all 510(k) submissions since **October 1, 2023** (per final guidance 87 FR 57910, published September 22, 2022).
+## Template Selection Matrix
+
+Which eSTAR template to use for each submission type and device category:
+
+| Template | Submission Types | Device Types | OMB Control Numbers |
+|----------|-----------------|-------------|---------------------|
+| nIVD eSTAR v6 | 510(k), De Novo, PMA | Non-IVD devices | 0910-0120, 0910-0844, 0910-0231 |
+| IVD eSTAR v6 | 510(k), De Novo, PMA | In Vitro Diagnostic devices | 0910-0120, 0910-0844, 0910-0231 |
+| PreSTAR v2 | Pre-Submissions, IDE, 513(g) | All device types | 0910-0756, 0910-0078, 0910-0511 |
+
+**Decision logic:** Use nIVD for non-IVD devices, IVD for in vitro diagnostics, and PreSTAR for pre-submission meetings or IDE applications regardless of device type.
+
+## Mandatory eSTAR Dates
+
+| Submission Type | eSTAR Status | Effective Date | Authority |
+|----------------|-------------|----------------|-----------|
+| 510(k) | **Mandatory** | October 1, 2023 | 87 FR 57910 (Sept 22, 2022) |
+| De Novo | **Mandatory** | October 1, 2025 | Final guidance |
+| PMA / PMA Supplement | Voluntary | — | eSTAR accepted, not required |
+| Pre-Submission (Q-Sub) | Voluntary | — | PreSTAR accepted, not required |
+| IDE | Voluntary | — | PreSTAR accepted, not required |
+
+## QMSR Alignment (February 2, 2026)
+
+As of February 2, 2026, nIVD and IVD eSTAR templates (v6) align with the new Quality Management System Regulation (QMSR), which replaced the current Good Manufacturing Practice (cGMP/QSR) requirements. PMA applicants using older eSTAR versions should attach QMS documentation in the "Other Quality System Information" section. Download the latest template versions to ensure QMSR alignment.
+
+## Technical Requirements
+
+### Software
+- **Adobe Acrobat Pro 2017 or later** (primary supported platform)
+- **Alternatives**: FoxIt PDF Reader, PDF-XChange Editor
+- 64-bit operating system recommended for performance with large eSTAR files
+- Disable Protected Mode in Acrobat if experiencing slowness
+
+### File Preparation
+- Compress images to JPEG format to reduce file size
+- Compress videos to AVC or HEVC MP4 format
+- **Do not set PDF passwords** — passwords block FDA's redaction workflow
+- Combine similar attachments into single PDFs with bookmarks and table of contents
+- Built-in eSTAR forms replace separate FDA Forms 3881, 3514, and 510(k) Summary forms
+
+### Downloading Templates
+- **Right-click the download link → "Save Link As"** (browser-specific wording)
+- Save the file before opening in Acrobat — eSTAR PDFs cannot be opened directly in web browsers
+- Download URLs:
+  - nIVD eSTAR v6: `fda.gov/media/174458/download`
+  - IVD eSTAR v6: `fda.gov/media/174459/download`
+  - PreSTAR v2: `fda.gov/media/169327/download`
+  - FDA eSTAR guidance document: `fda.gov/media/152429/download`
+
+### Early Technical Screening
+FDA performs Early Technical Screening on eSTAR submissions. If the eSTAR fails screening, a **180-day hold** is placed on the submission. Use `/fda:pre-check` to simulate FDA review before submitting.
+
+### Submission Portal
+Submit completed eSTAR packages via the **CDRH Portal**: `https://ccp.fda.gov/prweb/PRAuth/app/default/extsso`. See `references/cdrh-portal.md` for portal details, file size limits, and submission procedures.
 
 ## eSTAR Section Structure (nIVD v6)
 

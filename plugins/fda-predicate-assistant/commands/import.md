@@ -219,6 +219,20 @@ NEXT STEPS
 ────────────────────────────────────────
 ```
 
+## Template Selection Guide
+
+If the user hasn't specified `--template`, auto-detect from the file. If auto-detection fails, use this decision matrix:
+
+| Template | Use When |
+|----------|----------|
+| **nIVD v6** | Non-IVD devices (most medical devices) — 510(k), De Novo, or PMA |
+| **IVD v6** | In Vitro Diagnostic devices — 510(k), De Novo, or PMA |
+| **PreSTAR v2** | Pre-Submission meetings (Q-Sub), IDE, or 513(g) requests |
+
+See `references/estar-structure.md` → "Template Selection Matrix" for full details including OMB control numbers.
+
+**QMSR alignment note:** eSTAR templates downloaded after February 2, 2026 align with the new Quality Management System Regulation (QMSR). If importing from an older template, QMS-related fields may differ from the current template structure. Report any field mapping mismatches in the import summary.
+
 ## Also Supports Plain XML Input
 
 If the user has already exported XML from an eSTAR form (via Adobe Acrobat > Form > Export Data), the same command works:
