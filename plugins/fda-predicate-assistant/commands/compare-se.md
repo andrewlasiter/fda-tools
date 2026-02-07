@@ -306,6 +306,25 @@ def auto_compare(subject_text, predicate_text):
     return '[REVIEW NEEDED]'
 ```
 
+## Step 4b: Materials Comparison (BOM Integration)
+
+If the subject device's project contains BOM/materials data (from `import_data.json` materials array or `draft_device-description.md`), add a detailed **Materials Comparison** row:
+
+```markdown
+| Materials / BOM | Subject: {material_list} | Predicate: {extracted_materials} | Comparison |
+```
+
+**Auto-compare materials logic:**
+- Extract materials from predicate text (look for "materials", "composition", "construction", "alloy", "polymer" sections)
+- Compare subject BOM against predicate materials
+- Flag differences that may require additional biocompatibility testing:
+  - New material not in predicate → `Different: New material ({material}) not in predicate. Biocompatibility testing per ISO 10993-1:2025 may be required.`
+  - Same material family, different grade → `Similar: Same material family. Verify equivalent biocompatibility.`
+  - Identical materials → `Same`
+- For patient-contacting materials, always note: "Patient-contacting: {Yes/No}"
+
+If no BOM data available, the standard "Materials" row from the device-type template is used with `[YOUR DEVICE: specify materials of construction]`.
+
 ## Step 5: Format and Output
 
 ### Console output (default)

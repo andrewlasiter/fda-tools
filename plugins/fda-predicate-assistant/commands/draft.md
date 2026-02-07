@@ -39,7 +39,7 @@ You are generating regulatory prose drafts for specific sections of a 510(k) sub
 
 From `$ARGUMENTS`, extract:
 
-- **Section name** (required) — One of: `device-description`, `se-discussion`, `performance-summary`, `testing-rationale`, `predicate-justification`, `510k-summary`, `labeling`, `sterilization`, `shelf-life`, `biocompatibility`, `software`, `emc-electrical`, `clinical`, `cover-letter`, `truthful-accuracy`, `financial-certification`, `doc`
+- **Section name** (required) — One of: `device-description`, `se-discussion`, `performance-summary`, `testing-rationale`, `predicate-justification`, `510k-summary`, `labeling`, `sterilization`, `shelf-life`, `biocompatibility`, `software`, `emc-electrical`, `clinical`, `cover-letter`, `truthful-accuracy`, `financial-certification`, `doc`, `human-factors`
 - `--project NAME` (required) — Project with pipeline data
 - `--device-description TEXT` — Description of the user's device
 - `--intended-use TEXT` — Proposed indications for use
@@ -66,7 +66,18 @@ Generates Section 6 of the eSTAR: Device Description.
 ### 6.2 Principle of Operation
 {Inferred from device description and product code classification}
 
-### 6.3 Components and Materials
+### 6.3 Components and Materials (Bill of Materials)
+
+{If --materials flag provided or import_data.json contains materials data, generate structured BOM:}
+
+| # | Component | Material | Patient-Contacting | Supplier | Specification |
+|---|-----------|----------|--------------------|----------|---------------|
+| 1 | {component_name} | {material} | {Yes/No} | [TODO: Company-specific] | [TODO: Company-specific] |
+
+{Auto-populate from project import_data.json materials array if available.}
+{Cross-reference patient-contacting materials with biocompatibility requirements:}
+{If patient-contacting → flag: "Biocompatibility testing required per ISO 10993-1:2025 — see `/fda:draft biocompatibility`"}
+
 [TODO: Company-specific — provide detailed component list and materials of construction]
 
 ### 6.4 Accessories and Packaging
@@ -150,6 +161,21 @@ Generates Section 9 of the eSTAR: Labeling (package label, IFU, patient labeling
 - 9.3 Patient Labeling (if applicable)
 - 9.4 Promotional Materials (if applicable)
 
+**Artwork File Tracking**: If `--artwork-dir PATH` is specified, scan the directory for label artwork files (PDF, PNG, SVG, AI, EPS) and generate a manifest:
+
+```markdown
+### Artwork Files
+
+| # | File | Format | Dimensions | Revision | Status |
+|---|------|--------|------------|----------|--------|
+| 1 | {filename} | {ext} | [TODO: Verify] | [TODO: Rev letter] | [TODO: Approved/Draft/Under Review] |
+```
+
+If no `--artwork-dir` specified, include:
+```
+[TODO: Company-specific — Provide label artwork files. Use --artwork-dir PATH to reference artwork directory.]
+```
+
 **UDI Integration**: When drafting the labeling section, auto-query the openFDA UDI endpoint to populate device properties:
 
 ```bash
@@ -185,7 +211,7 @@ if api_key:
     params["api_key"] = api_key
 
 url = f"https://api.fda.gov/device/udi.json?{urllib.parse.urlencode(params)}"
-headers = {"User-Agent": "Mozilla/5.0 (FDA-Plugin/4.9.0)"}
+headers = {"User-Agent": "Mozilla/5.0 (FDA-Plugin/5.1.0)"}
 
 try:
     req = urllib.request.Request(url, headers=headers)
@@ -386,6 +412,72 @@ Auto-populate standards list from:
 2. `references/standards-tracking.md` — verify current editions
 3. `/fda:standards` output (if available) — FDA recognized consensus standards
 
+### 18. human-factors
+
+Generates Section 19 of the eSTAR: Human Factors / Usability Engineering.
+
+**Required data**: device description, intended use
+**Enriched by**: MAUDE data (use error patterns), `references/human-factors-framework.md`
+
+**Applicability auto-detection**: Scan device description for keywords that trigger HFE requirements:
+- "user interface", "display", "touchscreen", "control panel"
+- "home use", "patient-operated", "self-administered"
+- "injection", "infusion", "inhaler", "autoinjector"
+- "alarm", "alert", "notification"
+- "software", "app", "mobile", "connected"
+
+If no keywords found, note: "HFE may not be required for this device. Document rationale per IEC 62366-1:2015."
+
+**Output structure**: See `references/human-factors-framework.md` eSTAR Section 19 template.
+
+```markdown
+## Human Factors / Usability Engineering
+
+### 19.1 Use Environment
+[TODO: Company-specific — Describe the intended use environment(s):
+- Clinical setting (hospital, clinic, physician office)
+- Home environment (if applicable)
+- Environmental conditions (lighting, noise, temperature)
+- Other use environments]
+
+### 19.2 User Profile
+[TODO: Company-specific — Describe intended users:
+- Healthcare professionals (type, training level)
+- Patients/caregivers (if home use)
+- Other users (biomedical technicians, etc.)
+- Physical/cognitive requirements]
+
+### 19.3 Critical Tasks
+[TODO: Company-specific — List all critical tasks:
+- Tasks where use error could cause serious harm
+- Tasks requiring high accuracy or precision
+- Tasks performed under stress or time pressure]
+
+### 19.4 Use-Related Risk Analysis Summary
+[TODO: Company-specific — Summarize use-related risk analysis:
+- Identified use errors and hazardous situations
+- Risk controls implemented (design, labeling, training)
+- Residual risks and mitigations]
+
+### 19.5 Formative Study Summary
+[TODO: Company-specific — Summarize formative studies:
+- Study type (cognitive walkthrough, heuristic evaluation, simulated use)
+- Number of participants
+- Key findings and design changes made]
+
+### 19.6 Summative (Validation) Study Summary
+[TODO: Company-specific — Summarize validation study:
+- Study design and protocol
+- Number of participants per user group (minimum 15 per group recommended by FDA)
+- Critical task results (success/failure)
+- Use errors and close calls observed
+- Conclusion: device can be used safely and effectively]
+```
+
+Cross-reference:
+- `/fda:safety` MAUDE data to identify use error patterns for the product code
+- `references/human-factors-framework.md` for IEC 62366-1:2015 process and FDA guidance references
+
 ## Generation Rules
 
 1. **Regulatory tone**: Formal, factual, third-person. Use standard FDA regulatory language patterns.
@@ -393,7 +485,7 @@ Auto-populate standards list from:
 3. **DRAFT disclaimer**: Every generated section starts with:
    ```
    ⚠ DRAFT — AI-generated regulatory prose. Review with regulatory affairs team before submission.
-   Generated: {date} | Project: {name} | Plugin: fda-predicate-assistant v5.0.0
+   Generated: {date} | Project: {name} | Plugin: fda-predicate-assistant v5.1.0
    ```
 4. **Unverified claims**: Anything that cannot be substantiated from project data gets `[CITATION NEEDED]` or `[TODO: Company-specific — verify]`.
 5. **No fabrication**: Never invent test results, clinical data, or device specifications. If data isn't available, say so.
@@ -428,6 +520,6 @@ Next steps:
 
 ## Error Handling
 
-- **Unknown section name**: "Unknown section '{name}'. Available: device-description, se-discussion, performance-summary, testing-rationale, predicate-justification, 510k-summary, labeling, sterilization, shelf-life, biocompatibility, software, emc-electrical, clinical, cover-letter, truthful-accuracy, financial-certification"
+- **Unknown section name**: "Unknown section '{name}'. Available: device-description, se-discussion, performance-summary, testing-rationale, predicate-justification, 510k-summary, labeling, sterilization, shelf-life, biocompatibility, software, emc-electrical, clinical, cover-letter, truthful-accuracy, financial-certification, doc, human-factors"
 - **No project data**: "Project '{name}' has no pipeline data. Run /fda:pipeline first to generate data for draft generation."
 - **Insufficient data for section**: Generate what's possible, mark rest as [TODO]. Note which commands to run for more complete drafts.

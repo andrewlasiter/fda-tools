@@ -273,6 +273,31 @@ NEXT STEPS
 ────────────────────────────────────────
 ```
 
+## Artwork File Manifest (Section 09 — Labeling)
+
+When assembling the eSTAR package, check for artwork files in the project:
+
+1. If `artwork_dir` is set in project's `query.json` or `import_data.json`, scan that directory
+2. Include artwork files (PDF, PNG, SVG, AI, EPS) in the Section 09 (Labeling) directory
+3. Generate an artwork manifest file (`section_09_labeling/artwork_manifest.md`):
+
+```markdown
+## Label Artwork Files
+
+| # | File | Format | Size | Included |
+|---|------|--------|------|----------|
+| 1 | {filename} | {ext} | {size_kb} KB | Yes |
+
+Total artwork files: {count}
+Source directory: {artwork_dir}
+```
+
+If no artwork directory configured, note in assembly report:
+```
+Section 09 (Labeling): No artwork files found.
+  → Set artwork directory with /fda:draft labeling --artwork-dir PATH
+```
+
 ## Error Handling
 
 - **No --project**: ERROR: "Project name required. Usage: /fda:assemble --project NAME"

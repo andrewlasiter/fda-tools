@@ -474,6 +474,55 @@ This declaration is based on the following evidence:
 | Signature | ________________________________ |
 ```
 
+## Section 19: Human Factors / Usability Engineering
+
+```markdown
+## Human Factors / Usability Engineering
+
+### 19.1 Use Environment
+[TODO: Company-specific — Describe the intended use environment(s):
+- Clinical setting (hospital, clinic, physician office)
+- Home environment (if applicable)
+- Environmental conditions (lighting, noise, temperature)]
+
+### 19.2 User Profile
+| User Group | Training | Experience | Physical Requirements |
+|-----------|----------|------------|----------------------|
+| [TODO: Primary users] | [TODO] | [TODO] | [TODO] |
+| [TODO: Secondary users] | [TODO] | [TODO] | [TODO] |
+
+### 19.3 Critical Tasks
+| # | Task | Use Error Risk | Severity | Mitigation |
+|---|------|---------------|----------|------------|
+| 1 | [TODO: Company-specific] | [TODO] | [TODO] | [TODO] |
+
+### 19.4 Use-Related Risk Analysis Summary
+{Auto-populate from MAUDE data if /fda:safety has been run:}
+Known use error patterns for product code {product_code}:
+- {event_type}: {count} events ({percentage}%)
+
+[TODO: Company-specific — Complete use-related risk analysis per IEC 62366-1:2015]
+
+### 19.5 Formative Study Summary
+[TODO: Company-specific — Summarize formative evaluation studies:
+- Cognitive walkthrough results
+- Heuristic evaluation findings
+- Simulated use study results
+- Design changes implemented based on findings]
+
+### 19.6 Summative (Validation) Study Summary
+[TODO: Company-specific — Summarize summative evaluation:
+- Study design and protocol
+- Participants: {N} per user group (FDA recommends minimum 15)
+- Critical task results
+
+| Task | Participants | Successes | Use Errors | Close Calls |
+|------|-------------|-----------|------------|-------------|
+| [TODO] | {N} | {N} | {N} | {N} |
+
+Conclusion: [TODO: The device can/cannot be used safely and effectively by the intended user population]]
+```
+
 ## Section 11: Shelf Life — ASTM F1980 Reference
 
 ### Accelerated Aging Formula (ASTM F1980)

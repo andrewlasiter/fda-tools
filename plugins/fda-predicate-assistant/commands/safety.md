@@ -605,3 +605,58 @@ NEXT STEPS
 ```
 
 Adapt the format to what data is actually available. If a section has no data (e.g., zero recalls), note it briefly rather than showing an empty table.
+
+## Complaint Handling Template (--complaint-template flag)
+
+When `--complaint-template` is specified, generate a complaint handling procedure template customized for the device's product code and risk profile. Reference `references/complaint-handling-framework.md` for templates.
+
+**Output structure**:
+
+```
+COMPLAINT HANDLING PROCEDURE — {product_code}
+════════════════════════════════════════════════
+
+1. COMPLAINT INTAKE
+────────────────────────────────────────
+Required fields: Complaint ID, Date received, Source,
+Product (name/model/lot/serial), Description,
+Patient involvement (Y/N), Injury/death (Y/N),
+Device available for investigation (Y/N)
+
+2. MDR REPORTABILITY ASSESSMENT
+────────────────────────────────────────
+Decision tree per 21 CFR 803:
+  • Death → REPORTABLE (5 working days)
+  • Serious injury → REPORTABLE (30 calendar days)
+  • Malfunction that COULD cause death/serious injury → REPORTABLE (30 calendar days)
+  • None of above → NOT REPORTABLE (document decision)
+
+Serious injury definition (21 CFR 803.3):
+  Life-threatening, permanent impairment, or
+  necessitates medical/surgical intervention
+
+3. COMPLAINT CATEGORIES FOR {product_code}
+────────────────────────────────────────
+{Auto-populate from MAUDE data if available:}
+  • Common event types for this product code
+  • Historical malfunction patterns
+  • Known failure modes from MAUDE narratives
+
+4. TREND ANALYSIS
+────────────────────────────────────────
+Track quarterly: Total complaints, Malfunctions,
+Injuries, Deaths, MDRs filed
+Thresholds:
+  • >50% increase quarter-over-quarter → Investigation
+  • New failure mode → Root cause analysis
+  • Any injury increase → Immediate review
+  • Any death → Immediate escalation
+
+5. INTEGRATION WITH MONITORING
+────────────────────────────────────────
+  • /fda:safety --product-code {CODE} for MAUDE benchmarking
+  • /fda:monitor --check for ongoing safety signals
+
+> Customize this template per 21 CFR 820.198 (complaint files)
+> and 21 CFR 803 (MDR reporting requirements).
+```

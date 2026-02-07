@@ -317,3 +317,4 @@ NEXT STEPS
 - **Empty project**: "WARNING: Project has no draft data. Run `/fda:draft` first to generate section content, or `/fda:import` to import existing eSTAR data."
 - **Missing estar_xml.py dependencies**: Provide install instructions for pikepdf, beautifulsoup4, lxml
 - **No mandatory sections**: "WARNING: {N}/7 mandatory sections missing. Export will be incomplete. Missing: {list}"
+- **eCTD format requested**: "NOTE: eCTD format is NOT required for 510(k) submissions. The required format is eSTAR (electronic Submission Template And Resource). This export generates eSTAR XML. For PMA or IDE submissions requiring eCTD, consult FDA ESG guidance at https://www.fda.gov/industry/electronic-submissions-gateway. See `references/ectd-overview.md` for details."
