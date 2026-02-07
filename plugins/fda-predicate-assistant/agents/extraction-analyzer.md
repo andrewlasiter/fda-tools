@@ -1,4 +1,5 @@
 ---
+name: extraction-analyzer
 description: Comprehensive FDA 510(k) extraction results analyzer. Use this agent after running predicate extraction or when analyzing FDA extraction results, identifying predicate patterns, or reviewing extraction quality.
 tools:
   - Read

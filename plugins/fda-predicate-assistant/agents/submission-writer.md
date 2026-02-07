@@ -1,4 +1,5 @@
 ---
+name: submission-writer
 description: Autonomous 510(k) submission drafting agent. Reviews project data, drafts all 16 eSTAR sections, runs consistency checks, assembles the package, and reports a readiness score. Use after predicate review and guidance analysis are complete.
 tools:
   - Read

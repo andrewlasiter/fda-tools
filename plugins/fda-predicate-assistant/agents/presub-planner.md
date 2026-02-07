@@ -1,4 +1,5 @@
 ---
+name: presub-planner
 description: Autonomous Pre-Submission preparation agent. Researches regulatory landscape, analyzes guidance, gathers safety intelligence, reviews literature, and generates a complete Pre-Sub package with FDA questions. Use when starting Pre-Sub preparation for a new device.
 tools:
   - Read
