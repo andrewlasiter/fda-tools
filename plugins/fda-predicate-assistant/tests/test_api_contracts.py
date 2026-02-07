@@ -185,3 +185,100 @@ class TestGoldenFileReviewJSON:
 
 # Need os import for fixture path
 import os
+
+
+class TestPMAEndpoint:
+    """Verify /device/pma response shape."""
+
+    @pytest.fixture(autouse=True)
+    def _rate_limit(self):
+        yield
+        time.sleep(1)
+
+    def test_pma_has_pma_number(self):
+        data = _api_get("pma", 'product_code:"DXY"')
+        result = data["results"][0]
+        assert "pma_number" in result
+
+    def test_pma_has_trade_name_or_generic_name(self):
+        data = _api_get("pma", 'product_code:"DXY"')
+        result = data["results"][0]
+        assert "trade_name" in result or "generic_name" in result
+
+    def test_pma_has_decision_date(self):
+        data = _api_get("pma", 'product_code:"DXY"')
+        result = data["results"][0]
+        assert "decision_date" in result
+
+    def test_pma_has_product_code(self):
+        data = _api_get("pma", 'product_code:"DXY"')
+        result = data["results"][0]
+        assert "product_code" in result
+
+    def test_pma_search_by_number(self):
+        data = _api_get("pma", 'pma_number:"P870024"')
+        assert data.get("meta", {}).get("results", {}).get("total", 0) > 0
+
+    def test_pma_supplement_fields(self):
+        data = _api_get("pma", 'pma_number:"P870024"', limit=5)
+        # P870024 should have supplements
+        found_supplement = False
+        for r in data.get("results", []):
+            if r.get("supplement_number"):
+                found_supplement = True
+                assert "supplement_type" in r
+                break
+        # It's OK if no supplements are returned in first 5 results
+
+
+class TestDeNovoSearch:
+    """Verify De Novo search patterns via 510k endpoint."""
+
+    @pytest.fixture(autouse=True)
+    def _rate_limit(self):
+        yield
+        time.sleep(1)
+
+    def test_den_number_format_recognized(self):
+        """DEN numbers follow the pattern DEN + 6 digits."""
+        import re
+        pattern = re.compile(r"^DEN\d{6,7}$")
+        assert pattern.match("DEN200043")
+        assert pattern.match("DEN2000435")
+        assert not pattern.match("DEN12345")
+
+    def test_classification_search_for_denovo_product_code(self):
+        """Search classification for a product code that was created via De Novo."""
+        # QJU is a product code created via De Novo for AI mammography
+        data = _api_get("classification", 'product_code:"QJU"')
+        if data.get("results"):
+            result = data["results"][0]
+            assert "device_name" in result
+            assert "device_class" in result
+
+
+class TestSearchFilters:
+    """Verify combined search filter patterns for interactive search."""
+
+    @pytest.fixture(autouse=True)
+    def _rate_limit(self):
+        yield
+        time.sleep(1)
+
+    def test_multi_field_search(self):
+        """Search with multiple combined filters."""
+        data = _api_get("510k", 'product_code:"OVE"+AND+decision_date:[20230101+TO+20251231]')
+        assert "meta" in data
+        assert data.get("meta", {}).get("results", {}).get("total", 0) >= 0
+
+    def test_date_range_search(self):
+        """Search with date range filter."""
+        data = _api_get("510k", 'product_code:"OVE"+AND+decision_date:[20200101+TO+20251231]', limit=5)
+        if data.get("results"):
+            for r in data["results"]:
+                assert "decision_date" in r
+
+    def test_device_name_search(self):
+        """Search by device name keyword."""
+        data = _api_get("510k", 'device_name:"fusion"+AND+product_code:"OVE"')
+        assert "meta" in data

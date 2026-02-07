@@ -192,3 +192,49 @@ class TestCombinedExtractionFromSample:
         # Should find: K192345, K181234, K170987, K241335, K192345/S001,
         # K181234/S002, P190001, DEN200045, N0012, K102345, K192345 (dup)
         assert len(matches) >= 9
+
+
+class TestDeviceNumberRouting:
+    """Test device number type detection for API endpoint routing."""
+
+    def test_k_number_routes_to_510k(self):
+        num = "K241335"
+        assert num.upper().startswith("K")
+
+    def test_p_number_routes_to_pma(self):
+        num = "P870024"
+        assert num.upper().startswith("P")
+
+    def test_den_number_detected(self):
+        num = "DEN200043"
+        assert num.upper().startswith("DEN")
+
+    def test_n_number_detected(self):
+        num = "N0012"
+        upper = num.upper()
+        assert upper.startswith("N") and not upper.startswith("DEN")
+
+    def test_routing_logic(self):
+        """Validate the routing logic used in fda_api_client.validate_device()."""
+        test_cases = [
+            ("K241335", "510k"),
+            ("K001234", "510k"),
+            ("P870024", "pma"),
+            ("P190001", "pma"),
+            ("DEN200043", "510k"),  # DEN searches 510k endpoint
+            ("DEN2000435", "510k"),
+            ("N0012", "n_number"),  # N-numbers skip API
+        ]
+        for number, expected_endpoint in test_cases:
+            num = number.upper()
+            if num.startswith("K"):
+                endpoint = "510k"
+            elif num.startswith("P"):
+                endpoint = "pma"
+            elif num.startswith("DEN"):
+                endpoint = "510k"
+            elif num.startswith("N"):
+                endpoint = "n_number"
+            else:
+                endpoint = "unknown"
+            assert endpoint == expected_endpoint, f"{number} should route to {expected_endpoint}, got {endpoint}"

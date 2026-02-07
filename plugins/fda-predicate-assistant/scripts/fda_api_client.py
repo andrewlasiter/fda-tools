@@ -23,7 +23,6 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -40,7 +39,7 @@ BASE_BACKOFF = 1.0
 BASE_URL = "https://api.fda.gov/device"
 
 # User agent
-USER_AGENT = "Mozilla/5.0 (FDA-Plugin/4.6.0)"
+USER_AGENT = "Mozilla/5.0 (FDA-Plugin/4.7.0)"
 
 
 class FDAClient:
@@ -223,12 +222,79 @@ class FDAClient:
         """Look up a PMA approval by P-number."""
         return self._request("pma", {"search": f'pma_number:"{pma_number}"', "limit": "1"})
 
+    def get_pma_supplements(self, pma_number, limit=50):
+        """Get PMA supplements for a base PMA number."""
+        return self._request(
+            "pma", {"search": f'pma_number:"{pma_number}"', "limit": str(limit)}
+        )
+
+    def get_pma_by_product_code(self, product_code, limit=50):
+        """Get PMA approvals for a product code."""
+        return self._request(
+            "pma", {"search": f'product_code:"{product_code}"', "limit": str(limit)}
+        )
+
+    def get_udi(self, product_code=None, company_name=None, di=None, limit=10):
+        """Look up UDI/GUDID records by product code, company, or device identifier."""
+        if di:
+            search = f'identifiers.id:"{di}"'
+        elif product_code and company_name:
+            search = f'product_codes.code:"{product_code}"+AND+company_name:"{company_name}"'
+        elif product_code:
+            search = f'product_codes.code:"{product_code}"'
+        elif company_name:
+            search = f'company_name:"{company_name}"'
+        else:
+            return {"error": "Provide product_code, company_name, or di", "degraded": True}
+        return self._request("udi", {"search": search, "limit": str(limit)})
+
+    def search_510k(self, query=None, product_code=None, applicant=None,
+                    year_start=None, year_end=None, limit=25, sort=None):
+        """Interactive 510(k) database search with combined filters.
+
+        Args:
+            query: Free-text search against device_name
+            product_code: Filter by product code
+            applicant: Filter by applicant name
+            year_start: Start year (YYYY) for decision_date range
+            year_end: End year (YYYY) for decision_date range
+            limit: Max results (default 25)
+            sort: Sort field (not directly supported by openFDA, applied client-side)
+        """
+        parts = []
+        if query:
+            parts.append(f'device_name:"{query}"')
+        if product_code:
+            parts.append(f'product_code:"{product_code}"')
+        if applicant:
+            parts.append(f'applicant:"{applicant}"')
+        if year_start or year_end:
+            start = f"{year_start}0101" if year_start else "19760101"
+            end = f"{year_end}1231" if year_end else "29991231"
+            parts.append(f"decision_date:[{start}+TO+{end}]")
+        if not parts:
+            return {"error": "Provide at least one search filter", "degraded": True}
+        search = "+AND+".join(parts)
+        return self._request("510k", {"search": search, "limit": str(limit)})
+
     def validate_device(self, device_number):
         """Validate a device number (K, P, DEN, or N-number) against FDA data."""
-        if device_number.startswith("K"):
+        num = device_number.upper()
+        if num.startswith("K"):
             return self.get_510k(device_number)
-        elif device_number.startswith("P"):
+        elif num.startswith("P"):
             return self.get_pma(device_number)
+        elif num.startswith("DEN"):
+            # De Novo: some indexed in 510k endpoint, no dedicated endpoint
+            result = self.get_510k(device_number)
+            if result.get("results") or result.get("meta", {}).get("results", {}).get("total", 0) > 0:
+                return result
+            # Not found in 510k — return informative result
+            return {"results": [], "meta": {"results": {"total": 0}},
+                    "note": "DEN number not found in 510k endpoint. openFDA has no dedicated De Novo endpoint."}
+        elif num.startswith("N"):
+            return {"error": "N-numbers (Pre-Amendments) are not in openFDA. Use flat file lookup.",
+                    "degraded": True, "n_number": True}
         else:
             return {"error": f"Unsupported device number format: {device_number}", "degraded": True}
 

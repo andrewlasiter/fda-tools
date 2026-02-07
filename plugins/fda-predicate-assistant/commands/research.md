@@ -1,7 +1,7 @@
 ---
 description: Research and plan a 510(k) submission — predicate selection, testing strategy, IFU landscape, regulatory intelligence, and competitive analysis
 allowed-tools: Read, Glob, Grep, Bash, Write, WebFetch, WebSearch
-argument-hint: "<product-code> [--project NAME] [--device-description TEXT] [--intended-use TEXT] [--infer] [--competitor-deep]"
+argument-hint: "<product-code> [--project NAME] [--device-description TEXT] [--intended-use TEXT] [--infer] [--competitor-deep] [--include-pma] [--browse] [--analytics] [--aiml]"
 ---
 
 # FDA 510(k) Submission Research
@@ -1258,3 +1258,200 @@ End with specific, actionable next steps:
 - Always: "Consult with regulatory affairs counsel before finalizing your submission strategy"
 
 **NEVER recommend**: "Run `/fda:extract stage1`", "Run `/fda:extract stage2`", "Use `/fda:extract` to download PDFs", "Use `/fda:validate`" (inline it instead), or "Use `/fda:summarize --sections`" for content already covered in the research. The research command should do the work automatically. If a PDF fetch fails (404, access denied), note it gracefully and proceed with available data.
+
+## PMA Intelligence (--include-pma)
+
+When `--include-pma` flag is set, add a PMA analysis section to the research report. This is valuable for:
+- Product codes that have both 510(k) and PMA history
+- Understanding if a PMA pathway has been used for similar devices
+- Identifying PMA supplements that indicate post-approval modifications
+
+### PMA Data Collection
+
+```bash
+python3 << 'PYEOF'
+import urllib.request, urllib.parse, json, os, re, time
+
+settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+api_key = os.environ.get('OPENFDA_API_KEY')
+api_enabled = True
+if os.path.exists(settings_path):
+    with open(settings_path) as f:
+        content = f.read()
+    if not api_key:
+        m = re.search(r'openfda_api_key:\s*(\S+)', content)
+        if m and m.group(1) != 'null':
+            api_key = m.group(1)
+    m = re.search(r'openfda_enabled:\s*(\S+)', content)
+    if m and m.group(1).lower() == 'false':
+        api_enabled = False
+
+if not api_enabled:
+    print("PMA_SKIP:api_disabled")
+    exit(0)
+
+product_code = "PRODUCTCODE"  # Replace
+
+def fda_query(endpoint, search, limit=10, count_field=None):
+    params = {"search": search, "limit": str(limit)}
+    if count_field:
+        params["count"] = count_field
+    if api_key:
+        params["api_key"] = api_key
+    url = f"https://api.fda.gov/device/{endpoint}.json?{urllib.parse.urlencode(params)}"
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/4.7.0)"})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return {"results": []}
+        return {"error": f"HTTP {e.code}"}
+    except Exception as e:
+        return {"error": str(e)}
+
+# PMA count and recent approvals
+pma_result = fda_query("pma", f'product_code:"{product_code}"', limit=20)
+total = pma_result.get("meta", {}).get("results", {}).get("total", 0)
+print(f"PMA_TOTAL:{total}")
+
+if pma_result.get("results"):
+    for r in pma_result["results"][:10]:
+        supp = r.get("supplement_number", "")
+        supp_type = r.get("supplement_type", "")
+        print(f"PMA:{r.get('pma_number','?')}|{supp}|{supp_type}|{r.get('applicant','?')}|{r.get('trade_name','?')}|{r.get('decision_date','?')}|{r.get('decision_code','?')}")
+
+# Count PMAs by year
+time.sleep(0.5)
+pma_years = fda_query("pma", f'product_code:"{product_code}"', count_field="decision_date")
+if pma_years.get("results"):
+    for r in pma_years["results"][:10]:
+        print(f"PMA_YEAR:{r['time']}:{r['count']}")
+PYEOF
+```
+
+### PMA Section in Report
+
+```
+PMA INTELLIGENCE
+────────────────────────────────────────
+
+  Total PMA Approvals: {count} for product code {CODE}
+  Recent PMA Approvals:
+    P{number} — {trade_name} by {applicant} ({date})
+    P{number} — {trade_name} by {applicant} ({date})
+
+  Supplement History: {total} supplements across all PMAs
+  Most Active PMA: P{number} ({supplement_count} supplements)
+
+  Pathway Implications:
+  - PMA history exists for this product code — indicates Class III pathway
+    has been used, though 510(k) may still be appropriate depending on
+    your device's risk profile and predicate availability.
+```
+
+## Interactive Browse Mode (--browse)
+
+When `--browse` flag is set, present the clearance landscape in an interactive-style format with filtering capabilities:
+
+```bash
+python3 << 'PYEOF'
+import urllib.request, urllib.parse, json, os, re, time
+
+# Standard API setup...
+settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+api_key = os.environ.get('OPENFDA_API_KEY')
+api_enabled = True
+if os.path.exists(settings_path):
+    with open(settings_path) as f:
+        content = f.read()
+    if not api_key:
+        m = re.search(r'openfda_api_key:\s*(\S+)', content)
+        if m and m.group(1) != 'null':
+            api_key = m.group(1)
+    m = re.search(r'openfda_enabled:\s*(\S+)', content)
+    if m and m.group(1).lower() == 'false':
+        api_enabled = False
+
+if not api_enabled:
+    print("BROWSE_SKIP:api_disabled")
+    exit(0)
+
+product_code = "PRODUCTCODE"  # Replace
+
+def fda_query(endpoint, search, limit=10, count_field=None):
+    params = {"search": search, "limit": str(limit)}
+    if count_field:
+        params["count"] = count_field
+    if api_key:
+        params["api_key"] = api_key
+    url = f"https://api.fda.gov/device/{endpoint}.json?{urllib.parse.urlencode(params)}"
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/4.7.0)"})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return {"results": []}
+        return {"error": f"HTTP {e.code}"}
+    except Exception as e:
+        return {"error": str(e)}
+
+# Top applicants by clearance count
+print("=== TOP APPLICANTS ===")
+applicants = fda_query("510k", f'product_code:"{product_code}"', count_field="applicant.exact")
+if applicants.get("results"):
+    for r in applicants["results"][:15]:
+        print(f"APPLICANT:{r['term']}:{r['count']}")
+
+# Recent clearance trends by year
+time.sleep(0.5)
+print("\n=== CLEARANCE TRENDS ===")
+trends = fda_query("510k", f'product_code:"{product_code}"', count_field="decision_date")
+if trends.get("results"):
+    year_counts = {}
+    for r in trends["results"]:
+        year = r["time"][:4]
+        year_counts[year] = year_counts.get(year, 0) + r["count"]
+    for year in sorted(year_counts.keys())[-10:]:
+        print(f"YEAR:{year}:{year_counts[year]}")
+
+# Clearance type distribution
+time.sleep(0.5)
+print("\n=== CLEARANCE TYPES ===")
+types = fda_query("510k", f'product_code:"{product_code}"', count_field="clearance_type.exact")
+if types.get("results"):
+    for r in types["results"]:
+        print(f"TYPE:{r['term']}:{r['count']}")
+PYEOF
+```
+
+### Browse Output Format
+
+```
+CLEARANCE LANDSCAPE BROWSER
+────────────────────────────────────────
+
+  Product Code: {CODE} — {device_name}
+  Total Clearances: {N}
+
+  Top Applicants:
+  | # | Company                  | Clearances | Market Share |
+  |---|--------------------------|-----------|--------------|
+  | 1 | {company}                | {count}    | {pct}%       |
+  | 2 | {company}                | {count}    | {pct}%       |
+  ...
+
+  Clearance Trends (Last 10 Years):
+  {year}: {'█' * (count // scale)} ({count})
+  {year}: {'█' * (count // scale)} ({count})
+  ...
+
+  Clearance Type Distribution:
+  Traditional: {count} ({pct}%)
+  Special:     {count} ({pct}%)
+  Abbreviated: {count} ({pct}%)
+
+  To search specific devices: `/fda:validate --search "device name" --product-code {CODE}`
+  To see competitor details: `/fda:research {CODE} --competitor-deep`
+```

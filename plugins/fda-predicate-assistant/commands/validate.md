@@ -1,7 +1,7 @@
 ---
-description: Validate FDA device numbers against official databases and all available pipeline data
+description: Validate FDA device numbers against official databases and all available pipeline data — supports K/P/DEN/N-numbers and interactive search mode
 allowed-tools: Bash, Read, Grep, Glob
-argument-hint: "<number> [number2] [--project NAME] [--offline]"
+argument-hint: "<number> [number2] [--project NAME] [--offline] [--search QUERY --product-code CODE --year RANGE --applicant NAME --limit N --sort FIELD]"
 ---
 
 # FDA Device Number Validation (Enriched)
@@ -491,3 +491,203 @@ This section should:
 2. For each missing source, give the exact command to create it
 3. For each available source, suggest what analysis it enables
 4. Prioritize recommendations (most impactful first)
+
+## Interactive Search Mode (--search)
+
+When invoked with `--search`, validate operates as an interactive 510(k) database search tool instead of single-device validation.
+
+### Parse Search Arguments
+
+From `$ARGUMENTS`, extract:
+- `--search QUERY` — Free-text search against device names (e.g., "spinal fusion", "wound dressing")
+- `--product-code CODE` — Filter by product code
+- `--year RANGE` — Year range filter (e.g., "2023-2025", "2024", "2020-2025")
+- `--applicant NAME` — Filter by company name
+- `--limit N` — Max results (default 25, max 100)
+- `--sort FIELD` — Sort by: date, applicant, device_name (default: date descending)
+
+### Search Execution
+
+```bash
+python3 << 'PYEOF'
+import urllib.request, urllib.parse, json, os, re
+
+settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+api_key = os.environ.get('OPENFDA_API_KEY')
+api_enabled = True
+if os.path.exists(settings_path):
+    with open(settings_path) as f:
+        content = f.read()
+    if not api_key:
+        m = re.search(r'openfda_api_key:\s*(\S+)', content)
+        if m and m.group(1) != 'null':
+            api_key = m.group(1)
+    m = re.search(r'openfda_enabled:\s*(\S+)', content)
+    if m and m.group(1).lower() == 'false':
+        api_enabled = False
+
+if not api_enabled:
+    print("ERROR:Search mode requires openFDA API. Enable with /fda:configure")
+    exit(1)
+
+# Build combined search filters
+parts = []
+query = "SEARCH_QUERY"  # Replace with --search value
+product_code = "PRODUCT_CODE"  # Replace or empty
+applicant = "APPLICANT"  # Replace or empty
+year_start = "YEAR_START"  # Replace or empty
+year_end = "YEAR_END"  # Replace or empty
+limit = 25  # Replace with --limit value
+
+if query and query != "SEARCH_QUERY":
+    parts.append(f'device_name:"{query}"')
+if product_code and product_code != "PRODUCT_CODE":
+    parts.append(f'product_code:"{product_code}"')
+if applicant and applicant != "APPLICANT":
+    parts.append(f'applicant:"{applicant}"')
+if year_start and year_start != "YEAR_START":
+    start = f"{year_start}0101"
+    end = f"{year_end}1231" if year_end and year_end != "YEAR_END" else "29991231"
+    parts.append(f"decision_date:[{start}+TO+{end}]")
+
+if not parts:
+    print("ERROR:Provide at least --search, --product-code, or --applicant")
+    exit(1)
+
+search = "+AND+".join(parts)
+params = {"search": search, "limit": str(limit)}
+if api_key:
+    params["api_key"] = api_key
+
+url = f"https://api.fda.gov/device/510k.json?{urllib.parse.urlencode(params)}"
+req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/4.7.0)"})
+
+try:
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        data = json.loads(resp.read())
+        total = data.get("meta", {}).get("results", {}).get("total", 0)
+        print(f"TOTAL:{total}")
+        for r in data.get("results", []):
+            print(f"RESULT:{r.get('k_number','?')}|{r.get('device_name','?')}|{r.get('applicant','?')}|{r.get('decision_date','?')}|{r.get('product_code','?')}|{r.get('clearance_type','?')}")
+except urllib.error.HTTPError as e:
+    if e.code == 404:
+        print("TOTAL:0")
+    else:
+        print(f"ERROR:HTTP {e.code}")
+except Exception as e:
+    print(f"ERROR:{e}")
+PYEOF
+```
+
+### Search Output Format
+
+```
+  FDA 510(k) Database Search Results
+  Query: "{search terms}"
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Generated: {date} | Total matches: {N} | Showing: {limit} | v4.7.0
+
+RESULTS
+────────────────────────────────────────
+
+  | # | K-Number | Device Name           | Applicant     | Decision Date | Product Code | Type        |
+  |---|----------|-----------------------|---------------|---------------|--------------|-------------|
+  | 1 | K241335  | Cervical Fusion Cage  | COMPANY A     | 2024-03-15    | OVE          | Traditional |
+  | 2 | K240123  | Spinal Spacer System  | COMPANY B     | 2024-02-28    | OVE          | Traditional |
+  ...
+
+  {N} total matches found. Showing first {limit}.
+  For detailed validation of a specific device: `/fda:validate K241335`
+  To see more results: `/fda:validate --search "{query}" --limit 50`
+
+────────────────────────────────────────
+  This report is AI-generated from public FDA data.
+  Verify independently. Not regulatory advice.
+────────────────────────────────────────
+```
+
+## PMA-Specific Validation Output
+
+When validating a P-number (PMA), show PMA-specific fields in addition to the standard fields:
+
+```
+DEVICE RECORD (PMA)
+────────────────────────────────────────
+
+  PMA Number:        {P-number}
+  Applicant:         {Company name}
+  Trade Name:        {Commercial trade name}
+  Generic Name:      {Generic device name}
+  Decision:          {date} — {code} ({description})
+  Product Code:      {code}
+  Advisory Committee:{panel}
+  Supplement Number:  {if supplement}
+  Supplement Type:    {if supplement}
+  Docket Number:     {if available}
+  URL:               https://www.accessdata.fda.gov/scripts/cdrh/cfdocs/cfpma/pma.cfm?id={P-number}
+
+PMA SUPPLEMENT HISTORY
+────────────────────────────────────────
+
+  {Number of supplements found}
+  Most recent: {supplement number} — {date} — {type}
+```
+
+Query for supplement history:
+
+```bash
+python3 << 'PYEOF'
+import urllib.request, urllib.parse, json, os, re
+
+# Standard API setup...
+settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+api_key = os.environ.get('OPENFDA_API_KEY')
+if os.path.exists(settings_path):
+    with open(settings_path) as f:
+        content = f.read()
+    if not api_key:
+        m = re.search(r'openfda_api_key:\s*(\S+)', content)
+        if m and m.group(1) != 'null':
+            api_key = m.group(1)
+
+pma_number = "P870024"  # Replace with actual
+params = {"search": f'pma_number:"{pma_number}"', "limit": "50"}
+if api_key:
+    params["api_key"] = api_key
+
+url = f"https://api.fda.gov/device/pma.json?{urllib.parse.urlencode(params)}"
+req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/4.7.0)"})
+
+try:
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        data = json.loads(resp.read())
+        total = data.get("meta", {}).get("results", {}).get("total", 0)
+        print(f"PMA_TOTAL:{total}")
+        for r in data.get("results", []):
+            supp = r.get('supplement_number', '')
+            supp_type = r.get('supplement_type', '')
+            print(f"PMA_RECORD:{r.get('pma_number','?')}|{supp}|{supp_type}|{r.get('trade_name','?')}|{r.get('generic_name','?')}|{r.get('decision_date','?')}|{r.get('decision_code','?')}")
+except Exception as e:
+    print(f"PMA_ERROR:{e}")
+PYEOF
+```
+
+## De Novo (DEN) Validation Notes
+
+When validating a DEN-number:
+
+1. **openFDA has no dedicated De Novo endpoint.** Some DEN numbers are indexed in the `/device/510k` endpoint.
+2. If not found in `/device/510k`, search by device name in the classification endpoint to find the De Novo classification order.
+3. Report the limitation clearly:
+
+```
+DEVICE RECORD (De Novo)
+────────────────────────────────────────
+
+  DEN Number:        {DEN-number}
+  Status:            {Found in 510k endpoint / Not found}
+  Note:              openFDA has no dedicated De Novo endpoint.
+                     Some DEN numbers are indexed in the 510k database.
+                     For comprehensive De Novo data, check:
+                     https://www.accessdata.fda.gov/scripts/cdrh/cfdocs/cfpmn/denovo.cfm
+```

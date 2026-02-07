@@ -270,6 +270,79 @@ NEXT STEPS
 ────────────────────────────────────────
 ```
 
+## Step 6.5: PMA Supplement Chain Tracing
+
+When any P-number is encountered in the lineage (either as a starting predicate or discovered during tracing), trace its supplement chain:
+
+```bash
+python3 << 'PYEOF'
+import urllib.request, urllib.parse, json, os, re, time
+
+settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+api_key = os.environ.get('OPENFDA_API_KEY')
+if os.path.exists(settings_path):
+    with open(settings_path) as f:
+        content = f.read()
+    if not api_key:
+        m = re.search(r'openfda_api_key:\s*(\S+)', content)
+        if m and m.group(1) != 'null':
+            api_key = m.group(1)
+
+pma_number = "P870024"  # Replace with actual P-number found in lineage
+params = {"search": f'pma_number:"{pma_number}"', "limit": "50"}
+if api_key:
+    params["api_key"] = api_key
+
+url = f"https://api.fda.gov/device/pma.json?{urllib.parse.urlencode(params)}"
+req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/4.7.0)"})
+
+try:
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        data = json.loads(resp.read())
+        total = data.get("meta", {}).get("results", {}).get("total", 0)
+        print(f"PMA_TOTAL:{total}")
+        for r in data.get("results", []):
+            supp = r.get("supplement_number", "")
+            print(f"PMA_SUPP:{r.get('pma_number','?')}|{supp}|{r.get('supplement_type','')}|{r.get('trade_name','?')}|{r.get('decision_date','?')}|{r.get('decision_code','?')}")
+except Exception as e:
+    print(f"PMA_ERROR:{e}")
+PYEOF
+```
+
+### PMA Lineage Visualization
+
+Include PMA supplement chains alongside the 510(k) predicate tree:
+
+```
+PMA SUPPLEMENT CHAIN
+────────────────────────────────────────
+
+P870024 (1987) — Original PMA — {trade_name} — {applicant}
+├── P870024/S001 (1988) — Labeling update
+├── P870024/S015 (1995) — New indication
+├── P870024/S042 (2005) — Design change
+└── P870024/S099 (2023) — Manufacturing update
+    Total supplements: {count}
+    Active supplement types: {type distribution}
+```
+
+### Mixed 510(k)/PMA Lineage
+
+When both K-numbers and P-numbers appear in the same lineage, visualize both chains:
+
+```
+LINEAGE TREE (Mixed 510(k) + PMA)
+────────────────────────────────────────
+
+K241335 (2024) — Cervical Fusion Cage — COMPANY A [CLEAN]
+├── K200123 (2020) — Cervical Interbody — COMPANY B [CLEAN]
+│   └── K170456 (2017) — Cervical Cage — COMPANY C [CLEAN]
+└── P870024 (1987) — Original PMA [PMA - {trade_name}]
+    └── {supplement_count} supplements through {latest_year}
+
+Legend: [CLEAN] = No recalls  [PMA] = PMA approval (not 510(k))
+```
+
 ## Error Handling
 
 - **No predicates provided**: ERROR with usage example

@@ -745,3 +745,70 @@ def check_api_available():
 - **Spaces in values**: Use `+` instead of spaces: `device_name:"wound+dressing"`
 - **Count endpoint**: Add `count=field.exact` to get aggregated counts instead of results
 - **Limit**: Max 1000 per request; use `skip` parameter for pagination (max skip: 25000)
+
+## De Novo Search Patterns
+
+openFDA does **not** have a dedicated De Novo endpoint. DEN numbers may be found through:
+
+### Method 1: 510k Endpoint (Some DEN numbers indexed)
+```python
+# Some DEN numbers are indexed in the 510k endpoint
+fda_api("510k", 'k_number:"DEN200043"')
+```
+
+### Method 2: Classification Endpoint (De Novo classification orders)
+```python
+# De Novo creates new product codes — search by the device name
+fda_api("classification", 'device_name:"artificial+intelligence+mammography"')
+```
+
+### Method 3: Cross-Reference via Product Code
+```python
+# If you know the De Novo created a new product code, look it up
+fda_api("classification", 'product_code:"QJU"')  # QJU was created by a De Novo
+```
+
+### Limitations
+- Not all DEN numbers are in openFDA
+- De Novo decision summaries are at: `https://www.accessdata.fda.gov/cdrh_docs/reviews/DEN{number}.pdf`
+- For comprehensive De Novo search: `https://www.accessdata.fda.gov/scripts/cdrh/cfdocs/cfpmn/denovo.cfm`
+
+## Interactive Search Patterns
+
+### Multi-Field Search (AND combination)
+```python
+# Search by device name AND product code AND year range
+fda_api("510k", 'device_name:"spinal+fusion"+AND+product_code:"OVE"+AND+decision_date:[20230101+TO+20251231]', limit=25)
+```
+
+### Date Range Queries
+```python
+# Year range
+fda_api("510k", 'product_code:"OVE"+AND+decision_date:[20240101+TO+20241231]', limit=100)
+
+# Multi-year range
+fda_api("510k", 'product_code:"OVE"+AND+decision_date:[20200101+TO+20251231]', limit=100)
+```
+
+### Pagination
+```python
+# Page 1 (results 0-24)
+fda_api("510k", 'product_code:"OVE"', limit=25)
+
+# Page 2 (results 25-49) — use skip parameter
+params = {"search": 'product_code:"OVE"', "limit": "25", "skip": "25"}
+
+# Maximum skip is 25000
+```
+
+### PMA Supplement Search
+```python
+# Find all supplements for a PMA
+fda_api("pma", 'pma_number:"P870024"', limit=50)
+
+# Count supplements by type
+fda_api("pma", 'pma_number:"P870024"', count_field="supplement_type.exact")
+
+# Recent PMA approvals for a product code
+fda_api("pma", 'product_code:"DXY"+AND+decision_date:[20200101+TO+20251231]', limit=20)
+```
