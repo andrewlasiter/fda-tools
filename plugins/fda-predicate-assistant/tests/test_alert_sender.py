@@ -206,7 +206,7 @@ class TestSettingsLoading:
         settings_file = tmp_path / "settings.md"
         settings_file.write_text(
             "---\n"
-            "smtp_host: smtp.gmail.com\n"
+            "smtp_host: smtp.example.com\n"
             "smtp_port: 465\n"
             "email_to: test@example.com\n"
             "webhook_url: https://hooks.example.com/fda\n"
@@ -215,7 +215,7 @@ class TestSettingsLoading:
         )
         monkeypatch.setattr("alert_sender.SETTINGS_PATH", str(settings_file))
         settings = load_settings()
-        assert settings["smtp_host"] == "smtp.gmail.com"
+        assert settings["smtp_host"] == "smtp.example.com"
         assert settings["smtp_port"] == 465
         assert settings["email_to"] == "test@example.com"
         assert settings["webhook_url"] == "https://hooks.example.com/fda"

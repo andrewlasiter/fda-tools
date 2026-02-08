@@ -241,9 +241,7 @@ Standard markdown table output — human-readable, suitable for review and GitHu
 
 ### CSV (`--format csv`)
 Comma-separated values compatible with import into requirements management tools:
-- **DOORS** (IBM): Import as CSV → map columns to DOORS attributes
-- **Jama Connect**: Import as CSV → map to Jama item types
-- **Excel-based QMS**: Direct open in Excel, compatible with quality system templates
+- **Spreadsheet-based QMS**: Direct open in spreadsheet applications, compatible with quality system templates
 
 CSV columns: `Req_ID, Requirement, Source, Risk_ID, Risk, Test_ID, Test_Evidence, Status, Category`
 

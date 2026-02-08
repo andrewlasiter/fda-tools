@@ -43,7 +43,6 @@ As of February 2, 2026, nIVD and IVD eSTAR templates (v6) align with the new Qua
 
 **Software:**
 - **Adobe Acrobat Pro 2017 or later** (primary supported platform)
-- **Alternatives**: FoxIt PDF Reader, PDF-XChange Editor
 - 64-bit operating system recommended for performance with large eSTAR files
 - Disable Protected Mode in Acrobat if experiencing slowness
 

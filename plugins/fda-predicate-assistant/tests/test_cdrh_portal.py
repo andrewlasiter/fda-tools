@@ -112,8 +112,6 @@ class TestESTARTemplateSelection:
     def test_has_adobe_acrobat_requirement(self):
         for content in [self.skill_content, self.top_content]:
             assert "Adobe Acrobat Pro" in content
-            assert "FoxIt" in content
-            assert "PDF-XChange" in content
 
     def test_has_early_technical_screening(self):
         for content in [self.skill_content, self.top_content]:

@@ -308,7 +308,7 @@ After `--check` completes and alerts are generated, deliver them via the specifi
 /fda:monitor --check --product-code OVE --notify email
 
 # Webhook POST
-/fda:monitor --check --notify webhook --webhook-url https://hooks.slack.com/services/...
+/fda:monitor --check --notify webhook --webhook-url https://your-webhook-endpoint.example.com/notify
 
 # Machine-readable JSON for cron
 /fda:monitor --check --notify stdout --cron
@@ -335,15 +335,15 @@ If `--cron` is set, always use `--method stdout --cron` regardless of `--notify`
 
 Email requires SMTP settings in `~/.claude/fda-predicate-assistant.local.md`:
 ```yaml
-smtp_host: smtp.gmail.com
+smtp_host: smtp.example.com
 smtp_port: 587
-smtp_user: your-email@gmail.com
+smtp_user: alerts@example.com
 smtp_password: your-app-password
 email_to: recipient@example.com
 email_from: fda-monitor@example.com
 ```
 
-Set via `/fda:configure --set smtp_host smtp.gmail.com` etc.
+Set via `/fda:configure --set smtp_host smtp.example.com` etc.
 
 ### Webhook Payload Format
 
