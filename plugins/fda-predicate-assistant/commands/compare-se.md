@@ -225,7 +225,7 @@ Extract: applicant, decision date, product code, decision code, review time, sub
 
 ## Step 3: Extract Key Characteristics from Predicate Text
 
-For each predicate/reference device text, use the section patterns from `references/section-patterns.md` to extract:
+For each predicate/reference device text, apply the **3-tier section detection system from `references/section-patterns.md`** to extract sections. **Note:** Predicate PDFs (especially older or poor-quality scans) often require Tier 2 OCR-tolerant matching — apply the OCR substitution table before giving up on a heading.
 
 ### Universal extraction (all device types):
 
@@ -239,7 +239,7 @@ For each predicate/reference device text, use the section patterns from `referen
 
 ### Device-type specific extraction:
 
-Apply the device-specific patterns from `references/section-patterns.md`. For example, for CGM devices, also extract:
+Apply the device-specific patterns from the 3-tier section detection system in `references/section-patterns.md`. For example, for CGM devices, also extract:
 - MARD value
 - Reportable range
 - Sensor duration

@@ -330,7 +330,7 @@ Sincerely,
 
 For each accepted predicate, compare IFU against the subject device.
 
-**Data source:** Extract IFU from predicate PDF text (see `references/section-patterns.md` for IFU section patterns). If `--intended-use` was provided to propose or presub, use that as the subject IFU.
+**Data source:** Extract IFU from predicate PDF text using the **3-tier section detection system from `references/section-patterns.md`**. EU-origin predicates may use "Intended Purpose" instead of "Indications for Use" — Tier 3 semantic mapping handles this automatically. If `--intended-use` was provided to propose or presub, use that as the subject IFU.
 
 {Fetch predicate PDF text using the same download approach as `compare-se.md` Step 2. Extract IFU section.}
 
@@ -359,7 +359,7 @@ Use the IFU comparison methodology from `references/predicate-analysis-framework
 
 For each predicate, compare key technological characteristics:
 
-{Extract device description, materials, and technical specs from predicate PDF text using `references/section-patterns.md`.}
+{Extract device description, materials, and technical specs from predicate PDF text using the **3-tier section detection system from `references/section-patterns.md`**.}
 
 ```markdown
 | Characteristic | Subject Device | Predicate: {K-number} | Comparison |

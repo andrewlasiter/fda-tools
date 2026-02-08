@@ -129,7 +129,11 @@ from collections import Counter
 
 device_pattern = re.compile(r'\b(?:K\d{6}|P\d{6}|DEN\d{6}|N\d{4,5})\b', re.IGNORECASE)
 
-# SE section header detection (from references/section-patterns.md)
+# SYNC: Tier 1 "Predicate / SE" pattern from references/section-patterns.md
+# If this regex finds no SE section, apply Tier 2 (OCR substitution table) then
+# Tier 3 (semantic signals: "predicate", K-number, "substantially equivalent",
+# "comparison", "subject device", "technological characteristics" — 2+ required).
+# See references/section-patterns.md for full 3-tier detection system.
 se_header = re.compile(r'(?i)(substantial\s+equivalence|se\s+comparison|predicate\s+(comparison|device|analysis|identification)|comparison\s+to\s+predicate|technological\s+characteristics|comparison\s+(table|chart|matrix)|similarities\s+and\s+differences|comparison\s+of\s+(the\s+)?(features|technological|device))')
 
 SE_WINDOW = 2000  # chars after SE header

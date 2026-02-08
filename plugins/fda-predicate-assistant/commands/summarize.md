@@ -121,29 +121,22 @@ Tell the user how many documents matched their filter before proceeding. If more
 
 For each matched document, read its text from the per-device cache (load `cache/devices/{knumber}.json`) or legacy `pdf_data.json`, and identify which sections are present by searching for section headers.
 
-**Use the centralized patterns from `references/section-patterns.md`** for robust fuzzy matching. These patterns handle variations across years, sponsors, and document styles. Key patterns include:
+**Apply the 3-tier section detection system from `references/section-patterns.md`** for robust matching across years, sponsors, document styles, and OCR quality:
 
-- **Indications for Use**: `(?i)(indications?\s+for\s+use|intended\s+use|ifu|indication\s+statement|device\s+indications?|clinical\s+indications?|approved\s+use)`
-- **Device Description**: `(?i)(device\s+description|product\s+description|description\s+of\s+(the\s+)?device|device\s+characteristics|physical\s+description|device\s+composition|device\s+components|system\s+description|system\s+overview)`
-- **SE Comparison**: `(?i)(substantial\s+equivalence|se\s+comparison|predicate\s+(comparison|device|analysis|identification)|comparison\s+to\s+predicate|technological\s+characteristics|comparison\s+(table|chart|matrix)|similarities\s+and\s+differences)`
-- **Non-Clinical Testing**: `(?i)(non[-]?clinical\s+(testing|studies|data|performance)|performance\s+(testing|data|evaluation|characteristics|bench)|bench\s+(testing|top\s+testing)|in\s+vitro\s+(testing|studies)|mechanical\s+(testing|characterization)|laboratory\s+testing|verification\s+(testing|studies)|validation\s+testing|analytical\s+performance)`
-- **Clinical Testing**: `(?i)(clinical\s+(testing|trial|study|studies|data|evidence|information|evaluation|investigation|performance)|human\s+(subjects?|study|clinical)|patient\s+study|pivotal\s+(study|trial)|feasibility\s+study|literature\s+(review|search|summary|based)|clinical\s+experience)`
-- **Biocompatibility**: `(?i)(biocompatib(ility|le)?|biological\s+(evaluation|testing|safety|assessment)|iso\s*10993|cytotoxicity|sensitization\s+test|irritation\s+test|systemic\s+toxicity|genotoxicity|implantation\s+(testing|studies|study)|hemocompatibility|material\s+characterization|extractables?\s+and\s+leachables?)`
-- **Sterilization**: `(?i)(steriliz(ation|ed|ing)|sterility\s+(assurance|testing|validation)|ethylene\s+oxide|eto|gamma\s+(radiation|irradiation|steriliz)|electron\s+beam|steam\s+steriliz|autoclave|iso\s*11135|iso\s*11137|sal\s+10)`
-- **Software**: `(?i)(software\s+(description|validation|verification|documentation|testing|v&v|lifecycle|architecture|design)|firmware|algorithm\s+(description|validation)|cybersecurity|iec\s*62304)`
-- **Electrical Safety**: `(?i)(electrical\s+safety|iec\s*60601|electromagnetic\s+(compatibility|interference|disturbance)|emc|emi|wireless\s+(coexistence|testing))`
-- **Shelf Life**: `(?i)(shelf[-]?life|stability\s+(testing|studies|data)|accelerated\s+aging|real[-]?time\s+aging|package\s+(integrity|testing|validation|aging)|astm\s*f1980|expiration\s+dat(e|ing)|storage\s+condition)`
+- **Tier 1 (Regex):** Apply the deterministic regex patterns for all 13 universal sections plus device-type-specific patterns based on product code
+- **Tier 2 (OCR-Tolerant):** If Tier 1 fails on a heading candidate, apply the OCR substitution table (1→I, 0→O, 5→S, etc.) and retry — allows ≤2 character corrections
+- **Tier 3 (LLM Semantic):** If both Tier 1 and 2 fail, use the classification signal table and non-standard heading map to detect sections by content signals (2+ signals required) or EU/novel terminology
 
 Also apply **device-type-specific patterns** from `references/section-patterns.md` based on the product code (CGM, wound dressings, orthopedic, cardiovascular, IVD).
 
 **Section extraction strategy** (from `references/section-patterns.md`):
-1. Try header matching first — scan for patterns at start of lines or after page breaks
-2. Handle numbered sections (`1.`, `I.`, `Section 1:`)
-3. Handle ALL CAPS headers
+1. Apply the 3-tier escalation protocol — Tier 1 regex, then Tier 2 OCR correction, then Tier 3 semantic
+2. Handle numbered sections — strip `1.`, `I.`, `Section 1:` prefixes before matching
+3. Handle ALL CAPS — patterns are case-insensitive
 4. Handle table-formatted SE sections (look for `|` or tab-delimited structures)
-5. Fallback to semantic detection — if no header match, scan for keyword density (3+ domain keywords within 200 words)
-6. Handle very short sections (<50 words) — check next 30 lines for continuation
-7. Multi-page sections — skip page break indicators
+5. Handle very short sections (<50 words) — check next 30 lines for continuation
+6. Multi-page sections — skip page break indicators
+7. Record which tier detected each section for confidence assessment
 
 ### Present available sections
 

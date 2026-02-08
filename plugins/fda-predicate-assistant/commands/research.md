@@ -464,6 +464,8 @@ from collections import Counter
 device_pattern = re.compile(r'\b(?:K\d{6}|P\d{6}|DEN\d{6}|N\d{4,5})\b', re.IGNORECASE)
 
 # Section header that identifies where predicates are formally cited
+# SYNC: Tier 1 "Predicate / SE" pattern from references/section-patterns.md
+# If this regex fails, apply Tier 2 OCR corrections then Tier 3 semantic signals
 se_header = re.compile(r'(?i)(substantial\s+equivalence|se\s+comparison|predicate\s+(comparison|device|analysis|identification)|comparison\s+to\s+predicate|technological\s+characteristics|comparison\s+(table|chart|matrix)|similarities\s+and\s+differences|comparison\s+of\s+(the\s+)?(features|technological|device))')
 
 SE_WINDOW = 2000  # chars after SE header to consider as "SE zone"
@@ -815,22 +817,13 @@ For each fetched predicate summary, extract and report:
 
 ### From PDF text (cached in per-device cache or legacy pdf_data.json, OR freshly fetched in Step 4.5)
 
-Analyze the testing sections from predicate summaries. Use the centralized patterns from `references/section-patterns.md` for section detection. Key patterns:
+Analyze the testing sections from predicate summaries. Apply the **3-tier section detection system from `references/section-patterns.md`**:
 
-```python
-# Universal section patterns (from references/section-patterns.md)
-patterns = {
-    'Biocompatibility': r'(?i)(biocompatib(ility|le)?|biological\s+(evaluation|testing|safety|assessment)|iso\s*10993|cytotoxicity|sensitization\s+test|irritation\s+test|systemic\s+toxicity|genotoxicity|implantation\s+(testing|studies|study)|hemocompatibility|material\s+characterization|extractables?\s+and\s+leachables?)',
-    'Sterilization': r'(?i)(steriliz(ation|ed|ing)|sterility\s+(assurance|testing|validation)|ethylene\s+oxide|eto|gamma\s+(radiation|irradiation|steriliz)|electron\s+beam|e[-]?beam|steam\s+steriliz|autoclave|iso\s*11135|iso\s*11137|sal\s+10)',
-    'Shelf Life': r'(?i)(shelf[-]?life|stability\s+(testing|studies|data)|accelerated\s+aging|real[-]?time\s+aging|package\s+(integrity|testing|validation|aging)|astm\s*f1980|expiration\s+dat(e|ing)|storage\s+condition)',
-    'Non-Clinical Testing': r'(?i)(non[-]?clinical\s+(testing|studies|data|performance)|performance\s+(testing|data|evaluation|characteristics|bench)|bench\s+(testing|top\s+testing)|in\s+vitro\s+(testing|studies)|mechanical\s+(testing|characterization)|laboratory\s+testing|verification\s+(testing|studies)|validation\s+testing|analytical\s+performance)',
-    'Clinical': r'(?i)(clinical\s+(testing|trial|study|studies|data|evidence|information|evaluation|investigation|performance)|human\s+(subjects?|study|clinical)|patient\s+study|pivotal\s+(study|trial)|feasibility\s+study|post[-]?market\s+(clinical\s+)?follow[-]?up|pmcf|literature\s+(review|search|summary|based)|clinical\s+experience)',
-    'Software': r'(?i)(software\s+(description|validation|verification|documentation|testing|v&v|lifecycle|architecture|design)|firmware|algorithm\s+(description|validation)|cybersecurity|iec\s*62304)',
-    'Electrical Safety': r'(?i)(electrical\s+safety|iec\s*60601|electromagnetic\s+(compatibility|interference)|emc|emi|wireless\s+(coexistence|testing))',
-}
-# Also apply device-type-specific patterns from references/section-patterns.md
-# based on the product code (CGM, wound dressings, orthopedic, cardiovascular, IVD)
-```
+- **Tier 1:** Use the Tier 1 regex patterns for all testing section types (Biocompatibility, Sterilization, Shelf Life, Non-Clinical Testing, Clinical, Software, Electrical Safety, Human Factors, Risk Management)
+- **Tier 2:** For OCR-degraded PDFs, apply the OCR substitution table and retry (e.g., "8iocompatibility" → "Biocompatibility")
+- **Tier 3:** For documents without standard headings, use the classification signal table to detect testing content by keyword density
+
+Also apply **device-type-specific patterns** from `references/section-patterns.md` based on the product code (CGM, wound dressings, orthopedic, cardiovascular, IVD).
 
 For each type of testing found, summarize:
 

@@ -310,7 +310,7 @@ When `--intended-use` is provided, perform automatic IFU comparison against each
 
 For each predicate, try to retrieve IFU text:
 
-1. Check project `pdf_data.json` cache for predicate text → extract IFU section using patterns from `references/section-patterns.md`
+1. Check project `pdf_data.json` cache for predicate text → extract IFU section using the **3-tier section detection system from `references/section-patterns.md`**
 2. If not cached, fetch the predicate PDF from FDA using the same download approach as `compare-se.md` Step 2
 3. Extract IFU text from the downloaded PDF
 4. If PDF fetch fails, fall back to the `statement_or_summary` field from openFDA API (limited but available)

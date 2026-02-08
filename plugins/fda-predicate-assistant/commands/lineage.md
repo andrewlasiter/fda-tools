@@ -104,7 +104,7 @@ For each generation, find what predicates the current generation cited:
 If PDF text is available (from project pdf_data.json or cache), extract cited K-numbers from each device's 510(k) summary PDF:
 
 1. Download or load the PDF for each device in the current generation
-2. Extract K/P/N numbers from the SE section using `references/section-patterns.md`
+2. Extract K/P/N numbers from the SE section using the **3-tier section detection system from `references/section-patterns.md`** — older (pre-2010) PDFs often have OCR-degraded headers that require Tier 2 correction
 3. These are the device's predicates (generation N+1)
 
 ### Method 2: openFDA Cross-Reference (Fallback)
