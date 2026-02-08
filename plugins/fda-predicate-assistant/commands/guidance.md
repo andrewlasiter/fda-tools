@@ -185,22 +185,32 @@ Store the classification data — you'll need `device_name`, `device_class`, `re
 
 **Skip for `--offline` mode (use cache) or `--depth quick`.**
 
-### 2A: Structured FDA Guidance Database Search
+### 2A: Bundled Guidance Index Lookup (Primary)
 
-First, try the FDA's searchable guidance database using structured URL patterns:
+First, check the bundled curated guidance index for known device-specific guidance:
 
 ```
-WebFetch: url="https://www.fda.gov/medical-devices/device-advice-comprehensive-regulatory-assistance/guidance-documents-medical-devices-and-radiation-emitting-products" prompt="Find guidance documents related to regulation number {regulation_number} or device type {device_name}. List each guidance title, status (final/draft), and date."
+Read the reference file: $FDA_PLUGIN_ROOT/skills/fda-510k-knowledge/references/fda-guidance-index.md
 ```
 
-If the regulation number is known, also search:
+1. Search Section 9 ("Regulation Number → Guidance Quick Lookup") for the device's regulation number
+2. Search Section 5 ("Device-Category Specific Guidance") for the regulation number prefix (e.g., `870.*` → Cardiovascular)
+3. Check Section 1 ("Cross-Cutting Guidance") for universally applicable documents
+4. Check Section 8 ("Recently Finalized / Upcoming") for new guidance that may apply
+
+If the index contains device-specific guidance for this regulation number, record those documents. If the index marks the device as "No" specific guidance, note that only cross-cutting guidance applies.
+
+### 2B: Structured FDA Guidance Database Search (Online Enhancement)
+
+For `--depth standard` or `--depth deep`, supplement the index with live web search:
+
 ```
 WebFetch: url="https://www.accessdata.fda.gov/scripts/cdrh/cfdocs/cfCFR/CFRSearch.cfm?fr={regulation_number}" prompt="Extract the device classification name, class, and any referenced special controls or guidance documents from this CFR section."
 ```
 
-### 2B: WebSearch Fallback
+### 2C: WebSearch Fallback
 
-If structured search returns no results or is insufficient, fall back to WebSearch:
+If the index has no match AND structured search returns no results, fall back to WebSearch:
 
 **Query 1** (always): Regulation-specific guidance
 ```

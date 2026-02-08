@@ -285,7 +285,7 @@ Each step builds on previous data but degrades gracefully if run independently.
 | `/fda:configure` | Set up API keys, data paths, and preferences |
 | `/fda:status` | Check what data you have and what's available |
 
-## Resources (25 references)
+## Resources (26 references)
 
 For detailed reference information, see:
 - `references/output-formatting.md` - FDA Professional CLI output formatting guide (rules R1-R12)
@@ -313,6 +313,7 @@ For detailed reference information, see:
 - `references/post-market-requirements.md` - Post-market obligations (MDR, recalls, registration, surveillance)
 - `references/draft-templates.md` - Prose templates for all 16 eSTAR sections with `[TODO:]` placeholders
 - `references/cdrh-portal.md` - CDRH Portal submission guide, file size limits, CDRH vs CBER routing
+- `references/fda-guidance-index.md` - Curated CDRH guidance documents index with regulation-to-guidance mapping
 
 ## Disclaimers (always include when providing regulatory guidance)
 

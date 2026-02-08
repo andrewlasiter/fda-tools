@@ -157,7 +157,7 @@ class TestPluginVersionAndCounts59:
     def test_version_is_5_9_0(self):
         with open(PLUGIN_JSON) as f:
             data = json.load(f)
-        assert data["version"] == "5.10.0"
+        assert data["version"] == "5.11.0"
 
     def test_description_mentions_accessgudid(self):
         with open(PLUGIN_JSON) as f:
