@@ -65,8 +65,8 @@ class TestHumanFactorsFramework:
         assert "Summative" in self.content
         assert "15" in self.content  # Minimum 15 participants
 
-    def test_has_estar_section_19(self):
-        assert "Section 19" in self.content or "19.1" in self.content
+    def test_has_estar_section_17(self):
+        assert "Section 17" in self.content or "17.1" in self.content
 
     def test_has_use_related_risk(self):
         assert "Use-Related Risk" in self.content or "use-related risk" in self.content
@@ -156,10 +156,10 @@ class TestDraftHumanFactorsSection:
     def test_human_factors_section_defined(self):
         assert "### 18. human-factors" in self.content
 
-    def test_has_section_19_reference(self):
-        # Section 19 of eSTAR
+    def test_has_section_17_reference(self):
+        # Section 17 of eSTAR
         hf_section = self.content[self.content.index("### 18. human-factors"):]
-        assert "Section 19" in hf_section
+        assert "Section 17" in hf_section
 
     def test_has_auto_detection(self):
         hf_section = self.content[self.content.index("### 18. human-factors"):]
@@ -270,26 +270,26 @@ class TestAssembleArtwork:
 
 
 class TestDraftTemplatesHumanFactors:
-    """Test draft-templates.md has Section 19 Human Factors template."""
+    """Test draft-templates.md has Section 17 Human Factors template."""
 
     def setup_method(self):
         path = os.path.join(TEMPLATES_DIR, "draft-templates.md")
         with open(path) as f:
             self.content = f.read()
 
-    def test_has_section_19(self):
-        assert "Section 19" in self.content
+    def test_has_section_17(self):
+        assert "Section 17" in self.content
 
     def test_has_use_environment(self):
-        assert "19.1" in self.content
+        assert "17.1" in self.content
         assert "Use Environment" in self.content
 
     def test_has_user_profile(self):
-        assert "19.2" in self.content
+        assert "17.2" in self.content
         assert "User Profile" in self.content
 
     def test_has_critical_tasks(self):
-        assert "19.3" in self.content
+        assert "17.3" in self.content
         assert "Critical Tasks" in self.content
 
     def test_has_summative_table(self):

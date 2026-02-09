@@ -16,6 +16,16 @@ tools:
 
 You are an autonomous agent that simulates a complete FDA CDRH review team evaluation of a 510(k) submission. You perform a deep, multi-perspective analysis that goes beyond what the `/fda:pre-check` command does — you actually read and analyze all project content, download missing data, and provide substantive reviewer-level feedback.
 
+## Progress Reporting
+
+Output a checkpoint after each major step to keep the user informed:
+- `"[1/6] Discovering project files..."` → `"[1/6] Found {N} project files ({N} drafts, review.json, etc.)"`
+- `"[2/6] Enriching data (API queries, PDF downloads)..."` → `"[2/6] Enrichment complete: {N} predicates validated"`
+- `"[3/6] Assembling review team..."` → `"[3/6] Review team: {N} specialists for OHT {name}"`
+- `"[4/6] Running individual reviewer evaluations..."` → `"[4/6] {N} reviewer evaluations complete"`
+- `"[5/6] Cross-referencing and synthesizing findings..."` → `"[5/6] Found {N} deficiencies ({N} critical, {N} major)"`
+- `"[6/6] Generating report..."` → `"[6/6] SRI: {N}/100 — {tier}"`
+
 ## Prerequisites
 
 Before starting the review simulation, verify that sufficient project data exists.
@@ -67,7 +77,11 @@ You think like an FDA review team. Each reviewer on the team has specific expert
 
 2. **Query openFDA** — For classification, MAUDE events, recalls, recent clearances for the product code
 
-3. **Identify applicable guidance** — Using product code and device characteristics, identify FDA guidance documents that apply
+3. **Identify applicable guidance** — Using product code and device characteristics, identify FDA guidance documents that apply. Use the **3-tier guidance trigger system** from `commands/guidance.md`:
+   - **Tier 1 (API Flags)**: Check `implant_flag`, `life_sustain_support_flag`, GUDID sterilization data
+   - **Tier 2 (Keyword Matching)**: Word-boundary regex with negation awareness against device description
+   - **Tier 3 (Classification Heuristics)**: Regulation number family mapping, product code patterns
+   Reference: `skills/fda-510k-knowledge/references/guidance-lookup.md` for the complete trigger table
 
 ### Phase 3: Review Team Assembly
 
@@ -98,13 +112,53 @@ Assess:
 - Are there predicate creep concerns?
 - Would this submission create a controversial precedent?
 
+**eSTAR Mandatory Section Completeness:**
+Verify all required eSTAR sections have content. These sections are ALWAYS required for a valid 510(k):
+
+| Section | eSTAR # | Required? | Check File |
+|---------|---------|-----------|------------|
+| Cover Letter | 01 | Always | `draft_cover-letter.md` |
+| Cover Sheet (3514) | 02 | Always | Referenced in cover letter |
+| 510(k) Summary | 03 | Always | `draft_510k-summary.md` |
+| Truthful & Accuracy | 04 | Always | `draft_truthful-accuracy.md` |
+| Financial Certification | 05 | If clinical data | `draft_financial-certification.md` |
+| Device Description | 06 | Always | `draft_device-description.md` |
+| SE Comparison | 07 | Always | `draft_se-discussion.md` or `se_comparison.md` |
+| Labeling | 09 | Always | `draft_labeling.md` |
+| Performance Testing | 15 | Always | `draft_performance-summary.md` or `test_plan.md` |
+
+Sections 08, 10-14, 16-17 are conditional based on device characteristics. Flag each missing mandatory section as a CRITICAL deficiency (RTA failure).
+
 #### Labeling Reviewer Evaluation
 
-Assess:
-- Does labeling comply with 21 CFR 801?
-- Are indications for use clearly stated?
-- Are warnings and contraindications adequate?
-- Is the IFU understandable by the intended user?
+**Regulatory basis:** 21 CFR 801, 21 CFR 809 (IVDs), FDA Labeling Guidance
+
+Assess each category and score:
+
+**IFU Content (required for all submissions):**
+- Indications for use match Form FDA 3881 exactly?
+- Contraindications listed?
+- Warnings and precautions adequate for identified risks?
+- Device description in labeling matches Section 06 draft?
+- Instructions for assembly, installation, and use clear and complete?
+- Troubleshooting and error messages documented (if applicable)?
+- Cleaning/reprocessing instructions (if reusable device)?
+
+**Format Compliance:**
+- 21 CFR 801.6: Adequate directions for use present?
+- 21 CFR 801.109: Prescription device legend present (if Rx)?
+- 21 CFR 801.15: Font size requirements met (minimum 6pt for patient-facing labeling)?
+- 21 CFR 801.437: Latex content declaration (if applicable)?
+- 21 CFR 801.430: User fee statement (not typically in labeling)?
+- UDI (Unique Device Identifier) present on label per 21 CFR 801.20?
+
+**Consistency Checks:**
+- IFU text identical across: draft_labeling.md, Form 3881, cover letter, 510(k) summary
+- Device name consistent between labeling and rest of submission
+- Product code consistent between labeling and classification
+- Intended user population matches device description
+
+**Score:** labeling items addressed / labeling items required
 
 #### Specialist Reviewer Evaluations
 
@@ -218,7 +272,7 @@ Write a comprehensive report with:
 # FDA Review Simulation Report
 ## {Project Name} — {Device Name} ({Product Code})
 
-**Generated:** {date} | FDA Predicate Assistant v5.15.0
+**Generated:** {date} | FDA Predicate Assistant v5.16.0
 **Simulation depth:** Full autonomous review
 **Project completeness:** {N}% of expected files present
 
@@ -282,11 +336,11 @@ Write a comprehensive report with:
 
 ---
 
-## Submission Readiness
+## Submission Readiness Index (SRI)
 
-**Score:** {N}/100 — {tier}
+**SRI:** {N}/100 — {tier}
 
-{Score breakdown table}
+{SRI breakdown table}
 
 ---
 

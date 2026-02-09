@@ -540,6 +540,24 @@ def _build_estar_xml(project_data, template_type):
     lines.append(f"        <Prescription>{_xml_escape(get_val('prescription_otc', ifu))}</Prescription>")
     lines.append("      </FDA3881>")
 
+    # Section 03: 510(k) Summary
+    summary_text = drafts.get("510k-summary", "")
+    lines.append("      <Summary>")
+    lines.append(f"        <SummaryText>{_xml_escape(summary_text)}</SummaryText>")
+    lines.append("      </Summary>")
+
+    # Section 04: Truthful and Accuracy Statement
+    ta_text = drafts.get("truthful-accuracy", "")
+    lines.append("      <TruthfulAccuracy>")
+    lines.append(f"        <StatementText>{_xml_escape(ta_text)}</StatementText>")
+    lines.append("      </TruthfulAccuracy>")
+
+    # Section 05: Financial Certification
+    fc_text = drafts.get("financial-certification", "")
+    lines.append("      <FinancialCert>")
+    lines.append(f"        <CertificationText>{_xml_escape(fc_text)}</CertificationText>")
+    lines.append("      </FinancialCert>")
+
     # Device Description
     desc_text = drafts.get("device-description", "")
     sections_data = import_data.get("sections", {})
@@ -641,12 +659,12 @@ def _build_estar_xml(project_data, template_type):
         lines.append(f"        <DeclarationOfConformity>{_xml_escape(doc_text)}</DeclarationOfConformity>")
     lines.append("      </Standards>")
 
-    # Human Factors
+    # Human Factors (Section 17 — always generated for round-trip import support)
     hf_text = drafts.get("human-factors", "")
+    lines.append("      <HumanFactors>")
     if hf_text:
-        lines.append("      <HumanFactors>")
         lines.append(f"        <Description>{_xml_escape(hf_text)}</Description>")
-        lines.append("      </HumanFactors>")
+    lines.append("      </HumanFactors>")
 
     lines.append("    </form1>")
     lines.append("  </xfa:data>")

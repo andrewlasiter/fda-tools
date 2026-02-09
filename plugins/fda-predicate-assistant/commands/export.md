@@ -46,6 +46,7 @@ From `$ARGUMENTS`, extract:
 - `--template nIVD|IVD|PreSTAR` (default: nIVD) — eSTAR template type
 - `--validate` — Run completeness validation before export
 - `--output FILE` — Output file path (default: project_dir/estar_export_{template}.{xml|zip})
+- `--attach FILE [SECTION]` — Include an attachment file in the ZIP package. SECTION is the 2-digit section number. Can be specified multiple times. Also includes any files in `attachments.json`.
 
 ## Step 1: Inventory Project Data
 
@@ -174,6 +175,7 @@ pdir = os.path.join(projects_dir, project)
 # eSTAR section mapping for filenames
 section_map = {
     "draft_cover-letter.md": "01_CoverLetter/cover_letter.md",
+    "cover_sheet.md": "02_CoverSheet/cover_sheet.md",
     "draft_510k-summary.md": "03_510kSummary/510k_summary.md",
     "draft_truthful-accuracy.md": "04_TruthfulAccuracy/truthful_accuracy.md",
     "draft_financial-certification.md": "05_FinancialCert/financial_certification.md",
@@ -214,8 +216,29 @@ with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
         zf.write(xml_path, 'estar_data.xml')
         included += 1
 
+    # Add attachments from attachments.json
+    att_path = os.path.join(pdir, 'attachments.json')
+    if os.path.exists(att_path):
+        with open(att_path) as af:
+            att_data = json.load(af)
+        for att in att_data.get('attachments', []):
+            orig = att.get('original_path', '')
+            estar = att.get('estar_path', '')
+            if os.path.exists(orig) and estar:
+                zf.write(orig, estar)
+                included += 1
+
+    # Add any files from attachments/ directory
+    att_dir = os.path.join(pdir, 'attachments')
+    if os.path.isdir(att_dir):
+        for fname in os.listdir(att_dir):
+            fpath = os.path.join(att_dir, fname)
+            if os.path.isfile(fpath):
+                zf.write(fpath, f'18_Other/{fname}')
+                included += 1
+
     # Add readiness report
-    readme = f"# eSTAR Export Package\\n\\nProject: {project}\\nGenerated: {datetime.utcnow().isoformat()}Z\\nFiles: {included}\\n\\nImport estar_data.xml into the official eSTAR template using Adobe Acrobat.\\nAdd test reports and attachments manually.\\n"
+    readme = f"# eSTAR Export Package\\n\\nProject: {project}\\nGenerated: {datetime.utcnow().isoformat()}Z\\nFiles: {included}\\n\\nImport estar_data.xml into the official eSTAR template using Adobe Acrobat.\\nReview all attachments for completeness.\\n"
     zf.writestr('README.md', readme)
 
 print(f"ZIP_CREATED:{zip_path}|{included} files")
@@ -281,7 +304,7 @@ Present using standard FDA Professional CLI format:
   FDA eSTAR Export Report
   {product_code} — {device_name}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | Project: {name} | v5.15.0
+  Generated: {date} | Project: {name} | v5.16.0
 
 EXPORT SUMMARY
 ────────────────────────────────────────

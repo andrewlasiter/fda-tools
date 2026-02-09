@@ -45,6 +45,8 @@ From `$ARGUMENTS`, extract:
 - `--infer` — Auto-detect product code from project data
 - `--focus CATEGORY` — Focus on specific evidence category (clinical, bench, biocompat, adverse)
 - `--output FILE` — Write results to file
+- `--offline` — Use cached results only; do not make any API calls or web searches
+- `--refresh` — Force re-query all sources, ignoring cached results
 
 ## Step 1: Build Search Strategy
 
@@ -232,6 +234,94 @@ For top PubMed results, fetch full abstracts:
 WebFetch: url="https://pubmed.ncbi.nlm.nih.gov/{PMID}/" prompt="Extract: study type, sample size, device tested, key outcomes, adverse events, and conclusion."
 ```
 
+## Step 2.5: Search Result Caching
+
+### Cache Structure
+
+When `--project` is specified, cache search results to `{projects_dir}/{project_name}/literature_cache.json`:
+
+```json
+{
+  "cached_date": "2026-02-08T14:30:00Z",
+  "product_code": "OVE",
+  "device_name": "Device Name",
+  "search_queries": {
+    "clinical": "(...query...)",
+    "safety": "(...query...)",
+    "biocompat": "(...query...)"
+  },
+  "results": {
+    "clinical": [
+      {"pmid": "38123456", "title": "...", "year": "2024", "journal": "...", "pub_type": "Clinical Trial"}
+    ],
+    "safety": [],
+    "biocompat": []
+  },
+  "web_results": {
+    "bench": [{"title": "...", "url": "...", "snippet": "..."}]
+  },
+  "total_unique": 15,
+  "cache_version": "1.0"
+}
+```
+
+### Cache Behavior
+
+**Default (no flag):**
+1. Check if `literature_cache.json` exists in project directory
+2. If cache exists and is less than 7 days old, use cached results and skip API calls
+3. If cache is stale or missing, run full search and update cache
+4. Report: `"Using cached results from {date} ({N} articles). Use --refresh to re-query."`
+
+**`--offline` mode:**
+1. Load `literature_cache.json` from project directory
+2. If cache exists: use cached results, report cache age
+3. If cache missing: output `"No cached literature results found for this project. Run /fda:literature --project {name} with internet access first to build the cache."`
+4. Never make API calls or web searches in offline mode
+
+**`--refresh` mode:**
+1. Ignore any existing cache
+2. Run full search against all sources
+3. Write new `literature_cache.json` to project directory
+4. Report: `"Cache refreshed with {N} new results."`
+
+### Write Cache After Search
+
+After Step 2 completes (all searches done), write results to cache:
+
+```bash
+python3 << 'PYEOF'
+import json, os, re
+from datetime import datetime
+
+settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+projects_dir = os.path.expanduser('~/fda-510k-data/projects')
+if os.path.exists(settings_path):
+    with open(settings_path) as f:
+        m = re.search(r'projects_dir:\s*(.+)', f.read())
+        if m: projects_dir = os.path.expanduser(m.group(1).strip())
+
+project_name = "PROJECT_NAME"  # Replace with actual
+cache_path = os.path.join(projects_dir, project_name, 'literature_cache.json')
+
+cache = {
+    "cached_date": datetime.utcnow().isoformat() + "Z",
+    "product_code": "CODE",  # Replace
+    "device_name": "NAME",   # Replace
+    "search_queries": {},     # Populated from Step 2 queries
+    "results": {},            # Populated from Step 2 PubMed results
+    "web_results": {},        # Populated from Step 2 WebSearch results
+    "total_unique": 0,        # Count
+    "cache_version": "1.0"
+}
+
+os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+with open(cache_path, 'w') as f:
+    json.dump(cache, f, indent=2)
+print(f"CACHE_WRITTEN:{cache_path}")
+PYEOF
+```
+
 ## Step 3: Categorize Results
 
 Organize found literature into categories:
@@ -295,7 +385,7 @@ This is a document-format command (writes to file). Use markdown headings per R1
 ```markdown
 # Literature Review: {Product Code} — {Device Name}
 
-**Generated:** {date} | **Depth:** {quick|standard|deep} | **v5.15.0**
+**Generated:** {date} | **Depth:** {quick|standard|deep} | **v5.16.0**
 
 ---
 

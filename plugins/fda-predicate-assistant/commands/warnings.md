@@ -188,7 +188,7 @@ Risk Score = (Class_I_recalls × 10) + (Class_II_recalls × 3) + (Class_III_reca
   FDA Enforcement Intelligence
   {SEARCH_TERM}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | Search: {type} | Years: {range} | v5.15.0
+  Generated: {date} | Search: {type} | Years: {range} | v5.16.0
 
 RECALL ENFORCEMENT
 ────────────────────────────────────────
@@ -227,9 +227,9 @@ GMP VIOLATION ANALYSIS
   3. Complaint Handling (21 CFR 820.198) — {count} citations
   ...
 
-  QMSR Transition Note:
-  Starting Feb 2, 2026, 21 CFR 820 is replaced by QMSR
-  (ISO 13485-aligned). Citations will reference new sections.
+  QMSR Note:
+  As of Feb 2, 2026, 21 CFR 820 has been replaced by QMSR
+  (ISO 13485-aligned). New citations reference QMSR sections.
 
 [If --risk-profile]
 RISK ASSESSMENT

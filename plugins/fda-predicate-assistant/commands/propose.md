@@ -236,6 +236,50 @@ PYEOF
 
 If recalls found: Flag `RECALLED`
 
+**Enforcement / withdrawal check:**
+
+```bash
+python3 << 'PYEOF'
+import urllib.request, urllib.parse, json, os, re
+
+settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+api_key = os.environ.get('OPENFDA_API_KEY')
+if os.path.exists(settings_path):
+    with open(settings_path) as f:
+        content = f.read()
+    if not api_key:
+        m = re.search(r'openfda_api_key:\s*(\S+)', content)
+        if m and m.group(1) != 'null':
+            api_key = m.group(1)
+
+# Batch enforcement check for all proposed device product codes (1 call instead of N)
+product_codes_enforce = ["PC1", "PC2"]  # Replace with unique product codes
+if product_codes_enforce:
+    enforce_search = "+OR+".join(f'product_code:"{pc}"' for pc in product_codes_enforce)
+    params = {"search": enforce_search, "limit": "10"}
+    if api_key:
+        params["api_key"] = api_key
+    params["search"] = params["search"].replace("+", " ")
+    url = f"https://api.fda.gov/device/enforcement.json?{urllib.parse.urlencode(params)}"
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/5.16.0)"})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read())
+            for r in data.get('results', [])[:5]:
+                print(f"ENFORCEMENT:{r.get('product_code', '?')}|{r.get('classification', '?')}|{r.get('status', '?')}|{r.get('reason_for_recall', 'N/A')[:80]}")
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            print("ENFORCEMENT:none")
+        else:
+            print(f"ENFORCEMENT_ERROR:{e}")
+    except Exception as e:
+        print(f"ENFORCEMENT_ERROR:{e}")
+PYEOF
+```
+
+If enforcement action found: Flag `ENFORCEMENT_ACTION`
+If clearance withdrawal/revocation language found: Flag `WITHDRAWN` — **a withdrawn predicate is not legally marketed and cannot serve as a valid predicate device**. Present a CRITICAL warning to the user.
+
 **MAUDE death check:**
 
 ```bash
@@ -477,7 +521,7 @@ Report the proposal summary to the user:
   FDA Predicate Proposal
   {project_name}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | v5.15.0
+  Generated: {date} | v5.16.0
 
 PROPOSED PREDICATES
 ────────────────────────────────────────

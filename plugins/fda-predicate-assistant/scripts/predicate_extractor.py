@@ -28,8 +28,19 @@ from tqdm import tqdm
 from multiprocessing import Pool
 import fitz  # PyMuPDF
 import pdfplumber
-import orjson
-import ijson
+try:
+    import orjson
+    HAS_ORJSON = True
+except ImportError:
+    orjson = None
+    HAS_ORJSON = False
+
+try:
+    import ijson
+    HAS_IJSON = True
+except ImportError:
+    ijson = None
+    HAS_IJSON = False
 
 
 def download_and_parse_csv(urls, pma_url, data_dir=None):
@@ -202,12 +213,29 @@ def download_and_parse_csv(urls, pma_url, data_dir=None):
 
 
 def correct_number_format(number):
+    """Apply aggressive OCR character substitutions to a device number string.
+
+    This function intentionally applies ALL common OCR misread corrections
+    simultaneously (e.g., O->0, I->1, S->5, B->8, etc.). This is by design:
+    the aggressive approach maximizes recall of OCR-corrupted numbers.
+
+    IMPORTANT: The corrections are NOT validated here. Each caller
+    (correct_knumber_format, correct_nnumber_format, correct_pnumber_format)
+    validates the corrected result against the FDA database (known_numbers set)
+    before accepting it. This two-stage approach (aggressive correction +
+    strict validation) ensures high recall without false positives.
+    """
     number = number.replace(" ", "")
     number = number.upper().replace('O', '0').replace('I', '1').replace('l', '1').replace('S', '5').replace('B', '8').replace('G', '6').replace('Z', '2').replace('A', '4').replace('Q', '0').replace('i', '1').replace('s', '5').replace('z', '2').replace('q', '9').replace('|<.', 'K').replace('1(', 'K').replace('|(', 'K').replace('l(', 'K')
     return number
 
 
 def correct_knumber_format(knumber, known_numbers):
+    """Correct OCR artifacts in K-numbers and validate against FDA database.
+
+    Returns the corrected K-number only if it matches a known 510(k) number,
+    ensuring aggressive OCR corrections don't produce false positives.
+    """
     knumber = correct_number_format(knumber)
     if knumber.startswith('1<'):
         knumber = 'K' + knumber[2:]
@@ -218,6 +246,11 @@ def correct_knumber_format(knumber, known_numbers):
 
 
 def correct_nnumber_format(nnumber, known_numbers):
+    """Correct OCR artifacts in N-numbers and validate against FDA database.
+
+    Returns the corrected N-number only if it matches a known PMA number,
+    ensuring aggressive OCR corrections don't produce false positives.
+    """
     nnumber = correct_number_format(nnumber)
     if re.match(r'N\d{4,5}', nnumber) and len(nnumber) <= 6 and nnumber in known_numbers:
         return nnumber
@@ -225,9 +258,31 @@ def correct_nnumber_format(nnumber, known_numbers):
 
 
 def correct_pnumber_format(pnumber, known_numbers):
+    """Correct OCR artifacts in P-numbers and validate against FDA database.
+
+    Returns the corrected P-number only if it matches a known PMA number,
+    ensuring aggressive OCR corrections don't produce false positives.
+    """
     pnumber = correct_number_format(pnumber)
     if re.match(r'P\d{6}', pnumber) and len(pnumber) <= 7 and pnumber in known_numbers:
         return pnumber
+    return None
+
+
+def correct_dennumber_format(dennumber):
+    """Validate a De Novo (DEN) number format.
+
+    DEN numbers follow the pattern DEN + 6-7 digits (e.g., DEN200045, DEN210001).
+    Unlike K/P/N numbers, DEN numbers do not require OCR correction because
+    they appear in digitally-generated documents. No FDA database validation
+    is performed since there is no comprehensive DEN database file available
+    for download.
+
+    Returns the DEN number if it matches the expected format, None otherwise.
+    """
+    dennumber = dennumber.replace(" ", "").upper()
+    if re.match(r'DEN\d{6,7}$', dennumber):
+        return dennumber
     return None
 
 
@@ -253,11 +308,20 @@ def extract_text_from_pdf(file_path, output_dir=None):
 
 
 def save_to_json(data, filename):
-    with open(filename, 'wb') as f:
-        f.write(orjson.dumps(data))
+    """Save extracted PDF data to JSON file. Uses orjson if available for speed, falls back to stdlib json."""
+    if HAS_ORJSON:
+        with open(filename, 'wb') as f:
+            f.write(orjson.dumps(data))
+    else:
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(data, f)
 
 
 def load_large_json(filename):
+    """Load PDF text cache from JSON file. Uses ijson for streaming (low memory) if available, falls back to stdlib json."""
+    if not HAS_IJSON:
+        with open(filename, 'r', encoding='utf-8') as f:
+            return json.load(f)
     pdf_data = {}
     with open(filename, 'rb') as f:
         for prefix, event, value in ijson.parse(f):
@@ -269,15 +333,24 @@ def load_large_json(filename):
 
 
 def parse_text(text, filename, csv_data, known_knumbers, known_pma_numbers):
+    # K/N/P number regex — matches OCR-corrupted variants and supplements
     regex = r'\b(?:[Kk]|1\(|l\(|\|<\.|\|\()[^dOISBGZAQsiqzl]*[\d][dOISBGZAQsiqzl\d ]{6,7}\b|\b[1l]<[^dOISBGZAQsiqzl\d ]*[\d][dOISBGZAQsiqzl\d ]{6,7}\b|\b[Nn][^dOISBGZAQsiqzl\d]*[\d][dOISBGZAQsiqzl\d ]{5,6}(?:\/S\d{3})?\b|\b[Pp][^dOISBGZAQsiqzl\d]*[\d][dOISBGZAQsiqzl\d ]{6,7}(?:\/S\d{3})?\b'
+    # DEN (De Novo) number regex — DEN followed by 6-7 digits
+    den_regex = r'\bDEN\d{6,7}\b'
 
     potential_matches = re.findall(regex, text)
+    den_matches = re.findall(den_regex, text, re.IGNORECASE)
 
+    # OCR correction + FDA database validation chain:
+    # 1. correct_number_format() aggressively substitutes OCR-misread characters
+    # 2. correct_*number_format() validates the corrected number against known FDA numbers
+    # 3. Only numbers confirmed in the FDA database survive into valid_matches
     corrected_knumbers = [correct_knumber_format(match, known_knumbers) for match in potential_matches]
     corrected_nnumbers = [correct_nnumber_format(match.split('/')[0], known_pma_numbers) for match in potential_matches]
     corrected_pnumbers = [correct_pnumber_format(match.split('/')[0], known_pma_numbers) for match in potential_matches]
+    corrected_dennumbers = [correct_dennumber_format(match) for match in den_matches]
 
-    valid_matches = [match for match in corrected_knumbers + corrected_nnumbers + corrected_pnumbers if match]
+    valid_matches = [match for match in corrected_knumbers + corrected_nnumbers + corrected_pnumbers + corrected_dennumbers if match]
     supplement_matches = [match for match in potential_matches if '/S' in match]
 
     unique_matches = list(dict.fromkeys(valid_matches))
@@ -498,6 +571,17 @@ def main():
     for result in results:
         max_predicates = max(max_predicates, result[1])
         max_reference_devices = max(max_reference_devices, result[2])
+
+    # Normalize all rows to consistent column count (M-06)
+    # During batch processing, rows are built with max_predicates=0 / max_reference_devices=0,
+    # so they may have variable width. Re-pad/trim them to the final expected column count.
+    expected_cols = 2 + max_predicates + max_reference_devices  # 510k + Product Code + predicates + references
+    for i, result in enumerate(results):
+        row = result[0]
+        if len(row) < expected_cols:
+            row.extend([''] * (expected_cols - len(row)))
+        elif len(row) > expected_cols:
+            results[i] = (row[:expected_cols],) + result[1:]
 
     filename = get_available_filename(output_dir, 'output.csv')
     supplement_filename = get_available_filename(output_dir, 'supplement.csv')

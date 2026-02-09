@@ -158,7 +158,7 @@ Read monitors.json and display:
   FDA Monitor Status
   Device Watch Dashboard
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | v5.15.0
+  Generated: {date} | v5.16.0
 
 WATCH CONFIGURATION
 ────────────────────────────────────────
@@ -260,7 +260,7 @@ Report:
   FDA Monitor Check Report
   {product_codes} — Monitoring Results
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | Period: {last_check} to {now} | v5.15.0
+  Generated: {date} | Period: {last_check} to {now} | v5.16.0
 
 CHECK RESULTS
 ────────────────────────────────────────
@@ -458,7 +458,7 @@ When `--standards-report` is combined with `--watch-standards`, generate a compr
   FDA Standards Currency Report
   {project_name} — Full Audit
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | v5.15.0
+  Generated: {date} | v5.16.0
 
 STANDARDS CURRENCY STATUS
 ────────────────────────────────────────

@@ -44,6 +44,7 @@ From `$ARGUMENTS`, extract:
 - `--device-description TEXT` — Description of the user's device
 - `--intended-use TEXT` — Proposed indications for use
 - `--meeting-type written|teleconference|in-person` — Preferred meeting type (default: teleconference)
+- `--qsub-type formal|written|info|pre-ide` — Q-Sub type (default: auto-detect based on question count and complexity)
 - `--output FILE` — Write Pre-Sub plan to file (default: presub_plan.md in project folder)
 - `--infer` — Auto-detect product code from project data instead of requiring explicit input
 - `--include-literature` — Include literature summary from literature.md (default: on if data available)
@@ -185,6 +186,19 @@ Based on available data, generate appropriate Pre-Sub questions:
 
 Limit to 5-7 questions per FDA recommendation.
 
+### Determine Q-Sub Type
+
+If `--qsub-type` not explicitly provided, auto-detect:
+
+| Condition | Recommended Q-Sub Type |
+|-----------|----------------------|
+| ≥4 questions OR novel features OR complex predicate justification | **Q-Sub (Formal Meeting)** — teleconference or in-person |
+| ≤3 well-scoped questions AND no novel technology | **Q-Sub (Written Feedback Only)** — fastest turnaround |
+| No questions, just data update or follow-up | **Q-Sub (Information)** — no FDA feedback expected |
+| Clinical study planned (IDE needed) | **Pre-IDE** — different review division |
+
+Report the recommendation: "Recommended Q-Sub type: {type} — {rationale based on question count and complexity}."
+
 ## Step 4: Generate Pre-Sub Package
 
 ### Placeholder Resolution
@@ -229,7 +243,7 @@ Write the `presub_plan.md` document using the Pre-Sub format from `references/su
 **Date:** {today's date}
 **Requested Meeting Type:** {meeting_type}
 **Product Code:** {CODE} — {device_name}
-**Generated:** {today's date} | v5.15.0
+**Generated:** {today's date} | v5.16.0
 **Classification:** Class {class}, 21 CFR {regulation}
 **Review Panel:** {panel}
 
@@ -987,7 +1001,7 @@ Read `$PROJECTS_DIR/$PROJECT_NAME/fda_correspondence.json` and display:
   FDA Correspondence History
   Project: {project_name}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | Source: Project Data | v5.15.0
+  Generated: {date} | Source: Project Data | v5.16.0
 
 SUMMARY
 ────────────────────────────────────────

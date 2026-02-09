@@ -198,7 +198,7 @@ Present results using the standard FDA Professional CLI format:
   FDA Recognized Consensus Standards
   {context — product code or search query}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | Source: FDA RCSD + Plugin Reference | v5.15.0
+  Generated: {date} | Source: FDA RCSD + Plugin Reference | v5.16.0
 
 APPLICABLE STANDARDS
 ────────────────────────────────────────

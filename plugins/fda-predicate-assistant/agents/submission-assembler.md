@@ -27,6 +27,15 @@ This agent combines the work of these individual commands into one autonomous wo
 | `/fda:traceability` | Requirements Traceability Matrix | Supporting |
 | `/fda:compare-se` | Substantial Equivalence comparison tables | Supporting |
 
+## Progress Reporting
+
+Output a checkpoint after each major step to keep the user informed:
+- `"[1/5] Inventorying drafts..."` → `"[1/5] Found {N} draft files, {N} applicable sections"`
+- `"[2/5] Generating supporting documents..."` → `"[2/5] Generated SE comparison and/or traceability matrix"`
+- `"[3/5] Running consistency checks..."` → `"[3/5] Passed {N}/11 checks, {N} issues found"`
+- `"[4/5] Assembling package..."` → `"[4/5] eSTAR directory created with {N} sections"`
+- `"[5/5] Generating readiness report..."` → `"[5/5] Readiness score: {N}%"`
+
 ## Prerequisites
 
 Before running this agent, check that required files exist. If files are missing, output a clear message and stop.
@@ -85,6 +94,26 @@ Run all 10 consistency checks from `/fda:consistency`:
 8. **Placeholder Scan** (HIGH) — No `[INSERT:]` placeholders remain in final documents
 9. **Cross-Section Draft Consistency** (HIGH) — IFU alignment, K-number references, standard citations, and device description consistency across draft_*.md files
 10. **eSTAR Import Data Alignment** (MEDIUM) — Project files align with imported eSTAR data (if import_data.json exists)
+11. **eSTAR Section Map Alignment** (HIGH) — Verify that every draft file maps to a section in the export section_map. Expected mappings (must match `export.md` section_map):
+    - `draft_cover-letter.md` → `01_CoverLetter/`
+    - `cover_sheet.md` → `02_CoverSheet/`
+    - `draft_510k-summary.md` → `03_510kSummary/`
+    - `draft_truthful-accuracy.md` → `04_TruthfulAccuracy/`
+    - `draft_financial-certification.md` → `05_FinancialCert/`
+    - `draft_device-description.md` → `06_DeviceDescription/`
+    - `draft_se-discussion.md` → `07_SEComparison/`
+    - `draft_doc.md` → `08_Standards/`
+    - `draft_labeling.md` → `09_Labeling/`
+    - `draft_sterilization.md` → `10_Sterilization/`
+    - `draft_shelf-life.md` → `11_ShelfLife/`
+    - `draft_biocompatibility.md` → `12_Biocompatibility/`
+    - `draft_software.md` → `13_Software/`
+    - `draft_emc-electrical.md` → `14_EMC/`
+    - `draft_performance-summary.md` → `15_PerformanceTesting/`
+    - `draft_clinical.md` → `16_Clinical/`
+    - `draft_human-factors.md` → `17_HumanFactors/`
+
+    Flag any draft file that has no corresponding section_map entry.
 
 Report findings and auto-fix where `--fix` would apply.
 
@@ -115,7 +144,7 @@ SECTIONS DRAFTED
 
 CONSISTENCY CHECK RESULTS
 ────────────────────────────────────────
-  Checks passed: {N}/10
+  Checks passed: {N}/11
   Issues found: {list}
   Auto-fixed: {N}
 

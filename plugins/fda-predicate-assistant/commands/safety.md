@@ -418,14 +418,6 @@ if "results" in class_result:
 else:
     print("TOTAL_RECALLS:0")
 
-# Recall count by status
-time.sleep(0.5)
-print("\n=== RECALL STATUS ===")
-status_result = fda_query("recall", f'product_code:"{product_code}"', count_field="recall_status")
-if "results" in status_result:
-    for r in status_result["results"]:
-        print(f"RECALL_STATUS:{r['term']}:{r['count']}")
-
 # Recent recalls with details — sorted by most recent termination date
 time.sleep(0.5)
 print("\n=== RECENT RECALLS ===")
@@ -525,7 +517,7 @@ Structure the report using the standard FDA Professional CLI format (see `refere
   FDA Safety Intelligence Report
   {CODE} — {DEVICE NAME}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | Class: {CLASS} | Regulation: {REG} | v5.15.0
+  Generated: {date} | Class: {CLASS} | Regulation: {REG} | v5.16.0
 
 DEVICE CONTEXT
 ────────────────────────────────────────

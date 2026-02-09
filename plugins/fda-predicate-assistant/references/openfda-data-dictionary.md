@@ -1,397 +1,592 @@
 # openFDA Device API Data Dictionary
 
-> Source: FDA openFDA Data Dictionary (Device.xlsx)
-> Total fields: 354
-> Endpoints: 5
-> Generated: 2026-02-07
+> Source: openFDA API (https://open.fda.gov/apis/device/)
+> Endpoints: 9
+> Last reviewed: 2026-02-08
+> Scope: Key fields used by plugin commands, correctly attributed per endpoint
 
-This reference contains every searchable and response field across all 9 openFDA Device API endpoints.
+This reference documents the searchable and response fields for each openFDA Device API endpoint. Fields are organized by endpoint to prevent misattribution. For the complete field list, see the [official openFDA API documentation](https://open.fda.gov/apis/device/).
+
+## Quick Reference: Endpoint → Plugin Command
+
+| Endpoint | Plugin Commands | Purpose |
+|----------|----------------|---------|
+| `device/event` | `/fda:safety` | MAUDE adverse event reports |
+| `device/recall` | `/fda:safety`, `/fda:warnings` | Device recalls and enforcement |
+| `device/510k` | `/fda:research`, `/fda:extract`, `/fda:validate` | 510(k) clearance data |
+| `device/classification` | `/fda:research`, `/fda:guidance`, `/fda:pathway` | Product code classification |
+| `device/registrationlisting` | `/fda:status` | Facility registration |
+| `device/pma` | `/fda:research`, `/fda:pathway` | PMA approvals |
+| `device/udi` | `/fda:udi` | UDI/GUDID device identifiers |
+| `device/covid19serology` | — | COVID-19 serology test data |
+| `device/premarket` | — | Premarket submissions (not yet used) |
+
+---
 
 ## 1. device/event (MAUDE Adverse Events)
 
-**317 fields**
+Used by: `/fda:safety`
+
+### Key Search Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `action` | string | Action taken as part of the recall. |
-| `additional_info_contact` | string | Contact information of the party that can be used to request additional information about the recall. |
-| `adverse_event_flag` | string | Whether the report is about an incident where the use of the device is suspected to have resulted in an adverse outco... |
-| `antibody_agree` | string | Agreement between all antibody results and antibody_truth. Any positive makes the result positive. All results must b... |
-| `antibody_truth` | string | The true qualitative antibody presence result. |
-| `ao_statement` | string | Approval order statement: a brief description of the reason for the supplement/application approval by FDA. |
-| `brand_name` | string | The Proprietary/Trade/Brand name of the medical device as used in device labeling or in the catalog. This information... |
-| `catalog_number` | string | The catalog, reference, or product number found on the device label or accompanying packaging to identify a particula... |
-| `center_classification_date` | string |  |
+| `device.device_report_product_code` | string | 3-letter FDA product code |
+| `event_type` | string | Outcome: "Death", "Injury", "Malfunction", etc. |
+| `date_of_event` | string | Date of first onset of the adverse event |
+| `date_received` | string | Date FDA received the report |
+| `product_problem_flag` | string | "Y" if report is about device quality/performance/safety |
+
+### Key Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `mdr_report_key` | string | Unique identifier for the report |
+| `adverse_event_flag` | string | Whether the report involves an adverse outcome |
+| `report_number` | string | Identifying number for the adverse event report |
+| `report_source_code` | string | Source of the report (manufacturer, user facility, etc.) |
+| `date_report` | string | Date the initial reporter provided info |
+| `date_report_to_fda` | string | Date the report was sent to FDA |
+| `date_report_to_manufacturer` | string | Date the report was sent to manufacturer |
+| `health_professional` | string | Whether initial reporter was a health professional |
+| `reporter_occupation_code` | string | Initial reporter occupation |
+| `event_location` | string | Where the event occurred |
+| `event_key` | string | Internal event key |
+| `number_devices_in_event` | string | Number of devices noted (usually "1") |
+| `number_patients_in_event` | string | Number of patients noted (usually "1") |
+| `product_problem_flag` | string | Whether report is about device quality/safety |
+| `product_problems` | array | Product problems reported |
+| `removal_correction_number` | string | Corrective action number (21 USC 360i) |
+| `report_to_fda` | string | Whether report was sent to FDA |
+| `report_to_manufacturer` | string | Whether report was sent to manufacturer |
+| `reprocessed_and_reused_flag` | string | Whether device was single-use and reprocessed |
+| `single_use_flag` | string | Whether device was labeled for single use |
+| `source_type` | array | Manufacturer-reported source of report |
+| `summary_malfunction_reporting` | string | Voluntary Malfunction Summary Reporting flag |
+| `type_of_report` | array | Type of report |
+| `initial_report_to_fda` | string | Whether initial reporter also notified FDA |
+| `manufacturer_link_flag` | string | Whether report has manufacturer follow-up |
+| `previous_use_code` | string | Initial use, reuse, or unknown |
+| `remedial_action` | array | Follow-up actions taken by manufacturer |
+
+### Nested: `device.*` (Device Information)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `device.brand_name` | string | Trade/proprietary name of suspect device |
+| `device.catalog_number` | string | Catalog/reference number |
+| `device.generic_name` | string | Generic/common name of suspect device |
+| `device.model_number` | string | Model number |
+| `device.lot_number` | string | Lot number |
+| `device.manufacturer_d_name` | string | Device manufacturer name |
+| `device.manufacturer_d_city` | string | Device manufacturer city |
+| `device.manufacturer_d_state` | string | Device manufacturer state |
+| `device.manufacturer_d_country` | string | Device manufacturer country |
+| `device.device_operator` | string | Person using the device at time of event |
+| `device.device_availability` | string | Whether device is available for evaluation |
+| `device.device_evaluated_by_manufacturer` | string | Whether manufacturer evaluated the device |
+| `device.implant_flag` | string | Whether device was implanted |
+| `device.date_removed_flag` | string | Whether implanted device was removed |
+| `device.device_age_text` | string | Age of the device |
+| `device.expiration_date_of_device` | string | Device expiration date |
+| `device.device_sequence_number` | string | Sequential device number in report |
+| `device.openfda` | object | Nested openFDA enrichment fields |
+
+### Nested: `patient.*` (Patient Information)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `patient.patient_age` | string | Patient age |
+| `patient.patient_sex` | string | Patient gender |
+| `patient.patient_race` | string | Patient race |
+| `patient.patient_ethnicity` | string | Patient ethnicity |
+| `patient.patient_weight` | string | Patient weight |
+| `patient.patient_problems` | array | Adverse effects related to device problem |
+| `patient.sequence_number_outcome` | array | Outcome for this patient |
+| `patient.sequence_number_treatment` | array | Treatment received |
+| `patient.date_received` | string | Date patient report was received |
+
+### Nested: `mdr_text.*` (Narrative Text)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `mdr_text.text` | string | Narrative text or problem description |
+| `mdr_text.text_type_code` | string | Type of narrative |
+| `mdr_text.date_report` | string | Date of initial report |
+
+### Nested: `manufacturer_*` (Suspect Device Manufacturer)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `manufacturer_name` | string | Suspect device manufacturer name |
+| `manufacturer_address_1` | string | Address line 1 |
+| `manufacturer_city` | string | City |
+| `manufacturer_state` | string | State code |
+| `manufacturer_country` | string | Country code |
+| `manufacturer_postal_code` | string | Postal code |
+| `manufacturer_contact_f_name` | string | Contact first name |
+| `manufacturer_contact_l_name` | string | Contact last name |
+| `manufacturer_contact_phone_number` | string | Contact phone |
+
+---
+
+## 2. device/recall (Enforcement/Recalls)
+
+Used by: `/fda:safety`, `/fda:warnings`
+
+### Key Search Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `product_code` | string | 3-letter FDA product code (via openfda enrichment) |
+| `recalling_firm` | string | Firm that initiated the recall |
+| `recall_status` | string | Current recall status (Ongoing, Terminated, etc.) |
+| `classification` | string | Recall class: "Class I", "Class II", "Class III" |
+| `k_numbers` | array | Associated 510(k) numbers |
+| `pma_numbers` | array | Associated PMA numbers |
+
+### Key Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `res_event_number` | string | FDA recall event tracking number |
+| `recall_number` | string | Recall tracking number |
+| `event_id` | string | Recall event identifier |
+| `action` | string | Action taken as part of the recall |
+| `classification` | string | Recall class (I, II, III) |
+| `recall_status` | string | Current status (Ongoing, Terminated, etc.) |
+| `product_description` | string | Brief product description |
+| `product_quantity` | string | Amount of defective product |
+| `reason_for_recall` | string | How the product is defective |
+| `code_info` | string | Lot/serial numbers, use-by dates |
+| `distribution_pattern` | string | Area of initial distribution |
+| `recalling_firm` | string | Firm initiating the recall |
+| `country` | string | Country of recalling firm |
+| `firm_fei_number` | string | FDA Facility Establishment Identifier |
+| `event_date_initiated` | string | Date firm began notifying public |
+| `event_date_created` | string | Date record created in FDA database |
+| `event_date_posted` | string | Date FDA classified the recall |
+| `event_date_terminated` | string | Date FDA terminated the recall |
+| `recall_initiation_date` | string | Date firm began notifying public |
+| `initial_firm_notification` | string | Method of public notification |
+| `voluntary_mandated` | string | Who initiated: "Voluntary" or "FDA Mandated" |
+| `root_cause_description` | string | FDA-determined general recall cause |
+| `other_submission_description` | string | Other regulatory description if not 510k/PMA |
+| `product_res_number` | string | Product recall number |
+| `report_date` | string | Date FDA issued enforcement report |
+| `status` | string | Record status |
+| `termination_date` | string | Termination date |
 | `cfres_id` | string | cfRes internal recall identifier |
-| `classification` | string | Numerical designation (I, II, or III) that is assigned by FDA to a particular product recall that indicates the relat... |
-| `clearance_type` | string | Denotes the submission method utilized for the submission of the 510(k). |
-| `commercial_distribution_end_date` | date | Indicates the date the device is no longer held or offered for sale. See 21 CFR 807.3(b) for exceptions. The device m... |
-| `commercial_distribution_status` | string | Indicates whether the device is in commercial distribution as defined under 21 CFR 807.3(b). |
-| `company_name` | string | Company name associated with the labeler DUNS Number entered in the DI Record. |
-| `contact` | string | Per 21 CFR 807.3(e), this is the official correspondent designated by the owner or operator of an establishment as re... |
-| `control` | string | The result of the control line on the test. |
-| `country_code` | string | The numeric 2 character code (ISO 3166-1 alpha-2) that designates the country of a postal delivery location (also kno... |
-| `customer_contacts.email` | string | Email for the Customer contact; to be used by patients and consumers for device-related questions. |
-| `customer_contacts.phone` | string | Phone number for the customer contact; to be used by patients and consumers for device-related questions. |
-| `date_facility_aware` | string | Date the user facility’s medical personnel or the importer (distributor) became aware that the device has or may have... |
-| `date_manufacturer_received` | string | Date when the applicant, manufacturer, corporate affiliate, etc. receives information that an adverse event or medica... |
-| `date_of_event` | string | Actual or best estimate of the date of first onset of the adverse event. This field was added in 2006. |
-| `date_performed` | date | This is the date the test was performed. |
-| `date_report` | string | Date the initial reporter (whoever initially provided information to the user facility, manufacturer, or importer) pr... |
-| `date_report_to_fda` | string | Date the user facility/importer (distributor) sent the report to the FDA, if applicable. |
-| `date_report_to_manufacturer` | string | Date the user facility/importer (distributor) sent the report to the manufacturer, if applicable. |
-| `days_from_symptom` | string | Days from symptom onset to blood collection. |
-| `decision_description` | string | This is the full spelling associated with the abbreviated decision code (e.g. Substantially Equivalent - Postmarket S... |
-| `definition` | string | Compositional definition of a medical device, based on the input of nomenclature experts, incorporating the definitio... |
-| `device` | string | This is the proprietary name, or trade name, of the cleared device. |
-| `device.brand_name` | string | The trade or proprietary name of the suspect medical device as used in product labeling or in the catalog (e.g. Flo-E... |
-| `device.catalog_number` | string | The exact number as it appears in the manufacturer’s catalog, device labeling, or accompanying packaging. |
-| `device.date_received` | string | Documentation forthcoming. TK |
-| `device.date_removed_flag` | string | Whether an implanted device was removed from the patient, and if so, what kind of date was provided. |
-| `device.date_returned_to_manufacturer` | string | Date the device was returned to the manufacturer, if applicable. |
-| `device.device_age_text` | string | Age of the device or a best estimate, often including the unit of time used. Contents vary widely, but common pattern... |
-| `device.device_availability` | string | Whether the device is available for evaluation by the manufacturer, or whether the device was returned to the manufac... |
-| `device.device_evaluated_by_manufacturer` | string | Whether the suspect device was evaluated by the manufacturer. |
-| `device.device_event_key` | string | Documentation forthcoming. |
-| `device.device_operator` | string | The person using the medical device at the time of the adverse event. This may be a health professional, a lay person... |
-| `device.device_report_product_code` | string | Three-letter FDA Product Classification Code. Medical devices are classified under <a href='http://www.fda.gov/medica... |
-| `device.device_sequence_number` | string | Number identifying this particular device. For example, the first device object will have the value 1. This is an enu... |
-| `device.expiration_date_of_device` | string | If available; this date is often be found on the device itself or printed on the accompanying packaging. |
-| `device.generic_name` | string | The generic or common name of the suspect medical device or a generally descriptive name (e.g. urological catheter, h... |
-| `device.implant_flag` | string | Whether a device was implanted or not. May be either marked N or left empty if this was not applicable. |
-| `device.lot_number` | string | If available, the lot number found on the label or packaging material. |
-| `device.manufacturer_d_address_1` | string | Device manufacturer address line 1. |
-| `device.manufacturer_d_address_2` | string | Device manufacturer address line 2. |
-| `device.manufacturer_d_city` | string | Device manufacturer city. |
-| `device.manufacturer_d_country` | string | Device manufacturer country. |
-| `device.manufacturer_d_name` | string | Device manufacturer name. |
-| `device.manufacturer_d_postal_code` | string | Device manufacturer postal code. |
-| `device.manufacturer_d_state` | string | Device manufacturer state code. |
-| `device.manufacturer_d_zip_code` | string | Device manufacturer zip code. |
-| `device.manufacturer_d_zip_code_ext` | string | Device manufacturer zip code extension. |
-| `device.model_number` | string | The exact model number found on the device label or accompanying packaging. |
-| `device.openfda` | object |  |
-| `device.other_id_number` | string | Any other identifier that might be used to identify the device. Expect wide variability in the use of this field. It ... |
-| `device_class` | string | A risk based classification system for all medical devices ((Federal Food, Drug, and Cosmetic Act, section 513). |
-| `device_count_in_base_package` | integer | Number of medical devices in the base package. |
-| `device_date_of_manufacturer` | string | Date of manufacture of the suspect medical device. |
-| `device_description` | string | Additional relevant information about the device that is not already captured as a distinct GUDID data attribute. |
-| `device_sizes.text` | string | Additional undefined device size not represented in the GUDID Size Type LOV. |
-| `device_sizes.type` | string | Dimension type for the clinically relevant measurement of the medical device. |
-| `device_sizes.unit` | string | The unit of measure associated with each clinically relevant size. |
-| `device_sizes.value` | string | Numeric value for the clinically relevant size measurement of the medical device. |
-| `distributor_address_1` | string | User facility or importer (distributor) address line 1. |
-| `distributor_address_2` | string | User facility or importer (distributor) address line 2. |
-| `distributor_city` | string | User facility or importer (distributor) city. |
-| `distributor_name` | string | User facility or importer (distributor) name. |
-| `distributor_state` | string | User facility or importer (distributor) two-digit state code. |
-| `distributor_zip_code` | string | User facility or importer (distributor) 5-digit zip code. |
-| `distributor_zip_code_ext` | string | User facility or importer (distributor) 4-digit zip code extension (zip+4 code). |
-| `docket_number` | string | The assigned posted docket number in the Federal Register. |
-| `establishment_type` | array of strings | Facility operation or activity, e.g. “Manufacturer” (short version). |
-| `evaluation_id` | string | The unique identifier for each evaluation. |
-| `event_date_created` | string | Date on which the recall record was created in the FDA database. |
-| `event_date_initiated` | string | Date that the firm first began notifying the public or their consignees of the recall. |
-| `event_date_posted` | string | Indicates the date FDA classified the recall, but it does not necessarily mean that the recall is new. |
-| `event_date_terminated` | string | Date that FDA determined recall actions were completed and terminated the recall. For details about termination of a ... |
-| `event_id` | string | A numerical designation assigned by FDA to a specific recall event used for tracking purposes. |
-| `event_key` | string | Documentation forthcoming. |
-| `event_location` | string | Where the event occurred. |
-| `event_type` | string | Outcomes associated with the adverse event. |
-| `expiration_date_of_device` | string | If available; this date is often be found on the device itself or printed on the accompanying packaging. |
-| `fed_reg_notice_date` | string | Documentation forthcoming. |
-| `firm_fei_number` | string | Facility identifier assigned to facility by the FDA Office of Regulatory Affairs. |
-| `generic_name` | string | Common or generic name as specified in the submission. Not to be confused with the official device nomenclature name ... |
-| `gmdn_terms.code` | string | GMDN Preferred Term Code of the common device type associated with the FDA PT Code. |
-| `gmdn_terms.code_status` | boolean | GMDN Term Status, Active or Obsolete. |
-| `gmdn_terms.definition` | string | Definition of the common device type associated with the GMDN Preferred Term Code/FDA PT Code. |
-| `gmdn_terms.implantable` | boolean | GMDN Implantable flag. |
-| `gmdn_terms.name` | string | Name of the common device type associated with the GMDN Preferred Term Code/FDA PT Code. |
-| `gmp_exempt_flag` | string | An indication the device is exempt from Good Manufacturing Processes CFR 820. U.S. zip code of the Applicant. See [he... |
-| `group` | string | Describes the portion of the panel the sample was from. E.g. "Positives," "Negatives," "HIV+", "Respiratory panel," etc. |
-| `has_donation_id_number` | boolean | The Donation Identification Number is applicable to devices that are also regulated as HCT/Ps and is a number that is... |
-| `has_expiration_date` | boolean | The date by which the label of a device states the device must or should be used. This date is required to be part of... |
-| `has_lot_or_batch_number` | boolean | The number assigned to one or more device(s) that consist of a single type, model, class, size, composition, or softw... |
-| `has_manufacturing_date` | boolean | The date on which a device is manufactured.This date is required to be part of the UDI when included on the label in ... |
-| `has_serial_number` | boolean | The number that allows for the identification of a device, indicating its position within a series. This number is re... |
-| `health_professional` | string | Whether the initial reporter was a health professional (e.g. physician, pharmacist, nurse, etc.) or not. |
-| `identifiers.id` | string | An identifier that is the main (primary) lookup for a medical device and meets the requirements to uniquely identify ... |
-| `identifiers.issuing_agency` | string | Organization accredited by FDA to operate a system for the issuance of UDIs |
-| `identifiers.package_discontinue_date` | date | Indicates the date this particular package configuration is discontinued by the Labeler or removed from the marketplace. |
-| `identifiers.package_status` | string | Indicates whether the package is in commercial distribution as defined under 21 CFR 807.3(b). |
-| `identifiers.package_type` | string | The type of packaging used for the device. |
-| `identifiers.quantity_per_package` | integer | The number of packages with the same Primary DI or Package DI within a given packaging configuration. |
-| `identifiers.type` | string | Indicates whether the identifier is the Primary, Secondary, Direct Marking, Unit of Use, Package, or Previous DI |
-| `identifiers.unit_of_use_id` | string | An identifier assigned to an individual medical device when a UDI is not labeled on the individual device at the leve... |
-| `iga_agree` | string | Agreement between iga_result and antibody_truth. |
-| `iga_result` | string | The test result for qualitative detection of IgA antibodies. |
-| `igg_agree` | string | Agreement between igg_result and igg_truth. |
-| `igg_result` | string | The test result for qualitative detection of IgG antibodies. |
-| `igg_titer` | integer | The CDC spike titer for IgG in the sample. |
-| `igg_truth` | string | The true qualitative IgG result. |
-| `igm_agree` | string | Agreement between igm_result and igm_truth. |
-| `igm_iga_agree` | string | Agreement between igm_iga_result and antibody_truth. |
-| `igm_iga_result` | string | The test result for qualitative detection of (IgM / IgA) combined antibodies. |
-| `igm_igg_agree` | string | Agreement between igm_igg_result and antibody_truth. |
-| `igm_igg_result` | string | The test result for qualitative detection of (IgM / IgG) combined antibodies. |
-| `igm_result` | string | The test result for qualitative detection of IgM antibodies. |
-| `igm_titer` | integer | The CDC spike titer for IgM in the sample. |
-| `igm_truth` | string | The true qualitative IgM result. |
-| `implant_flag` | string | An indicator that the device is placed into a surgically or naturally formed cavity of the human body. Intended to re... |
-| `initial_firm_notification` | string | The method(s) by which the firm initially notified the public or their consignees of a recall. A consignee is a perso... |
-| `initial_report_to_fda` | string | Whether the initial reporter also notified or submitted a copy of this report to FDA. |
-| `is_combination_product` | boolean | Indicates that the product is comprised of two or more regulated products that are physically, chemically, or otherwi... |
-| `is_direct_marking_exempt` | boolean | The device is exempt from Direct Marking requirements under 21 CFR 801.45. |
-| `is_hct_p` | boolean | Indicates that the product contains or consists of human cells or tissues that are intended for implantation, transpl... |
-| `is_kit` | boolean | Indicates that the device is a convenience, combination, in vitro  diagnostic (IVD), or medical procedure kit. Kits a... |
-| `is_labeled_as_no_nrl` | boolean | Indicates that natural rubber latex was not used as materials in the manufacture of the medical product and container... |
-| `is_labeled_as_nrl` | boolean | Indicates that the device or packaging contains natural rubber that contacts humans as described under 21 CFR 801.437... |
-| `is_otc` | boolean | Indicates that the device does not require a prescription to use and can be purchased over the counter. |
-| `is_pm_exempt` | boolean | Indicates whether the device is exempt from premarket notification requirements. |
-| `is_rx` | boolean | Indicates whether the device requires a prescription. |
-| `is_single_use` | boolean | Indicates that the device is intended for one use or on a single patient during a single procedure. |
-| `k_numbers` | array of strings | FDA-assigned premarket notification number, including leading letters. Leading letters “BK” indicates 510(k) clearanc... |
-| `labeler_duns_number` | string | The DUNS Number is a unique nine-digit identifier for businesses. It is used to establish a D&B® business credit file... |
-| `life_sustain_support_flag` | string | An indicator that the device is essential to, or yields information that is essential to, the restoration or continua... |
-| `lot_number` | string | The manufacturer's unique identification of the lot(s) from which the tested devices were drawn. |
-| `manufacturer` | string | Name of manufacturer or company that makes this product. |
-| `manufacturer_address_1` | string | Suspect medical device manufacturer address line 1. |
-| `manufacturer_address_2` | string | Suspect medical device manufacturer address line 2. |
-| `manufacturer_city` | string | Suspect medical device manufacturer city. |
-| `manufacturer_contact_address_1` | string | Suspect medical device manufacturer contact address line 1. |
-| `manufacturer_contact_address_2` | string | Suspect medical device manufacturer contact address line 2. |
-| `manufacturer_contact_area_code` | string | Manufacturer contact person phone number area code. |
-| `manufacturer_contact_city` | string | Manufacturer contact person city. |
-| `manufacturer_contact_country` | string | Manufacturer contact person two-letter country code. Note: For medical device adverse event reports, comparing countr... |
-| `manufacturer_contact_exchange` | string | Manufacturer contact person phone number exchange. |
-| `manufacturer_contact_extension` | string | Manufacturer contact person phone number extension. |
-| `manufacturer_contact_f_name` | string | Manufacturer contact person first name. |
-| `manufacturer_contact_l_name` | string | Manufacturer contact person last name. |
-| `manufacturer_contact_pcity` | string | Manufacturer contact person phone number city code. |
-| `manufacturer_contact_pcountry` | string | Manufacturer contact person phone number country code. Note: For medical device adverse event reports, comparing coun... |
-| `manufacturer_contact_phone_number` | string | Manufacturer contact person phone number. |
-| `manufacturer_contact_plocal` | string | Manufacturer contact person local phone number. |
-| `manufacturer_contact_postal_code` | string | Manufacturer contact person postal code. |
-| `manufacturer_contact_state` | string | Manufacturer contact person two-letter state code. |
-| `manufacturer_contact_t_name` | string | Manufacturer contact person title (Mr., Mrs., Ms., Dr., etc.) |
-| `manufacturer_contact_zip_code` | string | Manufacturer contact person 5-digit zip code. |
-| `manufacturer_contact_zip_ext` | string | Manufacturer contact person 4-digit zip code extension (zip+4 code). |
-| `manufacturer_country` | string | Suspect medical device manufacturer two-letter country code. Note: For medical device adverse event reports, comparin... |
-| `manufacturer_g1_address_1` | string | Device manufacturer address line 1. |
-| `manufacturer_g1_address_2` | string | Device manufacturer address line 2. |
-| `manufacturer_g1_city` | string | Device manufacturer address city. |
-| `manufacturer_g1_country` | string | Device manufacturer two-letter country code. Note: For medical device adverse event reports, comparing country codes ... |
-| `manufacturer_g1_name` | string | Device manufacturer name. |
-| `manufacturer_g1_postal_code` | string | Device manufacturer address postal code. |
-| `manufacturer_g1_state` | string | Device manufacturer address state. |
-| `manufacturer_g1_zip_code` | string | Device manufacturer address zip code. |
-| `manufacturer_g1_zip_code_ext` | string | Device manufacturer address zip code extension. |
-| `manufacturer_link_flag` | string | Indicates whether a user facility/importer-submitted (distributor-submitted) report has had subsequent manufacturer-s... |
-| `manufacturer_name` | string | Suspect medical device manufacturer name. |
-| `manufacturer_postal_code` | string | Suspect medical device manufacturer postal code. May contain the zip code for addresses in the United States. |
-| `manufacturer_state` | string | Suspect medical device manufacturer two-letter state code. |
-| `manufacturer_zip_code` | string | Suspect medical device manufacturer 5-digit zip code. |
-| `manufacturer_zip_code_ext` | string | Suspect medical device manufacturer 4-digit zip code extension (zip+4 code). |
-| `mdr_report_key` | string | A unique identifier for a report. |
-| `mdr_text.date_report` | string | Date the initial reporter (whoever initially provided information to the user facility, manufacturer, or importer) pr... |
-| `mdr_text.mdr_text_key` | string | Documentation forthcoming. |
-| `mdr_text.patient_sequence_number` | string | Number identifying this particular patient. For example, the first patient object will have the value 1. This is an e... |
-| `mdr_text.text` | string | Narrative text or problem description. |
-| `mdr_text.text_type_code` | string | String that describes the type of narrative contained within the text field. |
-| `medical_specialty` | string | Regulation Medical Specialty is assigned based on the regulation (e.g. 21 CFR Part 888 is Orthopedic Devices) which i... |
-| `medical_specialty_description` | string | Same as above but with the codes replaced with a human readable description. Note that & and and have been removed fr... |
-| `more_code_info` | string |  |
-| `mri_safety` | string | Indicates the MRI Safety Information, if any, that is present in the device labeling. Please see the ASTM F2503-13 st... |
-| `number_devices_in_event` | string | Number of devices noted in the adverse event report. Almost always `1`. May be empty if `report_source_code` contains... |
-| `number_patients_in_event` | string | Number of patients noted in the adverse event report. Almost always `1`. May be empty if `report_source_code` contain... |
-| `openfda.application_number` | array of strings |  |
-| `openfda.brand_name` | array of strings |  |
-| `openfda.dosage_form` | array of strings |  |
-| `openfda.generic_name` | array of strings |  |
-| `openfda.is_original_packager` | boolean |  |
-| `openfda.manufacturer_name` | array of strings |  |
-| `openfda.nui` | array of strings |  |
-| `openfda.original_packager_product_ndc` | array of strings |  |
-| `openfda.package_ndc` | array of strings |  |
-| `openfda.pharm_class_cs` | array of strings |  |
-| `openfda.pharm_class_epc` | array of strings |  |
-| `openfda.pharm_class_moa` | array of strings |  |
-| `openfda.pharm_class_pe` | array of strings |  |
-| `openfda.pma_number` | string | FDA-assigned premarket application number, including leading letters. Leading letter “D” indicates Product Developmen... |
-| `openfda.product_ndc` | array of strings |  |
-| `openfda.product_type` | array of strings | The type of product being recalled. For device queries, this will always be `Devices`. |
-| `openfda.route` | array of strings |  |
-| `openfda.rxcui` | array of strings |  |
-| `openfda.rxstring` | array of strings |  |
-| `openfda.rxtty` | array of strings |  |
-| `openfda.spl_id` | array of strings |  |
-| `openfda.spl_set_id` | array of strings |  |
-| `openfda.substance_name` | array of strings |  |
-| `openfda.unii` | array of strings |  |
-| `openfda.upc` | array of strings |  |
-| `other_submission_description` | string | If 510(k) or PMA numbers are not applicable to the device recalled, the recall may contain other regulatory descripti... |
-| `pan_agree` | string | Agreement between pan_result and antibody_truth. |
-| `pan_result` | string | The test result for qualitative detection of Pan-Ig antibodies. |
-| `pan_titer` | integer | The CDC spike titer for Pan-Ig in the sample. |
-| `panel` | string | The testing program's unique identification of the panel of clinical samples against which the devices were tested. |
-| `patient.date_received` | string | Date the report about this patient was received. |
-| `patient.patient_age` | string | Patient's age. |
-| `patient.patient_ethnicity` | string | Patient's ethnicity. |
-| `patient.patient_problems` | array of strings | Describes actual adverse effects on the patient that may be related to the device problem observed during the reporte... |
-| `patient.patient_race` | string | Patient's race. |
-| `patient.patient_sequence_number` | string | Documentation forthcoming. |
-| `patient.patient_sex` | string | Patient's gender. |
-| `patient.patient_weight` | string | Patient's weight. |
-| `patient.sequence_number_outcome` | array of strings | Outcome associated with the adverse event for this patient. Expect wide variability in this field; each string in the... |
-| `patient.sequence_number_treatment` | array of strings | Treatment the patient received. |
-| `pma_numbers` | array of strings | FDA-assigned premarket application number, including leading letters. Leading letter “D” indicates Product Developmen... |
-| `premarket_submissions.submission_number` | string | Number associated with the regulatory decision regarding the applicant’s legal right to market a medical device for t... |
-| `premarket_submissions.submission_type` | string | Indicates the premarket submission type. |
-| `premarket_submissions.supplement_number` | string | Number assigned by FDA to a supplemental application for approval of a change in a medical device with an approved PMA. |
-| `previous_use_code` | string | Whether the use of the suspect medical device was the initial use, reuse, or unknown. |
-| `product_codes.code` | string | A three-letter identifier assigned to a device category |
-| `product_codes.name` | string | Name associated with the three-letter Product Code |
-| `product_codes.openfda` | object |  |
-| `product_problem_flag` | string | Indicates whether or not a report was about the quality, performance or safety of a device. |
-| `product_problems` | array of strings | The product problems that were reported to the FDA if there was a concern about the quality, authenticity, performanc... |
-| `product_res_number` | string |  |
-| `product_type` | string |  |
-| `products.created_date` | string | Date listing was created (may be unreliable). |
-| `products.exempt` | string | Flag indicating whether a device is exempt or not. |
-| `products.openfda` | object |  |
-| `products.owner_operator_number` | string | Number assigned to Owner Operator by CDRH. |
-| `products.product_code` | string | A three-letter identifier assigned to a device category. Assignment is based upon the medical device classification d... |
-| `proprietary_name` | array of strings | Proprietary or brand name or model number a product is marketed under. |
-| `public_version_date` | date | Auto assigned the day file is generated with Time Stamp; All existing records will have first date assigned the day d... |
-| `public_version_number` | string | Auto assigned version number, assigned just before file generation; All existing records will have version 1 assigned. |
-| `public_version_status` | string | Definition forthcoming. |
-| `publish_date` | date | Indicates the date the DI Record gets published and is available via Public Search. |
-| `recall_initiation_date` | string | Date that the firm first began notifying the public or their consignees of the recall. |
-| `recall_number` | string | A numerical designation assigned by FDA to a specific recall event used for tracking purposes. |
-| `recall_status` | string | Current status of the recall. A record in the database is created when a firm initiates a correction or removal actio... |
-| `record_key` | string | Current enhancements will allow the Primary DI to change after the DI record has been released to the public. To ensu... |
-| `record_status` | string | Indicates the status of the DI Record. |
-| `registration.address_line_1` | string | Facility or US agent address line 1. |
-| `registration.address_line_2` | string | Facility or US agent address line 2. |
-| `registration.city` | string | Facility or US agent city. |
-| `registration.fei_number` | string | Facility identifier assigned to facility by the FDA Office of Regulatory Affairs. |
-| `registration.initial_importer_flag` | string | Identifies whether facility is an initial importer. |
-| `registration.iso_country_code` | string | Facility or US agent country code. |
-| `registration.name` | string | Name associated with the facility or US agent. |
-| `registration.owner_operator` | object |  |
-| `registration.postal_code` | string | Facility foreign postal code. |
-| `registration.reg_expiry_date_year` | string | Year that registration expires (expires 12/31 of that year). |
-| `registration.registration_number` | string | Facility identifier assigned to facility by the FDA Office of Regulatory Affairs. |
-| `registration.state_code` | string | Facility or US agent US state or foreign state or province. |
-| `registration.status_code` | string | Registration status code. |
-| `registration.us_agent` | object |  |
-| `registration.zip_code` | string | Facility or US agent Zip code. |
-| `regulation_number` | string | The classification regulation in the Code of Federal Regulations (CFR) under which the device is identified, describe... |
-| `remedial_action` | array of strings | Follow-up actions taken by the device manufacturer at the time of the report submission, if applicable. |
-| `removal_correction_number` | string | If a corrective action was reported to FDA under <a href='http://www.law.cornell.edu/uscode/text/21/360i'>21 USC 360i... |
-| `report_number` | string | Identifying number for the adverse event report. The format varies, according to the source of the report. The field ... |
-| `report_source_code` | string | Source of the adverse event report |
-| `report_to_fda` | string | Whether the report was sent to the FDA by a user facility or importer (distributor). User facilities are required to ... |
-| `report_to_manufacturer` | string | Whether the report was sent to the manufacturer by a user facility or importer (distributor). User facilities are req... |
-| `reporter_occupation_code` | string | Initial reporter occupation. |
-| `reprocessed_and_reused_flag` | string | Indicates whether the suspect device was a single-use device that was reprocessed and reused on a patient. |
-| `res_event_number` | string | A five digit, numerical designation assigned by FDA to a specific recall event used for tracking purposes. |
-| `review_advisory_committee` | string | Known as the “510(k) Review Panel” since 2014, this helps define the review division within CDRH in which the 510(k) ... |
-| `review_code` | string | Documentation forthcoming. |
-| `review_panel` | string | Known as the “510(k) Review Panel” since 2014, this helps define the review division within CDRH in which the 510(k) ... |
-| `root_cause_description` | string | FDA determined general type of recall cause. Per FDA policy, recall cause determinations are subject to modification ... |
-| `sample_id` | string | The unique ID of the sample in the panel. |
-| `sample_no` | integer | The sequence in which the sample was tested. |
-| `single_use_flag` | string | Whether the device was labeled for single use or not. |
-| `source_type` | array of strings | The manufacturer-reported source of the adverse event report. |
-| `statement_or_summary` | string | A statement or summary can be provided per 21 CFR 807.3(n) and (o). A 510(k) summary, submitted under section 513(i) ... |
-| `status` | string |  |
-| `sterilization.is_sterile` | boolean | Indicates the medical device is free from viable microorganisms. See ISO/TS 11139. |
-| `sterilization.is_sterilization_prior_use` | boolean | Indicates that the device requires sterilization prior to use. |
-| `sterilization.sterilization_methods` | string | Indicates the method(s) of sterilization that can be used for this device. |
-| `storage.high` | object |  |
-| `storage.low` | object |  |
-| `storage.special_conditions` | string | Indicates any special storage requirements for the device. |
-| `storage.type` | string | Indicates storage and handling requirements for the device including temperature, humidity, and atmospheric pressure. |
-| `street_1` | string | Delivery address of the applicant. |
-| `street_2` | string | Delivery address of the applicant. |
-| `submission_type_id` | string | The submission type (510(k), PMA, 510(k) Exempt) to which a product code is limited, or “Contact ODE” if its limitati... |
-| `summary_malfunction_reporting` | string | The Voluntary Malfunction Summary Reporting Program allows participating companies to submit certain medical device m... |
-| `supplement_number` | string | FDA assigned supplement number. |
-| `supplement_reason` | string | General description for the reason for the supplement or application. |
-| `supplement_type` | string | [Link to general criteria used for PMA regulation](http://www.accessdata.fda.gov/scripts/cdrh/cfdocs/cfcfr/CFRSearch.... |
-| `termination_date` | string |  |
-| `trade_name` | string | This is the proprietary name of the approved device. |
-| `type` | string | The sample material. |
-| `type_of_report` | array of strings | The type of report. |
-| `unclassified_reason` | string | This indicates the reason why a device is unclassified (e.g. Pre-Amendment). |
-| `version_or_model_number` | string | The version or model found on the device label or accompanying packaging used to identify a category or design of a d... |
-| `voluntary_mandated` | string | Describes who initiated the recall. Recalls are almost always voluntary, meaning initiated by a firm. A recall is dee... |
-| `zip` | string | Portion of address that designates the zip code of the applicant. |
-| `zip_code` | string | Portion of address that designates the U.S. zip code of applicant. |
-| `zip_ext` | string | Portion of address that designates the “speed zip” or the “+4” of the applicant. |
 
-## 2. device/udi (UDI/GUDID)
-
-**20 fields**
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `advisory_committee` | string | Code under which the product was originally classified, based on the product code. This is a historical designation f... |
-| `advisory_committee_description` | string | Full spelling of the Advisory Committee abbreviation (e.g. Gastroenterology and Urology Devices Panel of the Medical ... |
-| `applicant` | string | The manufacturer of record or third party who submits a 510(k) submission. Also known as sponsor. Please note, before... |
-| `code_info` | string | A list of all lot and/or serial numbers, product numbers, packer or manufacturer numbers, sell or use by dates, etc.,... |
-| `country` | string | The country in which the recalling firm is located. |
-| `decision_code` | string | Four letter codes that denote the specific substantial equivalence decision rendered by FDA on a specific 510(k). |
-| `decision_date` | string | This is the date on which FDA rendered a final decision on a 510(k) submission. |
-| `device_name` | string | This is the proprietary name, or trade name, of the cleared device |
-| `distribution_pattern` | string | General area of initial distribution such as, “Distributors in 6 states: NY, VA, TX, GA, FL and MA; the Virgin Island... |
-| `expedited_review_flag` | string | Qualifying products are eligible for ‘priority review’ by CDRH in one of four possible review tracks if it is intende... |
-| `k_number` | string | FDA-assigned premarket notification number, including leading letters. Leading letters “BK” indicates 510(k) clearanc... |
-| `openfda.k_number` | array of strings | FDA-assigned premarket notification number, including leading letters. Leading letters “BK” indicates 510(k) clearanc... |
-| `pma_number` | string | FDA-assigned premarket application number, including leading letters. Leading letter “D” indicates Product Developmen... |
-| `postal_code` | string | A series of letters and/or digits, sometimes including spaces or punctuation, included in a postal address for the pu... |
-| `product_description` | string | Brief description of the product being recalled. |
-| `product_quantity` | string | The amount of defective product subject to recall. |
-| `reason_for_recall` | string | Information describing how the product is defective and violates the FD&C Act or related statutes. |
-| `recalling_firm` | string | The firm that initiates a recall or, in the case of an FDA requested recall or FDA mandated recall, the firm that has... |
-| `report_date` | string | Date that the FDA issued the enforcement report for the product recall. |
-| `third_party_flag` | string | Eligibility for a manufacturer to utilize a contracted Accredited Person in lieu of direct submission to FDA. By law,... |
+---
 
 ## 3. device/510k (510(k) Clearances)
 
-**12 fields**
+Used by: `/fda:research`, `/fda:extract`, `/fda:validate`, `/fda:lineage`
+
+### Key Search Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `address_1` | string | Delivery address of the applicant. |
-| `address_2` | string | Delivery address of the applicant. |
-| `date_received` | string | Date that the FDA Document Control Center received the submission. |
-| `meta.disclaimer` | string | Important details notes about openFDA data and limitations of the dataset. |
-| `meta.last_updated` | string | The last date when this openFDA endpoint was updated. Note that this does not correspond to the most recent record fo... |
-| `meta.license` | string | Link to a web page with license terms that govern data within openFDA. |
-| `meta.results` | object |  |
-| `meta.type` | unknown |  |
-| `openfda.device_class` | string | A risk based classification system for all medical devices ((Federal Food, Drug, and Cosmetic Act, section 513) |
-| `openfda.device_name` | string | This is the proprietary name, or trade name, of the cleared device. |
-| `openfda.medical_specialty_description` | string | Regulation Medical Specialty is assigned based on the regulation (e.g. 21 CFR Part 888 is Orthopedic Devices) which i... |
-| `openfda.regulation_number` | array of strings | The classification regulation in the Code of Federal Regulations (CFR) under which the device is identified, describe... |
+| `product_code` | string | 3-letter FDA product code |
+| `applicant` | string | Company that submitted the 510(k) |
+| `k_number` | string | FDA-assigned 510(k) number (e.g., K241335) |
+| `decision_date` | string | Date FDA rendered final decision |
+| `decision_code` | string | Decision code (SESE, SESP, etc.) |
 
-## 4. device/registrationlisting (Registration & Listing)
-
-**4 fields**
+### Key Response Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `city` | string | City of the delivery address of the applicant. |
-| `openfda.fei_number` | array of strings | Facility identifier assigned to facility by the FDA Office of Regulatory Affairs. |
-| `openfda.registration_number` | array of strings | Facility identifier assigned to facility by the FDA Office of Regulatory Affairs. |
-| `state` | string | This is the state of record of U.S. based applicants. |
+| `k_number` | string | FDA-assigned 510(k) number |
+| `applicant` | string | Manufacturer/submitter name |
+| `device_name` | string | Proprietary/trade name of cleared device |
+| `product_code` | string | 3-letter product code |
+| `decision_date` | string | Date of FDA decision |
+| `decision_code` | string | Decision code (4 letters) |
+| `decision_description` | string | Full decision description |
+| `clearance_type` | string | Submission method (Traditional, Special, Abbreviated) |
+| `statement_or_summary` | string | Whether Summary or Statement was filed |
+| `date_received` | string | Date FDA received submission |
+| `advisory_committee` | string | Review panel code |
+| `advisory_committee_description` | string | Review panel name |
+| `review_advisory_committee` | string | Review division (since 2014) |
+| `expedited_review_flag` | string | Priority review eligibility |
+| `third_party_flag` | string | Third-party review eligibility |
+| `submission_type_id` | string | Submission type limitation |
+| `contact` | string | Official correspondent |
+| `address_1` | string | Applicant address line 1 |
+| `address_2` | string | Applicant address line 2 |
+| `city` | string | Applicant city |
+| `state` | string | Applicant state |
+| `country_code` | string | Applicant country (ISO 3166-1 alpha-2) |
+| `zip` | string | Applicant zip code |
+| `zip_ext` | string | Applicant zip+4 extension |
+| `street_1` | string | Applicant delivery address 1 |
+| `street_2` | string | Applicant delivery address 2 |
 
-## 5. device/classification (Device Classification)
-
-**1 fields**
+### Nested: `openfda.*` (Enrichment)
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `product_code` | string | A three-letter identifier assigned to a device category. Assignment is based upon the medical device classification d... |
+| `openfda.device_class` | string | Risk classification (1, 2, 3) |
+| `openfda.device_name` | string | Device common name |
+| `openfda.medical_specialty_description` | string | Review panel specialty |
+| `openfda.regulation_number` | array | 21 CFR regulation number(s) |
+
+---
+
+## 4. device/classification (Device Classification)
+
+Used by: `/fda:research`, `/fda:guidance`, `/fda:pathway`, `/fda:ask`
+
+### Key Search Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `product_code` | string | 3-letter FDA product code |
+| `regulation_number` | string | 21 CFR regulation number |
+| `device_name` | string | Official device type name |
+| `device_class` | string | Risk class: "1", "2", or "3" |
+
+### Key Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `product_code` | string | 3-letter product code |
+| `device_name` | string | Official device type name |
+| `device_class` | string | Risk classification (1, 2, 3) |
+| `definition` | string | Compositional definition of the device |
+| `regulation_number` | string | 21 CFR regulation number |
+| `medical_specialty` | string | Medical specialty code |
+| `medical_specialty_description` | string | Medical specialty name |
+| `review_panel` | string | Review panel code |
+| `review_code` | string | Review processing code |
+| `implant_flag` | string | "Y" if device is an implant |
+| `life_sustain_support_flag` | string | "Y" if life-sustaining/supporting |
+| `gmp_exempt_flag` | string | "Y" if exempt from GMP (21 CFR 820) |
+| `submission_type_id` | string | Required submission type |
+| `third_party_flag` | string | Third-party review eligibility |
+| `unclassified_reason` | string | Reason if unclassified (Pre-Amendment, etc.) |
+
+### Nested: `openfda.*`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `openfda.k_number` | array | Associated 510(k) numbers |
+| `openfda.pma_number` | string | Associated PMA number |
+
+---
+
+## 5. device/registrationlisting (Facility Registration & Listing)
+
+Used by: `/fda:status`
+
+### Key Search Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `registration.fei_number` | string | FDA Facility Establishment Identifier |
+| `registration.name` | string | Facility name |
+| `products.product_code` | string | Listed product code |
+
+### Key Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `registration.fei_number` | string | FEI number |
+| `registration.registration_number` | string | Registration number |
+| `registration.name` | string | Facility name |
+| `registration.address_line_1` | string | Address |
+| `registration.city` | string | City |
+| `registration.state_code` | string | State/province |
+| `registration.iso_country_code` | string | Country code |
+| `registration.postal_code` | string | Postal code |
+| `registration.zip_code` | string | US zip code |
+| `registration.status_code` | string | Registration status |
+| `registration.reg_expiry_date_year` | string | Expiration year |
+| `registration.initial_importer_flag` | string | Initial importer indicator |
+| `registration.owner_operator` | object | Owner/operator info |
+| `registration.us_agent` | object | US agent info (foreign firms) |
+| `establishment_type` | array | Facility activity type(s) |
+| `products.product_code` | string | 3-letter product code |
+| `products.created_date` | string | Listing creation date |
+| `products.exempt` | string | Exempt flag |
+| `products.owner_operator_number` | string | CDRH owner/operator number |
+| `products.openfda` | object | openFDA enrichment |
+| `proprietary_name` | array | Brand/model names |
+
+---
+
+## 6. device/pma (PMA Approvals)
+
+Used by: `/fda:research`, `/fda:pathway`
+
+### Key Search Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `product_code` | string | 3-letter FDA product code |
+| `applicant` | string | PMA applicant name |
+| `pma_number` | string | FDA-assigned PMA number |
+
+### Key Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `pma_number` | string | PMA number (e.g., P123456) |
+| `trade_name` | string | Proprietary device name |
+| `generic_name` | string | Common/generic name |
+| `applicant` | string | Applicant company name |
+| `ao_statement` | string | Approval order statement |
+| `decision_date` | string | Date of FDA decision |
+| `decision_code` | string | Decision code |
+| `product_code` | string | Product code |
+| `supplement_number` | string | Supplement number |
+| `supplement_reason` | string | Reason for supplement |
+| `supplement_type` | string | Supplement type |
+| `docket_number` | string | Federal Register docket number |
+| `fed_reg_notice_date` | string | Federal Register notice date |
+| `advisory_committee` | string | Advisory committee code |
+| `advisory_committee_description` | string | Advisory committee name |
+| `expedited_review_flag` | string | Priority review flag |
+
+---
+
+## 7. device/udi (UDI/GUDID)
+
+Used by: `/fda:udi`
+
+### Key Search Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `identifiers.id` | string | UDI (primary device identifier) |
+| `product_codes.code` | string | 3-letter FDA product code |
+| `brand_name` | string | Trade/brand name |
+| `company_name` | string | Labeler company name |
+
+### Key Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `brand_name` | string | Trade/brand name |
+| `catalog_number` | string | Catalog/reference number |
+| `company_name` | string | Labeler company name |
+| `device_description` | string | Device description text |
+| `device_count_in_base_package` | integer | Devices per package |
+| `version_or_model_number` | string | Version or model |
+| `labeler_duns_number` | string | DUNS number |
+| `record_key` | string | Stable record identifier |
+| `record_status` | string | DI record status |
+| `publish_date` | date | Publication date |
+| `public_version_number` | string | Version number |
+| `public_version_date` | date | Version date |
+
+### Boolean Flags
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `is_combination_product` | boolean | Contains two or more regulated products |
+| `is_direct_marking_exempt` | boolean | Exempt from direct marking (21 CFR 801.45) |
+| `is_hct_p` | boolean | Contains human cells/tissues |
+| `is_kit` | boolean | Is a convenience/IVD/procedure kit |
+| `is_labeled_as_nrl` | boolean | Contains natural rubber latex (21 CFR 801.437) |
+| `is_labeled_as_no_nrl` | boolean | Labeled as NOT containing NRL |
+| `is_otc` | boolean | Over-the-counter (no prescription) |
+| `is_pm_exempt` | boolean | Exempt from premarket notification |
+| `is_rx` | boolean | Requires prescription |
+| `is_single_use` | boolean | Single use / single patient |
+| `has_donation_id_number` | boolean | Has HCT/P donation ID |
+| `has_expiration_date` | boolean | Has expiration date on label |
+| `has_lot_or_batch_number` | boolean | Has lot/batch number |
+| `has_manufacturing_date` | boolean | Has manufacturing date |
+| `has_serial_number` | boolean | Has serial number |
+
+### Nested: `identifiers.*`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `identifiers.id` | string | UDI value |
+| `identifiers.type` | string | Primary, Secondary, Direct Marking, Package, etc. |
+| `identifiers.issuing_agency` | string | UDI issuing agency (GS1, HIBCC, ICCBBA) |
+| `identifiers.package_type` | string | Package type |
+| `identifiers.quantity_per_package` | integer | Quantity per package |
+| `identifiers.package_status` | string | Commercial distribution status |
+| `identifiers.package_discontinue_date` | date | Package discontinue date |
+| `identifiers.unit_of_use_id` | string | Unit-of-use DI |
+
+### Nested: `sterilization.*`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `sterilization.is_sterile` | boolean | Device is sterile (ISO/TS 11139) |
+| `sterilization.is_sterilization_prior_use` | boolean | Requires sterilization before use |
+| `sterilization.sterilization_methods` | string | Sterilization method(s) |
+
+### Nested: `storage.*`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `storage.type` | string | Storage/handling requirements |
+| `storage.special_conditions` | string | Special storage requirements |
+| `storage.high` | object | Upper storage limit |
+| `storage.low` | object | Lower storage limit |
+
+### Nested: `device_sizes.*`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `device_sizes.type` | string | Dimension type |
+| `device_sizes.value` | string | Size value |
+| `device_sizes.unit` | string | Unit of measure |
+| `device_sizes.text` | string | Additional size text |
+
+### Nested: `product_codes.*`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `product_codes.code` | string | 3-letter product code |
+| `product_codes.name` | string | Product code name |
+| `product_codes.openfda` | object | openFDA enrichment |
+
+### Nested: `premarket_submissions.*`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `premarket_submissions.submission_number` | string | Submission number (K-number, PMA, etc.) |
+| `premarket_submissions.submission_type` | string | Submission type |
+| `premarket_submissions.supplement_number` | string | Supplement number |
+
+### Nested: `customer_contacts.*`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `customer_contacts.phone` | string | Customer contact phone |
+| `customer_contacts.email` | string | Customer contact email |
+
+### Nested: `gmdn_terms.*`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `gmdn_terms.code` | string | GMDN Preferred Term Code |
+| `gmdn_terms.name` | string | GMDN term name |
+| `gmdn_terms.definition` | string | GMDN term definition |
+| `gmdn_terms.implantable` | boolean | GMDN implantable flag |
+| `gmdn_terms.code_status` | boolean | Active or Obsolete |
+
+### Additional UDI Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `commercial_distribution_status` | string | Distribution status (21 CFR 807.3(b)) |
+| `commercial_distribution_end_date` | date | Distribution end date |
+| `mri_safety` | string | MRI safety info (per ASTM F2503-13) |
+
+---
+
+## 8. device/covid19serology (COVID-19 Serology Tests)
+
+Not currently used by plugin commands.
+
+### Key Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `manufacturer` | string | Test manufacturer |
+| `device` | string | Test device name |
+| `lot_number` | string | Lot number tested |
+| `evaluation_id` | string | Evaluation identifier |
+| `sample_id` | string | Sample identifier |
+| `sample_no` | integer | Sample sequence number |
+| `type` | string | Sample material type |
+| `group` | string | Panel group (Positives, Negatives, etc.) |
+| `panel` | string | Panel identifier |
+| `date_performed` | date | Test date |
+| `control` | string | Control line result |
+| `antibody_agree` | string | Agreement with truth |
+| `antibody_truth` | string | True qualitative result |
+| `igg_result` | string | IgG detection result |
+| `igm_result` | string | IgM detection result |
+| `iga_result` | string | IgA detection result |
+| `pan_result` | string | Pan-Ig detection result |
+| `days_from_symptom` | string | Days from symptom onset |
+
+---
+
+## 9. device/premarket (Premarket Submissions)
+
+Combines 510(k), PMA, De Novo, and HDE submissions in one endpoint. Not yet used directly by plugin commands; `/fda:research` uses device/510k and device/pma separately.
+
+---
+
+## Common Nested: `openfda.*` (Enrichment Block)
+
+Most endpoints include an `openfda` enrichment block with fields cross-referenced from other databases:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `openfda.device_class` | string | Risk classification (1, 2, 3) |
+| `openfda.device_name` | string | Device common name |
+| `openfda.medical_specialty_description` | string | Medical specialty |
+| `openfda.regulation_number` | array | 21 CFR regulation number(s) |
+| `openfda.k_number` | array | Associated 510(k) numbers |
+| `openfda.pma_number` | string | Associated PMA number |
+| `openfda.fei_number` | array | Facility FEI numbers |
+| `openfda.registration_number` | array | Registration numbers |
+| `openfda.product_type` | array | Product type (always "Devices") |
+
+### Meta Fields (All Endpoints)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `meta.disclaimer` | string | Data limitations notice |
+| `meta.last_updated` | string | Endpoint last update date |
+| `meta.license` | string | License terms URL |
+| `meta.results.total` | integer | Total matching records |
+| `meta.results.skip` | integer | Records skipped |
+| `meta.results.limit` | integer | Records per page |
+
+---
+
+## API Query Patterns
+
+### Count Queries
+
+Append `&count=field.exact` to get term frequency counts:
+
+```
+/device/event.json?search=device.device_report_product_code:"OVE"&count=event_type.exact
+```
+
+### Sort Queries
+
+Use `&sort=field:asc` or `&sort=field:desc`:
+
+```
+/device/510k.json?search=product_code:"OVE"&sort=decision_date:desc&limit=10
+```
+
+### Date Range Queries
+
+Use bracket syntax for date ranges:
+
+```
+/device/event.json?search=date_received:[20230101+TO+20251231]+AND+device.device_report_product_code:"OVE"
+```
+
+### OR Queries
+
+Use `+OR+` between terms:
+
+```
+/device/510k.json?search=product_code:"OVE"+OR+product_code:"OVF"
+```
+
+### Wildcard Queries
+
+Use `*` for prefix matching:
+
+```
+/device/510k.json?search=applicant:"MEDTRONIC*"
+```

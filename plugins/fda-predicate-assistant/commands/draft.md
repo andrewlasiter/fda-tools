@@ -46,6 +46,8 @@ From `$ARGUMENTS`, extract:
 - `--product-code CODE` — Product code (auto-detect from project if not specified)
 - `--output FILE` — Write draft to file (default: draft_{section}.md in project folder)
 - `--infer` — Auto-detect product code from project data
+- `--revise` — Revise an existing draft: regenerate AI content while preserving user edits (see Revision Workflow below)
+- `--na` — Mark a section as "Not Applicable" with rationale template (see N/A Section Handling below)
 
 ## Available Sections
 
@@ -414,7 +416,7 @@ Auto-populate standards list from:
 
 ### 18. human-factors
 
-Generates Section 19 of the eSTAR: Human Factors / Usability Engineering.
+Generates Section 17 of the eSTAR: Human Factors / Usability Engineering.
 
 **Required data**: device description, intended use
 **Enriched by**: MAUDE data (use error patterns), `references/human-factors-framework.md`
@@ -428,44 +430,44 @@ Generates Section 19 of the eSTAR: Human Factors / Usability Engineering.
 
 If no keywords found, note: "HFE may not be required for this device. Document rationale per IEC 62366-1:2015."
 
-**Output structure**: See `references/human-factors-framework.md` eSTAR Section 19 template.
+**Output structure**: See `references/human-factors-framework.md` eSTAR Section 17 template.
 
 ```markdown
 ## Human Factors / Usability Engineering
 
-### 19.1 Use Environment
+### 17.1 Use Environment
 [TODO: Company-specific — Describe the intended use environment(s):
 - Clinical setting (hospital, clinic, physician office)
 - Home environment (if applicable)
 - Environmental conditions (lighting, noise, temperature)
 - Other use environments]
 
-### 19.2 User Profile
+### 17.2 User Profile
 [TODO: Company-specific — Describe intended users:
 - Healthcare professionals (type, training level)
 - Patients/caregivers (if home use)
 - Other users (biomedical technicians, etc.)
 - Physical/cognitive requirements]
 
-### 19.3 Critical Tasks
+### 17.3 Critical Tasks
 [TODO: Company-specific — List all critical tasks:
 - Tasks where use error could cause serious harm
 - Tasks requiring high accuracy or precision
 - Tasks performed under stress or time pressure]
 
-### 19.4 Use-Related Risk Analysis Summary
+### 17.4 Use-Related Risk Analysis Summary
 [TODO: Company-specific — Summarize use-related risk analysis:
 - Identified use errors and hazardous situations
 - Risk controls implemented (design, labeling, training)
 - Residual risks and mitigations]
 
-### 19.5 Formative Study Summary
+### 17.5 Formative Study Summary
 [TODO: Company-specific — Summarize formative studies:
 - Study type (cognitive walkthrough, heuristic evaluation, simulated use)
 - Number of participants
 - Key findings and design changes made]
 
-### 19.6 Summative (Validation) Study Summary
+### 17.6 Summative (Validation) Study Summary
 [TODO: Company-specific — Summarize validation study:
 - Study design and protocol
 - Number of participants per user group (minimum 15 per group recommended by FDA)
@@ -478,6 +480,112 @@ Cross-reference:
 - `/fda:safety` MAUDE data to identify use error patterns for the product code
 - `references/human-factors-framework.md` for IEC 62366-1:2015 process and FDA guidance references
 
+## Revision Workflow (--revise)
+
+When `--revise` is specified, the command regenerates a section draft while preserving user edits:
+
+### Step 1: Load Existing Draft
+
+Read the existing `draft_{section}.md` file from the project directory.
+
+If no existing draft exists, output: `"No existing draft found for '{section}'. Use /fda:draft {section} --project NAME without --revise to generate an initial draft."`
+
+### Step 2: Identify User Edits
+
+Scan the existing draft for user-edited content. User edits are identified by:
+
+1. **Lines that do NOT contain** `[Source:`, `[TODO:`, `[CITATION NEEDED]`, or `v5.` version tags — these are likely user-written
+2. **Lines between `<!-- USER EDIT START -->` and `<!-- USER EDIT END -->`** markers — explicitly marked by user
+3. **Content that doesn't match the original template structure** — paragraphs that differ from template patterns
+
+### Step 3: Regenerate AI Content
+
+Regenerate the section using current project data (which may have changed since the original draft). During regeneration:
+
+- **Preserve** all content between `<!-- USER EDIT START -->` and `<!-- USER EDIT END -->` markers exactly as-is
+- **Preserve** any paragraph that doesn't match the original AI template patterns (likely user-written)
+- **Update** `[Source: ...]` tagged content with latest project data
+- **Update** `[TODO: ...]` items only if project data now has the information to fill them
+- **Update** the generation timestamp and version tag
+- **Preserve** `[CITATION NEEDED]` items that the user has not yet resolved
+
+### Step 4: Output Revision
+
+Write the revised draft and report:
+
+```
+Revision complete: {section}
+Output: {file_path}
+
+Changes:
+  Updated: {N} AI-generated paragraphs (re-sourced from current data)
+  Preserved: {N} user-edited paragraphs
+  Resolved: {N} [TODO:] items (now filled from project data)
+  Remaining: {N} [TODO:] items still pending
+
+Next: Review the updated draft and verify preserved content is intact.
+```
+
+### User Edit Markers
+
+Users can protect their edits by wrapping content with markers:
+
+```markdown
+<!-- USER EDIT START -->
+This paragraph was written by the regulatory team and should
+be preserved exactly during revision.
+<!-- USER EDIT END -->
+```
+
+Content between these markers is **never** overwritten by `--revise`.
+
+---
+
+## N/A Section Handling (--na)
+
+When `--na` is specified, mark the section as "Not Applicable" instead of generating content:
+
+### Write N/A Template
+
+Write `draft_{section}.md` with:
+
+```markdown
+## {Section Title}
+
+**Status: Not Applicable**
+
+### Rationale
+
+[TODO: Company-specific — Provide rationale for why this section does not apply to your device. Common rationale examples below.]
+
+{Auto-generated rationale suggestions based on section type:}
+
+{For sterilization:} "The subject device is supplied non-sterile and is not intended to be sterilized by the user or at the point of care."
+{For biocompatibility:} "The subject device has no direct or indirect patient contact. Per ISO 10993-1, biocompatibility evaluation is not required for devices with no body contact."
+{For software:} "The subject device does not contain software, firmware, or programmable components."
+{For emc-electrical:} "The subject device is not electrically powered and contains no electronic components."
+{For clinical:} "Clinical data is not required. The subject device is substantially equivalent to the predicate based on bench performance testing alone, consistent with FDA clearance precedent for product code {code}."
+{For shelf-life:} "The subject device does not degrade over time and has no expiration-dated components."
+{For human-factors:} "Per IEC 62366-1:2015 and FDA guidance, a formal human factors evaluation is not required for this device based on its simplicity of use and low risk of use error. [TODO: Verify this determination with your HFE team.]"
+
+### Reference
+
+This section was marked as N/A using `/fda:draft {section} --project {name} --na` on {date}.
+Per FDA eSTAR guidance, sections that do not apply should include a brief explanation of why they are not applicable rather than being left blank.
+```
+
+Report:
+```
+Section marked as N/A: {section}
+Output: {file_path}
+
+The N/A rationale template has been generated. Fill in the [TODO:] with your
+specific justification. FDA reviewers expect a brief explanation for each
+section marked as not applicable.
+```
+
+---
+
 ## Generation Rules
 
 1. **Regulatory tone**: Formal, factual, third-person. Use standard FDA regulatory language patterns.
@@ -485,7 +593,7 @@ Cross-reference:
 3. **DRAFT disclaimer**: Every generated section starts with:
    ```
    ⚠ DRAFT — AI-generated regulatory prose. Review with regulatory affairs team before submission.
-   Generated: {date} | Project: {name} | Plugin: fda-predicate-assistant v5.15.0
+   Generated: {date} | Project: {name} | Plugin: fda-predicate-assistant v5.16.0
    ```
 4. **Unverified claims**: Anything that cannot be substantiated from project data gets `[CITATION NEEDED]` or `[TODO: Company-specific — verify]`.
 5. **No fabrication**: Never invent test results, clinical data, or device specifications. If data isn't available, say so.

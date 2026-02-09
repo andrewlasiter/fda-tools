@@ -118,7 +118,7 @@ PYEOF
 ```
   ASTM F1980 Accelerated Aging Calculator
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | v5.15.0
+  Generated: {date} | v5.16.0
 
 INPUT PARAMETERS
 ────────────────────────────────────────
@@ -171,45 +171,103 @@ import math
 
 # Parameters (replace with actual)
 p0 = 0.90          # Target success rate
+delta = 0.05       # Margin (acceptance criterion below p0)
 alpha = 0.05       # Significance level (one-sided)
 power = 0.80       # Statistical power
 dropout = 0.10     # Expected dropout rate
 
-# Normal approximation for one-sample binomial
+# Z-scores
 z_alpha = 1.645    # One-sided 0.05
 z_beta = 0.842     # Power = 0.80
 
-# Sample size using normal approximation (conservative)
-n = math.ceil((z_alpha * math.sqrt(p0 * (1 - p0))) ** 2 / ((1 - p0) ** 2) * (1 / (1 - p0)))
-# More accurate: exact binomial approach
-# n = ceil((z_alpha + z_beta)^2 * p0 * (1-p0) / delta^2)
-# For performance goal: we need n such that P(reject H0 | p=p0) >= power
+# --- Method selection based on parameters ---
+use_exact = (p0 >= 0.95 or p0 <= 0.05 or delta < 0.05)
 
-# Simple conservative estimate
-n_simple = math.ceil((z_alpha ** 2 * p0 * (1 - p0)) / (0.05 ** 2))
-n_enrolled = math.ceil(n_simple / (1 - dropout))
+if use_exact:
+    # Exact binomial method (Clopper-Pearson) for edge cases:
+    # - Proportions near 0 or 1 (p0 >= 0.95 or p0 <= 0.05)
+    # - Very small margins (delta < 0.05)
+    # - Normal approximation is unreliable in these regions
+    #
+    # Find smallest n such that:
+    #   P(X >= k | p = p0) >= power, where k is the critical value
+    #   satisfying P(X >= k | p = p0 - delta) <= alpha
+    from math import comb, ceil
+
+    def binom_cdf(k, n, p):
+        """Exact binomial CDF: P(X <= k)."""
+        return sum(comb(n, i) * p**i * (1-p)**(n-i) for i in range(k+1))
+
+    p_null = p0 - delta  # Null hypothesis proportion
+    n_exact = 2
+    found = False
+    for n_try in range(2, 5000):
+        # Find critical value k: smallest k such that P(X >= k | p_null) <= alpha
+        for k in range(n_try, -1, -1):
+            reject_prob_null = 1 - binom_cdf(k - 1, n_try, p_null) if k > 0 else 1.0
+            if reject_prob_null <= alpha:
+                # Check power: P(X >= k | p = p0) >= power
+                power_achieved = 1 - binom_cdf(k - 1, n_try, p0) if k > 0 else 1.0
+                if power_achieved >= power:
+                    n_exact = n_try
+                    found = True
+                    break
+                else:
+                    break  # Increasing k won't help
+        if found:
+            break
+
+    n_evaluable = n_exact
+    method = "exact binomial (Clopper-Pearson)"
+else:
+    # Normal approximation — valid when n*p and n*(1-p) both > 5
+    n_normal = math.ceil(((z_alpha * math.sqrt(p0 * (1 - p0)) + z_beta * math.sqrt(p0 * (1 - p0))) / delta) ** 2)
+    # Simpler conservative estimate
+    n_simple = math.ceil((z_alpha ** 2 * p0 * (1 - p0)) / (delta ** 2))
+    n_evaluable = max(n_normal, n_simple)
+    method = "normal approximation"
+
+n_enrolled = math.ceil(n_evaluable / (1 - dropout))
+
+# Validation check
+np_check = n_evaluable * p0
+nq_check = n_evaluable * (1 - p0)
+approx_valid = np_check > 5 and nq_check > 5
 
 print(f"DESIGN:one-sample binomial (performance goal)")
+print(f"METHOD:{method}")
 print(f"SUCCESS_RATE:{p0}")
+print(f"MARGIN:{delta}")
 print(f"ALPHA:{alpha}")
 print(f"POWER:{power}")
-print(f"N_EVALUABLE:{n_simple}")
+print(f"N_EVALUABLE:{n_evaluable}")
 print(f"DROPOUT:{dropout}")
 print(f"N_ENROLLED:{n_enrolled}")
+print(f"NORMAL_APPROX_VALID:{'yes' if approx_valid else 'no (n*p={:.0f}, n*q={:.0f})'.format(np_check, nq_check)}")
+if use_exact:
+    print(f"NOTE:Exact method used because {'p near 0/1' if (p0 >= 0.95 or p0 <= 0.05) else 'small margin'}")
 PYEOF
 ```
+
+**Method selection logic:**
+- **Normal approximation**: Used when n*p > 5, n*(1-p) > 5, and margin >= 0.05 — fast, standard
+- **Exact binomial**: Used when proportions are near 0 or 1 (>=0.95 or <=0.05), or margin < 0.05 — accurate for edge cases where normal approximation breaks down
+
+> **IMPORTANT**: For pivotal clinical studies, consult a qualified biostatistician. These calculators provide preliminary estimates suitable for planning and feasibility. Final sample size determination for pivotal studies should account for the specific study design, endpoint definitions, interim analyses, and regulatory requirements for your device type.
 
 ### Output Format
 
 ```
   Statistical Sample Size Calculator
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | v5.15.0
+  Generated: {date} | v5.16.0
 
 DESIGN
 ────────────────────────────────────────
   Study design:        {design}
+  Calculation method:  {normal approximation | exact binomial}
   Target success rate: {p0}
+  Margin (delta):      {delta}
   Significance level:  {alpha}
   Power:               {power}
 
@@ -218,13 +276,16 @@ RESULTS
   Minimum evaluable:   {N_evaluable}
   Expected dropout:    {dropout}%
   Required enrollment: {N_enrolled}
+  Normal approx valid: {yes/no}
 
-NOTES
+LIMITATIONS
 ────────────────────────────────────────
-  - Sample size calculated using normal approximation
-  - Verify with exact binomial calculation for final protocol
+  - Normal approximation requires n*p > 5 and n*(1-p) > 5
+  - Exact binomial is used automatically when proportions near 0/1
+  - For pivotal studies: consult a qualified biostatistician
   - Consider regulatory requirements for specific device types
-  - FDA may require larger samples for high-risk devices
+  - FDA may require larger samples for high-risk or novel devices
+  - These estimates do not account for interim analyses or adaptive designs
 
 ────────────────────────────────────────
   This calculation is AI-generated.

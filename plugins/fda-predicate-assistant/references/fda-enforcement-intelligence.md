@@ -90,7 +90,7 @@ CDRH issues ~50-60 warning letters per year for medical devices. Common patterns
 | 21 CFR 820.22 | Quality Audit | ~15% |
 | 21 CFR 803 | MDR Reporting | ~15% |
 
-*Note: With QMSR transition (Feb 2, 2026), citations will shift from 21 CFR 820 to ISO 13485-aligned requirements.*
+*Note: With QMSR (effective Feb 2, 2026), citations are shifting from 21 CFR 820 to ISO 13485-aligned requirements. Historical citations reference 21 CFR 820; new inspections cite QMSR-aligned sections.*
 
 ### Warning Letter Structure
 

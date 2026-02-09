@@ -205,7 +205,7 @@ PYEOF
   ClinicalTrials.gov Device Study Search
   {search context}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | Source: ClinicalTrials.gov API v2 | v5.15.0
+  Generated: {date} | Source: ClinicalTrials.gov API v2 | v5.16.0
   Total studies found: {total}
 
 STUDY OVERVIEW

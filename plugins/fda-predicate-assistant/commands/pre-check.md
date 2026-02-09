@@ -254,6 +254,41 @@ RTA SCREENING
   Result: {PASS / FAIL — {N} required items missing}
 ```
 
+### eSTAR Mandatory Section Completeness
+
+In addition to RTA items, verify that all mandatory eSTAR sections have draft content:
+
+```python
+mandatory_sections = [
+    {"section": "01", "name": "Cover Letter", "file": "draft_cover-letter.md", "always": True},
+    {"section": "03", "name": "510(k) Summary", "file": "draft_510k-summary.md", "always": True},
+    {"section": "04", "name": "Truthful & Accuracy", "file": "draft_truthful-accuracy.md", "always": True},
+    {"section": "06", "name": "Device Description", "file": "draft_device-description.md", "always": True},
+    {"section": "07", "name": "SE Comparison", "file": "draft_se-discussion.md", "always": True},
+    {"section": "09", "name": "Labeling", "file": "draft_labeling.md", "always": True},
+    {"section": "15", "name": "Performance Testing", "file": "draft_performance-summary.md", "always": True},
+]
+```
+
+For each mandatory section, check:
+1. Does the draft file exist in the project directory?
+2. If not, does an alternative exist? (e.g., `se_comparison.md` for Section 07, `test_plan.md` for Section 15)
+3. If missing: flag as **CRITICAL** deficiency — "eSTAR Section {##} ({name}) has no content. This will result in RTA."
+
+Report:
+```markdown
+eSTAR SECTION COMPLETENESS
+────────────────────────────────────────
+
+  | # | Section | Status | Source |
+  |---|---------|--------|--------|
+  | 01 | Cover Letter | ✓ / ✗ | {file or MISSING} |
+  | 03 | 510(k) Summary | ✓ / ✗ | {file or MISSING} |
+  ...
+
+  Mandatory sections present: {N}/7
+```
+
 **If `--depth quick`: Stop here.** Report the RTA result and exit.
 
 ## Step 4: Lead Reviewer Evaluation
@@ -395,7 +430,7 @@ For each deficiency:
 }
 ```
 
-## Step 7: Calculate Submission Readiness Score
+## Step 7: Calculate Submission Readiness Index (SRI)
 
 Use the scoring system from `references/cdrh-review-structure.md` Section 8:
 
@@ -450,7 +485,7 @@ Write `pre_check_report.md` to the project folder:
   FDA Pre-Check Report
   {project_name} — {device_name}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | v5.15.0
+  Generated: {date} | v5.16.0
   Depth: {quick|standard|deep}
   Focus: {predicate|testing|labeling|clinical|all}
 
@@ -517,10 +552,10 @@ SIMULATED DEFICIENCIES
   Recommendation: {action}
   Remediation: {/fda: command}
 
-SUBMISSION READINESS SCORE
+SUBMISSION READINESS INDEX (SRI)
 ────────────────────────────────────────
 
-  Score: {N}/100 — {Ready / Nearly Ready / Significant Gaps / Not Ready / Early Stage}
+  SRI: {N}/100 — {Ready / Nearly Ready / Significant Gaps / Not Ready / Early Stage}
 
   | Component | Score | Max | Notes |
   |-----------|-------|-----|-------|
@@ -570,7 +605,7 @@ Write audit log entries per `references/audit-logging.md`:
 - `review_team_identified` entry with OHT, specialists
 - `rta_screening_completed` entry with pass/fail and item counts
 - For each deficiency: `deficiency_identified` entry
-- `readiness_score_calculated` entry with score and tier
+- `readiness_sri_calculated` entry with SRI score and tier
 - At completion: `pre_check_report_generated` entry
 
 Append all entries to `$PROJECTS_DIR/$PROJECT_NAME/audit_log.jsonl`.

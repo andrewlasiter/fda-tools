@@ -200,7 +200,7 @@ Present the report using the standard FDA Professional CLI format (see `referenc
   FDA Consistency Validation Report
   Project: {project_name}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | Files: {count} | v5.15.0
+  Generated: {date} | Files: {count} | v5.16.0
 
 RESULTS SUMMARY
 ────────────────────────────────────────

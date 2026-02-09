@@ -304,21 +304,17 @@ class TestDataDictionary:
 
     def test_data_dictionary_has_key_endpoints(self):
         content = _read(self.DICT_PATH)
-        # The Excel groups fields by dataset number, not endpoint name;
-        # datasets 1-5 cover all fields (event, udi, 510k, registration, classification)
-        for term in ["device/event", "device/510k", "device/classification"]:
+        # All 9 openFDA device endpoints should be documented
+        for term in ["device/event", "device/recall", "device/510k",
+                      "device/classification", "device/registrationlisting",
+                      "device/pma", "device/udi"]:
             assert term in content, \
                 f"Data dictionary should document {term}"
 
-    def test_data_dictionary_has_field_count(self):
+    def test_data_dictionary_has_endpoint_count(self):
         content = _read(self.DICT_PATH)
-        assert "Total fields:" in content
-        # Should have 300+ fields
-        import re
-        m = re.search(r"Total fields:\s*(\d+)", content)
-        assert m, "Data dictionary should state total field count"
-        assert int(m.group(1)) >= 300, \
-            f"Data dictionary should have 300+ fields, got {m.group(1)}"
+        assert "Endpoints: 9" in content, \
+            "Data dictionary should document all 9 openFDA device endpoints"
 
 
 # ──────────────────────────────────────────────

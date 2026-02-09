@@ -84,11 +84,11 @@ The pipeline expects this directory structure:
 
 ```
 {repo_dir}/                    ← Scripts, PMN files, manifests
-├── gap_analysis.py
-├── gap_downloader.py
-├── Test69a_final_ocr_smart_v2.py
-├── merge_outputs.py
-├── pipeline.py                ← Orchestrator
+├── gap_analysis.py            ← [BUNDLED] Also at $FDA_PLUGIN_ROOT/scripts/
+├── gap_downloader.py          ← [REPO ONLY] Not bundled in plugin
+├── Test69a_final_ocr_smart_v2.py ← [REPO ONLY] Not bundled in plugin
+├── merge_outputs.py           ← [REPO ONLY] Not bundled in plugin
+├── pipeline.py                ← [REPO ONLY] Orchestrator, not bundled
 ├── pmn96cur.txt               ← FDA PMN database
 ├── gap_manifest.csv           ← Gap analysis output
 └── download_progress.json     ← Download resume state
@@ -98,6 +98,17 @@ The pipeline expects this directory structure:
 └── {YEAR}/                    ← PDFs organized by year
     └── {Applicant}/{ProductCode}/{Type}/{K-number}.pdf
 ```
+
+**Script availability:**
+
+| Script | Bundled in Plugin? | Fallback |
+|--------|--------------------|----------|
+| `gap_analysis.py` | Yes (`$FDA_PLUGIN_ROOT/scripts/`) | — |
+| `predicate_extractor.py` | Yes (`$FDA_PLUGIN_ROOT/scripts/`) | — |
+| `pipeline.py` | No | Run steps individually using bundled scripts |
+| `gap_downloader.py` | No | Use `/fda:extract` stage 1 (batchfetch.py) or download manually |
+| `merge_outputs.py` | No | Simple CSV merge (inline Python below) |
+| `Test69a_final_ocr_smart_v2.py` | No | Use bundled `predicate_extractor.py` instead |
 
 Paths are resolved from settings (`~/.claude/fda-predicate-assistant.local.md`):
 - `repo_dir` — from `extraction_dir` setting (default: `~/fda-510k-data/extraction`)
@@ -134,6 +145,13 @@ checks = {
 for k, v in checks.items():
     exists = os.path.exists(v)
     print(f'{k}:{\"OK\" if exists else \"MISSING\"}:{v}')
+
+# Check bundled scripts as fallback
+print()
+print('BUNDLED_SCRIPTS:')
+for script in ['gap_analysis.py', 'predicate_extractor.py', 'batchfetch.py']:
+    # FDA_PLUGIN_ROOT resolved by caller
+    print(f'  {script}: available in $FDA_PLUGIN_ROOT/scripts/')
 "
 ```
 
@@ -176,9 +194,18 @@ python3 "$FDA_PLUGIN_ROOT/scripts/gap_analysis.py" \
 ```
 
 **Download** (Step 2):
+If `gap_downloader.py` is available in the repo:
 ```bash
 python3 "$REPO_DIR/gap_downloader.py" --delay 10
 ```
+If not available, use the plugin's bundled batchfetch.py:
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/batchfetch.py" \
+  --input "$REPO_DIR/gap_manifest.csv" \
+  --output-dir "$PDF_DIR/$YEAR" \
+  --delay 10
+```
+Or guide the user: "gap_downloader.py is not bundled with the plugin. Either install the PredicateExtraction repo or use `/fda:extract` stage 1 for batch downloading."
 
 **Extract** (Step 3) — uses the plugin's predicate_extractor.py:
 ```bash
@@ -188,8 +215,56 @@ python3 "$FDA_PLUGIN_ROOT/scripts/predicate_extractor.py" \
 ```
 
 **Merge** (Step 4):
+If `merge_outputs.py` is available in the repo:
 ```bash
 python3 "$REPO_DIR/merge_outputs.py"
+```
+If not available, use inline Python to merge per-year CSVs:
+```bash
+python3 << 'PYEOF'
+import csv, os, glob
+
+pdf_dir = "PDF_DIR"  # Replace with resolved path
+baseline = os.path.join(pdf_dir, "510k_output.csv")
+updated = os.path.join(pdf_dir, "510k_output_updated.csv")
+
+# Collect all per-year output.csv files
+year_csvs = sorted(glob.glob(os.path.join(pdf_dir, "*/output.csv")))
+print(f"Found {len(year_csvs)} per-year CSVs to merge")
+
+# Read baseline
+rows = {}
+if os.path.exists(baseline):
+    with open(baseline, 'r', encoding='utf-8') as f:
+        reader = csv.reader(f)
+        header = next(reader, None)
+        for row in reader:
+            if row:
+                rows[row[0]] = row
+
+# Merge per-year results (newer overwrites older)
+for ycsv in year_csvs:
+    with open(ycsv, 'r', encoding='utf-8') as f:
+        reader = csv.reader(f)
+        next(reader, None)  # skip header
+        for row in reader:
+            if row:
+                rows[row[0]] = row
+
+# Write merged output
+if rows:
+    max_cols = max(len(r) for r in rows.values())
+    with open(updated, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        writer.writerow(['510(k)', 'Product Code'] + [f'Col{i}' for i in range(3, max_cols + 1)])
+        for k_num in sorted(rows.keys()):
+            row = rows[k_num]
+            row.extend([''] * (max_cols - len(row)))
+            writer.writerow(row)
+    print(f"Merged {len(rows)} records → {updated}")
+else:
+    print("No data to merge")
+PYEOF
 ```
 
 ## Output Format
@@ -202,7 +277,7 @@ Present results using the standard FDA Professional CLI format:
   FDA Data Pipeline Status
   510(k) Corpus Overview
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | v5.15.0
+  Generated: {date} | v5.16.0
 
 BASELINE
 ────────────────────────────────────────
@@ -271,7 +346,7 @@ For individual steps or full run, display the raw script output and then summari
 
 ## Error Handling
 
-- If `pipeline.py` not found → Fall back to individual scripts, or guide user to install the PredicateExtraction repo
+- If `pipeline.py` not found → Fall back to bundled scripts (`gap_analysis.py`, `predicate_extractor.py`, `batchfetch.py`) + inline merge. Non-bundled scripts (`gap_downloader.py`, `merge_outputs.py`, `Test69a_final_ocr_smart_v2.py`) require the PredicateExtraction repo.
 - If PMN files not found → Guide to download from FDA or run `/fda:extract stage1`
 - If download/510k directory not found → Guide to create it and run initial batch fetch
 - If extraction fails for a year → Log and continue to next year (pipeline doesn't halt)

@@ -293,7 +293,7 @@ After all steps complete, present a summary using the standard FDA Professional 
   FDA Pipeline Completion Report
   {CODE} — {device_name}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | Project: {PROJECT_NAME} | v5.15.0
+  Generated: {date} | Project: {PROJECT_NAME} | v5.16.0
 
 STEP RESULTS
 ────────────────────────────────────────

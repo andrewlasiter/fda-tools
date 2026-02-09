@@ -1,7 +1,7 @@
 {
   "name": "fda-predicate-assistant",
-  "version": "5.15.0",
-  "description": "AI-powered FDA 510(k) regulatory assistant — 38 commands, 7 agents, API-authoritative guidance matching. v5.15.0: 3-tier guidance trigger system (API flags → word-boundary keywords → classification heuristics), AccessGUDID sterilization/MRI/latex queries, negation-aware matching, 6 new trigger categories (3D printing, animal-derived, home use, pediatric, latex, electrical), 107 new accuracy tests",
+  "version": "5.16.0",
+  "description": "AI-powered FDA 510(k) regulatory assistant — 38 commands, 7 agents. v5.16.0: Sprint 4 remediation (42 items) — predicate legal status verification, Q-Sub type differentiation, labeling reviewer simulation, exact binomial calculator, draft revision workflow, portfolio timeline planning, literature caching, eSTAR mandatory section checks, progress checkpoints on all agents, PubMed API expansion, 193 new tests (1,681 total)",
   "author": {
     "name": "PredicateExtraction"
   },

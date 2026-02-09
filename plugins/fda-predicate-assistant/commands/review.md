@@ -393,7 +393,55 @@ PYEOF
 
 Apply points: Clean → 10pts, Minor concerns → 5pts, Major concerns → 0pts.
 
-### 3F: Check Exclusion List
+### 3F: Predicate Legal Status Verification
+
+**CRITICAL**: Verify each predicate candidate has not had its clearance withdrawn or been subject to an enforcement action that would make it legally unmarketable.
+
+```bash
+python3 << 'PYEOF'
+import urllib.request, urllib.parse, json, os, re
+
+settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+api_key = os.environ.get('OPENFDA_API_KEY')
+if os.path.exists(settings_path):
+    with open(settings_path) as f:
+        content = f.read()
+    if not api_key:
+        m = re.search(r'openfda_api_key:\s*(\S+)', content)
+        if m and m.group(1) != 'null':
+            api_key = m.group(1)
+
+# Check enforcement actions for all predicate product codes
+product_codes_to_check = ["PC1", "PC2"]  # Replace with unique product codes
+if product_codes_to_check:
+    enforcement_search = "+OR+".join(f'product_code:"{pc}"' for pc in product_codes_to_check)
+    params = {"search": enforcement_search, "limit": "10"}
+    if api_key:
+        params["api_key"] = api_key
+    params["search"] = params["search"].replace("+", " ")
+    url = f"https://api.fda.gov/device/enforcement.json?{urllib.parse.urlencode(params)}"
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/5.16.0)"})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read())
+            total = data.get('meta', {}).get('results', {}).get('total', 0)
+            print(f"ENFORCEMENT_TOTAL:{total}")
+            for r in data.get('results', [])[:5]:
+                print(f"ENFORCEMENT:{r.get('product_code', '?')}|{r.get('classification', '?')}|{r.get('status', '?')}|{r.get('reason_for_recall', 'N/A')[:80]}")
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            print("ENFORCEMENT_TOTAL:0")
+        else:
+            print(f"ENFORCEMENT_ERROR:{e}")
+    except Exception as e:
+        print(f"ENFORCEMENT_ERROR:{e}")
+PYEOF
+```
+
+If enforcement action found with `classification: "Class I"` or `status: "Ongoing"`: Flag `ENFORCEMENT_ACTION`.
+If any predicate's clearance has been revoked or withdrawn (check enforcement `reason_for_recall` for "withdrawal" or "revocation" language): Flag `WITHDRAWN`. A withdrawn predicate is **NOT legally marketed** and cannot serve as a valid predicate device.
+
+### 3G: Check Exclusion List
 
 ```bash
 python3 << 'PYEOF'
@@ -433,6 +481,8 @@ For each predicate candidate, check:
 |------|-------|
 | `RECALLED` | Any recall found in Step 3E |
 | `RECALLED_CLASS_I` | Class I recall found via `/device/enforcement` for same product code |
+| `WITHDRAWN` | Clearance withdrawn or revoked per enforcement API |
+| `ENFORCEMENT_ACTION` | Active enforcement action (warning letter, consent decree) against predicate applicant |
 | `PMA_ONLY` | Device number starts with `P` |
 | `CLASS_III` | Classification lookup shows Class 3 |
 | `OLD` | Decision date > 10 years ago |
@@ -628,7 +678,7 @@ After all predicates are reviewed, present a summary:
   FDA Predicate Review Summary
   Project: {name}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | v5.15.0
+  Generated: {date} | v5.16.0
 
 RESULTS
 ────────────────────────────────────────

@@ -42,6 +42,7 @@ From `$ARGUMENTS`, extract:
 - `--pathway traditional|special|abbreviated|denovo` — Submission pathway (default: traditional)
 - `--output-dir DIR` — Where to create the eSTAR structure (default: project_dir/estar/)
 - `--infer` — Auto-detect product code from project
+- `--attach FILE [SECTION]` — Attach a file (test report, labeling PDF, image) to a specific eSTAR section. SECTION is the 2-digit section number (e.g., `15` for Performance Testing). Can be specified multiple times.
 
 ## Step 1: Inventory Available Data
 
@@ -232,13 +233,44 @@ have AI-generated content that has not yet been verified.
 {timestamp and details of assembly process}
 ```
 
+## Step 4b: Process Attachments
+
+If `--attach` flags provided, process each attachment:
+
+1. Validate the file exists and is a supported format (PDF, PNG, JPG, SVG, DOCX, XLSX, CSV, TXT)
+2. Determine the target eSTAR section folder:
+   - If SECTION specified: use `{##}_{SectionName}/` (e.g., `15_PerformanceTesting/`)
+   - If SECTION not specified: infer from filename keywords (e.g., "biocompat" → 12, "IEC_60601" → 14)
+   - If unable to infer: place in `18_Other/`
+3. Copy file to the target section folder with eSTAR naming: `Section{##}_Attachment_{filename}`
+4. Update `attachments.json` in the project directory:
+
+```json
+{
+  "attachments": [
+    {
+      "original_path": "/path/to/report.pdf",
+      "estar_path": "15_PerformanceTesting/Section15_Attachment_report.pdf",
+      "section": "15",
+      "added": "2026-02-09T12:00:00Z",
+      "size_bytes": 1234567
+    }
+  ]
+}
+```
+
+5. Warn if any attachment exceeds 100 MB (FDA eSTAR limit per file)
+6. Include attachment count in the eSTAR index
+
+Also scan for existing attachments: check `{project_dir}/attachments/` for files placed there manually. Include them in the inventory.
+
 ## Step 5: Report
 
 ```
   FDA eSTAR Assembly Report
   {product_code} — {device_name}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | Project: {name} | v5.15.0
+  Generated: {date} | Project: {name} | v5.16.0
 
 ASSEMBLY SUMMARY
 ────────────────────────────────────────

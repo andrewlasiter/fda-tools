@@ -58,10 +58,100 @@ GET esearch.fcgi?db=pubmed&term={query}&retmax=20&retmode=json&sort=relevance&to
 ## efetch — Retrieve Article Details
 
 ```
-GET efetch.fcgi?db=pubmed&id={pmid1,pmid2,...}&rettype=abstract&retmode=xml
+GET efetch.fcgi?db=pubmed&id={pmid1,pmid2,...}&rettype=abstract&retmode=xml&tool=fda-predicate-assistant&email=plugin@example.com
 ```
 
-Returns XML with article title, authors, journal, year, abstract, publication type, and MeSH terms.
+**Parameters:**
+- `db=pubmed` — Database
+- `id` — Comma-separated PMIDs (max 200 per request)
+- `rettype=abstract` — Return type (abstract, medline, full)
+- `retmode=xml` — Return format (xml recommended for structured parsing)
+- `api_key` — Optional NCBI API key
+
+**Response XML structure** (key fields for parsing):
+
+```xml
+<PubmedArticleSet>
+  <PubmedArticle>
+    <MedlineCitation>
+      <PMID>38123456</PMID>
+      <Article>
+        <Journal>
+          <Title>Journal of Medical Devices</Title>
+          <JournalIssue>
+            <Volume>18</Volume>
+            <Issue>3</Issue>
+            <PubDate><Year>2024</Year><Month>Sep</Month></PubDate>
+          </JournalIssue>
+        </Journal>
+        <ArticleTitle>Clinical outcomes of device X...</ArticleTitle>
+        <Abstract>
+          <AbstractText>BACKGROUND: ... METHODS: ... RESULTS: ... CONCLUSIONS: ...</AbstractText>
+        </Abstract>
+        <AuthorList>
+          <Author><LastName>Smith</LastName><Initials>JD</Initials></Author>
+        </AuthorList>
+        <PublicationTypeList>
+          <PublicationType>Clinical Trial</PublicationType>
+          <PublicationType>Randomized Controlled Trial</PublicationType>
+        </PublicationTypeList>
+      </Article>
+      <MeshHeadingList>
+        <MeshHeading>
+          <DescriptorName MajorTopicYN="Y">Prostheses and Implants</DescriptorName>
+        </MeshHeading>
+      </MeshHeadingList>
+    </MedlineCitation>
+  </PubmedArticle>
+</PubmedArticleSet>
+```
+
+**Key XML paths for parsing:**
+
+| Field | XPath | Description |
+|-------|-------|-------------|
+| PMID | `.//PMID` | PubMed unique identifier |
+| Title | `.//ArticleTitle` | Article title text |
+| Journal | `.//Journal/Title` | Journal name |
+| Year | `.//PubDate/Year` | Publication year |
+| Abstract | `.//AbstractText` | Full abstract text |
+| Authors | `.//Author/LastName` + `.//Author/Initials` | Author names |
+| Pub Type | `.//PublicationType` | Publication type(s) — multiple possible |
+| MeSH | `.//DescriptorName` | MeSH heading terms |
+| DOI | `.//ArticleId[@IdType="doi"]` | DOI identifier |
+| Volume | `.//Volume` | Journal volume |
+| Issue | `.//Issue` | Journal issue |
+
+**Publication types relevant to FDA literature review:**
+
+| Publication Type | Evidence Level | Use Case |
+|-----------------|---------------|----------|
+| `Randomized Controlled Trial` | Highest | Pivotal clinical evidence |
+| `Clinical Trial` | High | Clinical performance data |
+| `Meta-Analysis` | High | Aggregate evidence |
+| `Systematic Review` | High | Comprehensive evidence synthesis |
+| `Comparative Study` | Moderate | Device comparison data |
+| `Observational Study` | Moderate | Real-world safety data |
+| `Case Reports` | Low | Adverse event signal detection |
+| `Review` | Varies | Background and context |
+| `Validation Study` | Moderate | Test method validation |
+
+## elink — Related Articles and Citation Counts
+
+```
+GET elink.fcgi?dbfrom=pubmed&id={pmid}&cmd=neighbor_score&tool=fda-predicate-assistant&email=plugin@example.com
+```
+
+**Parameters:**
+- `dbfrom=pubmed` — Source database
+- `id` — PMID(s) to find related articles for
+- `cmd=neighbor_score` — Return related articles with relevance scores
+- `linkname=pubmed_pubmed_citedin` — Find articles that cite this one (citation count)
+
+**Use cases:**
+- Find related studies for a key article
+- Count citations to assess article impact
+- Discover additional relevant literature from citation networks
 
 ## MeSH Term Mapping for Medical Devices
 
@@ -94,7 +184,33 @@ Use MeSH terms to improve search precision. Common mappings for device categorie
 ### Filters
 - `"clinical trial"[Publication Type]` — Clinical trials only
 - `"review"[Publication Type]` — Reviews only
-- `"last 5 years"[PDat]` — Date filter
+- `"last 5 years"[PDat]` — Date filter (relative)
+- `"2020/01/01"[PDat]:"2025/12/31"[PDat]` — Date range (absolute)
+- `"humans"[MeSH]` — Human studies only (excludes animal studies)
+- `"english"[Language]` — English language only
+- `"free full text"[Filter]` — Only articles with free full text
+
+### Common Filter Combinations for 510(k) Reviews
+
+**High-quality clinical evidence only:**
+```
+({device_terms}) AND ("clinical trial"[Publication Type] OR "randomized controlled trial"[Publication Type]) AND "humans"[MeSH] AND "last 10 years"[PDat]
+```
+
+**Safety signals (broad):**
+```
+({device_terms}) AND (adverse[Title/Abstract] OR complication[Title/Abstract] OR failure[Title/Abstract] OR recall[Title/Abstract]) AND "last 10 years"[PDat]
+```
+
+**Systematic reviews and meta-analyses (highest evidence):**
+```
+({device_terms}) AND ("systematic review"[Publication Type] OR "meta-analysis"[Publication Type])
+```
+
+**Standards and testing methodology:**
+```
+({device_terms}) AND ("ISO"[Title/Abstract] OR "ASTM"[Title/Abstract] OR "IEC"[Title/Abstract]) AND (testing[Title/Abstract] OR validation[Title/Abstract])
+```
 
 ### Example Queries for FDA Literature Review
 

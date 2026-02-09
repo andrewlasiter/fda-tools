@@ -185,7 +185,7 @@ Present the import results using the standard FDA Professional CLI format (see `
   FDA eSTAR Import Report
   {product_code} — {device_name}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | Project: {name} | v5.15.0
+  Generated: {date} | Project: {name} | v5.16.0
 
 IMPORT SUMMARY
 ────────────────────────────────────────

@@ -94,6 +94,30 @@ As of February 2, 2026, nIVD and IVD eSTAR templates (v6) align with the new Qua
 | 14 | EMC/Electrical Safety | Electrical testing | IEC 60601, EMC, wireless |
 | 15 | Performance Testing | Non-clinical data | Bench testing, analytical performance |
 | 16 | Clinical | Clinical evidence | Studies, literature, post-market data |
+| 17 | Human Factors | Usability Engineering | IEC 62366-1, use environment, critical tasks |
+| 18 | Other | Additional Information | Supplementary materials |
+
+### Section Number to XML Element Mapping
+
+| Section # | XML Element Root | Pattern Regex |
+|-----------|-----------------|---------------|
+| 01 | `form1.CoverLetter` | `CoverLetter\\.` |
+| 02 | `form1.FDA3514` | `FDA3514\\.` |
+| 03 | `form1.Summary` | `Summary\\.` |
+| 04 | `form1.TruthfulAccuracy` | `TruthfulAccuracy\\.` |
+| 05 | `form1.FinancialCert` | `FinancialCert\\.` |
+| 06 | `form1.DeviceDescription` | `DeviceDescription\\.` |
+| 07 | `form1.SE` | `SE\\.` |
+| 08 | `form1.Standards` | `Standards\\.` |
+| 09 | `form1.Labeling` | `Labeling\\.` |
+| 10 | `form1.Sterilization` | `Sterilization\\.` |
+| 11 | `form1.ShelfLife` | `ShelfLife\\.` |
+| 12 | `form1.Biocompat` | `Biocompat\\.` |
+| 13 | `form1.Software` | `Software\\.` |
+| 14 | `form1.EMC` | `EMC\\.` |
+| 15 | `form1.Performance` | `Performance\\.` |
+| 16 | `form1.Clinical` | `Clinical\\.` |
+| 17 | `form1.HumanFactors` | `HumanFactors\\.` |
 
 ### Section Applicability by Device Type
 

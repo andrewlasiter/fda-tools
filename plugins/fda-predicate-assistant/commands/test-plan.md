@@ -142,7 +142,7 @@ Write the complete test plan (see `references/output-formatting.md` for formatti
 # 510(k) Testing Plan
 ## {Device Description} — Product Code {CODE}
 
-**Generated:** {date} | v5.15.0
+**Generated:** {date} | v5.16.0
 **Risk Framework:** ISO 14971
 **Project:** {project_name or "N/A"}
 

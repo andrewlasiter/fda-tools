@@ -221,3 +221,18 @@ Text similarity between the subject device's intended use and the predicate's cl
 With extended components: **0 to 120 points** (100 base + 20 bonus)
 
 Thresholds should be applied to the base 100-point score. Bonus points are used for tiebreaking and ranking differentiation.
+
+## Score Disambiguation
+
+This plugin uses two distinct scoring systems. They measure different things and should never be confused:
+
+| Attribute | Predicate Confidence Score (PCS) | Submission Readiness Index (SRI) |
+|-----------|--------------------------------|--------------------------------|
+| **What it measures** | How likely an extracted device is a true predicate | How complete a 510(k) submission package is |
+| **Scale** | 0-100 base + 20 bonus | 0-100 |
+| **Used by** | `/fda:review`, `/fda:propose`, `/fda:research` | `/fda:pre-check`, `review-simulator` agent |
+| **Inputs** | PDF section context, citation frequency, product code match, recency, regulatory history | RTA checklist, predicate quality, SE comparison, testing coverage, deficiency count, documentation |
+| **Labels** | Strong / Moderate / Weak / Poor / Reject | Ready / Nearly Ready / Significant Gaps / Not Ready / Early Stage |
+| **Display prefix** | "Score:" or "PCS:" | "SRI:" |
+
+When displaying either score, always include the label to prevent ambiguity.

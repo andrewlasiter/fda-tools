@@ -86,46 +86,46 @@ Apply risk controls through design:
 | Metrics | Task success, use errors, close calls, difficulties |
 | Acceptance criteria | No critical task failures, no use errors leading to harm |
 
-## eSTAR Section 19: Human Factors
+## eSTAR Section 17: Human Factors
 
 ### Template Structure
 
 ```markdown
 ## Human Factors / Usability Engineering
 
-### 19.1 Use Environment
+### 17.1 Use Environment
 [TODO: Company-specific — Describe the intended use environment(s):
 - Clinical setting (hospital, clinic, physician office)
 - Home environment (if applicable)
 - Environmental conditions (lighting, noise, temperature)
 - Other use environments]
 
-### 19.2 User Profile
+### 17.2 User Profile
 [TODO: Company-specific — Describe intended users:
 - Healthcare professionals (type, training level)
 - Patients/caregivers (if home use)
 - Other users (biomedical technicians, etc.)
 - Physical/cognitive requirements]
 
-### 19.3 Critical Tasks
+### 17.3 Critical Tasks
 [TODO: Company-specific — List all critical tasks:
 - Tasks where use error could cause serious harm
 - Tasks requiring high accuracy or precision
 - Tasks performed under stress or time pressure]
 
-### 19.4 Use-Related Risk Analysis Summary
+### 17.4 Use-Related Risk Analysis Summary
 [TODO: Company-specific — Summarize use-related risk analysis:
 - Identified use errors and hazardous situations
 - Risk controls implemented (design, labeling, training)
 - Residual risks and mitigations]
 
-### 19.5 Formative Study Summary
+### 17.5 Formative Study Summary
 [TODO: Company-specific — Summarize formative studies:
 - Study type (cognitive walkthrough, heuristic evaluation, simulated use)
 - Number of participants
 - Key findings and design changes made]
 
-### 19.6 Summative (Validation) Study Summary
+### 17.6 Summative (Validation) Study Summary
 [TODO: Company-specific — Summarize validation study:
 - Study design and protocol
 - Number of participants per user group
@@ -145,7 +145,7 @@ Apply risk controls through design:
 
 ## Integration with Plugin Commands
 
-- `/fda:draft human-factors` — Generate Section 19 HFE template
+- `/fda:draft human-factors` — Generate Section 17 HFE template
 - `/fda:submission-outline` — HFE section applicability in outline
 - `/fda:safety` — MAUDE data identifying use error patterns
 - `/fda:test-plan` — HFE testing in comprehensive test plan

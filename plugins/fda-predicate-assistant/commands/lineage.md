@@ -175,7 +175,7 @@ Calculate a "Chain Health Score" (0-100) based on:
 
 | Factor | Points | Criteria |
 |--------|--------|----------|
-| No recalled ancestors | 30 | -10 per recalled ancestor, -20 for Class I recall |
+| No recalled/withdrawn ancestors | 30 | -10 per recalled ancestor, -20 for Class I recall, -30 for withdrawn clearance |
 | Product code consistency | 20 | All ancestors share same product code |
 | Chain depth available | 15 | Full chain traced (vs incomplete) |
 | Recency | 15 | Average ancestor age <10 years |
@@ -195,7 +195,7 @@ Calculate a "Chain Health Score" (0-100) based on:
   FDA Predicate Lineage Report
   K241335 — Cervical Fusion Cage
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | Chain Health: 72/100 (Moderate) | v5.15.0
+  Generated: {date} | Chain Health: 72/100 (Moderate) | v5.16.0
 
 LINEAGE TREE
 ────────────────────────────────────────

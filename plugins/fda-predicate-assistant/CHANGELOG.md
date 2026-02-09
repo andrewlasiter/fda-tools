@@ -1,5 +1,51 @@
 # Changelog
 
+## [5.16.0] - 2026-02-09
+
+### Added — Sprint 4 Remediation (42 items from 8-agent review)
+
+**Sprint 4A — Numbering & Consistency:**
+- Fixed section numbering across export.md and assemble.md (CamelCase alignment)
+- Restructured openfda-data-dictionary.md (field-centric to endpoint-centric format)
+- Updated all standalone "21 CFR 820" references to include QMSR cross-reference
+- Removed duplicate recall query in safety.md
+- Clear score labeling in extraction-analyzer.md (above-80/below-80 labels aligned)
+- Added missing Section 02 (CoverSheet/FDA 3514) to export.md section_map
+
+**Sprint 4B — XML & eSTAR Completeness:**
+- Added missing XML section builders for Financial Cert (Section 05) and Human Factors (Section 17) in estar_xml.py
+- eSTAR mandatory section completeness check in review-simulator.md (Sections 01-07,09,15 always required)
+- Attachment management: `--attach FILE` flag for assemble.md and export.md
+- estar-structure.md XML field paths for Sections 05 and 17
+
+**Sprint 4C — Script & Pipeline Improvements:**
+- Upgraded predicate_extractor.py: DEN number extraction, consistent CSV columns, ijson fallback
+- Context-aware OCR corrections (validate against FDA database before applying)
+- data-pipeline.md configurable script references (no hardcoded paths)
+
+**Sprint 4D — Agent Enhancements:**
+- Predicate legal status verification: WITHDRAWN and ENFORCEMENT_ACTION flags in review.md, propose.md, lineage.md
+- Pre-Sub Planner command orchestration: /fda:inspections, /fda:warnings, /fda:trials
+- Labeling Reviewer specialist template in review-simulator.md (21 CFR 801, IFU content, format compliance, UDI)
+- Q-Sub type differentiation: Formal Meeting, Written Feedback Only, Information, Pre-IDE
+- Progress checkpoints (`[1/N]` format) in all 7 agents
+- 3-tier guidance trigger reference in review-simulator.md
+- Commands You Orchestrate table in submission-writer.md
+
+**Sprint 4E — User Workflow:**
+- Exact binomial method in sample size calculator for proportions near 0/1 (Clopper-Pearson)
+- Draft revision workflow: `--revise` flag with USER EDIT marker preservation
+- N/A section handling: `--na` flag with rationale templates for all applicable sections
+- Portfolio timeline planning: Gantt-style view, `--set-target`, FDA review timeline reference
+- PubMed API reference expanded: efetch XML parsing, elink endpoint, publication type evidence levels, filter combinations
+- Literature search caching: `--offline` mode, `--refresh` flag, 7-day cache in project directory
+- Readiness score (SRI) calculation: 6-component scoring (RTA/predicate/SE/testing/deficiency/documentation)
+
+### Tests
+- 193 new tests across 5 sprint test files (4A: 37, 4B: 37, 4C: 32, 4D: 56, 4E: 68, less overlap with existing)
+- Total: 1,681 passing (offline), 56 API tests deselected
+- Sprint 4F deferred to v5.17+
+
 ## [5.15.0] - 2026-02-08
 
 ### Changed — Guidance Matching Accuracy Overhaul

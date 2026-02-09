@@ -172,7 +172,7 @@ endpoints = [
 print("  FDA API Connectivity Test")
 print("  openFDA Device Endpoints")
 print("━" * 56)
-print(f"  Generated: {__import__('datetime').date.today()} | v5.15.0")
+print(f"  Generated: {__import__('datetime').date.today()} | v5.16.0")
 print()
 print("API CONFIGURATION")
 print("─" * 40)

@@ -198,7 +198,7 @@ sections = {
 import re
 
 def kw_match(desc, keywords):
-    """Word-boundary matching with negation awareness (same as guidance.md v5.15.0)."""
+    """Word-boundary matching with negation awareness (same as guidance.md v5.16.0)."""
     for kw in keywords:
         pattern = r'\b' + re.escape(kw) + r'\b'
         match = re.search(pattern, desc, re.IGNORECASE)
@@ -353,7 +353,7 @@ Write the complete submission outline document (see `references/output-formattin
 **Pathway:** {Traditional/Special/Abbreviated/De Novo}
 **Product Code:** {CODE} — {device_name}
 **Classification:** Class {class}, 21 CFR {regulation}
-**Generated:** {today's date} | v5.15.0
+**Generated:** {today's date} | v5.16.0
 **Project:** {project_name or "N/A"}
 
 ---

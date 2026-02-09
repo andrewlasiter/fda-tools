@@ -123,7 +123,7 @@ Present the analysis using the standard FDA Professional CLI format (see `refere
   FDA Data Analysis Report
   {product_code} — {device_name} (or {analysis_mode})
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | Project: {name} | v5.15.0
+  Generated: {date} | Project: {name} | v5.16.0
 
 DATA SOURCES
 ────────────────────────────────────────

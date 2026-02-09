@@ -87,7 +87,8 @@ Submit completed eSTAR packages via the **CDRH Portal**: `https://ccp.fda.gov/pr
 | 14 | EMC/Electrical Safety | EMC/Electrical | Conditional | If applicable |
 | 15 | Performance Testing | Performance Testing | Yes | Partial |
 | 16 | Clinical | Clinical | Conditional | If available |
-| 17 | Other | Additional Information | Optional | As available |
+| 17 | Human Factors | Usability Engineering | Conditional | If applicable |
+| 18 | Other | Additional Information | Optional | As available |
 
 ## XFA XML Field Mapping
 
@@ -209,6 +210,7 @@ Used for parsing eSTAR XML and routing to correct project data fields:
 | 02 | `form1.FDA3514` | `FDA3514\\.` |
 | 03 | `form1.Summary` | `Summary\\.` |
 | 04 | `form1.TruthfulAccuracy` | `TruthfulAccuracy\\.` |
+| 05 | `form1.FinancialCert` | `FinancialCert\\.` |
 | 06 | `form1.DeviceDescription` | `DeviceDescription\\.` |
 | 07 | `form1.SE` | `SE\\.` |
 | 08 | `form1.Standards` | `Standards\\.` |
@@ -220,3 +222,4 @@ Used for parsing eSTAR XML and routing to correct project data fields:
 | 14 | `form1.EMC` | `EMC\\.` |
 | 15 | `form1.Performance` | `Performance\\.` |
 | 16 | `form1.Clinical` | `Clinical\\.` |
+| 17 | `form1.HumanFactors` | `HumanFactors\\.` |
