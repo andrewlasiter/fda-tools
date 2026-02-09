@@ -31,6 +31,18 @@ If `$FDA_PLUGIN_ROOT` is empty, report an error: "Could not locate the FDA Predi
 
 ---
 
+## Check Available Data
+
+Before making API calls, check what data already exists for this project:
+
+```bash
+python3 $FDA_PLUGIN_ROOT/scripts/fda_data_store.py --project "$PROJECT_NAME" --show-manifest 2>/dev/null
+```
+
+If the manifest shows cached data that matches your needs (same product code, not expired), **use the cached summaries** instead of re-querying. This prevents redundant API calls and ensures consistency across commands.
+
+---
+
 You are conducting an interactive predicate review session. After extraction, this command scores, flags, and lets the user accept/reject each predicate with tracked rationale.
 
 **KEY PRINCIPLE: Use the scoring algorithm from `references/confidence-scoring.md` consistently.** All scoring logic, flag definitions, and reclassification rules are defined there — this command applies them.
@@ -224,57 +236,17 @@ Apply points per the scoring table: 5+ → 20pts, 3-4 → 15pts, 2 → 10pts, 1 
 
 ### 3C: Product Code Match (15 pts)
 
-For each predicate candidate, check if it shares a product code with the source device(s):
+For each predicate candidate, batch-lookup via the project data store (caches results for cross-command reuse):
 
 ```bash
-python3 << 'PYEOF'
-import urllib.request, urllib.parse, json, os, re, time
-
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
-api_key = os.environ.get('OPENFDA_API_KEY')
-api_enabled = True
-if os.path.exists(settings_path):
-    with open(settings_path) as f:
-        content = f.read()
-    if not api_key:
-        m = re.search(r'openfda_api_key:\s*(\S+)', content)
-        if m and m.group(1) != 'null':
-            api_key = m.group(1)
-    m = re.search(r'openfda_enabled:\s*(\S+)', content)
-    if m and m.group(1).lower() == 'false':
-        api_enabled = False
-
-# Replace with actual device numbers to look up
-devices_to_check = ["K123456", "K234567"]
-
-if api_enabled and devices_to_check:
-    # Batch lookup: single OR query for all devices (1 call instead of N)
-    batch_search = "+OR+".join(f'k_number:"{kn}"' for kn in devices_to_check)
-    params = {"search": batch_search, "limit": str(len(devices_to_check))}
-    if api_key:
-        params["api_key"] = api_key
-    # Fix URL encoding: replace + with space before urlencode
-    params["search"] = params["search"].replace("+", " ")
-    url = f"https://api.fda.gov/device/510k.json?{urllib.parse.urlencode(params)}"
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/5.5.0)"})
-    try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            data = json.loads(resp.read())
-            results_by_k = {r.get("k_number", ""): r for r in data.get("results", [])}
-            for knumber in devices_to_check:
-                r = results_by_k.get(knumber)
-                if r:
-                    print(f"{knumber}|PRODUCT_CODE:{r.get('product_code', '?')}|DECISION_DATE:{r.get('decision_date', '?')}|APPLICANT:{r.get('applicant', '?')}|DEVICE_NAME:{r.get('device_name', '?')}|STATEMENT_OR_SUMMARY:{r.get('statement_or_summary', '?')}")
-                else:
-                    print(f"{knumber}|NOT_FOUND")
-    except Exception as e:
-        for knumber in devices_to_check:
-            print(f"{knumber}|ERROR:{e}")
-else:
-    # Fallback to flat files
-    print("API_DISABLED:use_flatfiles")
-PYEOF
+# Replace K-numbers below with actual device numbers to check
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_data_store.py" \
+  --project "$PROJECT_NAME" \
+  --query 510k-batch \
+  --k-numbers "K123456,K234567"
 ```
+
+The output includes PRODUCT_CODE, DECISION_DATE, APPLICANT, DEVICE_NAME for each device.
 
 If API disabled, fall back to grep on flat files:
 ```bash
@@ -294,105 +266,24 @@ From the decision date obtained in 3C:
 
 ### 3E: Regulatory History (10 pts)
 
-Query openFDA for recalls and adverse events:
+Query recalls and adverse events for predicate product codes via the project data store. If `/fda:research` or `/fda:safety` already ran for this project, the manifest will have cached recall and event data.
 
 ```bash
-python3 << 'PYEOF'
-import urllib.request, urllib.parse, json, os, re, time
+# For each unique product code among the predicate candidates:
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_data_store.py" \
+  --project "$PROJECT_NAME" \
+  --query recalls \
+  --product-code "$PREDICATE_PRODUCT_CODE"
 
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
-api_key = os.environ.get('OPENFDA_API_KEY')
-api_enabled = True
-if os.path.exists(settings_path):
-    with open(settings_path) as f:
-        content = f.read()
-    if not api_key:
-        m = re.search(r'openfda_api_key:\s*(\S+)', content)
-        if m and m.group(1) != 'null':
-            api_key = m.group(1)
-    m = re.search(r'openfda_enabled:\s*(\S+)', content)
-    if m and m.group(1).lower() == 'false':
-        api_enabled = False
-
-if not api_enabled:
-    print("SAFETY_SKIP:api_disabled")
-    exit(0)
-
-# Replace with actual K-numbers and their product codes
-devices = [
-    {"knumber": "K123456", "product_code": "KGN", "applicant": "COMPANY"},
-]
-
-def fda_query(endpoint, search, limit=100, count_field=None):
-    params = {"search": search, "limit": str(limit)}
-    if count_field:
-        params["count"] = count_field
-    if api_key:
-        params["api_key"] = api_key
-    # Fix URL encoding: replace + with space before urlencode
-    params["search"] = params["search"].replace("+", " ")
-    url = f"https://api.fda.gov/device/{endpoint}.json?{urllib.parse.urlencode(params)}"
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/5.5.0)"})
-    try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            return json.loads(resp.read())
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            return {"results": [], "meta": {"results": {"total": 0}}}
-        return {"error": f"HTTP {e.code}"}
-    except Exception as e:
-        return {"error": str(e)}
-
-# Batch safety check: collect unique product codes, then query once per endpoint
-unique_pcs = list(set(d["product_code"] for d in devices if d["product_code"]))
-
-# Batch recall check for all product codes (1 call instead of N)
-recall_by_pc = {}
-if unique_pcs:
-    recall_search = "+OR+".join(f'product_code:"{pc}"' for pc in unique_pcs)
-    recalls = fda_query("recall", recall_search, limit=100)
-    recall_total = recalls.get("meta", {}).get("results", {}).get("total", 0)
-    recall_returned = len(recalls.get("results", []))
-    print(f"SHOWING:{recall_returned}_OF:{recall_total}")
-    for r in recalls.get("results", []):
-        rpc = r.get("product_code", "")
-        if rpc not in recall_by_pc:
-            recall_by_pc[rpc] = []
-        recall_by_pc[rpc].append(r)
-
-time.sleep(0.5)
-
-# Batch MAUDE event counts by product code (1 call instead of N)
-event_counts = {}
-if unique_pcs:
-    event_search = "+OR+".join(f'device.device_report_product_code:"{pc}"' for pc in unique_pcs)
-    event_result = fda_query("event", event_search, count_field="device.device_report_product_code.exact")
-    for r in event_result.get("results", []):
-        event_counts[r.get("term", "")] = r["count"]
-
-time.sleep(0.5)
-
-# Batch death event counts by product code (1 call instead of N)
-death_counts = {}
-if unique_pcs:
-    death_search = "(" + "+OR+".join(f'device.device_report_product_code:"{pc}"' for pc in unique_pcs) + ')+AND+event_type:"Death"'
-    death_result = fda_query("event", death_search, count_field="device.device_report_product_code.exact")
-    for r in death_result.get("results", []):
-        death_counts[r.get("term", "")] = r["count"]
-
-# Output per-device results
-for device in devices:
-    kn = device["knumber"]
-    pc = device["product_code"]
-    print(f"=== {kn} ===")
-    pc_recalls = recall_by_pc.get(pc, [])
-    for r in pc_recalls[:3]:
-        print(f"RECALL:{r.get('recall_status', '?')}|{r.get('res_event_number', '?')}|{r.get('reason_for_recall', 'N/A')[:80]}")
-    print(f"TOTAL_RECALLS:{len(pc_recalls)}")
-    print(f"TOTAL_MAUDE_EVENTS:{event_counts.get(pc, 0)}")
-    print(f"DEATH_EVENTS:{death_counts.get(pc, 0)}")
-PYEOF
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_data_store.py" \
+  --project "$PROJECT_NAME" \
+  --query events \
+  --product-code "$PREDICATE_PRODUCT_CODE" \
+  --count event_type.exact
 ```
+
+The recall output includes TOTAL_RECALLS, ACTIVE_RECALLS, CLASS_I/II/III counts.
+The event output includes TOTAL_EVENTS, DEATHS, INJURIES, MALFUNCTIONS.
 
 Apply points: Clean → 10pts, Minor concerns → 5pts, Major concerns → 0pts.
 
@@ -401,46 +292,11 @@ Apply points: Clean → 10pts, Minor concerns → 5pts, Major concerns → 0pts.
 **CRITICAL**: Verify each predicate candidate has not had its clearance withdrawn or been subject to an enforcement action that would make it legally unmarketable.
 
 ```bash
-python3 << 'PYEOF'
-import urllib.request, urllib.parse, json, os, re
-
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
-api_key = os.environ.get('OPENFDA_API_KEY')
-if os.path.exists(settings_path):
-    with open(settings_path) as f:
-        content = f.read()
-    if not api_key:
-        m = re.search(r'openfda_api_key:\s*(\S+)', content)
-        if m and m.group(1) != 'null':
-            api_key = m.group(1)
-
-# Check enforcement actions for all predicate product codes
-product_codes_to_check = ["PC1", "PC2"]  # Replace with unique product codes
-if product_codes_to_check:
-    enforcement_search = "+OR+".join(f'product_code:"{pc}"' for pc in product_codes_to_check)
-    params = {"search": enforcement_search, "limit": "100"}
-    if api_key:
-        params["api_key"] = api_key
-    params["search"] = params["search"].replace("+", " ")
-    url = f"https://api.fda.gov/device/enforcement.json?{urllib.parse.urlencode(params)}"
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/5.16.0)"})
-    try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            data = json.loads(resp.read())
-            total = data.get('meta', {}).get('results', {}).get('total', 0)
-            returned = len(data.get('results', []))
-            print(f"ENFORCEMENT_TOTAL:{total}")
-            print(f"SHOWING:{min(returned, 5)}_OF:{total}")
-            for r in data.get('results', [])[:5]:
-                print(f"ENFORCEMENT:{r.get('product_code', '?')}|{r.get('classification', '?')}|{r.get('status', '?')}|{r.get('reason_for_recall', 'N/A')[:80]}")
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            print("ENFORCEMENT_TOTAL:0")
-        else:
-            print(f"ENFORCEMENT_ERROR:{e}")
-    except Exception as e:
-        print(f"ENFORCEMENT_ERROR:{e}")
-PYEOF
+# For each unique product code among the predicate candidates:
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_data_store.py" \
+  --project "$PROJECT_NAME" \
+  --query enforcement \
+  --product-code "$PREDICATE_PRODUCT_CODE"
 ```
 
 **Deliberation:** If `SHOWING:X_OF:Y` where Y > X, note to the user that additional enforcement results exist beyond the returned batch and offer to fetch more if the initial results don't contain the expected data.

@@ -295,12 +295,12 @@ class TestPluginVersionAndCounts:
     def test_version_is_5_8_0(self):
         with open(PLUGIN_JSON) as f:
             data = json.load(f)
-        assert data["version"] == "5.18.0"
+        assert data["version"] == "5.19.0"
 
-    def test_description_mentions_40_commands(self):
+    def test_description_mentions_41_commands(self):
         with open(PLUGIN_JSON) as f:
             data = json.load(f)
-        assert "40 commands" in data["description"]
+        assert "41 commands" in data["description"]
 
     def test_gap_analysis_command_exists(self):
         """Gap analysis is a command, verified by command file existence."""
@@ -310,7 +310,7 @@ class TestPluginVersionAndCounts:
         """Data pipeline is a command, verified by command file existence."""
         assert os.path.exists(os.path.join(CMDS_DIR, "data-pipeline.md"))
 
-    def test_command_count_is_40(self):
-        """Verify 40 .md files in commands directory."""
+    def test_command_count_is_41(self):
+        """Verify 41 .md files in commands directory."""
         cmd_files = [f for f in os.listdir(CMDS_DIR) if f.endswith(".md")]
-        assert len(cmd_files) == 40, f"Expected 40 commands, found {len(cmd_files)}: {sorted(cmd_files)}"
+        assert len(cmd_files) == 41, f"Expected 41 commands, found {len(cmd_files)}: {sorted(cmd_files)}"

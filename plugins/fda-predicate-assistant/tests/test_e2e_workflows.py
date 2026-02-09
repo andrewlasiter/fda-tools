@@ -30,11 +30,11 @@ def _read_agent(name):
 class TestResearchWorkflow:
     """Validate research → safety → guidance → literature cross-references."""
 
-    def test_research_and_safety_share_openfda_base_url(self):
+    def test_research_and_safety_use_fda_data_store(self):
         research = _read_cmd("research")
         safety = _read_cmd("safety")
-        assert "api.fda.gov" in research
-        assert "api.fda.gov" in safety
+        assert "fda_data_store" in research or "FDAClient" in research
+        assert "fda_data_store" in safety or "FDAClient" in safety
 
     def test_research_and_guidance_both_reference_product_code(self):
         research = _read_cmd("research")
@@ -196,7 +196,7 @@ class TestAgentCommandMapping:
     def test_all_commands_exist(self):
         """Every .md file in commands/ should be a real command."""
         cmd_files = [f for f in os.listdir(CMDS_DIR) if f.endswith(".md")]
-        assert len(cmd_files) == 40
+        assert len(cmd_files) == 41
 
     def test_research_agent_commands_exist(self):
         """Commands referenced by research-intelligence agent should exist."""

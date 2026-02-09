@@ -226,7 +226,7 @@ See the **Workflow Guide** section above for the full 5-stage workflow. Here's t
 - `/fda:trials --device TERM` — ClinicalTrials.gov device study search
 - `/fda:warnings --query TERM` — FDA warning letters and enforcement
 
-## Available Commands (40)
+## Available Commands (41)
 
 ### Stage 1: Setup
 | Command | Purpose |
@@ -285,6 +285,7 @@ See the **Workflow Guide** section above for the full 5-stage workflow. Here's t
 | Command | Purpose |
 |---------|---------|
 | `/fda:ask` | Natural language Q&A about FDA regulatory topics |
+| `/fda:cache` | Show cached FDA data for a project — freshness, summaries, clear/refresh |
 | `/fda:calc` | Regulatory calculators — shelf life (ASTM F1980), sample size, sterilization dose |
 | `/fda:data-pipeline` | Data maintenance pipeline — analyze, download, extract, merge |
 | `/fda:gap-analysis` | 3-way PMN/CSV/PDF cross-reference to find missing data |

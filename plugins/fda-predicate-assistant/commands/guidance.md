@@ -29,6 +29,16 @@ echo "FDA_PLUGIN_ROOT=$FDA_PLUGIN_ROOT"
 
 If `$FDA_PLUGIN_ROOT` is empty, report an error: "Could not locate the FDA Predicate Assistant plugin installation. Make sure the plugin is installed and enabled."
 
+## Check Available Data
+
+Before making API calls, check what data already exists for this project:
+
+```bash
+python3 $FDA_PLUGIN_ROOT/scripts/fda_data_store.py --project "$PROJECT_NAME" --show-manifest 2>/dev/null
+```
+
+If the manifest shows cached classification data for the same product code (not expired), **use the cached summary** instead of re-querying. This prevents redundant API calls and ensures consistency across commands.
+
 ---
 
 You are looking up FDA guidance documents applicable to a device type, extracting requirements, and mapping them to testing needs.
@@ -129,56 +139,16 @@ This ensures the cache fallback always produces useful output, even without a pr
 
 ### Online: Query openFDA Classification API
 
+Query the classification endpoint via the project data store (caches results for cross-command reuse):
+
 ```bash
-python3 << 'PYEOF'
-import urllib.request, urllib.parse, json, os, re
-
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
-api_key = os.environ.get('OPENFDA_API_KEY')
-api_enabled = True
-if os.path.exists(settings_path):
-    with open(settings_path) as f:
-        content = f.read()
-    if not api_key:
-        m = re.search(r'openfda_api_key:\s*(\S+)', content)
-        if m and m.group(1) != 'null':
-            api_key = m.group(1)
-    m = re.search(r'openfda_enabled:\s*(\S+)', content)
-    if m and m.group(1).lower() == 'false':
-        api_enabled = False
-
-product_code = "PRODUCTCODE"  # Replace
-
-if api_enabled:
-    params = {"search": f'product_code:"{product_code}"', "limit": "100"}
-    if api_key:
-        params["api_key"] = api_key
-    url = f"https://api.fda.gov/device/classification.json?{urllib.parse.urlencode(params)}"
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/1.0)"})
-    try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            data = json.loads(resp.read())
-            total = data.get("meta", {}).get("results", {}).get("total", 0)
-            print(f"CLASSIFICATION_MATCHES:{total}")
-            if data.get("results"):
-                r = data["results"][0]
-                print(f"DEVICE_NAME:{r.get('device_name', 'N/A')}")
-                print(f"DEVICE_CLASS:{r.get('device_class', 'N/A')}")
-                print(f"REGULATION:{r.get('regulation_number', 'N/A')}")
-                print(f"PANEL:{r.get('medical_specialty_description', r.get('review_panel', 'N/A'))}")
-                print(f"DEFINITION:{r.get('definition', 'N/A')}")
-                print(f"GMP_EXEMPT:{r.get('gmp_exempt_flag', 'N/A')}")
-                print(f"IMPLANT_FLAG:{r.get('implant_flag', 'N')}")
-                print(f"LIFE_SUSTAIN:{r.get('life_sustain_support_flag', 'N')}")
-            else:
-                print("NOT_FOUND:true")
-    except Exception as e:
-        print(f"API_ERROR:{e}")
-else:
-    # Fallback to foiaclass.txt
-    print("API_FALLBACK:use_flatfiles")
-PYEOF
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_data_store.py" \
+  --project "$PROJECT_NAME" \
+  --query classification \
+  --product-code "$PRODUCT_CODE"
 ```
+
+The output includes DEVICE_NAME, DEVICE_CLASS, REGULATION, PANEL, DEFINITION, IMPLANT_FLAG, LIFE_SUSTAIN fields. If the API is unavailable, falls back to flat files automatically.
 
 If `--regulation NUMBER` is provided, use that instead of the API result.
 

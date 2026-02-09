@@ -23,6 +23,37 @@ From `$ARGUMENTS`, extract:
 
 If no product code provided, ask the user for it.
 
+## Resolve Plugin Root
+
+**Before running any bash commands that reference `$FDA_PLUGIN_ROOT`**, resolve the plugin install path:
+
+```bash
+FDA_PLUGIN_ROOT=$(python3 -c "
+import json, os
+f = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
+if os.path.exists(f):
+    d = json.load(open(f))
+    for k, v in d.get('plugins', {}).items():
+        if k.startswith('fda-predicate-assistant@'):
+            for e in v:
+                p = e.get('installPath', '')
+                if os.path.isdir(p):
+                    print(p); exit()
+print('')
+")
+echo "FDA_PLUGIN_ROOT=$FDA_PLUGIN_ROOT"
+```
+
+## Check Available Data
+
+Before making API calls, check what data already exists for this project:
+
+```bash
+python3 $FDA_PLUGIN_ROOT/scripts/fda_data_store.py --project "$PROJECT_NAME" --show-manifest 2>/dev/null
+```
+
+If the manifest shows cached data that matches your needs (same product code, not expired), **use the cached summaries** instead of re-querying. This prevents redundant API calls and ensures consistency across commands.
+
 ## Step 0: Verify API Access
 
 ```bash
@@ -74,103 +105,34 @@ If API is disabled or unreachable, **degrade gracefully** instead of blocking:
 
 ## Step 1: Product Code Context
 
-First, get the device classification to frame the analysis:
+Get the device classification via the project data store (caches results for cross-command reuse):
 
 ```bash
-python3 << 'PYEOF'
-import urllib.request, urllib.parse, json, os, re
-
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
-api_key = os.environ.get('OPENFDA_API_KEY')  # Env var takes priority (never enters chat)
-if os.path.exists(settings_path):
-    with open(settings_path) as f:
-        content = f.read()
-    if not api_key:  # Only check file if env var not set
-        m = re.search(r'openfda_api_key:\s*(\S+)', content)
-        if m and m.group(1) != 'null':
-            api_key = m.group(1)
-
-product_code = "PRODUCTCODE"  # Replace
-params = {"search": f'product_code:"{product_code}"', "limit": "100"}
-if api_key:
-    params["api_key"] = api_key
-url = f"https://api.fda.gov/device/classification.json?{urllib.parse.urlencode(params)}"
-req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/1.0)"})
-try:
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        data = json.loads(resp.read())
-        total = data.get("meta", {}).get("results", {}).get("total", 0)
-        print(f"CLASSIFICATION_MATCHES:{total}")
-        if data.get("results"):
-            r = data["results"][0]
-            print(f"DEVICE_NAME:{r.get('device_name', 'N/A')}")
-            print(f"DEVICE_CLASS:{r.get('device_class', 'N/A')}")
-            print(f"REGULATION:{r.get('regulation_number', 'N/A')}")
-            print(f"PANEL:{r.get('medical_specialty_description', r.get('review_panel', 'N/A'))}")
-except Exception as e:
-    print(f"ERROR:{e}")
-
-# Deliberation: If CLASSIFICATION_MATCHES > 1, log all matches and select
-# the one with the highest total clearance count (most commonly cleared variant).
-
-# Also count total clearances for context
-params2 = {"search": f'product_code:"{product_code}"', "limit": "1"}
-if api_key:
-    params2["api_key"] = api_key
-url2 = f"https://api.fda.gov/device/510k.json?{urllib.parse.urlencode(params2)}"
-req2 = urllib.request.Request(url2, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/1.0)"})
-try:
-    with urllib.request.urlopen(req2, timeout=15) as resp2:
-        data2 = json.loads(resp2.read())
-        total = data2.get("meta", {}).get("results", {}).get("total", 0)
-        print(f"TOTAL_CLEARANCES:{total}")
-except:
-    pass
-PYEOF
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_data_store.py" \
+  --project "$PROJECT_NAME" \
+  --query classification \
+  --product-code "$PRODUCT_CODE"
 ```
+
+**Deliberation:** If `CLASSIFICATION_MATCHES` > 1, log all matches and select the one with the highest total clearance count (most commonly cleared variant).
 
 ## Step 1B: Peer Device Benchmarking
 
-Query openFDA for peer devices sharing the same `regulation_number` or `review_panel` to establish a safety context baseline:
+Query openFDA for peer devices sharing the same `regulation_number` to establish a safety context baseline. Uses `FDAClient` directly for aggregation queries (HTTP cache applies).
 
 ```bash
 python3 << 'PYEOF'
-import urllib.request, urllib.parse, json, os, re, time
-
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
-api_key = os.environ.get('OPENFDA_API_KEY')
-if os.path.exists(settings_path):
-    with open(settings_path) as f:
-        content = f.read()
-    if not api_key:
-        m = re.search(r'openfda_api_key:\s*(\S+)', content)
-        if m and m.group(1) != 'null':
-            api_key = m.group(1)
+import sys, os, time
+sys.path.insert(0, os.path.join(os.environ.get("FDA_PLUGIN_ROOT", ""), "scripts"))
+from fda_api_client import FDAClient
 
 regulation_number = "REGULATION"  # From Step 1
 product_code = "PRODUCTCODE"  # Replace
-
-def fda_query(endpoint, search, limit=100, count_field=None):
-    params = {"search": search, "limit": str(limit)}
-    if count_field:
-        params["count"] = count_field
-    if api_key:
-        params["api_key"] = api_key
-    url = f"https://api.fda.gov/device/{endpoint}.json?{urllib.parse.urlencode(params)}"
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/1.0)"})
-    try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            return json.loads(resp.read())
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            return {"results": []}
-        return {"error": f"HTTP {e.code}"}
-    except Exception as e:
-        return {"error": str(e)}
+client = FDAClient()
 
 # Find peer product codes under the same regulation number
 print("=== PEER DEVICE CODES ===")
-peer_result = fda_query("classification", f'regulation_number:"{regulation_number}"', limit=100)
+peer_result = client._request("classification", {"search": f'regulation_number:"{regulation_number}"', "limit": "100"})
 peer_codes = []
 if "results" in peer_result:
     for r in peer_result["results"]:
@@ -181,28 +143,26 @@ if "results" in peer_result:
             print(f"PEER:{pc}|{name}")
 
 # Get MAUDE event counts for top peer codes (for benchmarking)
-time.sleep(0.5)
 print("\n=== PEER EVENT COUNTS ===")
 subject_events = 0
 peer_events = {}
 
 # Get subject device event count
-subj_result = fda_query("event", f'device.device_report_product_code:"{product_code}"', limit=1)
+subj_result = client.get_events(product_code, limit=1)
 subject_events = subj_result.get("meta", {}).get("results", {}).get("total", 0)
 print(f"SUBJECT:{product_code}|{subject_events}")
 
 # Get peer event counts — single OR batch query (1 call instead of 5)
 top_peers = peer_codes[:5]
 if top_peers:
-    peer_search = "+OR+".join(f'device.device_report_product_code:"{pc}"' for pc in top_peers)
-    pr = fda_query("event", peer_search, count_field="device.device_report_product_code.exact")
+    peer_search = " OR ".join(f'device.device_report_product_code:"{pc}"' for pc in top_peers)
+    pr = client._request("event", {"search": peer_search, "count": "device.device_report_product_code.exact"})
     if "results" in pr:
         for r in pr["results"]:
             pc_term = r.get("term", "")
             if pc_term in top_peers:
                 peer_events[pc_term] = r["count"]
                 print(f"PEER_EVENTS:{pc_term}|{r['count']}")
-    # Fill in zeros for any codes not returned
     for pc in top_peers:
         if pc not in peer_events:
             peer_events[pc] = 0
@@ -224,63 +184,35 @@ PYEOF
 
 ### 2A: Event Count by Type
 
+Get MAUDE event counts via the project data store (cached for cross-command reuse):
+
+```bash
+# Event counts by type (cached in manifest)
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_data_store.py" \
+  --project "$PROJECT_NAME" \
+  --query events \
+  --product-code "$PRODUCT_CODE" \
+  --count event_type.exact
+```
+
+For additional breakdowns (by year, device name, manufacturer) that use count queries not in the data store, use `FDAClient` directly:
+
 ```bash
 python3 << 'PYEOF'
-import urllib.request, urllib.parse, json, os, re
-
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
-api_key = os.environ.get('OPENFDA_API_KEY')  # Env var takes priority (never enters chat)
-if os.path.exists(settings_path):
-    with open(settings_path) as f:
-        content = f.read()
-    if not api_key:  # Only check file if env var not set
-        m = re.search(r'openfda_api_key:\s*(\S+)', content)
-        if m and m.group(1) != 'null':
-            api_key = m.group(1)
+import sys, os, time
+sys.path.insert(0, os.path.join(os.environ.get("FDA_PLUGIN_ROOT", ""), "scripts"))
+from fda_api_client import FDAClient
 
 product_code = "PRODUCTCODE"  # Replace
+client = FDAClient()
 
-def fda_query(endpoint, search, limit=100, count_field=None):
-    params = {"search": search, "limit": str(limit)}
-    if count_field:
-        params["count"] = count_field
-    if api_key:
-        params["api_key"] = api_key
-    url = f"https://api.fda.gov/device/{endpoint}.json?{urllib.parse.urlencode(params)}"
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/1.0)"})
-    try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            return json.loads(resp.read())
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            return {"results": []}
-        return {"error": f"HTTP {e.code}"}
-    except Exception as e:
-        return {"error": str(e)}
-
-# Event count by type
-print("=== EVENT TYPE DISTRIBUTION ===")
-result = fda_query("event", f'device.device_report_product_code:"{product_code}"', count_field="event_type.exact")
-if "results" in result:
-    total = sum(r["count"] for r in result["results"])
-    print(f"TOTAL_EVENTS:{total}")
-    for r in result["results"]:
-        print(f"EVENT_TYPE:{r['term']}:{r['count']}")
-else:
-    print(f"ERROR:{result.get('error', 'Unknown')}")
-
-# Event count by year — single count query with date_received (1 call instead of 7)
-import time
-time.sleep(0.5)
-print("\n=== EVENTS BY YEAR ===")
-yr_result = fda_query("event",
-    f'device.device_report_product_code:"{product_code}"',
-    count_field="date_received")
+# Event count by year
+print("=== EVENTS BY YEAR ===")
+yr_result = client.get_events(product_code, count="date_received")
 if "results" in yr_result:
-    # count_field="date_received" returns daily buckets — aggregate by year
     year_totals = {}
     for bucket in yr_result["results"]:
-        date_str = str(bucket.get("time", ""))[:4]  # YYYY from YYYYMMDD
+        date_str = str(bucket.get("time", ""))[:4]
         if date_str.isdigit():
             yr = int(date_str)
             if 2020 <= yr <= 2026:
@@ -289,19 +221,15 @@ if "results" in yr_result:
         print(f"YEAR:{year}:{year_totals[year]}")
 
 # Top device names reporting events
-time.sleep(0.5)
 print("\n=== TOP DEVICE NAMES ===")
-name_result = fda_query("event", f'device.device_report_product_code:"{product_code}"',
-    count_field="device.generic_name.exact")
+name_result = client.get_events(product_code, count="device.generic_name.exact")
 if "results" in name_result:
     for r in name_result["results"][:10]:
         print(f"DEVICE_NAME:{r['term']}:{r['count']}")
 
 # Top manufacturers reporting events
-time.sleep(0.5)
 print("\n=== TOP MANUFACTURERS ===")
-mfr_result = fda_query("event", f'device.device_report_product_code:"{product_code}"',
-    count_field="device.manufacturer_d_name.exact")
+mfr_result = client.get_events(product_code, count="device.manufacturer_d_name.exact")
 if "results" in mfr_result:
     for r in mfr_result["results"][:10]:
         print(f"MANUFACTURER:{r['term']}:{r['count']}")
@@ -310,64 +238,47 @@ PYEOF
 
 ### 2B: Narrative Analysis — Recent Events
 
-Fetch recent event narratives to identify common failure modes:
+Fetch recent event narratives to identify common failure modes. Uses `FDAClient` directly (narratives are too large for manifest summaries):
 
 ```bash
 python3 << 'PYEOF'
-import urllib.request, urllib.parse, json, os, re
-
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
-api_key = os.environ.get('OPENFDA_API_KEY')  # Env var takes priority (never enters chat)
-if os.path.exists(settings_path):
-    with open(settings_path) as f:
-        content = f.read()
-    if not api_key:  # Only check file if env var not set
-        m = re.search(r'openfda_api_key:\s*(\S+)', content)
-        if m and m.group(1) != 'null':
-            api_key = m.group(1)
+import sys, os
+sys.path.insert(0, os.path.join(os.environ.get("FDA_PLUGIN_ROOT", ""), "scripts"))
+from fda_api_client import FDAClient
 
 product_code = "PRODUCTCODE"  # Replace
+client = FDAClient()
 
-params = {
-    "search": f'device.device_report_product_code:"{product_code}"+AND+date_received:[20230101+TO+20261231]',
-    "limit": "100",  # Max API limit; use --sample-size flag to reduce if needed
-    "sort": "date_received:desc"  # Most recent events first
-}
-if api_key:
-    params["api_key"] = api_key
-url = f"https://api.fda.gov/device/event.json?{urllib.parse.urlencode(params)}"
-req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/1.0)"})
+data = client._request("event", {
+    "search": f'device.device_report_product_code:"{product_code}" AND date_received:[20230101 TO 20261231]',
+    "limit": "100",
+    "sort": "date_received:desc"
+})
 
-try:
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        data = json.loads(resp.read())
-        narrative_total = data.get("meta", {}).get("results", {}).get("total", 0)
-        returned = len(data.get("results", []))
-        print(f"SHOWING:{returned}_OF:{narrative_total}")
-        if data.get("results"):
-            for i, event in enumerate(data["results"]):
-                event_type = event.get("event_type", "Unknown")
-                date = event.get("date_received", "N/A")
-                devices = event.get("device", [])
-                brand = devices[0].get("brand_name", "N/A") if devices else "N/A"
-                mfr = devices[0].get("manufacturer_d_name", "N/A") if devices else "N/A"
+narrative_total = data.get("meta", {}).get("results", {}).get("total", 0)
+returned = len(data.get("results", []))
+print(f"SHOWING:{returned}_OF:{narrative_total}")
+if data.get("results"):
+    for i, event in enumerate(data["results"]):
+        event_type = event.get("event_type", "Unknown")
+        date = event.get("date_received", "N/A")
+        devices = event.get("device", [])
+        brand = devices[0].get("brand_name", "N/A") if devices else "N/A"
+        mfr = devices[0].get("manufacturer_d_name", "N/A") if devices else "N/A"
 
-                # Get narrative text
-                narratives = event.get("mdr_text", [])
-                desc_text = ""
-                for n in narratives:
-                    if n.get("text_type_code") in ("Description of Event or Problem", "B. ADDITIONAL MANUFACTURER NARRATIVE"):
-                        desc_text = n.get("text", "")[:300]
-                        break
-                if not desc_text and narratives:
-                    desc_text = narratives[0].get("text", "")[:300]
+        narratives = event.get("mdr_text", [])
+        desc_text = ""
+        for n in narratives:
+            if n.get("text_type_code") in ("Description of Event or Problem", "B. ADDITIONAL MANUFACTURER NARRATIVE"):
+                desc_text = n.get("text", "")[:300]
+                break
+        if not desc_text and narratives:
+            desc_text = narratives[0].get("text", "")[:300]
 
-                print(f"EVENT:{i+1}|{event_type}|{date}|{brand}|{mfr}")
-                if desc_text:
-                    print(f"NARRATIVE:{desc_text}")
-                print()
-except Exception as e:
-    print(f"ERROR:{e}")
+        print(f"EVENT:{i+1}|{event_type}|{date}|{brand}|{mfr}")
+        if desc_text:
+            print(f"NARRATIVE:{desc_text}")
+        print()
 PYEOF
 ```
 
@@ -379,45 +290,29 @@ PYEOF
 
 ## Step 3: Recall History
 
+Get recall summary via the project data store (cached for cross-command reuse):
+
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_data_store.py" \
+  --project "$PROJECT_NAME" \
+  --query recalls \
+  --product-code "$PRODUCT_CODE"
+```
+
+For additional recall detail breakdowns, use `FDAClient` directly:
+
 ```bash
 python3 << 'PYEOF'
-import urllib.request, urllib.parse, json, os, re, time
-
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
-api_key = os.environ.get('OPENFDA_API_KEY')  # Env var takes priority (never enters chat)
-if os.path.exists(settings_path):
-    with open(settings_path) as f:
-        content = f.read()
-    if not api_key:  # Only check file if env var not set
-        m = re.search(r'openfda_api_key:\s*(\S+)', content)
-        if m and m.group(1) != 'null':
-            api_key = m.group(1)
+import sys, os
+sys.path.insert(0, os.path.join(os.environ.get("FDA_PLUGIN_ROOT", ""), "scripts"))
+from fda_api_client import FDAClient
 
 product_code = "PRODUCTCODE"  # Replace
-
-def fda_query(endpoint, search, limit=100, count_field=None, sort=None):
-    params = {"search": search, "limit": str(limit)}
-    if count_field:
-        params["count"] = count_field
-    if sort:
-        params["sort"] = sort
-    if api_key:
-        params["api_key"] = api_key
-    url = f"https://api.fda.gov/device/{endpoint}.json?{urllib.parse.urlencode(params)}"
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/1.0)"})
-    try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            return json.loads(resp.read())
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            return {"results": []}
-        return {"error": f"HTTP {e.code}"}
-    except Exception as e:
-        return {"error": str(e)}
+client = FDAClient()
 
 # Recall count by status
 print("=== RECALL STATUS DISTRIBUTION ===")
-class_result = fda_query("recall", f'product_code:"{product_code}"', count_field="recall_status")
+class_result = client._request("recall", {"search": f'product_code:"{product_code}"', "count": "recall_status"})
 if "results" in class_result:
     total = sum(r["count"] for r in class_result["results"])
     print(f"TOTAL_RECALLS:{total}")
@@ -426,10 +321,9 @@ if "results" in class_result:
 else:
     print("TOTAL_RECALLS:0")
 
-# Recent recalls with details — sorted by most recent termination date
-time.sleep(0.5)
+# Recent recalls with details
 print("\n=== RECENT RECALLS ===")
-recent = fda_query("recall", f'product_code:"{product_code}"', limit=100, sort="event_date_terminated:desc")
+recent = client._request("recall", {"search": f'product_code:"{product_code}"', "limit": "100", "sort": "event_date_terminated:desc"})
 recent_total = recent.get("meta", {}).get("results", {}).get("total", 0)
 returned = len(recent.get("results", []))
 print(f"SHOWING:{returned}_OF:{recent_total}")
@@ -447,9 +341,8 @@ if recent.get("results"):
         print()
 
 # Top recalling firms
-time.sleep(0.5)
 print("\n=== TOP RECALLING FIRMS ===")
-firm_result = fda_query("recall", f'product_code:"{product_code}"', count_field="recalling_firm.exact")
+firm_result = client._request("recall", {"search": f'product_code:"{product_code}"', "count": "recalling_firm.exact"})
 if "results" in firm_result:
     for r in firm_result["results"][:10]:
         print(f"FIRM:{r['term']}:{r['count']}")
@@ -478,39 +371,16 @@ If a specific K-number was provided, also check:
 
 ```bash
 python3 << 'PYEOF'
-import urllib.request, urllib.parse, json, os, re
-
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
-api_key = os.environ.get('OPENFDA_API_KEY')  # Env var takes priority (never enters chat)
-if os.path.exists(settings_path):
-    with open(settings_path) as f:
-        content = f.read()
-    if not api_key:  # Only check file if env var not set
-        m = re.search(r'openfda_api_key:\s*(\S+)', content)
-        if m and m.group(1) != 'null':
-            api_key = m.group(1)
+import sys, os
+sys.path.insert(0, os.path.join(os.environ.get("FDA_PLUGIN_ROOT", ""), "scripts"))
+from fda_api_client import FDAClient
 
 knumber = "KNUMBER"  # Replace
-
-def fda_query(endpoint, search, limit=100):
-    params = {"search": search, "limit": str(limit)}
-    if api_key:
-        params["api_key"] = api_key
-    url = f"https://api.fda.gov/device/{endpoint}.json?{urllib.parse.urlencode(params)}"
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/1.0)"})
-    try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            return json.loads(resp.read())
-    except urllib.error.HTTPError as e:
-        if e.code == 404:
-            return {"results": []}
-        return {"error": f"HTTP {e.code}"}
-    except Exception as e:
-        return {"error": str(e)}
+client = FDAClient()
 
 # Recalls for this specific K-number
 print("=== DEVICE-SPECIFIC RECALLS ===")
-recalls = fda_query("recall", f'k_numbers:"{knumber}"')
+recalls = client._request("recall", {"search": f'k_numbers:"{knumber}"', "limit": "100"})
 if recalls.get("results"):
     print(f"DEVICE_RECALLS:{len(recalls['results'])}")
     for r in recalls["results"]:

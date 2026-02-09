@@ -195,7 +195,7 @@ class TestSKILLMDUpdates:
         assert "41 references" in self.content
 
     def test_command_count_40(self):
-        assert "Commands (40)" in self.content or "40 commands" in self.content
+        assert "Commands (41)" in self.content or "41 commands" in self.content
 
 
 class TestVersionBump:
@@ -204,4 +204,4 @@ class TestVersionBump:
     def test_plugin_json_version(self):
         with open(PLUGIN_JSON) as f:
             data = json.load(f)
-        assert data["version"] == "5.18.0"
+        assert data["version"] == "5.19.0"

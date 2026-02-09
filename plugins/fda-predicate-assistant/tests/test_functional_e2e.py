@@ -948,12 +948,12 @@ class TestSkillMdCompleteness:
         ))
 
     def test_command_count_matches(self):
-        """SKILL.md must list 40 commands."""
-        assert "40" in self.skill
+        """SKILL.md must list 41 commands."""
+        assert "41" in self.skill
         # Count /fda: references in command tables
         fda_cmds = re.findall(r"/fda:([a-z-]+)", self.skill)
         unique_cmds = set(fda_cmds)
-        assert len(unique_cmds) >= 40, f"Only {len(unique_cmds)} unique commands in SKILL.md"
+        assert len(unique_cmds) >= 41, f"Only {len(unique_cmds)} unique commands in SKILL.md"
 
     def test_all_commands_listed(self):
         """Every command file must appear in SKILL.md."""

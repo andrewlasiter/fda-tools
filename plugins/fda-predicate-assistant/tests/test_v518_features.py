@@ -162,8 +162,8 @@ class TestCommandGrouping:
     def setup_method(self):
         self.content = _read(os.path.join(SKILLS_DIR, "SKILL.md"))
 
-    def test_has_40_commands(self):
-        assert "Available Commands (40)" in self.content
+    def test_has_41_commands(self):
+        assert "Available Commands (41)" in self.content
 
     def test_has_stage_1_setup(self):
         assert "Stage 1: Setup" in self.content
@@ -447,17 +447,17 @@ class TestVersionBump:
         import json
         with open(os.path.join(PLUGIN_DIR, "plugin.json")) as f:
             data = json.load(f)
-        assert data["version"] == "5.18.0"
+        assert data["version"] == "5.19.0"
 
-    def test_plugin_json_40_commands(self):
+    def test_plugin_json_41_commands(self):
         import json
         with open(os.path.join(PLUGIN_DIR, "plugin.json")) as f:
             data = json.load(f)
-        assert "40 commands" in data["description"]
+        assert "41 commands" in data["description"]
 
-    def test_skill_md_40_commands(self):
+    def test_skill_md_41_commands(self):
         skill = _read(os.path.join(SKILLS_DIR, "SKILL.md"))
-        assert "Available Commands (40)" in skill
+        assert "Available Commands (41)" in skill
 
     def test_skill_md_41_references(self):
         skill = _read(os.path.join(SKILLS_DIR, "SKILL.md"))
