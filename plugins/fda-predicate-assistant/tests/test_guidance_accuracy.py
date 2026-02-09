@@ -379,14 +379,14 @@ class TestAPIFlagPriority:
         tier1_section = self.guidance_content[tier1_start:tier2_start]
         assert "life_sustain_flag" in tier1_section
 
-    def test_gudid_single_use_suppresses_reprocessing(self):
-        """is_single_use == true must suppress reprocessing guidance."""
+    def test_gudid_single_use_logs_note(self):
+        """is_single_use == true must log a note (not silently suppress)."""
         tier1_start = self.guidance_content.find("TIER 1")
         tier2_start = self.guidance_content.find("TIER 2")
         tier1_section = self.guidance_content[tier1_start:tier2_start]
         assert "gudid_single_use == True" in tier1_section
-        # The pass statement means no reprocessing is added
-        assert "Single-use devices do NOT get reprocessing" in tier1_section
+        # Must produce a Single-Use Note rather than silently passing
+        assert "Single-Use Note" in tier1_section
 
     def test_sterilization_tier2_skips_if_gudid_present(self):
         """Tier 2 sterilization keywords should skip if GUDID already triggered."""
@@ -775,3 +775,162 @@ class TestGuidanceIndexNewEntries:
         with open(os.path.join(TOP_REFS_DIR, "fda-guidance-index.md")) as f:
             top_content = f.read()
         assert self.content == top_content
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  Section H: Audit Remediation Tests (HIGH severity fixes)
+# ══════════════════════════════════════════════════════════════════════
+
+
+class TestSingleUseSuppression:
+    """HIGH-1: Single-use flag must NOT silently suppress reprocessing guidance."""
+
+    def setup_method(self):
+        with open(os.path.join(CMDS_DIR, "guidance.md")) as f:
+            self.content = f.read()
+
+    def test_single_use_has_caveat(self):
+        """gudid_single_use == True must produce a note, not silent pass."""
+        assert "Single-Use Note" in self.content
+
+    def test_single_use_mentions_third_party(self):
+        """Must mention third-party reprocessing per 21 CFR 820.3(p)."""
+        assert "third-party reprocessing" in self.content.lower() or \
+               "21 CFR 820.3(p)" in self.content
+
+    def test_no_bare_pass_for_single_use(self):
+        """Must not have bare 'pass' after single_use == True check."""
+        # Find the single_use block and verify no bare 'pass'
+        idx = self.content.find("gudid_single_use == True")
+        assert idx >= 0, "gudid_single_use == True not found in guidance.md"
+        # Get the next 300 chars after the match
+        block = self.content[idx:idx+300]
+        # Should NOT have a bare 'pass  # Single-use devices do NOT get reprocessing'
+        assert "pass  # Single-use devices do NOT get reprocessing guidance" not in block
+
+    def test_research_md_has_single_use_caveat(self):
+        """research.md must also note the third-party reprocessing caveat."""
+        with open(os.path.join(CMDS_DIR, "research.md")) as f:
+            content = f.read()
+        assert "third-party reprocessing" in content.lower() or \
+               "21 CFR 820.3(p)" in content
+
+    def test_guidance_lookup_has_caveat(self):
+        """guidance-lookup.md must not silently suppress reprocessing."""
+        with open(os.path.join(REFS_DIR, "guidance-lookup.md")) as f:
+            content = f.read()
+        # Should mention third-party or caveat for single-use
+        assert "third-party" in content.lower() or "unless" in content.lower()
+
+
+class TestUSBCybersecurityKeywords:
+    """HIGH-2: USB must trigger cybersecurity guidance."""
+
+    def test_usb_keywords_in_guidance_md(self):
+        """guidance.md must have USB keywords in Tier 2."""
+        with open(os.path.join(CMDS_DIR, "guidance.md")) as f:
+            content = f.read()
+        assert "usb data" in content.lower()
+        assert "usb communication" in content.lower()
+        assert "usb port" in content.lower()
+
+    def test_usb_triggers_cybersecurity_not_emc(self):
+        """USB keywords must trigger cybersecurity but NOT EMC/Wireless."""
+        with open(os.path.join(CMDS_DIR, "guidance.md")) as f:
+            content = f.read()
+        # Find USB block
+        idx = content.find("usb data")
+        assert idx >= 0
+        block = content[idx:idx+300]
+        assert "Cybersecurity" in block
+        # EMC/Wireless should NOT be triggered by USB alone
+        assert "EMC/Wireless" not in block
+
+    def test_research_md_has_usb(self):
+        """research.md must include USB in keyword table."""
+        with open(os.path.join(CMDS_DIR, "research.md")) as f:
+            content = f.read()
+        assert "usb data" in content.lower() or "usb communication" in content.lower()
+
+    def test_guidance_lookup_has_usb(self):
+        """guidance-lookup.md must list USB keywords."""
+        with open(os.path.join(REFS_DIR, "guidance-lookup.md")) as f:
+            content = f.read()
+        assert "usb data" in content.lower()
+
+    def test_usb_kw_match_true(self):
+        """'device with USB data port for configuration' must match USB keywords."""
+        assert kw_match("device with usb data port for configuration",
+                       ["usb data", "usb communication", "usb port"])
+
+    def test_usb_kw_match_no_usb(self):
+        """'wireless bluetooth device' must NOT match USB keywords."""
+        assert not kw_match("wireless bluetooth device",
+                           ["usb data", "usb communication", "usb port"])
+
+    def test_usb_consistency_with_cybersecurity_framework(self):
+        """USB must be mentioned in cybersecurity-framework.md (pre-existing)."""
+        fw_path = os.path.join(REFS_DIR, "cybersecurity-framework.md")
+        if os.path.exists(fw_path):
+            with open(fw_path) as f:
+                content = f.read()
+            assert "USB" in content or "usb" in content
+
+
+class TestSubmissionOutlineKwMatch:
+    """HIGH-3: submission-outline.md must use kw_match(), not substring matching."""
+
+    def setup_method(self):
+        with open(os.path.join(CMDS_DIR, "submission-outline.md")) as f:
+            self.content = f.read()
+
+    def test_has_kw_match_function(self):
+        """submission-outline.md must define kw_match()."""
+        assert "def kw_match" in self.content
+
+    def test_has_negation_awareness(self):
+        """submission-outline.md kw_match must check negation prefixes."""
+        assert "not " in self.content
+        assert "non-" in self.content
+        assert "without " in self.content
+
+    def test_no_bare_in_operator(self):
+        """Must NOT use 'kw in desc' substring matching for section determination."""
+        # Find the section applicability block
+        idx = self.content.find("sections = {")
+        if idx == -1:
+            idx = self.content.find("Section Applicability")
+        assert idx >= 0
+        block = self.content[idx:idx+1500]
+        # Should not have old-style 'any(kw in desc for kw'
+        assert 'any(kw in desc for kw' not in block
+
+    def test_uses_precise_software_keywords(self):
+        """Must use precise software keywords (not bare 'app')."""
+        idx = self.content.find("sections = {")
+        if idx == -1:
+            idx = self.content.find("Section Applicability")
+        block = self.content[idx:idx+2500]
+        # "app" alone should NOT be in the keyword list
+        # "mobile app" or "software app" should be
+        assert '"mobile app"' in block or '"software app"' in block
+        # Bare "app" should not appear as a standalone keyword
+        assert ', "app",' not in block
+        assert '["app"' not in block
+
+    def test_uses_precise_electrical_keywords(self):
+        """Must use precise electrical keywords (not bare 'electric' or 'powered')."""
+        idx = self.content.find("sections = {")
+        if idx == -1:
+            idx = self.content.find("Section Applicability")
+        block = self.content[idx:idx+2500]
+        # Should have precise terms like "battery-powered", not bare "powered"
+        assert '"battery-powered"' in block or '"battery powered"' in block
+        # Should NOT have bare "powered" or "electric" as standalone keywords
+        assert ', "powered",' not in block
+        assert ', "electric",' not in block
+
+    def test_has_usb_in_cybersecurity_trigger(self):
+        """submission-outline.md must include USB in cybersecurity trigger."""
+        assert "usb data" in self.content.lower() or \
+               "usb communication" in self.content.lower()

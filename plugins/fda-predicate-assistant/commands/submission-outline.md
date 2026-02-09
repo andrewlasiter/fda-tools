@@ -195,19 +195,41 @@ sections = {
     "Human Factors": False,  # If use-related risks
 }
 
-desc = (device_description or "").lower()
+import re
 
-if any(kw in desc for kw in ["sterile", "steriliz"]):
+def kw_match(desc, keywords):
+    """Word-boundary matching with negation awareness (same as guidance.md v5.15.0)."""
+    for kw in keywords:
+        pattern = r'\b' + re.escape(kw) + r'\b'
+        match = re.search(pattern, desc, re.IGNORECASE)
+        if match:
+            prefix = desc[max(0, match.start()-20):match.start()].lower()
+            if not any(neg in prefix for neg in ['not ', 'non-', 'non ', 'no ', 'without ', "doesn't ", "does not "]):
+                return True
+    return False
+
+desc = " ".join(filter(None, [
+    (device_description or "").lower(),
+    (api_definition or "").lower()    # from classification API
+]))
+
+if kw_match(desc, ["sterile", "sterilized", "sterilization", "aseptic", "terminally sterilized",
+                    "gamma irradiated", "eo sterilized", "ethylene oxide"]):
     sections["Sterilization"] = True
     sections["Shelf Life"] = True
 
-if any(kw in desc for kw in ["software", "algorithm", "app", "firmware", "samd"]):
+if kw_match(desc, ["software", "algorithm", "mobile app", "software app", "firmware", "samd",
+                    "software as a medical device", "digital health", "software function"]):
     sections["Software"] = True
 
-if any(kw in desc for kw in ["powered", "electric", "battery", "wireless", "bluetooth"]):
+if kw_match(desc, ["battery-powered", "battery powered", "ac mains", "rechargeable",
+                    "electrically powered", "mains-powered", "lithium battery",
+                    "wireless", "bluetooth"]):
     sections["EMC / Electrical Safety"] = True
 
-if any(kw in desc for kw in ["wireless", "connected", "bluetooth", "wifi"]):
+if kw_match(desc, ["wireless", "bluetooth", "wifi", "wi-fi", "network-connected", "cloud-connected",
+                    "iot device", "rf communication", "radio frequency",
+                    "usb data", "usb communication", "usb port", "usb connectivity"]):
     sections["Software"] = True  # Cybersecurity required
 ```
 

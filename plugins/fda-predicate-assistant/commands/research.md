@@ -408,6 +408,7 @@ Determine which cross-cutting guidances to mention using a **3-tier priority sys
 | `life_sustain_support_flag == "Y"` | Life-sustaining | Enhanced clinical review |
 | AccessGUDID `is_sterile == true` | Sterile | Sterilization + shelf life guidance |
 | AccessGUDID `sterilization_methods` | Method-specific | ISO 11135 (EO), ISO 11137 (radiation), ISO 17665 (steam) |
+| AccessGUDID `is_single_use == true` | Single-use | Reprocessing suppressed (note: third-party reprocessing per 21 CFR 820.3(p) may still apply) |
 | AccessGUDID `is_single_use == false` | Reusable | Reprocessing guidance |
 | AccessGUDID `mri_safety != null` | MRI-relevant | MRI safety testing (even non-implants) |
 | AccessGUDID `is_labeled_as_nrl == true` | Latex | Latex labeling + ISO 10993 extended |
@@ -435,6 +436,7 @@ Applied to BOTH user `--device-description` AND API `definition` field:
 | Software | `software`, `algorithm`, `mobile app`, `software app`, `firmware`, `samd`, `software as a medical device`, `digital health` | Software: IEC 62304 |
 | AI/ML | `artificial intelligence`, `ai-enabled`, `ai-based`, `ai/ml`, `machine learning`, `deep learning`, `neural network`, `computer-aided detection`, `cadx`, `cade` | AI/ML guidance |
 | Wireless | `wireless`, `bluetooth`, `wifi`, `wi-fi`, `network-connected`, `cloud-connected`, `iot device`, `rf communication`, `radio frequency`, `cellular` | Cybersecurity + EMC |
+| USB | `usb data`, `usb communication`, `usb port`, `usb connectivity`, `usb interface`, `usb connection` | Cybersecurity only (not EMC) |
 | Combination | `combination product`, `drug-device`, `drug-eluting`, `drug-coated`, `biologic-device`, `antimicrobial agent` | Combination product |
 | Implantable | `implant`, `implantable`, `prosthesis`, `prosthetic`, `indwelling`, `endoprosthesis` | MRI + fatigue + extended biocompat |
 | Reusable | `reusable`, `reprocessing`, `reprocessed`, `multi-use` | Reprocessing |

@@ -76,7 +76,7 @@ These guidances apply based on device characteristics, regardless of product cod
 | **Wireless/connected** | Tier 2 keywords | EMC/wireless coexistence | "Radio Frequency Wireless Technology in Medical Devices" | IEC 60601-1-2, ANSI C63.27 |
 | **Electrically powered** | Tier 2 keywords | Electrical safety | IEC 60601-1 guidance | IEC 60601-1, IEC 60601-1-2 |
 | **Reusable** | `GUDID is_single_use == false` | Reprocessing validation | "Reprocessing Medical Devices in Health Care Settings" | AAMI TIR30, ST79 |
-| **Single-use** | `GUDID is_single_use == true` | *(suppresses reprocessing)* | — | — |
+| **Single-use** | `GUDID is_single_use == true` | *(suppresses reprocessing unless third-party reprocessing per 21 CFR 820.3(p) applies)* | — | — |
 | **MRI safety needed** | `GUDID mri_safety != null` | MRI safety testing | "Assessment of MRI Effects" | ASTM F2052, F2213, F2182 |
 | **Latex-containing** | `GUDID is_labeled_as_nrl == true` | Latex labeling + biocompat | Latex labeling guidance | 21 CFR 801.437, ISO 10993 |
 | **IVD devices** | review panel in IVD set | IVD-specific guidance | Various by analyte/method | CLSI EP05-EP17 |
@@ -110,6 +110,7 @@ All keywords use word-boundary regex (`\b...\b`) and negation-awareness (skip if
 | **Software** | `software`, `algorithm`, `mobile app`, `software app`, `firmware`, `samd`, `software as a medical device`, `digital health`, `software function` |
 | **AI/ML** | `artificial intelligence`, `ai-enabled`, `ai-based`, `ai/ml`, `machine learning`, `deep learning`, `neural network`, `computer-aided detection`, `computer-aided diagnosis`, `cadx`, `cade` |
 | **Wireless** | `wireless`, `bluetooth`, `wifi`, `wi-fi`, `network-connected`, `cloud-connected`, `internet of things`, `iot device`, `rf communication`, `rf wireless`, `radio frequency`, `cellular`, `zigbee`, `lora`, `nfc` |
+| **USB** | `usb data`, `usb communication`, `usb port`, `usb connectivity`, `usb interface`, `usb connection` *(triggers cybersecurity only, not EMC)* |
 | **Combination** | `combination product`, `drug-device`, `drug-eluting`, `drug-coated`, `biologic-device`, `antimicrobial agent`, `drug delivery device` |
 | **Implantable** | `implant`, `implantable`, `permanent implant`, `indwelling`, `prosthesis`, `prosthetic`, `endoprosthesis` |
 | **Reusable** | `reusable`, `reprocessing`, `reprocessed`, `multi-use`, `cleaning validation`, `disinfection` |

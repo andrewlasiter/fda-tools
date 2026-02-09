@@ -346,7 +346,11 @@ if gudid_is_sterile == True:
 
 # AccessGUDID single-use flag
 if gudid_single_use == True:
-    pass  # Single-use devices do NOT get reprocessing guidance
+    # NOTE: Single-use devices are not intended for reprocessing by the manufacturer,
+    # but third-party reprocessors (per 21 CFR 820.3(p)) may reprocess them. If the
+    # user's device is a reprocessed single-use device, reprocessing guidance STILL applies.
+    # Log a note rather than silently suppressing.
+    triggers.append(("Single-Use Note", "Labeled single-use; reprocessing guidance suppressed unless third-party reprocessing applies", "gudid_single_use_note"))
 elif gudid_single_use == False:
     triggers.append(("Reprocessing", "Reprocessing Medical Devices in Health Care Settings", "gudid_reusable"))
 
@@ -388,12 +392,19 @@ if kw_match(desc, ["artificial intelligence", "ai-enabled", "ai-based", "ai/ml",
                     "computer-aided detection", "computer-aided diagnosis", "cadx", "cade"]):
     triggers.append(("AI/ML", "AI and ML in Software as a Medical Device", "kw_aiml"))
 
-# Wireless/Connected (precise terms — "connected" alone too broad; "rf" alone matches "rf wound")
+# Wireless/Connected/USB (precise terms — "connected" alone too broad; "rf" alone matches "rf wound")
+# NOTE: USB connectivity triggers cybersecurity per cybersecurity-framework.md but NOT EMC/wireless
 if kw_match(desc, ["wireless", "bluetooth", "wifi", "wi-fi", "network-connected", "cloud-connected",
                     "internet of things", "iot device", "rf communication", "rf wireless",
                     "radio frequency", "cellular", "zigbee", "lora", "near-field communication", "nfc"]):
     triggers.append(("Cybersecurity", "Cybersecurity in Medical Devices", "kw_wireless"))
     triggers.append(("EMC/Wireless", "Radio Frequency Wireless Technology in Medical Devices", "kw_wireless"))
+
+# USB connectivity — triggers cybersecurity only (not EMC/wireless)
+if kw_match(desc, ["usb data", "usb communication", "usb port", "usb connectivity",
+                    "usb interface", "usb connection"]):
+    if not any(t[0] == "Cybersecurity" for t in triggers):
+        triggers.append(("Cybersecurity", "Cybersecurity in Medical Devices", "kw_usb"))
 
 # Combination products (precise terms — "drug" alone matches "drug-free")
 if kw_match(desc, ["combination product", "drug-device", "drug-eluting", "drug-coated",
