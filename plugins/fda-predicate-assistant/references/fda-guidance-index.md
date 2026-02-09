@@ -276,7 +276,73 @@ Match: `implant`, `implantable`, `permanent`, `indwelling`, `prosthesis`, `prost
 **Regulation**: 21 CFR Part 3, 21 CFR Part 4
 
 ### Combination Product Trigger Keywords
-Match: `drug`, `biologic`, `combination`, `drug-device`, `drug-eluting`, `antimicrobial`, `coated`
+Match: `combination product`, `drug-device`, `drug-eluting`, `drug-coated`, `biologic-device`, `antimicrobial agent`, `drug delivery device`
+
+---
+
+## 7.5 Additive Manufacturing (3D Printing)
+
+| Document | Status | Year | Applies To |
+|----------|--------|------|-----------|
+| Technical Considerations for Additive Manufactured Medical Devices | Final | 2017 | All 3D-printed / additively manufactured devices |
+| Recommended Content and Format of Non-Clinical Bench Performance Testing Information in Premarket Submissions | Final | 2019 | Devices requiring bench performance data |
+
+**Key standards**: ASTM F3001 (Ti-6Al-4V via PBF), ASTM F2924 (Ti-6Al-4V via PBF-EB), ASTM F3055 (Ni alloy via PBF), ISO/ASTM 52900 (AM terminology)
+
+### 3D Printing Trigger Keywords
+Match: `3d print`, `3d-printed`, `additive manufactur`, `selective laser sintering`, `selective laser melting`, `electron beam melting`, `fused deposition`, `binder jetting`
+
+---
+
+## 7.6 Animal-Derived Materials
+
+| Document | Status | Year | Applies To |
+|----------|--------|------|-----------|
+| Guidance for FDA Reviewers and Industry: Medical Devices Containing Materials Derived from Animal Sources (Except for In Vitro Diagnostic Devices) | Final | 1998 | Devices with animal-derived components |
+
+**Key concern**: Bovine Spongiform Encephalopathy (BSE) / Transmissible Spongiform Encephalopathy (TSE) risk assessment required for bovine, ovine, and caprine-derived materials.
+
+### Animal-Derived Trigger Keywords
+Match: `collagen`, `gelatin`, `bovine`, `porcine`, `animal-derived`, `animal tissue`, `equine`, `ovine`, `decellularized`, `xenograft`, `biologic matrix`
+
+---
+
+## 7.7 Home Use Devices
+
+| Document | Status | Year | Applies To |
+|----------|--------|------|-----------|
+| Design Considerations for Devices Intended for Home Use | Final | 2014 | Devices intended for home / lay user environments |
+
+**Key considerations**: Human factors for non-professional users (IEC 62366-1), environmental conditions, labeling for lay users, training requirements.
+
+### Home Use Trigger Keywords
+Match: `home use`, `over-the-counter`, `otc device`, `patient self-test`, `lay user`, `home monitoring`, `self-administered`
+
+---
+
+## 7.8 Pediatric Devices
+
+| Document | Status | Year | Applies To |
+|----------|--------|------|-----------|
+| Premarket Assessment of Pediatric Medical Devices | Final | 2020 | Devices intended for pediatric populations |
+
+**Key considerations**: Pediatric device extrapolation from adult data, growth accommodation, dose/size scaling, Pediatric Device Consortia.
+
+### Pediatric Trigger Keywords
+Match: `pediatric`, `neonatal`, `infant`, `children`, `child`, `neonate`, `newborn`, `adolescent`
+
+---
+
+## 7.9 Latex-Containing Devices
+
+| Regulation | Document | Status | Applies To |
+|-----------|----------|--------|-----------|
+| 21 CFR 801.437 | User labeling for devices that contain natural rubber | Final | All devices containing natural rubber latex |
+
+**Key requirements**: Labeling must state "Caution: This Product Contains Natural Rubber Latex Which May Cause Allergic Reactions." Extended ISO 10993 biocompatibility panel for latex contact.
+
+### Latex Trigger Keywords
+Match: `latex`, `natural rubber`, `natural rubber latex`
 
 ---
 

@@ -393,22 +393,59 @@ WebSearch: "{device_name}" "510(k)" guidance testing requirements site:fda.gov
 
 Replace `{regulation_number}` with the actual regulation (e.g., `878.4018`) and `{device_name}` with the FDA classification name (e.g., `Dressing, Wound, Drug`).
 
-### Cross-Cutting Guidance Logic
+### Cross-Cutting Guidance Logic (3-Tier System)
 
-Determine which cross-cutting guidances to mention based on device characteristics from Step 2 classification data and the user's `--device-description`. Apply these rules:
+Determine which cross-cutting guidances to mention using a **3-tier priority system**: API-authoritative flags → enhanced keyword matching → classification heuristics. Uses classification data from Step 2 and the user's `--device-description`.
 
-| Trigger | Guidance Topic |
-|---------|---------------|
-| Always (all devices) | Biocompatibility: "Use of ISO 10993-1: Biological evaluation of medical devices" |
-| `device_class == 2` | Special controls for the specific regulation number |
-| Description mentions "sterile", "sterilization", or product code implies sterile device | Sterilization: "Submission and Review of Sterility Information in Premarket Notification (510(k)) Submissions" |
-| Description mentions "software", "algorithm", "app", "firmware", "SaMD" | Software: "Content of Premarket Submissions for Device Software Functions" (IEC 62304) |
-| Description mentions "wireless", "bluetooth", "wifi", "connected", "IoT" | Cybersecurity: "Cybersecurity in Medical Devices: Quality System Considerations and Content of Premarket Submissions" |
-| Description mentions "reusable" or "reprocessing" | Reprocessing: "Reprocessing Medical Devices in Health Care Settings: Validation Methods and Labeling" |
-| Product code in IVD category (from review panel or classification) | IVD-specific guidance documents |
-| Description mentions "combination product", "drug", "biologic" | Combination product guidance |
+**Tier 1 — API Flags** (authoritative, from openFDA classification + AccessGUDID):
 
-No additional API calls needed — this logic uses keywords already available from the openFDA classification response and user arguments.
+| API Field | Trigger | Guidance Topic |
+|-----------|---------|---------------|
+| Always | All devices | Biocompatibility: "Use of ISO 10993-1" |
+| `device_class == "2"` | Class II | Special controls for the specific regulation number |
+| `device_class == "3"` | Class III | PMA-level scrutiny, clinical data likely required |
+| `implant_flag == "Y"` | Implantable | MRI safety + ISO 10993 extended + fatigue testing |
+| `life_sustain_support_flag == "Y"` | Life-sustaining | Enhanced clinical review |
+| AccessGUDID `is_sterile == true` | Sterile | Sterilization + shelf life guidance |
+| AccessGUDID `sterilization_methods` | Method-specific | ISO 11135 (EO), ISO 11137 (radiation), ISO 17665 (steam) |
+| AccessGUDID `is_single_use == false` | Reusable | Reprocessing guidance |
+| AccessGUDID `mri_safety != null` | MRI-relevant | MRI safety testing (even non-implants) |
+| AccessGUDID `is_labeled_as_nrl == true` | Latex | Latex labeling + ISO 10993 extended |
+| Review panel in IVD set | IVD | IVD-specific guidance (CLSI standards) |
+
+**Tier 2 — Enhanced Keyword Matching** (word-boundary regex, negation-aware):
+
+```python
+import re
+def kw_match(desc, keywords):
+    for kw in keywords:
+        match = re.search(r'\b' + re.escape(kw) + r'\b', desc, re.IGNORECASE)
+        if match:
+            prefix = desc[max(0, match.start()-20):match.start()].lower()
+            if not any(neg in prefix for neg in ['not ', 'non-', 'non ', 'no ', 'without ']):
+                return True
+    return False
+```
+
+Applied to BOTH user `--device-description` AND API `definition` field:
+
+| Category | Keywords | Guidance Topic |
+|----------|----------|---------------|
+| Sterilization | `sterile`, `sterilized`, `sterilization`, `aseptic`, `gamma irradiated`, `eo sterilized`, `ethylene oxide` | Sterilization + shelf life |
+| Software | `software`, `algorithm`, `mobile app`, `software app`, `firmware`, `samd`, `software as a medical device`, `digital health` | Software: IEC 62304 |
+| AI/ML | `artificial intelligence`, `ai-enabled`, `ai-based`, `ai/ml`, `machine learning`, `deep learning`, `neural network`, `computer-aided detection`, `cadx`, `cade` | AI/ML guidance |
+| Wireless | `wireless`, `bluetooth`, `wifi`, `wi-fi`, `network-connected`, `cloud-connected`, `iot device`, `rf communication`, `radio frequency`, `cellular` | Cybersecurity + EMC |
+| Combination | `combination product`, `drug-device`, `drug-eluting`, `drug-coated`, `biologic-device`, `antimicrobial agent` | Combination product |
+| Implantable | `implant`, `implantable`, `prosthesis`, `prosthetic`, `indwelling`, `endoprosthesis` | MRI + fatigue + extended biocompat |
+| Reusable | `reusable`, `reprocessing`, `reprocessed`, `multi-use` | Reprocessing |
+| 3D Printing | `3d print`, `3d-printed`, `additive manufactur`, `additively manufactured`, `selective laser`, `electron beam melting` | Additive manufacturing guidance |
+| Animal-Derived | `collagen`, `gelatin`, `bovine`, `porcine`, `animal-derived`, `animal tissue`, `xenograft` | BSE/TSE guidance |
+| Home Use | `home use`, `over-the-counter`, `otc device`, `patient self-test`, `lay user` | Home use design guidance |
+| Pediatric | `pediatric`, `neonatal`, `infant`, `children`, `child`, `neonate` | Pediatric assessment guidance |
+| Latex | `latex`, `natural rubber` | Latex labeling + ISO 10993 |
+| Electrical | `battery-powered`, `ac mains`, `rechargeable`, `electrically powered`, `lithium battery` | IEC 60601-1 electrical safety |
+
+**Tier 3 — Classification Heuristics** (safety net): Regulation number family mapping (870.* → cardiovascular, 888.* → orthopedic, etc.). If Class II and no specific triggers found, flag for deeper web search.
 
 ### For `--depth deep`: Fetch Key Guidance Content
 

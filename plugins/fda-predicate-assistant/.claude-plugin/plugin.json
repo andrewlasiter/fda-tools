@@ -1,7 +1,7 @@
 {
   "name": "fda-predicate-assistant",
-  "version": "5.14.0",
-  "description": "AI-powered FDA 510(k) regulatory assistant — 38 commands, 7 agents, functionally validated E2E. v5.14.0: allowed-tools audit (AskUserQuestion/Write fixes), SKILL.md updated to 38 commands + 40 references + 7 agents + workflow guide, agent cold-start prerequisites, submission-writer/assembler deduplication, review-simulator scoring rubric, cybersecurity keyword fix, 105 new functional tests",
+  "version": "5.15.0",
+  "description": "AI-powered FDA 510(k) regulatory assistant — 38 commands, 7 agents, API-authoritative guidance matching. v5.15.0: 3-tier guidance trigger system (API flags → word-boundary keywords → classification heuristics), AccessGUDID sterilization/MRI/latex queries, negation-aware matching, 6 new trigger categories (3D printing, animal-derived, home use, pediatric, latex, electrical), 107 new accuracy tests",
   "author": {
     "name": "PredicateExtraction"
   },

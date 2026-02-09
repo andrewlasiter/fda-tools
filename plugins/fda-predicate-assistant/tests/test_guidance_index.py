@@ -312,10 +312,10 @@ class TestSKILLMDGuidanceIndex:
 class TestPluginVersionAndCounts511:
     """Test plugin.json reflects v5.11.0."""
 
-    def test_version_is_5_11_0(self):
+    def test_version_is_5_15_0(self):
         with open(PLUGIN_JSON) as f:
             data = json.load(f)
-        assert data["version"] == "5.14.0"
+        assert data["version"] == "5.15.0"
 
     def test_skill_md_mentions_guidance_index(self):
         """Guidance index is documented in SKILL.md resources, not plugin.json description."""

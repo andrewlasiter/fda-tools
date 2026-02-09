@@ -204,4 +204,4 @@ class TestVersionBump:
     def test_plugin_json_version(self):
         with open(PLUGIN_JSON) as f:
             data = json.load(f)
-        assert data["version"] == "5.14.0"
+        assert data["version"] == "5.15.0"

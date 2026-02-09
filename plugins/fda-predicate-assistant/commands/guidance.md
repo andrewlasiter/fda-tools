@@ -167,6 +167,8 @@ if api_enabled:
                 print(f"PANEL:{r.get('medical_specialty_description', r.get('review_panel', 'N/A'))}")
                 print(f"DEFINITION:{r.get('definition', 'N/A')}")
                 print(f"GMP_EXEMPT:{r.get('gmp_exempt_flag', 'N/A')}")
+                print(f"IMPLANT_FLAG:{r.get('implant_flag', 'N')}")
+                print(f"LIFE_SUSTAIN:{r.get('life_sustain_support_flag', 'N')}")
             else:
                 print("NOT_FOUND:true")
     except Exception as e:
@@ -179,7 +181,45 @@ PYEOF
 
 If `--regulation NUMBER` is provided, use that instead of the API result.
 
-Store the classification data — you'll need `device_name`, `device_class`, `regulation_number`, and `review_panel` for subsequent steps.
+Store the classification data — you'll need `device_name`, `device_class`, `regulation_number`, `review_panel`, `implant_flag`, and `life_sustain_support_flag` for subsequent steps.
+
+## Step 1.5: Query AccessGUDID for Device Characteristics
+
+**Skip for `--offline` mode or if the product code is not found.**
+
+Query AccessGUDID for authoritative device characteristics (sterilization method, single-use status, MRI safety, latex). These API flags take priority over keyword guessing in Step 3.
+
+```bash
+python3 << 'PYEOF'
+import urllib.request, json
+
+product_code = "PRODUCTCODE"  # Replace with actual product code from Step 1
+
+url = f"https://accessgudid.nlm.nih.gov/api/v3/devices/lookup.json?product_code={product_code}"
+req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/5.15)"})
+try:
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        data = json.loads(resp.read())
+        if data.get("gudid"):
+            device = data["gudid"].get("device", {})
+            sterilization = device.get("sterilization", {})
+            print(f"GUDID_STERILE:{sterilization.get('is_sterile', False)}")
+            print(f"GUDID_STERILE_PRIOR_USE:{sterilization.get('is_sterilization_prior_use', False)}")
+            methods = sterilization.get("sterilization_methods", [])
+            for m in methods:
+                print(f"STERILIZATION_METHOD:{m}")
+            print(f"GUDID_SINGLE_USE:{device.get('is_single_use', 'N/A')}")
+            print(f"GUDID_MRI_SAFETY:{device.get('mri_safety', 'N/A')}")
+            print(f"GUDID_LATEX:{device.get('is_labeled_as_nrl', 'N/A')}")
+            print(f"GUDID_RX:{device.get('is_rx', 'N/A')}")
+        else:
+            print("GUDID_FOUND:false")
+except Exception as e:
+    print(f"GUDID_ERROR:{e}")
+PYEOF
+```
+
+Store the GUDID results — `gudid_is_sterile`, `gudid_sterilization_methods`, `gudid_single_use`, `gudid_mri_safety`, and `gudid_latex_nrl` will be used by the 3-tier trigger logic in Step 3. If GUDID query fails, these flags default to `None` and Tier 2 keyword matching handles them instead.
 
 ## Step 2: Search for Device-Specific Guidance
 
@@ -244,42 +284,193 @@ For each guidance document found:
 Apply the trigger rules from `references/guidance-lookup.md`. Use the classification data from Step 1 and the user's `--device-description` (if provided) to determine which cross-cutting guidances apply.
 
 ```python
-# Pseudo-logic for cross-cutting guidance determination
+import re
+
+# ── Helper: word-boundary keyword matching with negation awareness ──
+def kw_match(desc, keywords):
+    """Word-boundary matching that avoids false positives from substrings.
+    Returns True if any keyword matches as a whole word AND is NOT preceded
+    by a negation phrase within 20 characters."""
+    for kw in keywords:
+        pattern = r'\b' + re.escape(kw) + r'\b'
+        match = re.search(pattern, desc, re.IGNORECASE)
+        if match:
+            prefix = desc[max(0, match.start()-20):match.start()].lower()
+            if not any(neg in prefix for neg in ['not ', 'non-', 'non ', 'no ', 'without ', "doesn't ", "does not "]):
+                return True
+    return False
+
+# ── Build combined description from user input + API definition field ──
+desc = " ".join(filter(None, [
+    (device_description or "").lower(),
+    (api_definition or "").lower()    # from Step 1 classification API
+]))
+
+# ══════════════════════════════════════════════════════════════════════
+#  TIER 1 — API-Authoritative Flags (always checked first)
+# ══════════════════════════════════════════════════════════════════════
 triggers = []
 
 # Always applicable
 triggers.append(("Biocompatibility", "Use of ISO 10993-1", "all_devices"))
 triggers.append(("510(k) SE Determination", "The 510(k) Program: Evaluating Substantial Equivalence", "all_510k"))
 
-# Class II
+# Class-based
 if device_class == "2":
     triggers.append(("Special Controls", f"Special controls for {regulation_number}", "class_ii"))
+if device_class == "3":
+    triggers.append(("PMA-Level Scrutiny", "Clinical data likely required for Class III device", "class_iii"))
 
-# Check device description keywords
-desc = (device_description or "").lower()
+# API implant flag (from openFDA classification)
+if implant_flag == "Y":
+    triggers.append(("Implantable", "ISO 10993 extended + fatigue + MRI safety", "api_implant"))
+    triggers.append(("MRI Safety", "Assessment of MRI Effects", "api_implant"))
 
-if any(kw in desc for kw in ["sterile", "steriliz", "aseptic"]):
-    triggers.append(("Sterilization", "Submission and Review of Sterility Information", "sterile_device"))
-    triggers.append(("Shelf Life", "Shelf Life of Medical Devices", "sterile_device"))
+# API life-sustaining flag
+if life_sustain_flag == "Y":
+    triggers.append(("Life-Sustaining", "Enhanced clinical review for life-sustaining device", "api_life_sustain"))
 
-if any(kw in desc for kw in ["software", "algorithm", "app", "firmware", "samd", "digital"]):
-    triggers.append(("Software", "Content of Premarket Submissions for Device Software Functions", "software_device"))
+# AccessGUDID sterilization flags (from Step 1.5)
+if gudid_is_sterile == True:
+    triggers.append(("Sterilization", "Submission and Review of Sterility Information", "gudid_sterile"))
+    triggers.append(("Shelf Life", "Shelf Life of Medical Devices", "gudid_sterile"))
+    # Map specific sterilization method to correct standard
+    for method in gudid_sterilization_methods:
+        method_lower = method.lower() if method else ""
+        if "ethylene oxide" in method_lower or "eo" in method_lower:
+            triggers.append(("Sterilization-EO", "Ethylene Oxide Sterilization — ISO 11135", "gudid_method"))
+        elif "radiation" in method_lower or "gamma" in method_lower or "e-beam" in method_lower:
+            triggers.append(("Sterilization-Radiation", "Radiation Sterilization — ISO 11137", "gudid_method"))
+        elif "steam" in method_lower or "autoclave" in method_lower:
+            triggers.append(("Sterilization-Steam", "Steam Sterilization — ISO 17665", "gudid_method"))
 
-if any(kw in desc for kw in ["wireless", "bluetooth", "wifi", "connected", "iot", "rf"]):
-    triggers.append(("Cybersecurity", "Cybersecurity in Medical Devices", "wireless_device"))
-    triggers.append(("EMC/Wireless", "Radio Frequency Wireless Technology in Medical Devices", "wireless_device"))
+# AccessGUDID single-use flag
+if gudid_single_use == True:
+    pass  # Single-use devices do NOT get reprocessing guidance
+elif gudid_single_use == False:
+    triggers.append(("Reprocessing", "Reprocessing Medical Devices in Health Care Settings", "gudid_reusable"))
 
-if any(kw in desc for kw in ["reusable", "reprocess"]):
-    triggers.append(("Reprocessing", "Reprocessing Medical Devices in Health Care Settings", "reusable_device"))
+# AccessGUDID MRI safety flag (even for non-implants)
+if gudid_mri_safety and gudid_mri_safety != "N/A":
+    triggers.append(("MRI Safety", "Assessment of MRI Effects", "gudid_mri"))
 
-if any(kw in desc for kw in ["implant", "implantable"]):
-    triggers.append(("MRI Safety", "Assessment of MRI Effects", "implantable_device"))
+# AccessGUDID latex flag
+if gudid_latex_nrl == True:
+    triggers.append(("Latex", "Latex labeling + ISO 10993 extended panel", "gudid_latex"))
 
-if any(kw in desc for kw in ["ai", "machine learning", "deep learning", "neural network"]):
-    triggers.append(("AI/ML", "AI and ML in Software as a Medical Device", "ai_ml_device"))
+# IVD review panels
+IVD_PANELS = ["clinical chemistry", "microbiology", "hematology", "immunology", "toxicology", "pathology"]
+if any(panel in (review_panel or "").lower() for panel in IVD_PANELS):
+    triggers.append(("IVD", "IVD-specific guidance (CLSI standards)", "api_ivd"))
 
-if any(kw in desc for kw in ["combination", "drug-device", "drug"]):
-    triggers.append(("Combination Product", "Classification of Products as Drugs and Devices", "combination"))
+# ══════════════════════════════════════════════════════════════════════
+#  TIER 2 — Enhanced Keyword Matching (word-boundary, negation-aware)
+# ══════════════════════════════════════════════════════════════════════
+# Only fires if the corresponding TIER 1 flag did NOT already trigger.
+
+# Sterilization (if not already triggered by GUDID)
+if not any(t[0].startswith("Sterilization") for t in triggers):
+    if kw_match(desc, ["sterile", "sterilized", "sterilization", "aseptic", "terminally sterilized",
+                        "gamma irradiated", "gamma sterilized", "eo sterilized", "ethylene oxide",
+                        "e-beam sterilized", "radiation sterilized", "steam sterilized"]):
+        triggers.append(("Sterilization", "Submission and Review of Sterility Information", "kw_sterile"))
+        triggers.append(("Shelf Life", "Shelf Life of Medical Devices", "kw_sterile"))
+
+# Software (precise terms — avoids "digital thermometer" false positive)
+if kw_match(desc, ["software", "algorithm", "mobile app", "software app", "firmware", "samd",
+                    "software as a medical device", "digital health", "software function",
+                    "machine learning algorithm", "cloud-based software"]):
+    triggers.append(("Software", "Content of Premarket Submissions for Device Software Functions", "kw_software"))
+
+# AI/ML (precise terms — "ai" alone would match "drain", "air", etc.)
+if kw_match(desc, ["artificial intelligence", "ai-enabled", "ai-based", "ai/ml",
+                    "machine learning", "deep learning", "neural network",
+                    "computer-aided detection", "computer-aided diagnosis", "cadx", "cade"]):
+    triggers.append(("AI/ML", "AI and ML in Software as a Medical Device", "kw_aiml"))
+
+# Wireless/Connected (precise terms — "connected" alone too broad; "rf" alone matches "rf wound")
+if kw_match(desc, ["wireless", "bluetooth", "wifi", "wi-fi", "network-connected", "cloud-connected",
+                    "internet of things", "iot device", "rf communication", "rf wireless",
+                    "radio frequency", "cellular", "zigbee", "lora", "near-field communication", "nfc"]):
+    triggers.append(("Cybersecurity", "Cybersecurity in Medical Devices", "kw_wireless"))
+    triggers.append(("EMC/Wireless", "Radio Frequency Wireless Technology in Medical Devices", "kw_wireless"))
+
+# Combination products (precise terms — "drug" alone matches "drug-free")
+if kw_match(desc, ["combination product", "drug-device", "drug-eluting", "drug-coated",
+                    "biologic-device", "antimicrobial agent", "drug delivery device",
+                    "drug-impregnated", "bioresorbable drug"]):
+    triggers.append(("Combination Product", "Classification of Products as Drugs and Devices", "kw_combination"))
+
+# Implantable (if not already triggered by API flag)
+if not any(t[0] == "Implantable" for t in triggers):
+    if kw_match(desc, ["implant", "implantable", "permanent implant", "indwelling",
+                        "prosthesis", "prosthetic", "endoprosthesis"]):
+        triggers.append(("Implantable", "ISO 10993 extended + fatigue + MRI safety", "kw_implant"))
+        triggers.append(("MRI Safety", "Assessment of MRI Effects", "kw_implant"))
+
+# Reusable (if not already triggered by GUDID)
+if not any(t[0] == "Reprocessing" for t in triggers):
+    if kw_match(desc, ["reusable", "reprocessing", "reprocessed", "multi-use",
+                        "cleaning validation", "disinfection"]):
+        triggers.append(("Reprocessing", "Reprocessing Medical Devices in Health Care Settings", "kw_reusable"))
+
+# ── New categories (v5.15.0) ──
+
+# 3D Printing / Additive Manufacturing
+if kw_match(desc, ["3d print", "3d-printed", "3d printed",
+                    "additive manufactur", "additively manufactured",
+                    "selective laser sintering", "selective laser melting",
+                    "electron beam melting", "fused deposition", "binder jetting"]):
+    triggers.append(("3D Printing", "Technical Considerations for Additive Manufactured Medical Devices", "kw_3dprint"))
+
+# Animal-Derived Materials
+if kw_match(desc, ["collagen", "gelatin", "bovine", "porcine", "animal-derived",
+                    "animal tissue", "equine", "ovine", "decellularized",
+                    "xenograft", "biologic matrix"]):
+    triggers.append(("Animal-Derived", "BSE/TSE Guidance for Animal-Derived Materials", "kw_animal"))
+
+# Home Use
+if kw_match(desc, ["home use", "over-the-counter", "otc device", "patient self-test",
+                    "lay user", "home monitoring", "self-administered",
+                    "consumer use", "non-professional use"]):
+    triggers.append(("Home Use", "Design Considerations for Devices Intended for Home Use", "kw_home"))
+
+# Pediatric
+if kw_match(desc, ["pediatric", "neonatal", "infant", "children", "child",
+                    "neonate", "newborn", "adolescent"]):
+    triggers.append(("Pediatric", "Premarket Assessment of Pediatric Medical Devices", "kw_pediatric"))
+
+# Latex (if not already triggered by GUDID)
+if not any(t[0] == "Latex" for t in triggers):
+    if kw_match(desc, ["latex", "natural rubber", "natural rubber latex"]):
+        triggers.append(("Latex", "Latex labeling + ISO 10993 extended panel", "kw_latex"))
+
+# Electrical Safety (non-wireless powered devices)
+if kw_match(desc, ["battery-powered", "battery powered", "ac mains", "rechargeable",
+                    "electrically powered", "mains-powered", "line-powered",
+                    "lithium battery", "power supply", "electrical stimulation"]):
+    triggers.append(("Electrical Safety", "IEC 60601-1 Electrical Safety Guidance", "kw_electrical"))
+
+# ══════════════════════════════════════════════════════════════════════
+#  TIER 3 — Classification Heuristics (safety net)
+# ══════════════════════════════════════════════════════════════════════
+# Regulation number family mapping — catches devices missed by Tiers 1-2
+reg_prefix = (regulation_number or "")[:3]
+REG_FAMILY_TRIGGERS = {
+    "870": "Cardiovascular guidance (21 CFR 870)",
+    "888": "Orthopedic guidance (21 CFR 888)",
+    "878": "General/plastic surgery guidance (21 CFR 878)",
+    "862": "Clinical chemistry (possible IVD)",
+    "864": "Hematology/pathology (possible IVD)",
+    "866": "Immunology/microbiology (possible IVD)",
+    "892": "Radiology guidance (21 CFR 892)",
+}
+if reg_prefix in REG_FAMILY_TRIGGERS:
+    triggers.append(("Regulation Family", REG_FAMILY_TRIGGERS[reg_prefix], "tier3_reg_family"))
+
+# If Class II and NO specific guidance found after Tiers 1-2, flag for web search
+if device_class == "2" and len([t for t in triggers if t[2] not in ["all_devices", "all_510k", "class_ii", "tier3_reg_family"]]) == 0:
+    triggers.append(("Web Search Recommended", "No characteristic-specific triggers found — consider WebSearch for applicable guidance", "tier3_fallback"))
 ```
 
 Only include cross-cutting guidance where the trigger condition is met. Do NOT list every possible cross-cutting guidance for every device.
