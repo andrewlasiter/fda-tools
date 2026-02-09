@@ -495,7 +495,7 @@ class TestUdiApi:
     def test_udi_product_code_search(self):
         """UDI search by product code should return results."""
         import urllib.request
-        url = "https://api.fda.gov/device/udi.json?search=products.product_code:QAS&limit=1"
+        url = "https://api.fda.gov/device/udi.json?search=product_codes.code:QAS&limit=1"
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "FDA-Plugin-Test/1.0"})
             with urllib.request.urlopen(req, timeout=10) as resp:
