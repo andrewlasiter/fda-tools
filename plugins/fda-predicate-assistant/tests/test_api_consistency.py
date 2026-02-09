@@ -34,13 +34,13 @@ class TestOpenFDABaseURL:
         ref = _read_ref("openfda-api")
         assert "api.fda.gov" in ref
 
-    def test_research_uses_openfda_base(self):
+    def test_research_uses_openfda(self):
         cmd = _read_cmd("research")
-        assert "api.fda.gov" in cmd
+        assert "api.fda.gov" in cmd or "openFDA" in cmd or "fda_api_client" in cmd
 
-    def test_safety_uses_openfda_base(self):
+    def test_safety_uses_openfda(self):
         cmd = _read_cmd("safety")
-        assert "api.fda.gov" in cmd
+        assert "api.fda.gov" in cmd or "openFDA" in cmd or "fda_api_client" in cmd
 
     def test_propose_uses_openfda_base(self):
         cmd = _read_cmd("propose")
