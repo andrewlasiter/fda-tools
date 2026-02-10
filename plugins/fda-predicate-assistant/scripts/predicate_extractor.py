@@ -107,153 +107,154 @@ def download_and_parse_csv(urls, pma_url, data_dir=None):
         os.makedirs(data_dir, exist_ok=True)
         os.chdir(data_dir)
 
-    session = create_session()
+    try:
+        session = create_session()
 
-    required_files = [url.split('/')[-1].replace('.zip', '.txt') for url in urls] + ['pma.txt']
-    missing_files = []
+        required_files = [url.split('/')[-1].replace('.zip', '.txt') for url in urls] + ['pma.txt']
+        missing_files = []
 
-    for filename in required_files:
-        if not os.path.exists(filename):
-            missing_files.append(filename)
+        for filename in required_files:
+            if not os.path.exists(filename):
+                missing_files.append(filename)
 
-    # Check if running in headless mode (--headless flag or --directory provided)
-    is_headless = '--headless' in sys.argv or '--directory' in sys.argv or '-d' in sys.argv
+        # Check if running in headless mode (--headless flag or --directory provided)
+        is_headless = '--headless' in sys.argv or '--directory' in sys.argv or '-d' in sys.argv
 
-    if missing_files:
-        if is_headless:
-            # In headless mode: skip manual instructions, just attempt download
-            print(f"Missing {len(missing_files)} FDA database file(s). Attempting automated download...")
+        if missing_files:
+            if is_headless:
+                # In headless mode: skip manual instructions, just attempt download
+                print(f"Missing {len(missing_files)} FDA database file(s). Attempting automated download...")
+            else:
+                print("\n" + "="*60)
+                print("DOWNLOAD ISSUE DETECTED")
+                print("="*60)
+                print("The automated download is being blocked by FDA's servers.")
+                print("This is likely due to anti-bot protection.")
+                print("\nMissing files:")
+                for filename in missing_files:
+                    corresponding_url = None
+                    if filename == 'pma.txt':
+                        corresponding_url = pma_url
+                    else:
+                        for url in urls:
+                            if url.split('/')[-1].replace('.zip', '.txt') == filename:
+                                corresponding_url = url
+                                break
+                    print(f"  - {filename} (from {corresponding_url})")
+
+                print("\nPLEASE MANUALLY DOWNLOAD these files:")
+                print("1. Open each URL in your web browser")
+                print("2. Download the .zip files")
+                print("3. Extract them to this directory:")
+                print(f"   {os.getcwd()}")
+                print("4. Re-run this script")
+                print("\nURLs to download:")
+                for url in urls + [pma_url]:
+                    print(f"  {url}")
+                print("="*60)
+
+                print("\nAttempting automated download with delays...")
+
+        for i, url in enumerate(urls):
+            filename = url.split('/')[-1].replace('.zip', '.txt')
+            if os.path.exists(filename) and os.path.getmtime(filename) > time.mktime((datetime.now() - timedelta(days=5)).timetuple()):
+                print(f"File found! (<5 days old): Being nice to FDA's servers: {filename}")
+            else:
+                print(f"Downloading and extracting file: {filename}")
+                if i > 0:
+                    time.sleep(2)
+
+                try:
+                    response = session.get(url, timeout=30)
+                    response.raise_for_status()
+
+                    if not response.content.startswith(b'PK'):
+                        print(f"Error: Response from {url} is not a valid zip file")
+                        print(f"Response status: {response.status_code}")
+                        print(f"Response headers: {dict(response.headers)}")
+                        print(f"First 200 chars of response: {response.text[:200]}")
+                        continue
+
+                    zipfile.ZipFile(io.BytesIO(response.content)).extractall()
+                    print(f"Successfully downloaded and extracted: {filename}")
+
+                except requests.exceptions.RequestException as e:
+                    print(f"Error downloading {url}: {e}")
+                    continue
+                except zipfile.BadZipFile as e:
+                    print(f"Error extracting zip file from {url}: {e}")
+                    print(f"Response status: {response.status_code}")
+                    print(f"Response content type: {response.headers.get('content-type', 'unknown')}")
+                    continue
+                except Exception as e:
+                    print(f"Unexpected error processing {url}: {e}")
+                    continue
+
+            if os.path.exists(filename):
+                with open(filename, 'r', encoding='utf-8-sig', errors='replace') as file:
+                    reader = csv.reader(file, delimiter='|')
+                    for row in reader:
+                        if len(row) > 0:
+                            knumbers.add(row[0])
+                            if len(row) > 14:
+                                csv_data[row[0]] = row[14]
+            else:
+                print(f"Warning: Could not download or find file {filename}")
+
+        pma_filename = 'pma.txt'
+        if os.path.exists(pma_filename) and os.path.getmtime(pma_filename) > time.mktime((datetime.now() - timedelta(days=5)).timetuple()):
+            print(f"File found! (<5 days old): Being nice to FDA's servers: {pma_filename}")
         else:
-            print("\n" + "="*60)
-            print("DOWNLOAD ISSUE DETECTED")
-            print("="*60)
-            print("The automated download is being blocked by FDA's servers.")
-            print("This is likely due to anti-bot protection.")
-            print("\nMissing files:")
-            for filename in missing_files:
-                corresponding_url = None
-                if filename == 'pma.txt':
-                    corresponding_url = pma_url
-                else:
-                    for url in urls:
-                        if url.split('/')[-1].replace('.zip', '.txt') == filename:
-                            corresponding_url = url
-                            break
-                print(f"  - {filename} (from {corresponding_url})")
-
-            print("\nPLEASE MANUALLY DOWNLOAD these files:")
-            print("1. Open each URL in your web browser")
-            print("2. Download the .zip files")
-            print("3. Extract them to this directory:")
-            print(f"   {os.getcwd()}")
-            print("4. Re-run this script")
-            print("\nURLs to download:")
-            for url in urls + [pma_url]:
-                print(f"  {url}")
-            print("="*60)
-
-            print("\nAttempting automated download with delays...")
-
-    for i, url in enumerate(urls):
-        filename = url.split('/')[-1].replace('.zip', '.txt')
-        if os.path.exists(filename) and os.path.getmtime(filename) > time.mktime((datetime.now() - timedelta(days=5)).timetuple()):
-            print(f"File found! (<5 days old): Being nice to FDA's servers: {filename}")
-        else:
-            print(f"Downloading and extracting file: {filename}")
-            if i > 0:
-                time.sleep(2)
-
+            print(f"Downloading and extracting file: {pma_filename}")
+            time.sleep(2)
             try:
-                response = session.get(url, timeout=30)
+                response = session.get(pma_url, timeout=30)
                 response.raise_for_status()
 
                 if not response.content.startswith(b'PK'):
-                    print(f"Error: Response from {url} is not a valid zip file")
+                    print(f"Error: Response from {pma_url} is not a valid zip file")
                     print(f"Response status: {response.status_code}")
                     print(f"Response headers: {dict(response.headers)}")
                     print(f"First 200 chars of response: {response.text[:200]}")
-                    continue
-
-                zipfile.ZipFile(io.BytesIO(response.content)).extractall()
-                print(f"Successfully downloaded and extracted: {filename}")
+                else:
+                    zipfile.ZipFile(io.BytesIO(response.content)).extractall()
+                    print(f"Successfully downloaded and extracted: {pma_filename}")
 
             except requests.exceptions.RequestException as e:
-                print(f"Error downloading {url}: {e}")
-                continue
+                print(f"Error downloading {pma_url}: {e}")
             except zipfile.BadZipFile as e:
-                print(f"Error extracting zip file from {url}: {e}")
+                print(f"Error extracting zip file from {pma_url}: {e}")
                 print(f"Response status: {response.status_code}")
                 print(f"Response content type: {response.headers.get('content-type', 'unknown')}")
-                continue
             except Exception as e:
-                print(f"Unexpected error processing {url}: {e}")
-                continue
+                print(f"Unexpected error processing {pma_url}: {e}")
 
-        if os.path.exists(filename):
-            with open(filename, 'r', encoding='utf-8-sig', errors='replace') as file:
+        if os.path.exists(pma_filename):
+            with open(pma_filename, 'r', encoding='utf-8-sig', errors='replace') as file:
                 reader = csv.reader(file, delimiter='|')
                 for row in reader:
                     if len(row) > 0:
-                        knumbers.add(row[0])
-                        if len(row) > 14:
-                            csv_data[row[0]] = row[14]
+                        pma_numbers.add(row[0])
         else:
-            print(f"Warning: Could not download or find file {filename}")
+            print(f"Warning: Could not download or find file {pma_filename}")
 
-    pma_filename = 'pma.txt'
-    if os.path.exists(pma_filename) and os.path.getmtime(pma_filename) > time.mktime((datetime.now() - timedelta(days=5)).timetuple()):
-        print(f"File found! (<5 days old): Being nice to FDA's servers: {pma_filename}")
-    else:
-        print(f"Downloading and extracting file: {pma_filename}")
-        time.sleep(2)
-        try:
-            response = session.get(pma_url, timeout=30)
-            response.raise_for_status()
-
-            if not response.content.startswith(b'PK'):
-                print(f"Error: Response from {pma_url} is not a valid zip file")
-                print(f"Response status: {response.status_code}")
-                print(f"Response headers: {dict(response.headers)}")
-                print(f"First 200 chars of response: {response.text[:200]}")
+        if not csv_data and not knumbers and not pma_numbers:
+            if is_headless:
+                print("ERROR: No FDA database files loaded. Cannot validate device numbers in headless mode.")
+                sys.exit(2)
             else:
-                zipfile.ZipFile(io.BytesIO(response.content)).extractall()
-                print(f"Successfully downloaded and extracted: {pma_filename}")
+                print("\n" + "!"*60)
+                print("WARNING: No FDA database files were loaded!")
+                print("The script will still process PDFs but won't be able to:")
+                print("- Validate K-numbers, P-numbers, or N-numbers")
+                print("- Identify product codes")
+                print("- Classify devices as predicates vs reference devices")
+                print("!"*60)
 
-        except requests.exceptions.RequestException as e:
-            print(f"Error downloading {pma_url}: {e}")
-        except zipfile.BadZipFile as e:
-            print(f"Error extracting zip file from {pma_url}: {e}")
-            print(f"Response status: {response.status_code}")
-            print(f"Response content type: {response.headers.get('content-type', 'unknown')}")
-        except Exception as e:
-            print(f"Unexpected error processing {pma_url}: {e}")
-
-    if os.path.exists(pma_filename):
-        with open(pma_filename, 'r', encoding='utf-8-sig', errors='replace') as file:
-            reader = csv.reader(file, delimiter='|')
-            for row in reader:
-                if len(row) > 0:
-                    pma_numbers.add(row[0])
-    else:
-        print(f"Warning: Could not download or find file {pma_filename}")
-
-    if not csv_data and not knumbers and not pma_numbers:
-        if is_headless:
-            print("ERROR: No FDA database files loaded. Cannot validate device numbers in headless mode.")
-            sys.exit(2)
-        else:
-            print("\n" + "!"*60)
-            print("WARNING: No FDA database files were loaded!")
-            print("The script will still process PDFs but won't be able to:")
-            print("- Validate K-numbers, P-numbers, or N-numbers")
-            print("- Identify product codes")
-            print("- Classify devices as predicates vs reference devices")
-            print("!"*60)
-
-    if data_dir:
-        os.chdir(original_cwd)
-
-    return csv_data, knumbers, pma_numbers
+        return csv_data, knumbers, pma_numbers
+    finally:
+        if data_dir:
+            os.chdir(original_cwd)
 
 
 def correct_number_format(number):
