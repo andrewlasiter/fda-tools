@@ -368,12 +368,14 @@ def load_large_json(filename):
         with open(filename, 'r', encoding='utf-8') as f:
             return json.load(f)
     pdf_data = {}
+    current_key = None
     with open(filename, 'rb') as f:
         for prefix, event, value in ijson.parse(f):
             if prefix.endswith('.key'):
                 current_key = value
             elif prefix.endswith('.value'):
-                pdf_data[current_key] = value
+                if current_key is not None:
+                    pdf_data[current_key] = value
     return pdf_data
 
 
