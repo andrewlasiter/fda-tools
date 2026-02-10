@@ -1144,7 +1144,10 @@ def main():
         if should_download_monthly_file(key):
             process_zip_file(key, data_dir)
 
-    pd.set_option('future.no_silent_downcasting', True)
+    try:
+        pd.set_option('future.no_silent_downcasting', True)
+    except Exception:
+        pass
 
 
 if __name__ == '__main__':
