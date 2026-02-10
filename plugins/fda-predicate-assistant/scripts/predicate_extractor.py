@@ -29,6 +29,13 @@ from multiprocessing import Pool
 import fitz  # PyMuPDF
 import pdfplumber
 
+# Multiprocessing shared state (initialized per worker)
+CSV_DATA = {}
+PDF_FILES = []
+PDF_DATA = {}
+KNOWN_KNUMBERS = set()
+KNOWN_PMA_NUMBERS = set()
+
 # Shared HTTP utilities
 try:
     from fda_http import create_session, FDA_HEADERS
@@ -498,18 +505,37 @@ def parse_text(text, filename, csv_data, known_knumbers, known_pma_numbers, sect
     return data, supplement_matches
 
 
+def _init_pool(csv_data, pdf_files, pdf_data, known_knumbers, known_pma_numbers):
+    global CSV_DATA, PDF_FILES, PDF_DATA, KNOWN_KNUMBERS, KNOWN_PMA_NUMBERS
+    CSV_DATA = csv_data
+    PDF_FILES = pdf_files
+    PDF_DATA = pdf_data
+    KNOWN_KNUMBERS = known_knumbers
+    KNOWN_PMA_NUMBERS = known_pma_numbers
+
+
 def safe_process_file(args):
-    file_path, csv_data, pdf_files, pdf_data, known_knumbers, known_pma_numbers, section_aware = args
+    file_path, section_aware = args
     filename = os.path.basename(file_path)
     text = extract_text_from_pdf(file_path)
-    data, supplement_matches = parse_text(text, filename, csv_data, known_knumbers, known_pma_numbers, section_aware=section_aware)
+    data, supplement_matches = parse_text(
+        text,
+        filename,
+        CSV_DATA,
+        KNOWN_KNUMBERS,
+        KNOWN_PMA_NUMBERS,
+        section_aware=section_aware,
+    )
     unique_matches = []
-    for pdf_file in pdf_files:
-        if search_knumber_in_pdf(filename[:-4], pdf_file, pdf_data):
+    for pdf_file in PDF_FILES:
+        if search_knumber_in_pdf(filename[:-4], pdf_file, PDF_DATA):
             unique_matches.append(os.path.basename(pdf_file)[:-4])
     predicates = [identifier for identifier, type, product_code in data if type == 'Predicate']
-    reference_devices = [identifier for identifier, type, product_code in data if type == 'Reference Device' and product_code != csv_data.get(filename[:-4])]
-    return filename[:-4], csv_data.get(filename[:-4], ''), predicates, reference_devices, supplement_matches
+    reference_devices = [
+        identifier for identifier, type, product_code in data
+        if type == 'Reference Device' and product_code != CSV_DATA.get(filename[:-4])
+    ]
+    return filename[:-4], CSV_DATA.get(filename[:-4], ''), predicates, reference_devices, supplement_matches
 
 
 def search_knumber_in_pdf(knumber, pdf_file, pdf_data):
@@ -524,10 +550,14 @@ def process_batches(pdf_files, batch_size, csv_data, pdf_data, known_knumbers, k
     supplement_data = []
     for i in tqdm(range(0, len(pdf_files), batch_size), desc="Processing batches"):
         batch_files = pdf_files[i:i + batch_size]
-        with Pool(workers) as pool:
+        with Pool(
+            workers,
+            initializer=_init_pool,
+            initargs=(csv_data, pdf_files, pdf_data, known_knumbers, known_pma_numbers),
+        ) as pool:
             batch_results = pool.map(
                 safe_process_file,
-                [(file, csv_data, pdf_files, pdf_data, known_knumbers, known_pma_numbers, section_aware) for file in batch_files]
+                [(file, section_aware) for file in batch_files]
             )
             batch_results = [result for result in batch_results if result is not None]
             results.extend(batch_results)
