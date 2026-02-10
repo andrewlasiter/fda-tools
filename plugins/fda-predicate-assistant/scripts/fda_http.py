@@ -11,6 +11,11 @@ Usage:
 
 import requests
 
+try:
+    from version import PLUGIN_VERSION
+except Exception:
+    PLUGIN_VERSION = "0.0.0"
+
 # Browser-like headers that work reliably with FDA servers
 FDA_HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -23,7 +28,7 @@ FDA_HEADERS = {
 
 # openFDA API-specific headers
 OPENFDA_HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (FDA-Plugin/5.18.0)',
+    'User-Agent': f'Mozilla/5.0 (FDA-Plugin/{PLUGIN_VERSION})',
     'Accept': 'application/json',
 }
 

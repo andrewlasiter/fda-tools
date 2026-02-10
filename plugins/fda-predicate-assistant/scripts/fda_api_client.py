@@ -40,10 +40,10 @@ BASE_URL = "https://api.fda.gov/device"
 
 # User agent
 try:
-    from fda_http import OPENFDA_HEADERS
-    USER_AGENT = OPENFDA_HEADERS.get("User-Agent", "Mozilla/5.0 (FDA-Plugin/5.18.0)")
+    from version import PLUGIN_VERSION
+    USER_AGENT = f"Mozilla/5.0 (FDA-Plugin/{PLUGIN_VERSION})"
 except Exception:
-    USER_AGENT = "Mozilla/5.0 (FDA-Plugin/5.18.0)"
+    USER_AGENT = "Mozilla/5.0 (FDA-Plugin/0.0.0)"
 
 
 class FDAClient:

@@ -81,7 +81,10 @@ VALID_ACTIONS = {
 
 VALID_DECISION_TYPES = {"auto", "manual", "deferred"}
 
-PLUGIN_VERSION = "5.21.0"
+try:
+    from version import PLUGIN_VERSION
+except Exception:
+    PLUGIN_VERSION = "0.0.0"
 
 
 def get_projects_dir():
