@@ -1089,8 +1089,9 @@ def main():
                 time.sleep(delay)
 
                 if count % 10 == 0:
-                    with open(log_file_path, 'w') as f:
-                        json.dump(failed_downloads_log, f)
+                    with failed_downloads_log_lock:
+                        with open(log_file_path, 'w') as f:
+                            json.dump(failed_downloads_log, f)
 
                 return result
 
@@ -1107,8 +1108,9 @@ def main():
         for result in results:
             print(result)
 
-        with open(log_file_path, 'w') as f:
-            json.dump(failed_downloads_log, f)
+        with failed_downloads_log_lock:
+            with open(log_file_path, 'w') as f:
+                json.dump(failed_downloads_log, f)
 
         total_successful = sum(successful_downloads.values())
         total_failed = len([r for r in results if "Failed" in r])
