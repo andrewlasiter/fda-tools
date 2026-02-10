@@ -61,6 +61,35 @@ except ImportError:
     HAS_IJSON = False
 
 
+def enrich_knumbers(knumbers, batch_size=100):
+    """Fetch openFDA enrichment data for K-numbers.
+
+    Returns a dict keyed by K-number with basic metadata.
+    """
+    try:
+        from fda_api_client import FDAClient
+    except Exception:
+        return {}
+
+    client = FDAClient()
+    enrichment = {}
+    kn_list = sorted(set(k for k in knumbers if re.match(r"^K\d{6}$", k)))
+    for i in range(0, len(kn_list), batch_size):
+        chunk = kn_list[i:i + batch_size]
+        result = client.batch_510k(chunk)
+        for r in result.get("results", []):
+            k = r.get("k_number")
+            if not k:
+                continue
+            enrichment[k] = {
+                "device_name": r.get("device_name"),
+                "decision_date": r.get("decision_date"),
+                "applicant": r.get("applicant"),
+                "product_code": r.get("product_code"),
+            }
+    return enrichment
+
+
 def download_and_parse_csv(urls, pma_url, data_dir=None):
     csv_data = {}
     knumbers = set()
@@ -425,7 +454,7 @@ def score_device_section(text, device_number, se_sections):
     return 10  # General text
 
 
-def parse_text(text, filename, csv_data, known_knumbers, known_pma_numbers):
+def parse_text(text, filename, csv_data, known_knumbers, known_pma_numbers, section_aware=False):
     # K/N/P number regex — matches OCR-corrupted variants and supplements
     regex = r'\b(?:[Kk]|1\(|l\(|\|<\.|\|\()[^dOISBGZAQsiqzl]*[\d][dOISBGZAQsiqzl\d ]{6,7}\b|\b[1l]<[^dOISBGZAQsiqzl\d ]*[\d][dOISBGZAQsiqzl\d ]{6,7}\b|\b[Nn][^dOISBGZAQsiqzl\d]*[\d][dOISBGZAQsiqzl\d ]{5,6}(?:\/S\d{3})?\b|\b[Pp][^dOISBGZAQsiqzl\d]*[\d][dOISBGZAQsiqzl\d ]{6,7}(?:\/S\d{3})?\b'
     # DEN (De Novo) number regex — DEN followed by 6-7 digits
@@ -450,6 +479,12 @@ def parse_text(text, filename, csv_data, known_knumbers, known_pma_numbers):
     if filename[:-4] in unique_matches:
         unique_matches.remove(filename[:-4])
 
+    if section_aware and text:
+        se_sections = detect_se_section(text)
+        scores = {m: score_device_section(text, m, se_sections) for m in unique_matches}
+        original_order = {m: i for i, m in enumerate(unique_matches)}
+        unique_matches.sort(key=lambda m: (-scores.get(m, 10), original_order.get(m, 0)))
+
     types = ['Predicate' if csv_data.get(match) is not None and csv_data.get(match) == csv_data.get(filename[:-4]) else 'Reference Device' for match in unique_matches]
     product_codes = [csv_data.get(match, '') for match in unique_matches]
     data = list(zip(unique_matches, types, product_codes))
@@ -464,10 +499,10 @@ def parse_text(text, filename, csv_data, known_knumbers, known_pma_numbers):
 
 
 def safe_process_file(args):
-    file_path, csv_data, pdf_files, pdf_data, known_knumbers, known_pma_numbers = args
+    file_path, csv_data, pdf_files, pdf_data, known_knumbers, known_pma_numbers, section_aware = args
     filename = os.path.basename(file_path)
     text = extract_text_from_pdf(file_path)
-    data, supplement_matches = parse_text(text, filename, csv_data, known_knumbers, known_pma_numbers)
+    data, supplement_matches = parse_text(text, filename, csv_data, known_knumbers, known_pma_numbers, section_aware=section_aware)
     unique_matches = []
     for pdf_file in pdf_files:
         if search_knumber_in_pdf(filename[:-4], pdf_file, pdf_data):
@@ -484,13 +519,16 @@ def search_knumber_in_pdf(knumber, pdf_file, pdf_data):
     return False
 
 
-def process_batches(pdf_files, batch_size, csv_data, pdf_data, known_knumbers, known_pma_numbers, workers=4):
+def process_batches(pdf_files, batch_size, csv_data, pdf_data, known_knumbers, known_pma_numbers, workers=4, section_aware=False):
     results = []
     supplement_data = []
     for i in tqdm(range(0, len(pdf_files), batch_size), desc="Processing batches"):
         batch_files = pdf_files[i:i + batch_size]
         with Pool(workers) as pool:
-            batch_results = pool.map(safe_process_file, [(file, csv_data, pdf_files, pdf_data, known_knumbers, known_pma_numbers) for file in batch_files])
+            batch_results = pool.map(
+                safe_process_file,
+                [(file, csv_data, pdf_files, pdf_data, known_knumbers, known_pma_numbers, section_aware) for file in batch_files]
+            )
             batch_results = [result for result in batch_results if result is not None]
             results.extend(batch_results)
             for res in batch_results:
@@ -686,7 +724,43 @@ def main():
     batch_size = args.batch_size
     workers = args.workers
 
-    results, supplement_data = process_batches(pdf_files, batch_size, csv_data, pdf_data, known_knumbers, known_pma_numbers, workers=workers)
+    results, supplement_data = process_batches(
+        pdf_files,
+        batch_size,
+        csv_data,
+        pdf_data,
+        known_knumbers,
+        known_pma_numbers,
+        workers=workers,
+        section_aware=args.section_aware,
+    )
+
+    enrichment_path = None
+    if args.enrich:
+        knumbers = set()
+        for knumber, _product_code, predicates, reference_devices, _ in results:
+            if knumber:
+                kn = knumber.split("/")[0].upper()
+                if re.match(r"^K\d{6}$", kn):
+                    knumbers.add(kn)
+            for item in predicates + reference_devices:
+                if not item:
+                    continue
+                kn = item.split("/")[0].upper()
+                if re.match(r"^K\d{6}$", kn):
+                    knumbers.add(kn)
+        enrichment = enrich_knumbers(knumbers)
+        enrichment_path = os.path.join(output_dir, "enrichment.json")
+        with open(enrichment_path, "w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    "generated_at": datetime.now().isoformat(),
+                    "count": len(enrichment),
+                    "data": enrichment,
+                },
+                f,
+                indent=2,
+            )
 
     # Two-pass row construction: compute max column widths, then build rows
     for result in results:
@@ -808,6 +882,8 @@ def main():
     print(f"  Time elapsed:              {elapsed:.1f}s")
     print(f"  Output:                    {filename}")
     print(f"  Supplements:               {supplement_filename}")
+    if enrichment_path:
+        print(f"  Enrichment:                {enrichment_path}")
     print("="*60)
 
 
