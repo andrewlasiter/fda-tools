@@ -105,7 +105,7 @@ Structure your report as:
   FDA Extraction Analysis Report
   {product_code} — {device_name}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | v5.21.0
+  Generated: {date} | v5.22.0
 
 EXECUTIVE SUMMARY
 ────────────────────────────────────────
@@ -197,6 +197,37 @@ When explaining findings, incorporate FDA regulatory knowledge:
 - Devices can cite multiple predicates for different aspects
 - Recent predicates are often preferred over older ones
 - Product codes indicate the device's medical specialty and regulation
+
+## Audit Logging
+
+Log agent progress using the audit logger. Resolve `FDA_PLUGIN_ROOT` first (see commands for the resolution snippet).
+
+### Log analysis start
+
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+  --project "$PROJECT_NAME" \
+  --command extraction-analyzer \
+  --action agent_step_started \
+  --subject "$PRODUCT_CODE" \
+  --decision "started" \
+  --mode "pipeline" \
+  --rationale "Extraction analyzer started: $RECORD_COUNT records to analyze"
+```
+
+### Log analysis completion
+
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+  --project "$PROJECT_NAME" \
+  --command extraction-analyzer \
+  --action agent_step_completed \
+  --subject "$PRODUCT_CODE" \
+  --decision "completed" \
+  --mode "pipeline" \
+  --rationale "Analysis complete: $PREDICATE_COUNT predicates, $REFERENCE_COUNT references, $ISSUE_COUNT issues found" \
+  --metadata "{\"records_analyzed\":$RECORD_COUNT,\"predicates\":$PREDICATE_COUNT,\"references\":$REFERENCE_COUNT,\"issues\":$ISSUE_COUNT}"
+```
 
 ## Communication Style
 

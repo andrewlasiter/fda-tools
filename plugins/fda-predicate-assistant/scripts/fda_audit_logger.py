@@ -51,9 +51,11 @@ VALID_ACTIONS = {
     "step_skipped", "step_degraded", "pipeline_completed", "pipeline_halted",
     # Pre-Sub / Outline
     "placeholder_resolved", "placeholder_converted", "data_synthesized",
-    "document_generated",
+    "document_generated", "qsub_type_recommended",
+    "testing_gap_identified", "section_applicability_determined",
     # Compare-SE
     "predicate_inferred", "table_generated", "cell_auto_populated",
+    "template_selected", "comparison_decision",
     # Safety
     "safety_query_completed", "safety_data_unavailable",
     "risk_level_assigned", "peer_benchmark_completed",
@@ -75,6 +77,8 @@ VALID_ACTIONS = {
     "readiness_sri_calculated",
     # Propose (v5.20.0)
     "predicate_proposed", "predicate_validation_result",
+    # Research (v5.22.0)
+    "predicate_ranked", "report_generated",
     # Agent (v5.20.0)
     "agent_step_started", "agent_step_completed", "agent_decision",
 }
@@ -84,7 +88,7 @@ VALID_DECISION_TYPES = {"auto", "manual", "deferred"}
 try:
     from version import PLUGIN_VERSION
 except Exception:
-    PLUGIN_VERSION = "0.0.0"
+    PLUGIN_VERSION = "5.22.0"
 
 
 def get_projects_dir():
@@ -135,6 +139,13 @@ def append_entry(project_dir, entry):
     entry.setdefault("version", PLUGIN_VERSION)
     entry_id = str(uuid.uuid4())[:8]
     entry["entry_id"] = entry_id
+
+    # Cross-command linking (v5.22.0)
+    # parent_entry_id and related_entries are optional — pass through if present
+    if "parent_entry_id" in entry and not entry["parent_entry_id"]:
+        del entry["parent_entry_id"]
+    if "related_entries" in entry and not entry["related_entries"]:
+        del entry["related_entries"]
 
     errors = validate_entry(entry)
     if errors:
@@ -361,6 +372,12 @@ def print_query_results(entries):
         if sources:
             print(f"  Sources: {', '.join(sources)}")
 
+        # Cross-command links (v5.22.0)
+        if entry.get("parent_entry_id"):
+            print(f"  Parent: {entry['parent_entry_id']}")
+        if entry.get("related_entries"):
+            print(f"  Related: {', '.join(entry['related_entries'])}")
+
         print()
 
 
@@ -443,6 +460,12 @@ def handle_append(args):
         entry["files_read"] = [s.strip() for s in args.files_read.split(",")]
     if args.files_written:
         entry["files_written"] = [s.strip() for s in args.files_written.split(",")]
+
+    # Cross-command linking (v5.22.0)
+    if args.parent_entry_id:
+        entry["parent_entry_id"] = args.parent_entry_id
+    if args.related_entries:
+        entry["related_entries"] = [s.strip() for s in args.related_entries.split(",")]
 
     entry_id, errors = append_entry(project_dir, entry)
 
@@ -531,6 +554,11 @@ def main():
                         help="Comma-separated input files")
     parser.add_argument("--files-written", dest="files_written",
                         help="Comma-separated output files")
+    # Cross-command linking (v5.22.0)
+    parser.add_argument("--parent-entry-id", dest="parent_entry_id",
+                        help="Entry ID of parent decision (cross-command linking)")
+    parser.add_argument("--related-entries", dest="related_entries",
+                        help="Comma-separated entry IDs of related decisions")
 
     # Query filters (used with --show-log)
     parser.add_argument("--command-filter", dest="command_filter",

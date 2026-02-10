@@ -10,6 +10,27 @@ Generate a structured SE comparison table per FDA 21 CFR 807.87(f) for inclusion
 
 **KEY PRINCIPLE: Auto-populate predicate and reference columns from FDA data.** Fetch and extract predicate/reference device information yourself — the user should only need to fill in their own device's details.
 
+**Before running any bash commands that reference `$FDA_PLUGIN_ROOT`**, resolve the plugin install path:
+
+```bash
+FDA_PLUGIN_ROOT=$(python3 -c "
+import json, os
+f = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
+if os.path.exists(f):
+    d = json.load(open(f))
+    for k, v in d.get('plugins', {}).items():
+        if k.startswith('fda-predicate-assistant@'):
+            for e in v:
+                p = e.get('installPath', '')
+                if os.path.isdir(p):
+                    print(p); exit()
+print('')
+")
+echo "FDA_PLUGIN_ROOT=$FDA_PLUGIN_ROOT"
+```
+
+If `$FDA_PLUGIN_ROOT` is empty, report an error: "Could not locate the FDA Predicate Assistant plugin installation. Make sure the plugin is installed and enabled."
+
 ## Parse Arguments
 
 From the arguments, extract:
@@ -467,7 +488,7 @@ Present the table in clean markdown format (see `references/output-formatting.md
 **Predicate Device(s):** {K-numbers with device names}
 **Reference Device(s):** {K-numbers with device names, or "None"}
 **Product Code:** {CODE} — {Device Name} (Class {class})
-**Generated:** {date} | v5.21.0
+**Generated:** {date} | v5.22.0
 
 ---
 
@@ -589,13 +610,85 @@ What is your device's sensor duration?
 
 ## Audit Logging
 
-After generating the SE comparison table, write audit log entries per `references/audit-logging.md`:
+After generating the SE comparison table, write audit log entries using `fda_audit_logger.py`. Only log if `--project` is specified.
 
-- If predicates were inferred: write a `predicate_inferred` entry with source (review.json/output.csv/cache)
-- For each auto-populated cell: write a `cell_auto_populated` entry with the data source
-- At completion: write a `table_generated` entry with predicate count, row count, and cells requiring input/review counts
+### Log template selection (after Step 1)
 
-Append all entries to `$PROJECTS_DIR/$PROJECT_NAME/audit_log.jsonl` (if `--project` specified).
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+  --project "$PROJECT_NAME" \
+  --command compare-se \
+  --action template_selected \
+  --subject "$PRODUCT_CODE" \
+  --decision "$TEMPLATE_NAME" \
+  --mode "$MODE" \
+  --decision-type auto \
+  --rationale "Selected $TEMPLATE_NAME template for product code $PRODUCT_CODE ($DEVICE_TYPE)" \
+  --data-sources "openFDA classification" \
+  --alternatives "$TEMPLATE_ALTERNATIVES_JSON" \
+  --metadata "{\"product_code\":\"$PRODUCT_CODE\",\"template_rows\":$ROW_COUNT}"
+```
+
+### Log predicate inference (after Step 2, if --infer used)
+
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+  --project "$PROJECT_NAME" \
+  --command compare-se \
+  --action predicate_inferred \
+  --subject "$PREDICATE_LIST" \
+  --decision "inferred" \
+  --mode "$MODE" \
+  --decision-type auto \
+  --rationale "Inferred $PRED_COUNT predicates from $INFER_SOURCE" \
+  --data-sources "$INFER_SOURCE" \
+  --alternatives "$ALL_CANDIDATES_JSON" \
+  --exclusions "$EXCLUDED_CANDIDATES_JSON"
+```
+
+### Log cell auto-population summary (after Step 4)
+
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+  --project "$PROJECT_NAME" \
+  --command compare-se \
+  --action cell_auto_populated \
+  --subject "$PRODUCT_CODE" \
+  --decision "populated" \
+  --mode "$MODE" \
+  --rationale "$FILLED_COUNT/$TOTAL_CELLS cells auto-populated, $REVIEW_COUNT require review" \
+  --data-sources "openFDA 510k API,510k summary PDFs" \
+  --metadata "{\"total_cells\":$TOTAL_CELLS,\"auto_filled\":$FILLED_COUNT,\"need_review\":$REVIEW_COUNT,\"need_input\":$INPUT_COUNT}"
+```
+
+### Log comparison decisions (after Step 4)
+
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+  --project "$PROJECT_NAME" \
+  --command compare-se \
+  --action comparison_decision \
+  --subject "$PRODUCT_CODE" \
+  --decision "completed" \
+  --mode "$MODE" \
+  --rationale "SE comparison: $SAME_COUNT Same, $SIMILAR_COUNT Similar, $DIFFERENT_COUNT Different across $ROW_COUNT rows" \
+  --metadata "{\"same\":$SAME_COUNT,\"similar\":$SIMILAR_COUNT,\"different\":$DIFFERENT_COUNT,\"rows\":$ROW_COUNT}"
+```
+
+### Log table generation (at completion)
+
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+  --project "$PROJECT_NAME" \
+  --command compare-se \
+  --action table_generated \
+  --subject "$PRODUCT_CODE" \
+  --decision "generated" \
+  --mode "$MODE" \
+  --rationale "SE table generated: $ROW_COUNT rows, $PRED_COUNT predicates, $REF_COUNT references" \
+  --metadata "{\"row_count\":$ROW_COUNT,\"predicate_count\":$PRED_COUNT,\"reference_count\":$REF_COUNT}" \
+  --files-written "$OUTPUT_PATH"
+```
 
 ## Step 7: Integration with Submission Outline
 
@@ -623,7 +716,7 @@ If the user chooses to export, append or replace the SE Comparison section in `s
 
 {THE FULL SE COMPARISON TABLE}
 
-**Generated:** {date} | v5.21.0
+**Generated:** {date} | v5.22.0
 **Predicates:** {K-numbers}
 **Cells requiring input:** {count}
 **Cells requiring review:** {count}

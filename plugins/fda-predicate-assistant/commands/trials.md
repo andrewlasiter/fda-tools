@@ -124,7 +124,7 @@ if with_results:
 url = f"https://clinicaltrials.gov/api/v2/studies?{urllib.parse.urlencode(params)}"
 
 try:
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/5.21.0)"})
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/5.10.0)"})
     with urllib.request.urlopen(req, timeout=20) as resp:
         data = json.loads(resp.read())
 
@@ -209,7 +209,7 @@ PYEOF
   ClinicalTrials.gov Device Study Search
   {search context}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | Source: ClinicalTrials.gov API v2 | v5.21.0
+  Generated: {date} | Source: ClinicalTrials.gov API v2 | v5.22.0
   Total studies found: {total}
 
 STUDY OVERVIEW

@@ -195,7 +195,7 @@ Calculate a "Chain Health Score" (0-100) based on:
   FDA Predicate Lineage Report
   K241335 — Cervical Fusion Cage
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | Chain Health: 72/100 (Moderate) | v5.21.0
+  Generated: {date} | Chain Health: 72/100 (Moderate) | v5.22.0
 
 LINEAGE TREE
 ────────────────────────────────────────

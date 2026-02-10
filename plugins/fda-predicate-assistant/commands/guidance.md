@@ -407,7 +407,7 @@ if not any(t[0] == "Reprocessing" for t in triggers):
         if not capsule_endo_suppressed:
             triggers.append(("Reprocessing", "Reprocessing Medical Devices in Health Care Settings", "kw_reusable"))
 
-# ── New categories (v5.21.0) ──
+# ── New categories (v5.22.0) ──
 
 # 3D Printing / Additive Manufacturing
 if kw_match(desc, ["3d print", "3d-printed", "3d printed",
@@ -444,7 +444,7 @@ if kw_match(desc, ["battery-powered", "battery powered", "ac mains", "rechargeab
                     "lithium battery", "power supply", "electrical stimulation"]):
     triggers.append(("Electrical Safety", "IEC 60601-1 Electrical Safety Guidance", "kw_electrical"))
 
-# ── Specialty keyword categories (v5.21.0) ──
+# ── Specialty keyword categories (v5.22.0) ──
 # These enhance guidance specificity. Tier 3 reg family mapping provides the safety net.
 
 # Cardiovascular (points to Section 5.1 in guidance index)
@@ -745,7 +745,7 @@ Use the standard FDA Professional CLI format (see `references/output-formatting.
   FDA Guidance Analysis
   {PRODUCT_CODE} — {DEVICE_NAME}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | Class: {class} | 21 CFR {regulation} | v5.21.0
+  Generated: {date} | Class: {class} | 21 CFR {regulation} | v5.22.0
 
 DEVICE CLASSIFICATION
 ────────────────────────────────────────

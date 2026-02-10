@@ -270,7 +270,7 @@ Also scan for existing attachments: check `{project_dir}/attachments/` for files
   FDA eSTAR Assembly Report
   {product_code} — {device_name}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | Project: {name} | v5.21.0
+  Generated: {date} | Project: {name} | v5.22.0
 
 ASSEMBLY SUMMARY
 ────────────────────────────────────────

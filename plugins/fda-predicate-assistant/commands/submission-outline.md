@@ -198,7 +198,7 @@ sections = {
 import re
 
 def kw_match(desc, keywords):
-    """Word-boundary matching with negation awareness (same as guidance.md v5.21.0)."""
+    """Word-boundary matching with negation awareness (same as guidance.md v5.22.0)."""
     for kw in keywords:
         pattern = r'\b' + re.escape(kw) + r'\b'
         match = re.search(pattern, desc, re.IGNORECASE)
@@ -353,7 +353,7 @@ Write the complete submission outline document (see `references/output-formattin
 **Pathway:** {Traditional/Special/Abbreviated/De Novo}
 **Product Code:** {CODE} — {device_name}
 **Classification:** Class {class}, 21 CFR {regulation}
-**Generated:** {today's date} | v5.21.0
+**Generated:** {today's date} | v5.22.0
 **Project:** {project_name or "N/A"}
 
 ---
@@ -468,13 +468,53 @@ Based on available data:
 
 ## Audit Logging
 
-After generating the submission outline, write audit log entries per `references/audit-logging.md`:
+After generating the submission outline, write audit log entries using `fda_audit_logger.py`. Only log if `--project` is specified.
 
-- For each resolved placeholder: write a `placeholder_resolved` entry
-- For each remaining placeholder converted: write a `placeholder_converted` entry
-- At completion: write a `document_generated` entry with the output file path and section applicability summary
+### Log section applicability decisions
 
-Append all entries to `$PROJECTS_DIR/$PROJECT_NAME/audit_log.jsonl`.
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+  --project "$PROJECT_NAME" \
+  --command submission-outline \
+  --action section_applicability_determined \
+  --subject "$PRODUCT_CODE" \
+  --decision "applicability_assessed" \
+  --mode "$MODE" \
+  --decision-type auto \
+  --rationale "$APPLICABLE_COUNT/$TOTAL_SECTIONS sections applicable, $NA_COUNT marked N/A" \
+  --data-sources "fda-guidance-index.md,guidance-lookup.md,review.json" \
+  --metadata "{\"total_sections\":$TOTAL_SECTIONS,\"applicable\":$APPLICABLE_COUNT,\"not_applicable\":$NA_COUNT,\"sections_na\":$NA_SECTIONS_JSON}"
+```
+
+### Log testing gap summary
+
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+  --project "$PROJECT_NAME" \
+  --command submission-outline \
+  --action testing_gap_identified \
+  --subject "$PRODUCT_CODE" \
+  --decision "gaps_found" \
+  --mode "$MODE" \
+  --rationale "Identified $GAP_COUNT testing gaps: $GAP_SUMMARY" \
+  --data-sources "fda-guidance-index.md,guidance-lookup.md" \
+  --metadata "{\"gap_count\":$GAP_COUNT,\"critical_gaps\":$CRITICAL_COUNT,\"standards_missing\":$STANDARDS_MISSING}"
+```
+
+### Log document generation (at completion)
+
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+  --project "$PROJECT_NAME" \
+  --command submission-outline \
+  --action document_generated \
+  --subject "$PRODUCT_CODE" \
+  --decision "generated" \
+  --mode "$MODE" \
+  --rationale "Submission outline generated: $APPLICABLE_COUNT sections applicable, $GAP_COUNT testing gaps, $STANDARDS_COUNT standards" \
+  --files-written "$OUTPUT_PATH" \
+  --metadata "{\"applicable_sections\":$APPLICABLE_COUNT,\"testing_gaps\":$GAP_COUNT,\"standards_count\":$STANDARDS_COUNT}"
+```
 
 ## Step 6: Write Output
 

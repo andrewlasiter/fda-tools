@@ -1,4 +1,4 @@
-"""Tests for v5.21.0 — Specialty Audit Remediation (70 items, 5 phases).
+"""Tests for v5.22.0 — Specialty Audit Remediation (70 items, 5 phases).
 
 Phase 1: Structural fixes (OHT numbering, DHT codes)
 Phase 2: Guidance index expansion (13+ device categories)
@@ -388,17 +388,17 @@ class TestCrossFileConsistency:
     """Verify consistency across modified files."""
 
     def test_version_consistent(self):
-        """v5.21.0 must appear in plugin.json."""
+        """v5.22.0 must appear in plugin.json."""
         import json
         with open(os.path.join(PLUGIN_ROOT, '.claude-plugin', 'plugin.json')) as f:
             data = json.load(f)
-        assert data['version'] == '5.21.0'
+        assert data['version'] == '5.22.0'
 
     def test_version_in_commands(self):
-        """v5.21.0 must appear in at least one command footer."""
+        """v5.22.0 must appear in at least one command footer."""
         with open(os.path.join(COMMANDS_DIR, 'status.md')) as f:
             content = f.read()
-        assert 'v5.21.0' in content
+        assert 'v5.22.0' in content
 
     def test_reviewer_templates_match_se_templates(self):
         """Each advisory panel in reviewer templates should have SE templates."""

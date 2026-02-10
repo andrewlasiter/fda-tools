@@ -92,7 +92,7 @@ if api_key:
     params["api_key"] = api_key
 
 url = f"https://api.fda.gov/device/enforcement.json?{urllib.parse.urlencode(params)}"
-req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/5.21.0)"})
+req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/1.0)"})
 try:
     with urllib.request.urlopen(req, timeout=15) as resp:
         data = json.loads(resp.read())
@@ -190,7 +190,7 @@ Risk Score = (Class_I_recalls × 10) + (Class_II_recalls × 3) + (Class_III_reca
   FDA Enforcement Intelligence
   {SEARCH_TERM}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | Search: {type} | Years: {range} | v5.21.0
+  Generated: {date} | Search: {type} | Years: {range} | v5.22.0
 
 RECALL ENFORCEMENT
 ────────────────────────────────────────

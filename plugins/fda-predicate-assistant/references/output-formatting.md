@@ -6,7 +6,7 @@ This reference defines the standard formatting rules for all FDA Predicate Assis
 
 | Rule | Element | Standard |
 |------|---------|----------|
-| R1 | **Title Block** | Line 1: `  FDA {Report Type}` Line 2: `  {context}` Line 3: `━` heavy separator (56 chars) Line 4: `  Generated: {date} \| v5.21.0` |
+| R1 | **Title Block** | Line 1: `  FDA {Report Type}` Line 2: `  {context}` Line 3: `━` heavy separator (56 chars) Line 4: `  Generated: {date} \| v5.22.0` |
 | R2 | **Section Headings** | ALL CAPS, left-aligned, followed by `─` light separator (40 chars) |
 | R3 | **Content Indent** | All body text and tables indented 2 spaces |
 | R4 | **Tables** | Markdown pipe tables only (no box-drawing). Indented 2 spaces |
@@ -27,7 +27,7 @@ Use this for terminal-display commands (status, safety, validate, pipeline, path
   FDA {REPORT TYPE}
   {product_code} — {device_name}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | Project: {name} | v5.21.0
+  Generated: {date} | Project: {name} | v5.22.0
 
 SECTION NAME
 ────────────────────────────────────────
@@ -60,13 +60,13 @@ The title block is 4 lines. Heavy separator is exactly 56 `━` characters.
   FDA Safety Intelligence Report
   QBJ — Bone Void Filler
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: 2026-02-05 | Project: QBJ_2026 | v5.21.0
+  Generated: 2026-02-05 | Project: QBJ_2026 | v5.22.0
 ```
 
 If there is no project context, omit `| Project: {name}`:
 
 ```
-  Generated: 2026-02-05 | v5.21.0
+  Generated: 2026-02-05 | v5.22.0
 ```
 
 #### R2 — Section Headings

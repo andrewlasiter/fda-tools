@@ -312,7 +312,7 @@ Present using standard FDA Professional CLI format:
   FDA eSTAR Export Report
   {product_code} — {device_name}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | Project: {name} | v5.21.0
+  Generated: {date} | Project: {name} | v5.22.0
 
 EXPORT SUMMARY
 ────────────────────────────────────────

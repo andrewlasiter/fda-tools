@@ -433,7 +433,7 @@ class TestPluginVersion:
         import json
         with open(os.path.join(PLUGIN_ROOT, '.claude-plugin', 'plugin.json')) as f:
             data = json.load(f)
-        assert data['version'] == '5.21.0'
+        assert data['version'] == '5.22.0'
 
     def test_sprint5_review_exists(self):
         """Sprint 5 review document must exist."""

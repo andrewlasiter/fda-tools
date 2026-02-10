@@ -124,7 +124,7 @@ When any API call fails, commands enter "degraded mode":
   FDA Safety Intelligence Report (⚠ DEGRADED)
   OVE — Intervertebral Body Fusion Device
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: 2026-02-06 | v5.21.0
+  Generated: 2026-02-06 | v5.22.0
 
   ⚠ Some data sources were unavailable:
     MAUDE API: timeout after 15s

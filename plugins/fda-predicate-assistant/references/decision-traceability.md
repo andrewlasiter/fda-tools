@@ -30,6 +30,15 @@ Every autonomous decision produces an entry in `audit_log.jsonl` with these comp
   - `reason`: Specific rationale with data reference
   - `data_sources`: Which databases/files informed the exclusion
 
+### Cross-Command Linking (v5.22.0)
+- `parent_entry_id`: Links this entry to a parent decision (e.g., agent workflow → individual step)
+- `related_entries`: Array of entry IDs for related decisions across commands (e.g., review predicate → compare-se table)
+
+Cross-command linking enables tracing decision chains across the full pipeline. For example:
+1. `/fda:review` accepts a predicate → `entry_id: "abc123"`
+2. `/fda:compare-se` infers that predicate → `parent_entry_id: "abc123"`
+3. Agent workflows link all child steps back to the workflow start entry
+
 ### What Data Informed the Decision
 - `data_sources`: External APIs and databases consulted
 - `files_read`: Local files that influenced the decision
@@ -87,10 +96,12 @@ python3 $FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py --project NAME --consolidat
 
 | File | Relationship |
 |------|-------------|
-| `review.json` | Contains predicate decisions; audit log supplements with alternatives and exclusion records |
+| `review.json` | Contains predicate decisions with `audit_entry_id` linking each predicate back to its audit log entry (v5.22.0) |
 | `pipeline_audit.json` | Consolidated summary written from audit log entries |
 | `pre_check_report.md` | Contains deficiency findings; audit log records each as `deficiency_identified` |
 | `consistency_report.md` | Contains check results; audit log records each as `check_passed`/`check_failed`/`check_warned` |
+| `se_comparison.md` | SE comparison table; audit log records template selection, cell population, and comparison decisions (v5.22.0) |
+| `presub_plan.md` | Pre-Sub plan; audit log records Q-Sub type selection, gap analysis, and question generation (v5.22.0) |
 
 The audit log does NOT replace any existing output file. It supplements them with the "why" — alternatives considered and reasons for exclusion.
 

@@ -204,7 +204,7 @@ Write all output to `$PROJECTS_DIR/{project_name}/`:
   FDA Pre-Sub Planner Report
   {product_code} — {device_name}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | Project: {name} | v5.21.0
+  Generated: {date} | Project: {name} | v5.22.0
 
 PLANNING SUMMARY
 ────────────────────────────────────────
@@ -262,6 +262,71 @@ NEXT STEPS
   This report is AI-generated from public FDA data.
   Verify independently. Not regulatory advice.
 ────────────────────────────────────────
+```
+
+## Audit Logging
+
+At each major step, log decisions using the audit logger. Resolve `FDA_PLUGIN_ROOT` first (see commands for the resolution snippet).
+
+### Log workflow start
+
+```bash
+AUDIT_OUTPUT=$(python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+  --project "$PROJECT_NAME" \
+  --command presub-planner \
+  --action agent_step_started \
+  --subject "$PRODUCT_CODE" \
+  --decision "started" \
+  --mode "pipeline" \
+  --rationale "Pre-Sub planner agent started for $PRODUCT_CODE")
+PARENT_ENTRY_ID=$(echo "$AUDIT_OUTPUT" | grep "AUDIT_ENTRY_ID:" | cut -d: -f2)
+```
+
+### Log Q-Sub type selection
+
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+  --project "$PROJECT_NAME" \
+  --command presub-planner \
+  --action qsub_type_recommended \
+  --subject "$PRODUCT_CODE" \
+  --decision "$QSUB_TYPE" \
+  --mode "pipeline" \
+  --decision-type auto \
+  --rationale "Agent selected $QSUB_TYPE: $RATIONALE" \
+  --parent-entry-id "$PARENT_ENTRY_ID" \
+  --alternatives '["Formal Q-Sub Meeting","Written Feedback Only","Informational Meeting","Pre-IDE"]' \
+  --exclusions "$EXCLUDED_QSUB_JSON"
+```
+
+### Log predicate selection
+
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+  --project "$PROJECT_NAME" \
+  --command presub-planner \
+  --action predicate_ranked \
+  --subject "$PRODUCT_CODE" \
+  --decision "ranked" \
+  --mode "pipeline" \
+  --decision-type auto \
+  --rationale "Selected $PRED_COUNT predicates for Pre-Sub" \
+  --parent-entry-id "$PARENT_ENTRY_ID"
+```
+
+### Log workflow completion
+
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+  --project "$PROJECT_NAME" \
+  --command presub-planner \
+  --action agent_step_completed \
+  --subject "$PRODUCT_CODE" \
+  --decision "completed" \
+  --mode "pipeline" \
+  --rationale "Pre-Sub planner completed: $SECTION_COUNT sections, $QUESTION_COUNT questions" \
+  --parent-entry-id "$PARENT_ENTRY_ID" \
+  --files-written "presub_plan.md,review.json,safety_report.md"
 ```
 
 ## Error Handling

@@ -105,7 +105,7 @@ if api_enabled:
     if api_key:
         params["api_key"] = api_key
     url = f"https://api.fda.gov/device/classification.json?{urllib.parse.urlencode(params)}"
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/5.21.0)"})
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/4.7.0)"})
     try:
         with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read())
@@ -287,7 +287,7 @@ Present results using the standard FDA Professional CLI format:
   FDA Recognized Consensus Standards
   {context — product code or search query}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | Source: FDA RCSD + Plugin Reference | v5.21.0
+  Generated: {date} | Source: FDA RCSD + Plugin Reference | v5.22.0
 
 APPLICABLE STANDARDS
 ────────────────────────────────────────

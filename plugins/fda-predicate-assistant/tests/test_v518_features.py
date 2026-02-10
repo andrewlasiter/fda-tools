@@ -66,7 +66,7 @@ class TestStartCommand:
         assert "/fda:" in self.content
 
     def test_has_version_marker(self):
-        assert "v5.21.0" in self.content
+        assert "v5.22.0" in self.content
 
     def test_registered_in_skill_md(self):
         skill = _read(os.path.join(SKILLS_DIR, "SKILL.md"))
@@ -117,7 +117,7 @@ class TestDashboardCommand:
         assert "NEXT STEPS" in self.content or "next step" in self.content.lower()
 
     def test_has_version_marker(self):
-        assert "v5.21.0" in self.content
+        assert "v5.22.0" in self.content
 
     def test_registered_in_skill_md(self):
         skill = _read(os.path.join(SKILLS_DIR, "SKILL.md"))
@@ -447,7 +447,7 @@ class TestVersionBump:
         import json
         with open(os.path.join(PLUGIN_DIR, "plugin.json")) as f:
             data = json.load(f)
-        assert data["version"] == "5.21.0"
+        assert data["version"] == '5.22.0'
 
     def test_plugin_json_41_commands(self):
         import json

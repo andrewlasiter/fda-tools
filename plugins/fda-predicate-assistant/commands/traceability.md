@@ -186,7 +186,7 @@ Generate the RTM document (see `references/output-formatting.md` for formatting 
 # Requirements Traceability Matrix
 ## {Device Description} — Product Code {CODE}
 
-**Generated:** {date} | v5.21.0
+**Generated:** {date} | v5.22.0
 **Project:** {project_name}
 **Requirements sources:** {list}
 

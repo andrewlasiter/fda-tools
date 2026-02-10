@@ -121,7 +121,7 @@ All keywords use word-boundary regex (`\b...\b`) and negation-awareness (skip if
 | **Latex** | `latex`, `natural rubber`, `natural rubber latex` |
 | **Electrical** | `battery-powered`, `battery powered`, `ac mains`, `rechargeable`, `electrically powered`, `mains-powered`, `lithium battery`, `electrical stimulation` |
 
-### Specialty Keyword Categories (v5.21.0)
+### Specialty Keyword Categories (v5.22.0)
 
 | Category | Keywords |
 |----------|----------|

@@ -85,7 +85,7 @@ Present the output in a formatted report:
   FDA Data Cache
   Project: {name}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Last Updated: {date} | v5.21.0
+  Last Updated: {date} | v5.22.0
 
 CACHED QUERIES
 ────────────────────────────────────────

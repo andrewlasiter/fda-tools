@@ -103,7 +103,7 @@ if api_key:
     params["api_key"] = api_key
 
 url = f"https://api.fda.gov/device/udi.json?{urllib.parse.urlencode(params)}"
-req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/5.21.0)"})
+req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/4.9.0)"})
 
 try:
     with urllib.request.urlopen(req, timeout=15) as resp:
@@ -225,7 +225,7 @@ curl -s "https://accessgudid.nlm.nih.gov/api/v3/devices/implantable_list.json?di
   FDA UDI/GUDID Database Lookup
   {search context}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | Source: openFDA UDI + AccessGUDID v3 | v5.21.0
+  Generated: {date} | Source: openFDA UDI + AccessGUDID v3 | v5.22.0
 
 SEARCH RESULTS ({total} records found)
 ────────────────────────────────────────

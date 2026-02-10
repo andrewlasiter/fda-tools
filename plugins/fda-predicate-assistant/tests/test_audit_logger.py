@@ -1,4 +1,4 @@
-"""Tests for fda_audit_logger.py — Decision Traceability System (v5.21.0)."""
+"""Tests for fda_audit_logger.py — Decision Traceability System (v5.22.0)."""
 
 import argparse
 import json
@@ -47,7 +47,7 @@ class TestAppendEntry(unittest.TestCase):
         self.assertEqual(data["command"], "review")
         self.assertEqual(data["action"], "predicate_accepted")
         self.assertIn("timestamp", data)
-        self.assertEqual(data["version"], "5.21.0")
+        self.assertEqual(data["version"], "5.22.0")
 
     def test_auto_populate_timestamp(self):
         entry = {"command": "review", "action": "review_completed", "mode": "auto"}
@@ -65,7 +65,7 @@ class TestAppendEntry(unittest.TestCase):
         log_path = os.path.join(self.tmpdir, "audit_log.jsonl")
         with open(log_path) as f:
             data = json.loads(f.readline())
-        self.assertEqual(data["version"], "5.21.0")
+        self.assertEqual(data["version"], "5.22.0")
 
     def test_custom_timestamp_preserved(self):
         entry = {
@@ -430,7 +430,7 @@ class TestConsolidatePipeline(unittest.TestCase):
         with open(output_path) as f:
             data = json.load(f)
         self.assertEqual(data["project"], "test_project")
-        self.assertEqual(data["pipeline_version"], "5.21.0")
+        self.assertEqual(data["pipeline_version"], "5.22.0")
         self.assertEqual(data["total_decisions"], 2)
         self.assertEqual(data["auto_decisions"], 2)
         self.assertIn("extract", data["steps"])
@@ -547,7 +547,7 @@ class TestSchemaConsistency(unittest.TestCase):
 
     def test_version_matches(self):
         """Plugin version in logger matches expected."""
-        self.assertEqual(logger.PLUGIN_VERSION, "5.21.0")
+        self.assertEqual(logger.PLUGIN_VERSION, "5.22.0")
 
     def test_decision_types_complete(self):
         """All valid decision types are present."""
@@ -683,7 +683,7 @@ class TestPluginMetadata(unittest.TestCase):
         path = os.path.join(self.PLUGIN_ROOT, ".claude-plugin", "plugin.json")
         with open(path) as f:
             data = json.load(f)
-        self.assertEqual(data["version"], "5.21.0")
+        self.assertEqual(data["version"], "5.22.0")
 
     def test_plugin_json_command_count(self):
         path = os.path.join(self.PLUGIN_ROOT, ".claude-plugin", "plugin.json")

@@ -194,7 +194,7 @@ Present results using the standard FDA Professional CLI format:
   FDA Enforcement Intelligence
   {Company Name}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | v5.21.0
+  Generated: {date} | v5.22.0
   Source: FDA Data Dashboard API
 
 INSPECTION HISTORY

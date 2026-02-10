@@ -138,7 +138,7 @@ Present the recommended command sequence using the standard FDA Professional CLI
   FDA 510(k) Start Wizard
   Personalized workflow for {device_type}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | v5.21.0
+  Generated: {date} | v5.22.0
 
 YOUR DEVICE
 ────────────────────────────────────────

@@ -110,7 +110,7 @@ Format the output using the standard FDA Professional CLI format:
   FDA Decision Audit Trail
   Project: {project_name} | {total} entries | {date_range}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | v5.21.0
+  Generated: {date} | v5.22.0
 
 SUMMARY
 ────────────────────────────────────────

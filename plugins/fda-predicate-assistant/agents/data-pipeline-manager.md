@@ -202,6 +202,54 @@ The pipeline reads settings from the project configuration:
 - **Batch size**: PDFs per extraction batch (default: 100)
 - **Incremental**: Skip already-processed PDFs (default: true)
 
+## Audit Logging
+
+Log pipeline steps using the audit logger. Resolve `FDA_PLUGIN_ROOT` first (see commands for the resolution snippet).
+
+### Log pipeline start
+
+```bash
+AUDIT_OUTPUT=$(python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+  --project "$PROJECT_NAME" \
+  --command data-pipeline-manager \
+  --action pipeline_started \
+  --subject "$PRODUCT_CODE" \
+  --decision "started" \
+  --mode "pipeline" \
+  --rationale "Data pipeline started: $STEP_COUNT steps planned")
+PIPELINE_ENTRY_ID=$(echo "$AUDIT_OUTPUT" | grep "AUDIT_ENTRY_ID:" | cut -d: -f2)
+```
+
+### Log each step completion
+
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+  --project "$PROJECT_NAME" \
+  --command data-pipeline-manager \
+  --action step_completed \
+  --subject "$STEP_NAME" \
+  --decision "completed" \
+  --mode "pipeline" \
+  --rationale "$STEP_NAME completed: $STEP_SUMMARY" \
+  --parent-entry-id "$PIPELINE_ENTRY_ID" \
+  --metadata "{\"step\":\"$STEP_NAME\",\"records_processed\":$RECORD_COUNT}"
+```
+
+### Log pipeline completion
+
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+  --project "$PROJECT_NAME" \
+  --command data-pipeline-manager \
+  --action pipeline_completed \
+  --subject "$PRODUCT_CODE" \
+  --decision "completed" \
+  --mode "pipeline" \
+  --rationale "Pipeline complete: $DOWNLOADED PDFs downloaded, $EXTRACTED extracted, $ERRORS errors" \
+  --parent-entry-id "$PIPELINE_ENTRY_ID" \
+  --metadata "{\"pdfs_downloaded\":$DOWNLOADED,\"pdfs_extracted\":$EXTRACTED,\"errors\":$ERRORS}"
+```
+
 ## Error Handling
 
 - If `batchfetch.py` is not found, report the plugin installation path issue

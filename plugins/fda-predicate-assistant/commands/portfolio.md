@@ -243,7 +243,7 @@ If `--set-target PROJECT DATE` is specified:
   FDA Device Portfolio Dashboard
   All Projects Summary
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | Projects: {N} total | v5.21.0
+  Generated: {date} | Projects: {N} total | v5.22.0
 
 PROJECT SUMMARY
 ────────────────────────────────────────

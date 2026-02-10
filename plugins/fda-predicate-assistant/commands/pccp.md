@@ -106,7 +106,7 @@ Generate the PCCP document (see `references/output-formatting.md` for formatting
 ## {Device Description} — Product Code {CODE}
 
 **Date:** {today}
-**Generated:** {today} | v5.21.0
+**Generated:** {today} | v5.22.0
 **Device Class:** {class}
 **Marketing Authorization:** {K-number or pending}
 **PCCP Version:** 1.0

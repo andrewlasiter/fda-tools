@@ -164,6 +164,43 @@ NEXT STEPS
 ────────────────────────────────────────
 ```
 
+## Audit Logging
+
+Log consistency check results and assembly completion using the audit logger. Resolve `FDA_PLUGIN_ROOT` first (see commands for the resolution snippet).
+
+### Log consistency check results
+
+For each consistency check that passes or fails:
+
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+  --project "$PROJECT_NAME" \
+  --command submission-assembler \
+  --action "$CHECK_RESULT" \
+  --subject "$CHECK_NAME" \
+  --decision "$RESULT" \
+  --mode "pipeline" \
+  --rationale "$CHECK_DESCRIPTION: expected=$EXPECTED, found=$FOUND" \
+  --metadata "{\"check_name\":\"$CHECK_NAME\",\"expected\":\"$EXPECTED\",\"found\":\"$FOUND\"}"
+```
+
+Where `$CHECK_RESULT` is `check_passed`, `check_failed`, or `check_warned`.
+
+### Log assembly completion
+
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+  --project "$PROJECT_NAME" \
+  --command submission-assembler \
+  --action agent_step_completed \
+  --subject "$PROJECT_NAME" \
+  --decision "assembled" \
+  --mode "pipeline" \
+  --rationale "Submission assembled: $SECTION_COUNT sections, $CHECKS_PASSED/$TOTAL_CHECKS consistency checks passed" \
+  --files-written "$OUTPUT_DIR" \
+  --metadata "{\"sections_assembled\":$SECTION_COUNT,\"checks_passed\":$CHECKS_PASSED,\"checks_failed\":$CHECKS_FAILED,\"checks_warned\":$CHECKS_WARNED}"
+```
+
 ## Error Handling
 
 - If `review.json` is missing, report which steps are needed first

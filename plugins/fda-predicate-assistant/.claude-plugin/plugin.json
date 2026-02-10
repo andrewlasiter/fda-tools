@@ -1,7 +1,7 @@
 {
   "name": "fda-predicate-assistant",
-  "version": "5.21.0",
-  "description": "AI-powered FDA 510(k) regulatory assistant — 42 commands, 7 agents. v5.21.0: Specialty Audit Remediation — 19 reviewer templates (cdrh-review-structure.md), 39 SE comparison templates (compare-se.md), 200+ consensus standards (guidance-lookup.md), expanded guidance index, specialty keyword triggers",
+  "version": "5.22.0",
+  "description": "AI-powered FDA 510(k) regulatory assistant — 42 commands, 7 agents. v5.22.0: End-to-End Decision Traceability — cross-command linking (parent_entry_id, related_entries), 7 new action types, 4 commands instrumented (compare-se, presub, submission-outline, research), all 7 agents instrumented, review.json audit_entry_id integration",
   "author": {
     "name": "PredicateExtraction"
   },

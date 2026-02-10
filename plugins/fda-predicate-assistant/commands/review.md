@@ -499,7 +499,7 @@ For **each** predicate that was accepted, rejected, or deferred, run:
 # ALTERNATIVES_JSON should list ALL predicates evaluated (including the chosen one)
 # e.g., '["K241335","K222222","K111111"]'
 
-python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+AUDIT_OUTPUT=$(python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
   --project "$PROJECT_NAME" \
   --command review \
   --action predicate_accepted \
@@ -513,7 +513,9 @@ python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
   --alternatives "$ALTERNATIVES_JSON" \
   --exclusions "$EXCLUSIONS_JSON" \
   --metadata "{\"score_breakdown\":{\"section_context\":$SC,\"citation_frequency\":$CF,\"product_code_match\":$PCM,\"recency\":$REC,\"regulatory_history\":$RH}}" \
-  --files-written "$PROJECTS_DIR/$PROJECT_NAME/review.json"
+  --files-written "$PROJECTS_DIR/$PROJECT_NAME/review.json")
+AUDIT_ENTRY_ID=$(echo "$AUDIT_OUTPUT" | grep "AUDIT_ENTRY_ID:" | cut -d: -f2)
+# Store $AUDIT_ENTRY_ID — write it into the predicate's review.json entry as "audit_entry_id"
 ```
 
 Use `predicate_rejected` or `predicate_deferred` for the corresponding decisions. The `--decision-type` should be `auto` for `--full-auto` mode, `manual` for interactive decisions, and `deferred` for deferred predicates.
@@ -585,6 +587,7 @@ Write structured review data to the project folder:
       "reclassification": "Predicate",
       "auto_decision": false,
       "justification_narrative": "K234567 is a strong predicate candidate with high confidence (85/100). Found in 2 SE comparison sections, indicating direct predicate citation. Cited by 3 different source documents, establishing broad recognition.",
+      "audit_entry_id": "a1b2c3d4",
       "flags": ["OLD"],
       "cited_by": ["K241335", "K251234", "K248765"],
       "se_citations": 2,
@@ -629,7 +632,7 @@ After all predicates are reviewed, present a summary:
   FDA Predicate Review Summary
   Project: {name}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | v5.21.0
+  Generated: {date} | v5.22.0
 
 RESULTS
 ────────────────────────────────────────

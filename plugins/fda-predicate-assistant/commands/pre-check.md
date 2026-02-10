@@ -160,7 +160,7 @@ if api_enabled:
     if api_key:
         params["api_key"] = api_key
     url = f"https://api.fda.gov/device/classification.json?{urllib.parse.urlencode(params)}"
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/5.21.0)"})
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/5.3.0)"})
     try:
         with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read())
@@ -487,7 +487,7 @@ Write `pre_check_report.md` to the project folder:
   FDA Pre-Check Report
   {project_name} — {device_name}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | v5.21.0
+  Generated: {date} | v5.22.0
   Depth: {quick|standard|deep}
   Focus: {predicate|testing|labeling|clinical|all}
 

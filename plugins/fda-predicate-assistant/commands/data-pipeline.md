@@ -311,7 +311,7 @@ Present results using the standard FDA Professional CLI format:
   FDA Data Pipeline Status
   510(k) Corpus Overview
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | v5.21.0
+  Generated: {date} | v5.22.0
 
 BASELINE
 ────────────────────────────────────────

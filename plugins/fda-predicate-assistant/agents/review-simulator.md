@@ -365,7 +365,7 @@ Write a comprehensive report with:
 # FDA Review Simulation Report
 ## {Project Name} — {Device Name} ({Product Code})
 
-**Generated:** {date} | FDA Predicate Assistant v5.21.0
+**Generated:** {date} | FDA Predicate Assistant v5.22.0
 **Simulation depth:** Full autonomous review
 **Project completeness:** {N}% of expected files present
 

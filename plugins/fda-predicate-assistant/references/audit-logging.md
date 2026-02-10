@@ -73,6 +73,8 @@ Each audit log entry is a single JSON object on one line:
 | `exclusion_records` | object[] | For each rejected alternative: `{subject, reason, data_sources}` |
 | `decision_type` | string | `"auto"` / `"manual"` / `"deferred"` |
 | `score_breakdown` | object | Component-level scoring (command-specific) |
+| `parent_entry_id` | string | Entry ID of parent decision for cross-command linking (v5.22.0) |
+| `related_entries` | string[] | Entry IDs of related decisions across commands (v5.22.0) |
 
 ## Action Types
 
@@ -98,11 +100,16 @@ Each audit log entry is a single JSON object on one line:
 - `placeholder_converted` — A [INSERT:] was converted to [TODO:]
 - `data_synthesized` — Data was synthesized from project/API sources
 - `document_generated` — Output document was written
+- `qsub_type_recommended` — Q-Sub type selected with alternatives (v5.22.0)
+- `testing_gap_identified` — Testing gaps found from guidance analysis (v5.22.0)
+- `section_applicability_determined` — Section applicability assessed for all 18 sections (v5.22.0)
 
 ### Compare-SE Command
 - `predicate_inferred` — Predicates inferred from project data
 - `table_generated` — SE comparison table created
 - `cell_auto_populated` — Table cell auto-filled from FDA data
+- `template_selected` — SE template chosen based on product code (v5.22.0)
+- `comparison_decision` — Same/Similar/Different breakdown summary (v5.22.0)
 
 ### Safety Command
 - `safety_query_completed` — MAUDE/recall query finished
@@ -113,6 +120,10 @@ Each audit log entry is a single JSON object on one line:
 ### Extract Command
 - `extraction_started` — PDF extraction began
 - `extraction_completed` — PDF extraction finished
+
+### Research Command (v5.22.0)
+- `predicate_ranked` — Predicate candidates ranked with top-5 and exclusions
+- `report_generated` — Research report written with summary metrics
 
 ### Pathway Command
 - `pathway_recommended` — Pathway selected with scores for all alternatives
@@ -153,6 +164,44 @@ Each audit log entry is a single JSON object on one line:
 - `agent_step_started` — Agent workflow step began
 - `agent_step_completed` — Agent workflow step finished
 - `agent_decision` — Agent made an autonomous decision
+
+## Parent-Child Linking (v5.22.0)
+
+Use `--parent-entry-id` and `--related-entries` to create cross-command decision chains:
+
+```bash
+# Step 1: Log parent decision and capture its entry ID
+AUDIT_OUTPUT=$(python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+  --project "$PROJECT_NAME" \
+  --command presub-planner \
+  --action agent_step_started \
+  --subject "$PRODUCT_CODE" \
+  --decision "started" \
+  --mode "pipeline")
+PARENT_ID=$(echo "$AUDIT_OUTPUT" | grep "AUDIT_ENTRY_ID:" | cut -d: -f2)
+
+# Step 2: Log child decisions linking back to parent
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+  --project "$PROJECT_NAME" \
+  --command presub-planner \
+  --action qsub_type_recommended \
+  --subject "$PRODUCT_CODE" \
+  --decision "$QSUB_TYPE" \
+  --mode "pipeline" \
+  --parent-entry-id "$PARENT_ID"
+
+# Step 3: Link related entries across commands
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+  --project "$PROJECT_NAME" \
+  --command compare-se \
+  --action predicate_inferred \
+  --subject "$PREDICATES" \
+  --decision "inferred" \
+  --mode "auto" \
+  --related-entries "$REVIEW_ENTRY_ID,$RESEARCH_ENTRY_ID"
+```
+
+In `--show-log` output, parent and related links are displayed below each entry.
 
 ## Writing Audit Logs
 

@@ -245,7 +245,7 @@ Write the `presub_plan.md` document using the Pre-Sub format from `references/su
 **Date:** {today's date}
 **Requested Meeting Type:** {meeting_type}
 **Product Code:** {CODE} — {device_name}
-**Generated:** {today's date} | v5.21.0
+**Generated:** {today's date} | v5.22.0
 **Classification:** Class {class}, 21 CFR {regulation}
 **Review Panel:** {panel}
 
@@ -846,14 +846,84 @@ After receiving FDA feedback:
 
 ## Audit Logging
 
-After generating the Pre-Sub plan, write audit log entries per `references/audit-logging.md`:
+After generating the Pre-Sub plan, write audit log entries using `fda_audit_logger.py`. Only log if `--project` is specified.
 
-- For each resolved placeholder: write a `placeholder_resolved` entry with what was filled and from which data source
-- For each remaining placeholder converted: write a `placeholder_converted` entry
-- For any synthesized data: write a `data_synthesized` entry
-- At completion: write a `document_generated` entry with the output file path
+### Log Q-Sub type recommendation
 
-Append all entries to `$PROJECTS_DIR/$PROJECT_NAME/audit_log.jsonl`.
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+  --project "$PROJECT_NAME" \
+  --command presub \
+  --action qsub_type_recommended \
+  --subject "$PRODUCT_CODE" \
+  --decision "$QSUB_TYPE" \
+  --mode "$MODE" \
+  --decision-type auto \
+  --rationale "Recommended $QSUB_TYPE based on $RATIONALE_SUMMARY" \
+  --data-sources "openFDA classification,fda-guidance-index.md" \
+  --alternatives '["Formal Q-Sub Meeting","Written Feedback Only","Informational Meeting","Pre-IDE"]' \
+  --exclusions "$EXCLUDED_QSUB_JSON"
+```
+
+### Log predicate placeholder resolution
+
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+  --project "$PROJECT_NAME" \
+  --command presub \
+  --action placeholder_resolved \
+  --subject "predicate_analysis" \
+  --decision "resolved" \
+  --mode "$MODE" \
+  --rationale "Resolved $RESOLVED_COUNT placeholders from $DATA_SOURCE" \
+  --data-sources "$DATA_SOURCE" \
+  --metadata "{\"resolved_count\":$RESOLVED_COUNT,\"remaining_placeholders\":$REMAINING_COUNT}"
+```
+
+### Log testing gap summary
+
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+  --project "$PROJECT_NAME" \
+  --command presub \
+  --action testing_gap_identified \
+  --subject "$PRODUCT_CODE" \
+  --decision "gaps_found" \
+  --mode "$MODE" \
+  --rationale "Identified $GAP_COUNT testing gaps across $CATEGORY_COUNT categories" \
+  --data-sources "fda-guidance-index.md,guidance-lookup.md" \
+  --metadata "{\"gap_count\":$GAP_COUNT,\"categories\":$CATEGORY_LIST_JSON}"
+```
+
+### Log FDA question generation
+
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+  --project "$PROJECT_NAME" \
+  --command presub \
+  --action data_synthesized \
+  --subject "fda_questions" \
+  --decision "synthesized" \
+  --mode "$MODE" \
+  --rationale "Generated $QUESTION_COUNT FDA questions from guidance analysis and gap findings" \
+  --data-sources "fda-guidance-index.md,review.json,guidance cache" \
+  --metadata "{\"question_count\":$QUESTION_COUNT}"
+```
+
+### Log document generation (at completion)
+
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+  --project "$PROJECT_NAME" \
+  --command presub \
+  --action document_generated \
+  --subject "$PRODUCT_CODE" \
+  --decision "generated" \
+  --mode "$MODE" \
+  --rationale "Pre-Sub plan generated with $SECTION_COUNT sections, $QUESTION_COUNT FDA questions" \
+  --files-written "$OUTPUT_PATH" \
+  --metadata "{\"sections\":$SECTION_COUNT,\"questions\":$QUESTION_COUNT,\"placeholders_remaining\":$REMAINING_COUNT}"
+```
 
 ## Step 5: Write Output
 
@@ -1003,7 +1073,7 @@ Read `$PROJECTS_DIR/$PROJECT_NAME/fda_correspondence.json` and display:
   FDA Correspondence History
   Project: {project_name}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | Source: Project Data | v5.21.0
+  Generated: {date} | Source: Project Data | v5.22.0
 
 SUMMARY
 ────────────────────────────────────────

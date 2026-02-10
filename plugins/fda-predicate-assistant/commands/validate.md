@@ -423,7 +423,7 @@ For each number, present a report using the standard FDA Professional CLI format
   FDA Device Validation Report
   {KNUMBER} — {FOUND/NOT FOUND}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | Source: {openFDA API / flat files} | v5.21.0
+  Generated: {date} | Source: {openFDA API / flat files} | v5.22.0
 
 DEVICE RECORD
 ────────────────────────────────────────
@@ -602,7 +602,7 @@ PYEOF
   FDA 510(k) Database Search Results
   Query: "{search terms}"
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | Total matches: {N} | Showing: {limit} | v5.21.0
+  Generated: {date} | Total matches: {N} | Showing: {limit} | v5.22.0
 
 RESULTS
 ────────────────────────────────────────

@@ -991,7 +991,7 @@ Structure the research package as:
   FDA Submission Research Report
   {PRODUCT_CODE} — {DEVICE_NAME}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | Depth: {depth} | v5.21.0
+  Generated: {date} | Depth: {depth} | v5.22.0
 
 PRODUCT CODE PROFILE
 ────────────────────────────────────────
@@ -1492,4 +1492,71 @@ CLEARANCE LANDSCAPE BROWSER
 
   To search specific devices: `/fda:validate --search "device name" --product-code {CODE}`
   To see competitor details: `/fda:research {CODE} --competitor-deep`
+```
+
+## Audit Logging
+
+After generating the research report, write audit log entries using `fda_audit_logger.py`. Only log if `--project` is specified.
+
+### Log predicate ranking
+
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+  --project "$PROJECT_NAME" \
+  --command research \
+  --action predicate_ranked \
+  --subject "$PRODUCT_CODE" \
+  --decision "ranked" \
+  --mode "$MODE" \
+  --decision-type auto \
+  --rationale "Ranked $TOTAL_CANDIDATES candidates, top 5: $TOP5_LIST" \
+  --data-sources "openFDA 510k API,output.csv" \
+  --alternatives "$ALL_CANDIDATES_JSON" \
+  --exclusions "$REJECTED_CANDIDATES_JSON" \
+  --metadata "{\"total_candidates\":$TOTAL_CANDIDATES,\"top_5\":$TOP5_JSON}"
+```
+
+### Log guidance matching
+
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+  --project "$PROJECT_NAME" \
+  --command research \
+  --action guidance_matched \
+  --subject "$PRODUCT_CODE" \
+  --decision "matched" \
+  --mode "$MODE" \
+  --rationale "Matched $GUIDANCE_COUNT guidance documents ($TIER1_COUNT tier-1, $TIER2_COUNT tier-2, $TIER3_COUNT tier-3)" \
+  --data-sources "fda-guidance-index.md,guidance-lookup.md" \
+  --metadata "{\"total_matched\":$GUIDANCE_COUNT,\"tier_1\":$TIER1_COUNT,\"tier_2\":$TIER2_COUNT,\"tier_3\":$TIER3_COUNT}"
+```
+
+### Log testing gap summary
+
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+  --project "$PROJECT_NAME" \
+  --command research \
+  --action testing_gap_identified \
+  --subject "$PRODUCT_CODE" \
+  --decision "gaps_found" \
+  --mode "$MODE" \
+  --rationale "Identified $GAP_COUNT testing gaps from guidance requirements vs predicate precedent" \
+  --data-sources "fda-guidance-index.md,guidance-lookup.md,openFDA 510k API" \
+  --metadata "{\"gap_count\":$GAP_COUNT}"
+```
+
+### Log report generation (at completion)
+
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+  --project "$PROJECT_NAME" \
+  --command research \
+  --action report_generated \
+  --subject "$PRODUCT_CODE" \
+  --decision "generated" \
+  --mode "$MODE" \
+  --rationale "Research report generated: $PRED_COUNT predicates, $GUIDANCE_COUNT guidance docs, $GAP_COUNT gaps" \
+  --files-written "$OUTPUT_PATH" \
+  --metadata "{\"predicates\":$PRED_COUNT,\"guidance_docs\":$GUIDANCE_COUNT,\"testing_gaps\":$GAP_COUNT}"
 ```

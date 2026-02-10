@@ -143,7 +143,7 @@ Combine all findings into a structured report:
   FDA Regulatory Intelligence Report
   {product_code} — {device_name}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Generated: {date} | v5.21.0
+  Generated: {date} | v5.22.0
 
 EXECUTIVE SUMMARY
 ────────────────────────────────────────

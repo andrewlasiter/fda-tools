@@ -1213,7 +1213,7 @@ class TestVersionAssertions:
         if os.path.exists(plugin_json):
             with open(plugin_json) as f:
                 data = json.load(f)
-            assert data["version"] == "5.21.0"
+            assert data["version"] == '5.22.0'
 
     def test_plugin_description_mentions_41_commands(self):
         plugin_json = os.path.join(
