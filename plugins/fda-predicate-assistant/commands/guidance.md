@@ -1,7 +1,7 @@
 ---
-description: Look up FDA guidance documents for a device type — extract requirements, map to testing needs, compare against predicate precedent, and generate Predetermined Change Control Plans (PCCP)
+description: Look up FDA guidance documents for a device type — extract requirements, map to testing needs, and compare against predicate precedent
 allowed-tools: Bash, Read, Glob, Grep, Write, WebFetch, WebSearch
-argument-hint: "<product-code> [--regulation NUMBER] [--save] [--infer] [--pccp --modification-type TYPE]"
+argument-hint: "<product-code> [--regulation NUMBER] [--save] [--infer]"
 ---
 
 # FDA Guidance Document Lookup
@@ -45,11 +45,9 @@ If the manifest shows cached classification data for the same product code (not 
 
 ---
 
-You are looking up FDA guidance documents applicable to a device type, extracting requirements, and mapping them to testing needs. You can also generate Predetermined Change Control Plans (PCCPs).
+You are looking up FDA guidance documents applicable to a device type, extracting requirements, and mapping them to testing needs.
 
 **KEY PRINCIPLE: Provide actionable guidance mappings, not just links.** Extract specific requirements and map them to tests the user needs to plan. Use the centralized tables in `references/guidance-lookup.md` for cross-cutting guidance logic and standards mapping.
-
-> **Consolidated command.** This command also covers PCCP generation (use `--pccp`). PCCPs are a specialized guidance application for AI/ML-enabled or iteratively modified devices, making them a natural extension of guidance analysis.
 
 ## Parse Arguments
 
@@ -60,11 +58,8 @@ From `$ARGUMENTS`, extract:
 - `--device-description TEXT` — User's device description (triggers additional cross-cutting guidance)
 - `--project NAME` — Associate with a project folder for caching
 - `--save` — Cache guidance data locally for reuse
-- `--depth quick|standard|deep` -- Level of analysis (default: standard)
-- `--infer` -- Auto-detect product code from project data instead of requiring explicit input
-- `--pccp` -- Generate a Predetermined Change Control Plan per FDA PCCP guidance
-- `--modification-type algorithm|hardware|software|labeling` -- Type of anticipated changes (used with `--pccp`)
-- `--output FILE` -- Write PCCP to file (used with `--pccp`)
+- `--depth quick|standard|deep` — Level of analysis (default: standard)
+- `--infer` — Auto-detect product code from project data instead of requiring explicit input
 
 If no product code provided:
 - If `--infer` AND `--project NAME` specified:
@@ -898,48 +893,9 @@ python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
   --rationale "Not applicable: $REASON (e.g., device is not sterile per GUDID, not software-based)"
 ```
 
-## Predetermined Change Control Plan (--pccp)
-
-When `--pccp` is specified, generate a PCCP per FDA guidance for marketing authorization applications.
-
-**KEY PRINCIPLE: PCCPs allow manufacturers to describe anticipated modifications and validation protocols BEFORE making changes, enabling faster iteration without new submissions.**
-
-### PCCP Applicability
-
-PCCPs are most relevant for:
-- AI/ML-enabled devices (algorithm updates, retraining)
-- Software devices (SaMD, firmware updates)
-- Iteratively improved hardware (material changes, design refinements)
-- Labeling modifications (expanded indications)
-
-### PCCP Framework (Three Required Elements)
-
-**Element 1: Description of Planned Modifications**
-For each `--modification-type`:
-- **Algorithm/ML:** Retraining with new data, architecture changes, threshold updates
-- **Software:** Feature additions, UI/UX changes, backend changes
-- **Hardware:** Material substitutions, dimensional changes, manufacturing process changes
-- **Labeling:** Indication expansions, warning updates, IFU updates
-
-**Element 2: Modification Protocol**
-For each category: V&V approach, acceptance criteria, test methods, risk assessment updates, documentation requirements.
-
-**Element 3: Impact Assessment**
-Decision tree for PCCP scope, triggers for new submission, monitoring mechanisms.
-
-### Generate PCCP Document
-
-Write the PCCP to `$PROJECTS_DIR/$PROJECT_NAME/pccp_plan.md` or `--output FILE`. Include device overview, scope, planned modifications, modification protocol, performance monitoring, and FDA reporting requirements.
-
-### AI/ML Landscape Context
-
-Query openFDA for AI/ML-associated product codes (QAS, QIH, QMT, QJU, QKQ, QPN, QRZ, DXL, DPS, MYN, OTB) and include clearance counts and PCCP relevance assessment.
-
 ## Error Handling
 
 - **Product code not found**: "Product code '{CODE}' not found in FDA classification database. Check the code and try again, or use `--regulation NUMBER` to specify the regulation directly."
-- **No guidance found**: "No device-specific guidance found for this product code. Cross-cutting guidance still applies -- see the requirements matrix above."
-- **WebSearch/WebFetch fails**: Fall back to known guidance from `references/guidance-lookup.md` cross-cutting table. Note: "Web search unavailable -- guidance analysis based on device characteristics and known cross-cutting requirements."
+- **No guidance found**: "No device-specific guidance found for this product code. Cross-cutting guidance still applies — see the requirements matrix above."
+- **WebSearch/WebFetch fails**: Fall back to known guidance from `references/guidance-lookup.md` cross-cutting table. Note: "Web search unavailable — guidance analysis based on device characteristics and known cross-cutting requirements."
 - **API unavailable**: Use flat files for classification. Note which data was API-derived vs. flat-file-derived.
-- **Not an AI/ML device** (for `--pccp`): Note that PCCPs can apply to any iteratively modified device, not only AI/ML devices.
-- **Class III** (for `--pccp`): Note that PCCP for PMA devices has different requirements.

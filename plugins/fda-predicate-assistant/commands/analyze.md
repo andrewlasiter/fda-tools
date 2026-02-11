@@ -1,7 +1,7 @@
 ---
-description: Analyze and summarize FDA data from any pipeline stage — extraction results, download metadata, predicate relationships, device lookups, and cross-document section summarization
+description: Analyze FDA data from any pipeline stage — extraction results, download metadata, predicate relationships, or device lookups
 allowed-tools: Read, Glob, Grep, Bash, Write
-argument-hint: "[--project NAME | file-path | product-code | K-number] [--summarize --sections NAMES]"
+argument-hint: "[--project NAME | file-path | product-code | K-number]"
 ---
 
 # FDA Multi-Source Data Analysis
@@ -10,9 +10,7 @@ argument-hint: "[--project NAME | file-path | product-code | K-number] [--summar
 
 > For external API dependencies and connection status, see [CONNECTORS.md](../CONNECTORS.md).
 
-You are analyzing FDA 510(k) data from across the full pipeline. Multiple data sources may be available -- adapt your analysis to whatever exists.
-
-> **Consolidated command.** This command also covers cross-document section summarization (use `--summarize`). You can summarize and compare sections from 510(k) summary PDFs, including indications for use, testing data, device descriptions, and more.
+You are analyzing FDA 510(k) data from across the full pipeline. Multiple data sources may be available — adapt your analysis to whatever exists.
 
 ## Data Source Locations
 
@@ -237,41 +235,6 @@ PYEOF
 ```
 
 Include this as an "Adverse Event Context" subsection when analyzing product codes or predicate hubs. Flag devices or product codes with disproportionately high event counts.
-
-## Section Summarization (--summarize)
-
-When `--summarize` is specified, summarize and compare sections from 510(k) summary PDF documents. The full text of processed PDFs is stored in a per-device cache (`cache/index.json` + `cache/devices/*.json`) or legacy `pdf_data.json`.
-
-### Summarize Arguments
-
-- `--sections NAME[,NAME]` -- Which sections to summarize (or `all`). Common sections: Indications for Use, Device Description, Substantial Equivalence Comparison, Non-Clinical Testing, Clinical Testing, Biocompatibility, Sterilization, Software, Shelf Life
-- `--product-codes CODE[,CODE]` -- Filter by product code(s)
-- `--years RANGE` -- Year or range (e.g., `2020-2025`)
-- `--applicants NAME[;NAME]` -- Filter by applicant/company name
-- `--knumbers K123456[,K234567]` -- Specific K-numbers to analyze
-- `--output FILE` -- Write summary to file
-
-### Section Detection
-
-Apply the 3-tier section detection system from `references/section-patterns.md`:
-- **Tier 1 (Regex):** Deterministic regex patterns for all 13 universal sections plus device-type-specific patterns
-- **Tier 2 (OCR-Tolerant):** OCR substitution table (1->I, 0->O, 5->S, etc.) with <=2 character corrections
-- **Tier 3 (LLM Semantic):** Classification signal table and non-standard heading map for content-based detection
-
-### Summary Modes
-
-- **Single section, multiple documents:** Cross-document comparison showing common patterns, variations, trends
-- **Multiple sections, single document:** Document deep-dive preserving narrative flow
-- **Multiple sections, multiple documents:** Comprehensive matrix (rows = documents, columns = sections)
-
-### Structured Data Extraction
-
-For specific section types, extract structured data:
-- **Indications for Use:** Target patient population, anatomical site, clinical condition, duration of use
-- **Non-Clinical Testing:** Test methods, standards, sample sizes, pass/fail criteria
-- **Clinical Testing:** Study type, patient count, endpoints, key outcomes
-- **Biocompatibility:** ISO 10993 endpoints, materials tested, results
-- **SE Comparison:** Predicate devices, similarities, differences, how differences addressed
 
 ## Tips
 

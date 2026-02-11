@@ -1,7 +1,7 @@
 ---
-description: Unified testing and standards command — look up FDA Recognized Consensus Standards, generate risk-based testing plans, and build requirements traceability matrices
+description: Look up FDA Recognized Consensus Standards — search by product code, standard number, or keyword for applicable testing standards
 allowed-tools: Bash, Read, Glob, Grep, WebSearch, WebFetch, Write
-argument-hint: "--product-code CODE [--standard NUMBER] [--search QUERY] [--test-plan] [--traceability] [--check-currency] [--save] [--project NAME]"
+argument-hint: "--product-code CODE [--standard NUMBER] [--search QUERY] [--check-currency] [--save] [--project NAME]"
 ---
 
 # FDA Recognized Consensus Standards Lookup
@@ -34,27 +34,23 @@ echo "FDA_PLUGIN_ROOT=$FDA_PLUGIN_ROOT"
 
 ---
 
-You are looking up FDA Recognized Consensus Standards, generating risk-based testing plans, and building requirements traceability matrices.
-
-> **Consolidated command.** This command also covers testing plan generation (use `--test-plan`) and requirements traceability matrix generation (use `--traceability`). Test plans and traceability matrices are derived from standards requirements, making them natural extensions of standards lookup.
+You are looking up FDA Recognized Consensus Standards from the FDA's database and the plugin's built-in standards tracking reference.
 
 ## Parse Arguments
 
 From `$ARGUMENTS`, extract:
 
-- `--product-code CODE` -- Look up standards commonly associated with a device product code
-- `--standard NUMBER` -- Look up a specific standard by number (e.g., "ISO 10993-1", "IEC 60601-1", "ASTM F1980")
-- `--search QUERY` -- Free-text search for standards (e.g., "biocompatibility", "sterilization", "cybersecurity")
-- `--check-currency` -- Compare cited standards against current editions; flag superseded versions
-- `--save` -- Save results to project folder
-- `--project NAME` -- Target project for --save
-- `--infer` -- Auto-detect product code from project data
-- `--index` -- Scan `standards_dir` and build `standards_index.json` inventory
-- `--compare` -- Cross-reference local standards inventory against device requirements (requires `--product-code`)
-- `--test-plan` -- Generate a risk-based testing plan with gap analysis. Maps guidance requirements, predicate precedent, and standards into a prioritized test matrix. Additional args: `--device-description TEXT`, `--intended-use TEXT`, `--risk-framework iso14971|fmea`, `--output FILE`
-- `--traceability` -- Generate a requirements traceability matrix (RTM) mapping guidance requirements to risks, tests, and evidence. Additional args: `--format md|csv|json`, `--output FILE`
+- `--product-code CODE` — Look up standards commonly associated with a device product code
+- `--standard NUMBER` — Look up a specific standard by number (e.g., "ISO 10993-1", "IEC 60601-1", "ASTM F1980")
+- `--search QUERY` — Free-text search for standards (e.g., "biocompatibility", "sterilization", "cybersecurity")
+- `--check-currency` — Compare cited standards against current editions; flag superseded versions
+- `--save` — Save results to project folder
+- `--project NAME` — Target project for --save
+- `--infer` — Auto-detect product code from project data
+- `--index` — Scan `standards_dir` and build `standards_index.json` inventory
+- `--compare` — Cross-reference local standards inventory against device requirements (requires `--product-code`)
 
-At least one of `--product-code`, `--standard`, `--search`, `--test-plan`, or `--traceability` is required (unless `--check-currency` with `--project`, or `--index`).
+At least one of `--product-code`, `--standard`, or `--search` is required (unless `--check-currency` with `--project`, or `--index`).
 
 ## Step 1: Load Built-In Standards Reference
 
@@ -371,84 +367,9 @@ cat << 'EOF' > "$PROJECTS_DIR/$PROJECT_NAME/standards_lookup.json"
 EOF
 ```
 
-## Testing Plan Generation (--test-plan)
-
-When `--test-plan` is specified, generate a comprehensive, risk-based testing plan for a 510(k) submission.
-
-**KEY PRINCIPLE: Combine guidance requirements with predicate precedent to create an actionable test matrix.** Each test item is prioritized by regulatory risk and includes specific standards, methods, and acceptance criteria.
-
-### Gather Requirements Data
-
-Load guidance cache and review data from the project (if `--project` specified). Query openFDA classification for device context.
-
-### Build Test Categories
-
-Generate test categories including:
-- **Required Tests** (from guidance + regulation): Biocompatibility (ISO 10993 series), Sterilization (ISO 11135/11137), Shelf Life (ASTM F1980), Performance (device-specific)
-- **Tests Based on Predicate Precedent**: What predicates tested and how many
-- **Gap Analysis**: Tests guidance requires but predicates did not document
-- **IFU Claim-to-Test Mapping** (if `--intended-use` provided)
-
-### Risk Prioritization
-
-Prioritize using ISO 14971 risk categories:
-- **P1 - Critical**: Severity Critical/Catastrophic AND Probability Occasional+ (must test)
-- **P2 - High**: Severity Serious AND Probability Probable+ (should test)
-- **P3 - Medium**: Severity Moderate AND Probability Occasional (recommended)
-- **P4 - Low**: Severity Minor/Negligible (optional)
-
-### Generate Test Plan Document
-
-Write the complete test plan to `$PROJECTS_DIR/$PROJECT_NAME/test_plan.md` or `--output FILE`. Include testing summary, detailed test matrix, gap analysis, IFU claim mapping, estimated timeline, and standards referenced.
-
-### Audit Logging
-
-Log each prioritized test and excluded test using `fda_audit_logger.py`.
-
-## Requirements Traceability Matrix (--traceability)
-
-When `--traceability` is specified, generate a Requirements Traceability Matrix (RTM) that maps FDA guidance requirements to risks, tests, and evidence. This is a key regulatory deliverable demonstrating complete coverage.
-
-**KEY PRINCIPLE: Every requirement must trace to either a test, a risk mitigation, or an explicit justification for exclusion.**
-
-### Gather Requirements Sources
-
-1. **Guidance requirements**: From `guidance_cache/requirements_matrix.json`
-2. **Cross-cutting requirements**: From `references/guidance-lookup.md`
-3. **Safety-identified risks**: From safety data (common failure modes)
-4. **IFU claim requirements**: Each claim needs supporting evidence
-5. **Reference device requirements**: From `review.json` reference_devices
-
-Assign unique IDs: `REQ-{category}-{number}`, `RISK-{number}`, `TEST-{category}-{number}`
-
-### Map Requirements to Risks and Tests
-
-For each requirement, identify associated risks (from MAUDE, guidance, device description, predicate history) and the test or evidence that addresses it.
-
-### Generate RTM Document
-
-Output formats: Markdown (default), CSV (for QMS import), JSON (for programmatic use).
-
-```markdown
-| Req ID | Requirement | Source | Risk ID | Risk | Test ID | Test/Evidence | Status |
-|--------|------------|--------|---------|------|---------|---------------|--------|
-| REQ-BIOCOMPAT-001 | ISO 10993-5 Cytotoxicity | Cross-cutting | RISK-001 | Cytotoxic reaction | TEST-BIOCOMPAT-001 | ISO 10993-5 testing | PLANNED |
-```
-
-Include coverage summary, gaps requiring attention, and risk management traceability rows.
-
-### DHF Context
-
-Per 21 CFR 820.30 (Design Controls), this RTM fulfills the requirements traceability element of the Design History File.
-
-Write to `$PROJECTS_DIR/$PROJECT_NAME/traceability_matrix.md` (or specified output).
-
 ## Error Handling
 
 - **No arguments**: Show usage with examples
 - **API unavailable**: Use built-in standards-tracking.md reference only (note reduced coverage)
 - **Standard not found**: Suggest alternative search terms or broader queries
-- **No project for --check-currency**: ERROR -- "Standards currency check requires --project NAME with existing test plan or guidance data"
-- **No project for --test-plan**: Generate baseline test plan from classification data + common requirements
-- **No project for --traceability**: ERROR -- "Traceability matrix requires --project NAME."
-- **No guidance data for --traceability**: Generate matrix from cross-cutting requirements only
+- **No project for --check-currency**: ERROR — "Standards currency check requires --project NAME with existing test plan or guidance data"

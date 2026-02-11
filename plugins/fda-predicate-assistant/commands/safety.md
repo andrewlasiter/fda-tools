@@ -1,18 +1,16 @@
 ---
-description: Unified safety surveillance — MAUDE adverse events, recall history, warning letters, enforcement actions, inspection history, and real-time monitoring for product codes and manufacturers
-allowed-tools: Bash, Read, Grep, Glob, Write, WebSearch, WebFetch
-argument-hint: "--product-code CODE [--years RANGE] [--warnings COMPANY] [--inspections COMPANY] [--monitor --check|--add-watch|--status] [--knumber K123456]"
+description: Analyze adverse events (MAUDE) and recall history for a product code or device — safety intelligence for pre-submission preparation
+allowed-tools: Bash, Read, Grep, Glob, Write, WebSearch
+argument-hint: "--product-code CODE [--years RANGE] [--device-name TEXT] [--knumber K123456]"
 ---
 
-# FDA Safety Intelligence — Unified Surveillance Command
+# FDA Safety Intelligence — MAUDE Events & Recall Analysis
 
 > **Important**: This command assists with FDA regulatory workflows but does not provide regulatory advice. Output should be reviewed by qualified regulatory professionals before being relied upon for submission decisions.
 
 > For external API dependencies and connection status, see [CONNECTORS.md](../CONNECTORS.md).
 
-You are producing safety intelligence combining MAUDE adverse event data, recall history, warning letters, enforcement actions, inspection history, and real-time monitoring. This is used for pre-submission preparation, risk analysis, and safety profiling.
-
-> **Consolidated command.** This command also covers warning letters and enforcement actions (use `--warnings`), inspection history and CFR citations (use `--inspections`), and real-time database monitoring (use `--monitor`). These were previously separate commands. The `fda-safety-signal-triage` skill also auto-triggers for safety-related queries.
+You are producing a safety intelligence report combining MAUDE adverse event data and recall history from the openFDA API. This is used for pre-submission preparation, risk analysis, and safety profiling.
 
 **All queries use the openFDA API** via the template in `references/openfda-api.md`. If the API is disabled or unreachable, report that this command requires API access and suggest `/fda:configure --set openfda_enabled true`.
 
@@ -20,18 +18,14 @@ You are producing safety intelligence combining MAUDE adverse event data, recall
 
 From `$ARGUMENTS`, extract:
 
-- `--product-code CODE` (required for MAUDE/recall analysis) -- 3-letter FDA product code
-- `--years RANGE` (optional) -- Year range for events (default: last 5 years)
-- `--device-name TEXT` (optional) -- Filter to specific device generic name
-- `--knumber K123456` (optional) -- Focus on a specific device's safety profile
-- `--manufacturer TEXT` (optional) -- Filter by manufacturer name
-- `--sample-size N` (optional) -- Number of recent event narratives to analyze (default: 25, max: 100)
-- `--warnings COMPANY_OR_CODE` -- Search FDA warning letters and enforcement actions (company name, product code, or FEI number). Add `--recalls` for openFDA recall enforcement, `--violations` for 21 CFR violation patterns, `--risk-profile` for consolidated risk scoring.
-- `--inspections COMPANY_OR_FEI` -- Look up FDA inspection history, CFR citations, compliance actions, and import refusals. Add `--citations` for CFR citation details, `--compliance` for compliance actions, `--imports` for import refusals, `--all` for everything.
-- `--monitor` -- Real-time FDA database monitoring. Subcommands: `--check` (run check now), `--add-watch CODE` (add product code), `--remove-watch CODE`, `--status` (show watch config), `--alerts` (recent alerts), `--watch-standards` (track standard updates), `--notify webhook|stdout`.
-- `--complaint-template` -- Generate a complaint handling procedure template customized for the device
+- `--product-code CODE` (required) — 3-letter FDA product code
+- `--years RANGE` (optional) — Year range for events (default: last 5 years)
+- `--device-name TEXT` (optional) — Filter to specific device generic name
+- `--knumber K123456` (optional) — Focus on a specific device's safety profile
+- `--manufacturer TEXT` (optional) — Filter by manufacturer name
+- `--sample-size N` (optional) — Number of recent event narratives to analyze (default: 25, max: 100)
 
-If no product code and no `--warnings`/`--inspections`/`--monitor` provided, ask the user for a product code.
+If no product code provided, ask the user for it.
 
 ## Resolve Plugin Root
 
@@ -570,60 +564,6 @@ Thresholds:
 > Customize this template per 21 CFR 820.198 (complaint files)
 > and 21 CFR 803 (MDR reporting requirements).
 ```
-
-## Warning Letters & Enforcement Intelligence (--warnings)
-
-When `--warnings SEARCH_TERM` is specified, search FDA enforcement intelligence. Classify the search term: 3-letter code = product code, numeric 7-10 digits = FEI number, otherwise = company name.
-
-### openFDA Device Enforcement API
-
-Query `https://api.fda.gov/device/enforcement.json` with the appropriate search field (`product_code`, `openfda.fei_number`, or `recalling_firm`). Present recall classification breakdown (Class I/II/III), status, and reasons.
-
-### Warning Letter Web Search
-
-```
-WebSearch: "{search_term}" warning letter site:fda.gov/inspections-compliance-enforcement-and-criminal-investigations CDRH "medical device"
-```
-
-If `--violations` flag set, use WebFetch on warning letter URLs to extract all 21 CFR sections cited and map to violation categories (Design Controls, Document Controls, CAPA, Complaint Handling, etc.).
-
-If `--risk-profile` flag set, calculate a consolidated risk score combining recall history, warning letters, inspection data, and MAUDE events.
-
-## Inspection & Enforcement Intelligence (--inspections)
-
-When `--inspections COMPANY_OR_FEI` is specified, look up FDA enforcement intelligence using the FDA Data Dashboard API (`https://api-datadashboard.fda.gov/v1`).
-
-### Credentials Check
-
-Read `fda_dashboard_user` and `fda_dashboard_key` from `~/.claude/fda-predicate-assistant.local.md`. If not configured, guide user to register at https://datadashboard.fda.gov and run `/fda:configure --dashboard-key`.
-
-### API Queries
-
-- **Inspections Classifications:** Query `inspections_classifications` endpoint filtered by `ProductType: Devices` and company/FEI
-- **CFR Citations** (if `--citations`): Query `inspections_citations` for each inspection with PostedCitations
-- **Compliance Actions** (if `--compliance`): Query `compliance_actions` for warning letters, injunctions, seizures
-- **Import Refusals** (if `--imports`): Query `import_refusals` for import refusal history
-
-Present results including inspection trend assessment, quality system risk level, and relevance to submission strategy.
-
-## Real-Time Database Monitor (--monitor)
-
-When `--monitor` is specified, manage FDA database monitoring. All state is stored in `~/fda-510k-data/monitors.json`.
-
-### Monitor Subcommands
-
-- `--add-watch CODE` -- Add a product code to the watch list
-- `--remove-watch CODE` -- Remove a product code from the watch list
-- `--check` -- Run monitoring check against all watched items (new clearances, recalls, MAUDE events, guidance updates). Save alerts to `~/fda-510k-data/monitor_alerts/{today}.json`
-- `--status` -- Show current watch configuration and last check time
-- `--alerts` -- Display recent alerts (use `--since YYYY-MM-DD` to filter)
-- `--watch-standards` -- Track FDA recognized consensus standards changes. Uses built-in supersession data from `references/standards-tracking.md` and web search for updates
-- `--notify webhook|stdout` -- Send alerts via webhook POST or stdout JSON after `--check`
-- `--cron` -- Machine-readable JSON output for cron scheduling
-
-### Standards Watch (--watch-standards)
-
-Check project's cited standards against known supersessions. Alert if transition deadlines are within 6 months. Use `--standards-report` for a comprehensive standards currency report.
 
 ## Audit Logging
 
