@@ -396,6 +396,8 @@ Auto-detect if sterilization is applicable from device description keywords: "st
 - If multiple sources agree → use the agreed method
 - If sources conflict → flag the conflict and use `[TODO: Resolve sterilization method — SE comparison says {X}, standards lookup implies {Y}]`
 
+**Standards in sterilization drafts**: When listing "Applicable Standards" at the end of the sterilization section, list validation/process standards (ISO 17665, ISO 11737, AAMI TIR30, AAMI ST91, ANSI/AAMI ST77, etc.) as "Referenced Standards for Validation" — NOT as formal conformity declarations. This prevents duplication with and misalignment against the DoC (Section 08). The DoC contains the formal list; the sterilization section references standards it uses for validation.
+
 ### 9. shelf-life
 
 Generates Section 11 of the eSTAR: Shelf Life.
@@ -566,6 +568,12 @@ Auto-populate standards list from (in priority order):
 4. `/fda:standards` output (if available) — FDA recognized consensus standards
 
 **CRITICAL**: If `standards_lookup.json` lists 14 standards, the DoC table MUST have at least 14 rows — not a truncated subset of 7. Every applicable standard from the lookup should appear in the declaration.
+
+**Separating Formal Declarations from Referenced Standards**: Standards fall into two categories:
+- **Formal conformity declarations** — Standards from `standards_lookup.json` that the device is tested against. These go in the main "Standards Declared" table with a conformity status column.
+- **Referenced process standards** — Standards cited in specialized sections (e.g., ISO 17665 for sterilization validation, ISO 11737 for bioburden, AAMI TIR30/ST91 for reprocessing) that relate to manufacturing/validation processes rather than direct device conformity. These should appear in a separate "Referenced Standards (Informational)" subsection below the formal declaration table, clearly marked as not requiring a formal DoC entry.
+
+This prevents the consistency check (Check 13) from flagging process standards as misaligned, and avoids over-declaring conformity to standards that apply to the validation process rather than the device itself.
 
 ### 18. human-factors
 

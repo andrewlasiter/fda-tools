@@ -484,11 +484,16 @@ def check_content_adequacy(project_dir, drafts):
     if os.path.exists(steril_path):
         with open(steril_path) as f:
             steril_text = f.read()
+        # Match method in natural prose: "method is steam", "method: EO", "steam sterilization"
         has_method = bool(re.search(
-            r'(?:method|process)[:\s]+(ethylene oxide|EO|gamma|radiation|steam|autoclave)',
+            r'(?:method\b.*?\b(?:is|:)\s*(?:ethylene oxide|EO|gamma|e-beam|radiation|steam|autoclave|moist heat))|(?:(?:steam|EO|ethylene oxide|gamma|e-beam|radiation)\s+sterilization)',
             steril_text, re.I
         ))
-        has_todo_method = bool(re.search(r'\[TODO.*(?:EO|radiation|steriliz)', steril_text, re.I))
+        # Only match TODOs where the METHOD ITSELF is undetermined (not TODOs about parameters)
+        has_todo_method = bool(re.search(
+            r'\[TODO[^]]*(?:EO or (?:Radiation|radiation)|specify (?:sterilization )?method|determine (?:sterilization )?method)',
+            steril_text, re.I
+        ))
         if has_method and not has_todo_method:
             adequacy_score += 3
 
