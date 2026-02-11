@@ -257,3 +257,6 @@ python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
 - If extraction encounters persistent PDF errors, log them and continue
 - If disk space is low, warn before downloading and halt if critical
 - Never delete existing data — only append and merge
+
+## Related Skills
+- `fda-510k-knowledge` for pipeline scripts, configured paths, and data outputs.

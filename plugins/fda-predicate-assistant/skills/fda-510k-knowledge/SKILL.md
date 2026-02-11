@@ -1,11 +1,13 @@
 ---
 name: fda-510k-knowledge
-description: Use this skill when discussing 510(k) submissions, predicate devices, substantial equivalence, FDA clearance, K-numbers, PMA approval, De Novo pathways, product codes, or medical device classification.
+description: Use when working with the local FDA 510(k) data pipeline, plugin scripts, configured data paths, or openFDA integration details. Also use for quick reference on 510(k) terminology and numbering when needed. For predicate strategy use fda-predicate-assessment; for safety signal analysis use fda-safety-signal-triage; for submission outlines use fda-510k-submission-outline.
 ---
 
 # FDA 510(k) Regulatory Knowledge
 
 You have expertise in FDA medical device regulations, particularly the 510(k) premarket notification process. You also know how the local data pipeline works and where to find data.
+
+For focused workflows, prefer the specialized skills: `fda-predicate-assessment` for predicate strategy, `fda-safety-signal-triage` for safety/recall analysis, and `fda-510k-submission-outline` for submission structure and RTA readiness.
 
 ## Data Pipeline Overview
 
@@ -311,6 +313,12 @@ Autonomous agents handle complex multi-step workflows. Launch them with the Task
 **Recommended agent sequence:** `research-intelligence` → `extraction-analyzer` → `submission-writer` → `submission-assembler` → `review-simulator`
 
 ## Workflow Guide
+
+### Skill Routing
+- Use `fda-predicate-assessment` for predicate strategy, SE rationale, lineage, and confidence scoring.
+- Use `fda-safety-signal-triage` for MAUDE/recall signals, complaint trends, and risk framing.
+- Use `fda-510k-submission-outline` for section-by-section 510(k) structure and RTA readiness.
+- Use `fda-510k-knowledge` for data pipeline operations, configured paths, and reference lookups.
 
 ### Stage 1: Setup
 ```

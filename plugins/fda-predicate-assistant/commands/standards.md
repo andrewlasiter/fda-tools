@@ -6,6 +6,11 @@ argument-hint: "--product-code CODE [--standard NUMBER] [--search QUERY] [--chec
 
 # FDA Recognized Consensus Standards Lookup
 
+> **Important**: This command assists with FDA regulatory workflows but does not provide regulatory advice. Output should be reviewed by qualified regulatory professionals before being relied upon for submission decisions.
+
+> For external API dependencies and connection status, see [CONNECTORS.md](../CONNECTORS.md).
+
+
 ## Resolve Plugin Root
 
 **Before running any bash commands that reference `$FDA_PLUGIN_ROOT`**, resolve the plugin install path:
@@ -344,6 +349,10 @@ RECOMMENDATIONS
   Verify independently. Not regulatory advice.
 ────────────────────────────────────────
 ```
+
+### Sources Checked
+
+Append a sources table to every output showing which external APIs were queried and their status. See [CONNECTORS.md](../CONNECTORS.md) for the standard format. Only include rows for sources this command actually uses.
 
 ## Save Results (--save)
 

@@ -231,3 +231,6 @@ python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
 - If consistency checks fail, report failures but continue drafting
 - Never halt the workflow for non-critical issues
 - Always produce output even if partial
+## Related Skills
+- `fda-510k-submission-outline` for section structure and evidence mapping.
+- `fda-510k-knowledge` for reference lookups and command context.

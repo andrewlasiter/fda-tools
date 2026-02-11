@@ -319,3 +319,7 @@ python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
 - Highlight actionable insights prominently
 - Flag safety signals and enforcement concerns clearly
 - Provide strategic context for regulatory professionals
+
+## Related Skills
+- `fda-predicate-assessment` for predicate landscape and lineage analysis.
+- `fda-safety-signal-triage` for safety signal summaries and risk framing.

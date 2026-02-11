@@ -466,7 +466,13 @@ def score_device_section(text, device_number, se_sections):
 
 def parse_text(text, filename, csv_data, known_knumbers, known_pma_numbers, section_aware=False):
     # K/N/P number regex — matches OCR-corrupted variants and supplements
-    regex = r'\b(?:[Kk]|1\(|l\(|\|<\.|\|\()[^dOISBGZAQsiqzl]*[\d][dOISBGZAQsiqzl\d ]{6,7}\b|\b[1l]<[^dOISBGZAQsiqzl\d ]*[\d][dOISBGZAQsiqzl\d ]{6,7}\b|\b[Nn][^dOISBGZAQsiqzl\d]*[\d][dOISBGZAQsiqzl\d ]{5,6}(?:\/S\d{3})?\b|\b[Pp][^dOISBGZAQsiqzl\d]*[\d][dOISBGZAQsiqzl\d ]{6,7}(?:\/S\d{3})?\b'
+    # NOTE:
+    # The trailing quantifiers are calibrated so canonical IDs are captured
+    # even when immediately followed by punctuation/end-of-line:
+    #   K123456  => 1 digit + 5 trailing chars
+    #   N12345   => 1 digit + 4 trailing chars
+    #   P123456  => 1 digit + 5 trailing chars
+    regex = r'\b(?:[Kk]|1\(|l\(|\|<\.|\|\()[^dOISBGZAQsiqzl]*[\d][dOISBGZAQsiqzl\d ]{5,7}\b|\b[1l]<[^dOISBGZAQsiqzl\d ]*[\d][dOISBGZAQsiqzl\d ]{5,7}\b|\b[Nn][^dOISBGZAQsiqzl\d]*[\d][dOISBGZAQsiqzl\d ]{3,6}(?:\/S\d{3})?\b|\b[Pp][^dOISBGZAQsiqzl\d]*[\d][dOISBGZAQsiqzl\d ]{5,7}(?:\/S\d{3})?\b'
     # DEN (De Novo) number regex — DEN followed by 6-7 digits
     den_regex = r'\bDEN\d{6,7}\b'
 

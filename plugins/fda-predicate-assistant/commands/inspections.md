@@ -6,6 +6,11 @@ argument-hint: "<company name or FEI number> [--citations] [--compliance] [--imp
 
 # FDA Inspection & Enforcement Intelligence
 
+> **Important**: This command assists with FDA regulatory workflows but does not provide regulatory advice. Output should be reviewed by qualified regulatory professionals before being relied upon for submission decisions.
+
+> For external API dependencies and connection status, see [CONNECTORS.md](../CONNECTORS.md).
+
+
 ## Resolve Plugin Root
 
 **Before running any bash commands that reference `$FDA_PLUGIN_ROOT`**, resolve the plugin install path:
@@ -271,6 +276,14 @@ NEXT STEPS
   Not regulatory advice.
 ────────────────────────────────────────
 ```
+
+
+
+## Output Format
+
+### Sources Checked
+
+Append a sources table to every output showing which external APIs were queried and their status. See [CONNECTORS.md](../CONNECTORS.md) for the standard format. Only include rows for sources this command actually uses.
 
 ## Error Handling
 

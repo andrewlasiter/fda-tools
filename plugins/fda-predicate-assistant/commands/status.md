@@ -5,6 +5,10 @@ allowed-tools: Bash, Read, Glob, Grep
 
 # FDA Pipeline Status
 
+> **Important**: This command assists with FDA regulatory workflows but does not provide regulatory advice. Output should be reviewed by qualified regulatory professionals before being relied upon for submission decisions.
+
+> For external API dependencies and connection status, see [CONNECTORS.md](../CONNECTORS.md).
+
 You are reporting the current state of all FDA data across the pipeline. This answers: "What do I have to work with?"
 
 ## Resolve Plugin Root

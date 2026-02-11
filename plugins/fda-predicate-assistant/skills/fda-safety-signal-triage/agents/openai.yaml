@@ -1,0 +1,4 @@
+interface:
+  display_name: "FDA Safety Signal Triage"
+  short_description: "Summarize recalls and MAUDE risk"
+  default_prompt: "Triage FDA safety signals for a device and summarize risk, evidence, and next steps."

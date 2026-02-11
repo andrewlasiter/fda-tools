@@ -6,6 +6,10 @@ argument-hint: "[--project NAME] [--knumber K123456] [--auto] [--full-auto] [--a
 
 # FDA Predicate Review & Validation
 
+> **Important**: This command assists with FDA regulatory workflows but does not provide regulatory advice. Output should be reviewed by qualified regulatory professionals before being relied upon for submission decisions.
+
+> For external API dependencies and connection status, see [CONNECTORS.md](../CONNECTORS.md).
+
 ## Resolve Plugin Root
 
 **Before running any bash commands that reference `$FDA_PLUGIN_ROOT`**, resolve the plugin install path:

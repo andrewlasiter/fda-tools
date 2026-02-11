@@ -1,0 +1,4 @@
+interface:
+  display_name: "FDA Plugin E2E Smoke"
+  short_description: "Run live script smoke checks"
+  default_prompt: "Run a deterministic live smoke test for the FDA plugin scripts and report pass/fail with artifacts."

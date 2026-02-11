@@ -211,3 +211,7 @@ python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
 ## References
 
 - `references/section-numbering-crossref.md` — Plugin-to-FDA section numbering cross-reference
+
+## Related Skills
+- `fda-510k-submission-outline` for section ordering and completeness checks.
+- `fda-510k-knowledge` for eSTAR structure references.

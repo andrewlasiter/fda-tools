@@ -990,6 +990,16 @@ class TestSkillMdCompleteness:
         """SKILL.md must have a Workflow Guide section."""
         assert "## Workflow Guide" in self.skill
 
+    def test_skill_routing_section_exists(self):
+        """Workflow guide must route to specialized skills."""
+        assert "Skill Routing" in self.skill
+        for skill in [
+            "fda-predicate-assessment",
+            "fda-safety-signal-triage",
+            "fda-510k-submission-outline",
+        ]:
+            assert skill in self.skill, f"Skill routing missing {skill}"
+
     def test_workflow_has_five_stages(self):
         """Workflow must cover all 5 stages."""
         for stage in ["Stage 1", "Stage 2", "Stage 3", "Stage 4", "Stage 5"]:

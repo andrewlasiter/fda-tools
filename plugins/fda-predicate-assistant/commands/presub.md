@@ -6,6 +6,10 @@ argument-hint: "<product-code> [--project NAME] [--device-description TEXT] [--i
 
 # FDA Pre-Submission Meeting Planner
 
+> **Important**: This command assists with FDA regulatory workflows but does not provide regulatory advice. Output should be reviewed by qualified regulatory professionals before being relied upon for submission decisions.
+
+> For external API dependencies and connection status, see [CONNECTORS.md](../CONNECTORS.md).
+
 ## Resolve Plugin Root
 
 **Before running any bash commands that reference `$FDA_PLUGIN_ROOT`**, resolve the plugin install path:
@@ -1106,7 +1110,15 @@ Check for overdue items: any entry with `status: "open"` and `deadline` before t
 - Past deadline by >30 days: critical
 - Past deadline by 1-30 days: warning
 
-## Error Handling
+
+
+## Output Format
+
+### Sources Checked
+
+Append a sources table to every output showing which external APIs were queried and their status. See [CONNECTORS.md](../CONNECTORS.md) for the standard format. Only include rows for sources this command actually uses.
+
+
 
 - **No product code**: Ask the user for it
 - **API unavailable**: Use flat files for classification. Generate template with less auto-populated data.

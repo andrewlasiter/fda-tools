@@ -6,6 +6,10 @@ argument-hint: "--check | --add-watch CODE | --remove-watch CODE | --status | --
 
 # FDA Real-Time Database Monitor
 
+> **Important**: This command assists with FDA regulatory workflows but does not provide regulatory advice. Output should be reviewed by qualified regulatory professionals before being relied upon for submission decisions.
+
+> For external API dependencies and connection status, see [CONNECTORS.md](../CONNECTORS.md).
+
 ## Resolve Plugin Root
 
 **Before running any bash commands that reference `$FDA_PLUGIN_ROOT`**, resolve the plugin install path:
@@ -169,6 +173,10 @@ WATCH CONFIGURATION
   Total Checks:  5
   Last Alerts:   3 new clearances, 0 recalls
 
+### Sources Checked
+
+Append a sources table to every output showing which external APIs were queried and their status. See [CONNECTORS.md](../CONNECTORS.md) for the standard format. Only include rows for sources this command actually uses.
+
 ────────────────────────────────────────
   This report is AI-generated from public FDA data.
   Verify independently. Not regulatory advice.
@@ -289,6 +297,10 @@ NEXT STEPS
   1. Review alert details — `/fda:monitor --alerts`
   2. Run safety analysis on flagged codes — `/fda:safety --product-code CODE`
   3. Update submission if new predicates found — `/fda:review --project NAME`
+
+### Sources Checked
+
+Append a sources table to every output showing which external APIs were queried and their status. See [CONNECTORS.md](../CONNECTORS.md) for the standard format. Only include rows for sources this command actually uses.
 
 ────────────────────────────────────────
   This report is AI-generated from public FDA data.
@@ -492,6 +504,10 @@ RECOMMENDATIONS
   1. Update test plans to reference superseded standard editions
   2. Review submission documents for outdated citations
   3. For detailed standard lookup: /fda:standards --check-currency
+
+### Sources Checked
+
+Append a sources table to every output showing which external APIs were queried and their status. See [CONNECTORS.md](../CONNECTORS.md) for the standard format. Only include rows for sources this command actually uses.
 
 ────────────────────────────────────────
   This report is AI-generated from public FDA data.

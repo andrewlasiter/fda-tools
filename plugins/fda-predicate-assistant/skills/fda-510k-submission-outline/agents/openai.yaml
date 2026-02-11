@@ -1,0 +1,4 @@
+interface:
+  display_name: "FDA 510(k) Submission Outline"
+  short_description: "Build sectioned 510(k) outlines"
+  default_prompt: "Produce a 510(k) submission outline with section-by-section evidence and gap flags."

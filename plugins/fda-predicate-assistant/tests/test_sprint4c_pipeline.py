@@ -229,3 +229,35 @@ class TestDENRegexInParseText:
         with open(script_path) as f:
             content = f.read()
         assert "correct_dennumber_format" in content
+
+
+# ===== K-Number punctuation regression =====
+
+class TestParseTextKNumberPunctuationRegression:
+    """parse_text must capture canonical K-numbers before punctuation/EOL."""
+
+    def test_extracts_knumber_before_terminal_period(self):
+        from predicate_extractor import parse_text
+
+        text = "Subject device K250003 cites predicate K250001 and reference K250002."
+        csv_data = {"K250003": "AAA", "K250001": "AAA", "K250002": "BBB"}
+        known_knumbers = set(csv_data.keys())
+
+        data, _ = parse_text(text, "K250003.pdf", csv_data, known_knumbers, set())
+        extracted = [identifier for identifier, _type, _pc in data]
+
+        assert "K250001" in extracted
+        assert "K250002" in extracted
+
+    @pytest.mark.parametrize("suffix", [".", ",", ";", ")", "]", ""])
+    def test_extracts_knumber_with_common_suffixes(self, suffix):
+        from predicate_extractor import parse_text
+
+        text = f"Reference: K250002{suffix}"
+        csv_data = {"K250003": "AAA", "K250002": "BBB"}
+        known_knumbers = {"K250002", "K250003"}
+
+        data, _ = parse_text(text, "K250003.pdf", csv_data, known_knumbers, set())
+        extracted = [identifier for identifier, _type, _pc in data]
+
+        assert "K250002" in extracted

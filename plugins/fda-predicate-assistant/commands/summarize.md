@@ -6,6 +6,10 @@ argument-hint: "[--project NAME] [--product-codes CODE] [--years RANGE] [--secti
 
 # FDA 510(k) Section Summarization
 
+> **Important**: This command assists with FDA regulatory workflows but does not provide regulatory advice. Output should be reviewed by qualified regulatory professionals before being relied upon for submission decisions.
+
+> For external API dependencies and connection status, see [CONNECTORS.md](../CONNECTORS.md).
+
 You are summarizing and comparing sections from 510(k) summary PDF documents. The full text of processed PDFs is stored in a per-device cache (`cache/index.json` + `cache/devices/*.json`) or legacy `pdf_data.json`. You will filter documents by user criteria, detect section structure using centralized patterns from `references/section-patterns.md`, and produce cross-document summaries.
 
 ## Parse Arguments

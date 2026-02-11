@@ -6,6 +6,10 @@ argument-hint: "<product-code> [--project NAME] [--device-description TEXT] [--i
 
 # FDA 510(k) Submission Research
 
+> **Important**: This command assists with FDA regulatory workflows but does not provide regulatory advice. Output should be reviewed by qualified regulatory professionals before being relied upon for submission decisions.
+
+> For external API dependencies and connection status, see [CONNECTORS.md](../CONNECTORS.md).
+
 You are helping the user research and plan a 510(k) submission. Given a product code (and optionally a device description and intended use), produce a comprehensive research package drawing from ALL available pipeline data.
 
 **KEY PRINCIPLE: Do the work, don't ask the user to run other commands.** If PDF text is available, extract predicates from it yourself. If a data file exists but has no relevant records, don't mention it. The user should get a complete answer, not a todo list.
@@ -1044,6 +1048,10 @@ RECOMMENDATIONS & NEXT STEPS
 
 {If API_KEY_NUDGE:true was printed, add this line before the disclaimer:}
   Tip: Get 120x more API requests/day with a free key → /fda:configure --setup-key
+
+### Sources Checked
+
+Append a sources table to every output showing which external APIs were queried and their status. See [CONNECTORS.md](../CONNECTORS.md) for the standard format. Only include rows for sources this command actually uses.
 
 ────────────────────────────────────────
   This report is AI-generated from public FDA data.

@@ -6,6 +6,10 @@ argument-hint: "<product-code> --project NAME [--device-description TEXT] [--int
 
 # FDA 510(k) Full Pipeline Orchestrator
 
+> **Important**: This command assists with FDA regulatory workflows but does not provide regulatory advice. Output should be reviewed by qualified regulatory professionals before being relied upon for submission decisions.
+
+> For external API dependencies and connection status, see [CONNECTORS.md](../CONNECTORS.md).
+
 ## Resolve Plugin Root
 
 **Before running any bash commands that reference `$FDA_PLUGIN_ROOT`**, resolve the plugin install path:
@@ -321,6 +325,10 @@ NEXT STEPS
   3. Complete [YOUR DEVICE: ...] cells in SE comparison table
   4. Review submission outline gap analysis
   5. Consult regulatory affairs team before FDA submission
+
+### Sources Checked
+
+Append a sources table to every output showing which external APIs were queried and their status. See [CONNECTORS.md](../CONNECTORS.md) for the standard format. Only include rows for sources this command actually uses.
 
 ────────────────────────────────────────
   This report is AI-generated from public FDA data.

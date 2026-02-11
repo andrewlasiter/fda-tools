@@ -1,0 +1,4 @@
+interface:
+  display_name: "FDA 510(k) Knowledge"
+  short_description: "Pipeline paths, commands, and API context"
+  default_prompt: "Use the local FDA 510(k) plugin knowledge to resolve scripts, data paths, and command behavior."

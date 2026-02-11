@@ -6,6 +6,10 @@ argument-hint: "--product-code CODE [--device-description TEXT] [--project NAME]
 
 # FDA 510(k) Literature Review Assistant
 
+> **Important**: This command assists with FDA regulatory workflows but does not provide regulatory advice. Output should be reviewed by qualified regulatory professionals before being relied upon for submission decisions.
+
+> For external API dependencies and connection status, see [CONNECTORS.md](../CONNECTORS.md).
+
 ## Resolve Plugin Root
 
 **Before running any bash commands that reference `$FDA_PLUGIN_ROOT`**, resolve the plugin install path:
@@ -422,7 +426,16 @@ This is a document-format command (writes to file). Use markdown headings per R1
 
 ---
 
-> **Disclaimer:** This literature review is AI-generated from web search results.
+
+
+## Output Format
+
+### Sources Checked
+
+Append a sources table to every output showing which external APIs were queried and their status. See [CONNECTORS.md](../CONNECTORS.md) for the standard format. Only include rows for sources this command actually uses.
+
+
+
 > It may not be comprehensive. A systematic review per your SOPs is recommended.
 > Verify independently. Not regulatory advice.
 ```

@@ -336,3 +336,7 @@ python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
 - If no guidance found, use cross-cutting guidance only
 - Always generate a Pre-Sub package even with partial data
 - Log all API failures in the report
+
+## Related Skills
+- `fda-510k-submission-outline` for Pre-Sub structure and evidence mapping.
+- `fda-safety-signal-triage` for safety signal framing when needed.

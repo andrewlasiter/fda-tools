@@ -1,0 +1,4 @@
+interface:
+  display_name: "FDA Predicate Assessment"
+  short_description: "Assess predicate strategy and SE risk"
+  default_prompt: "Assess 510(k) predicates and substantial equivalence with risk flags and confidence scoring."

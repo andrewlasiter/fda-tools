@@ -514,3 +514,8 @@ python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
 - Common outcomes: SE (clearance), NSE (not cleared), AI request (additional information needed)
 - Pre-Submission meetings (Q-Sub) can help resolve issues before formal submission
 - RTA screening occurs within 15 FDA days of receipt
+
+## Related Skills
+- `fda-predicate-assessment` for predicate strategy and SE risk flags.
+- `fda-safety-signal-triage` for MAUDE/recall risk framing.
+- `fda-510k-submission-outline` for RTA readiness and section completeness.

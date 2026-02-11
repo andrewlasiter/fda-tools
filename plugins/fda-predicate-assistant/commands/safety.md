@@ -6,6 +6,10 @@ argument-hint: "--product-code CODE [--years RANGE] [--device-name TEXT] [--knum
 
 # FDA Safety Intelligence — MAUDE Events & Recall Analysis
 
+> **Important**: This command assists with FDA regulatory workflows but does not provide regulatory advice. Output should be reviewed by qualified regulatory professionals before being relied upon for submission decisions.
+
+> For external API dependencies and connection status, see [CONNECTORS.md](../CONNECTORS.md).
+
 You are producing a safety intelligence report combining MAUDE adverse event data and recall history from the openFDA API. This is used for pre-submission preparation, risk analysis, and safety profiling.
 
 **All queries use the openFDA API** via the template in `references/openfda-api.md`. If the API is disabled or unreachable, report that this command requires API access and suggest `/fda:configure --set openfda_enabled true`.
@@ -493,6 +497,10 @@ NEXT STEPS
 
 {If API_KEY_NUDGE:true was printed, add this line before the disclaimer:}
   Tip: Get 120x more API requests/day with a free key → /fda:configure --setup-key
+
+### Sources Checked
+
+Append a sources table to every output showing which external APIs were queried and their status. See [CONNECTORS.md](../CONNECTORS.md) for the standard format. Only include rows for sources this command actually uses.
 
 ────────────────────────────────────────
   This report is AI-generated from public FDA data.

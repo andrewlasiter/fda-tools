@@ -6,6 +6,10 @@ argument-hint: "--predicates K241335[,K234567] [--references K345678] [--product
 
 # FDA Substantial Equivalence Comparison Table Generator
 
+> **Important**: This command assists with FDA regulatory workflows but does not provide regulatory advice. Output should be reviewed by qualified regulatory professionals before being relied upon for submission decisions.
+
+> For external API dependencies and connection status, see [CONNECTORS.md](../CONNECTORS.md).
+
 Generate a structured SE comparison table per FDA 21 CFR 807.87(f) for inclusion in a 510(k) submission. The table compares the user's subject device against one or more predicate devices and optional reference devices.
 
 **KEY PRINCIPLE: Auto-populate predicate and reference columns from FDA data.** Fetch and extract predicate/reference device information yourself — the user should only need to fill in their own device's details.
@@ -724,7 +728,15 @@ If the user chooses to export, append or replace the SE Comparison section in `s
 
 Also update the Submission Readiness Summary table in the outline to mark SE Comparison as "✓".
 
-## Important Notes
+
+
+## Output Format
+
+### Sources Checked
+
+Append a sources table to every output showing which external APIs were queried and their status. See [CONNECTORS.md](../CONNECTORS.md) for the standard format. Only include rows for sources this command actually uses.
+
+
 
 - **NEVER recommend** "Use /fda:extract" or "Run another command to get this data". Fetch what you need.
 - If a PDF fetch fails, note it gracefully: "K234567 summary PDF was not accessible; predicate data populated from FDA database records only."

@@ -6,6 +6,10 @@ argument-hint: "[--project NAME | file-path | product-code | K-number]"
 
 # FDA Multi-Source Data Analysis
 
+> **Important**: This command assists with FDA regulatory workflows but does not provide regulatory advice. Output should be reviewed by qualified regulatory professionals before being relied upon for submission decisions.
+
+> For external API dependencies and connection status, see [CONNECTORS.md](../CONNECTORS.md).
+
 You are analyzing FDA 510(k) data from across the full pipeline. Multiple data sources may be available — adapt your analysis to whatever exists.
 
 ## Data Source Locations

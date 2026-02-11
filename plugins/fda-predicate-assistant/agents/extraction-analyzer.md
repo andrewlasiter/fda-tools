@@ -236,3 +236,5 @@ python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
 - Highlight actionable insights
 - Flag issues clearly with severity indication
 - Provide context for non-expert users when helpful
+## Related Skills
+- `fda-510k-knowledge` for data pipeline paths, extraction outputs, and reference lookups.

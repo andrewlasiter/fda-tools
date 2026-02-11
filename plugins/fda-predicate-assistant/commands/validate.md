@@ -6,6 +6,10 @@ argument-hint: "<number> [number2] [--project NAME] [--search QUERY --product-co
 
 # FDA Device Number Validation (Enriched)
 
+> **Important**: This command assists with FDA regulatory workflows but does not provide regulatory advice. Output should be reviewed by qualified regulatory professionals before being relied upon for submission decisions.
+
+> For external API dependencies and connection status, see [CONNECTORS.md](../CONNECTORS.md).
+
 You are validating FDA device numbers against official databases AND enriching results with data from the full pipeline. **Always report what data IS available, what is MISSING, and exactly how to get the missing data.**
 
 ## Device Number Formats
