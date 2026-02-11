@@ -1,27 +1,38 @@
 # Connectors
 
-## How tool references work
+## How data source references work
 
-Plugin files use `~~category` as a placeholder for whatever tool the user connects in that category. For example, `~~device-clearances` might mean the openFDA 510(k) API, a hospital's internal device database, or any other MCP server that exposes cleared-device data.
+Commands reference external FDA and biomedical APIs to fetch device data, safety signals, clinical evidence, and regulatory intelligence. All APIs used are public and do not require authentication unless noted.
 
-Plugins are **tool-agnostic** -- they describe workflows in terms of categories (device clearances, adverse events, clinical trials, etc.) rather than specific products. The `.mcp.json` pre-configures specific MCP servers for several categories, but any MCP server in that category works.
+Commands are **source-aware** -- they describe workflows in terms of data categories (device clearances, adverse events, clinical trials, etc.) and fall back gracefully when a source is unreachable or returns no results.
 
-## Connectors for this plugin
+## Data sources for this plugin
 
-| Category | Placeholder | Included servers | Other options |
-|----------|-------------|-----------------|---------------|
-| Device clearances | `~~device-clearances` | openFDA 510(k)* | -- |
-| Device classification | `~~device-classification` | openFDA Classification* | -- |
-| Adverse events | `~~adverse-events` | openFDA MAUDE* | -- |
-| Recalls & enforcement | `~~recalls` | openFDA Recall/Enforcement* | -- |
-| PMA approvals | `~~pma` | openFDA PMA* | -- |
-| Device identifiers | `~~device-ids` | AccessGUDID* | openFDA UDI |
-| Clinical trials | `~~clinical-trials` | ClinicalTrials.gov | EU Clinical Trials Register |
-| Literature | `~~literature` | PubMed | Google Scholar, Semantic Scholar |
-| FDA guidance | `~~guidance` | FDA.gov (WebFetch) | -- |
-| 510(k) summaries | `~~510k-summaries` | FDA CDRH Portal* | -- |
+| Category | API / Source | Base URL | Auth Required | Integration |
+|----------|-------------|----------|---------------|-------------|
+| Device clearances (510(k)) | openFDA Device 510(k) | `https://api.fda.gov/device/510k.json` | No (API key optional) | Scripts |
+| Device classification | openFDA Device Classification | `https://api.fda.gov/device/classification.json` | No (API key optional) | Scripts |
+| Adverse events (MAUDE) | openFDA Device Events | `https://api.fda.gov/device/event.json` | No (API key optional) | Scripts |
+| Recalls & enforcement | openFDA Device Recall / Enforcement | `https://api.fda.gov/device/recall.json` | No (API key optional) | Scripts |
+| PMA approvals | openFDA Device PMA | `https://api.fda.gov/device/pma.json` | No (API key optional) | Scripts |
+| UDI / device identifiers | openFDA Device UDI | `https://api.fda.gov/device/udi.json` | No (API key optional) | Scripts |
+| Device characteristics (GUDID) | AccessGUDID | `https://accessgudid.nlm.nih.gov/api/v3/` | No | Scripts |
+| Clinical trials | ClinicalTrials.gov v2 | `https://clinicaltrials.gov/api/v2/studies` | No | Scripts + MCP |
+| Literature (PubMed) | NCBI E-utilities | `https://eutils.ncbi.nlm.nih.gov/entrez/eutils` | No (API key recommended) | Scripts + MCP |
+| FDA guidance documents | FDA.gov | `https://www.fda.gov/` (WebFetch) | No | WebFetch |
+| Warning letters | openFDA Device Enforcement | `https://api.fda.gov/device/enforcement.json` | No (API key optional) | Scripts |
+| 510(k) summary PDFs | FDA CDRH Portal | `https://www.accessdata.fda.gov/` | No | Scripts |
 
-\* Placeholder -- MCP URL not yet configured. See `.mcp.json` for the current server list; entries with an empty `url` are stubs awaiting a community or first-party MCP server.
+## MCP servers
+
+The `.mcp.json` file configures MCP servers for data sources that have hosted MCP endpoints. Currently two are available:
+
+| Server | MCP endpoint | Source |
+|--------|-------------|--------|
+| `pubmed` | `https://pubmed.mcp.claude.com/mcp` | PubMed literature search |
+| `c-trials` | `https://mcp.deepsense.ai/clinical_trials/mcp` | ClinicalTrials.gov |
+
+All other data sources are accessed directly via the bundled Python scripts in `scripts/`, which provide rate limiting, retry logic, caching, and structured output.
 
 ## API keys
 
@@ -51,12 +62,12 @@ Every command that queries external APIs should append this section to its outpu
 ### Sources Checked
 | Source | Status | Notes |
 |--------|--------|-------|
-| ~~device-clearances | [Checked / Unavailable / Not needed] | [details] |
-| ~~adverse-events | [Checked / Unavailable / Not needed] | [details] |
-| ~~recalls | [Checked / Unavailable / Not needed] | [details] |
-| ~~device-ids | [Checked / Unavailable / Not needed] | [details] |
-| ~~clinical-trials | [Checked / Unavailable / Not needed] | [details] |
-| ~~literature | [Checked / Unavailable / Not needed] | [details] |
+| openFDA 510(k) | [Checked / Unavailable / Not needed] | [details] |
+| openFDA MAUDE | [Checked / Unavailable / Not needed] | [details] |
+| openFDA Recalls | [Checked / Unavailable / Not needed] | [details] |
+| AccessGUDID | [Checked / Unavailable / Not needed] | [details] |
+| ClinicalTrials.gov | [Checked / Unavailable / Not needed] | [details] |
+| PubMed | [Checked / Unavailable / Not needed] | [details] |
 | Local project data | [Found / Not found / Not needed] | [details] |
 ```
 

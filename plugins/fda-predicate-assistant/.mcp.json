@@ -1,9 +1,5 @@
 {
   "mcpServers": {
-    "openfda": {
-      "type": "http",
-      "url": ""
-    },
     "pubmed": {
       "type": "http",
       "url": "https://pubmed.mcp.claude.com/mcp"
@@ -11,14 +7,6 @@
     "c-trials": {
       "type": "http",
       "url": "https://mcp.deepsense.ai/clinical_trials/mcp"
-    },
-    "accessgudid": {
-      "type": "http",
-      "url": ""
-    },
-    "fda-portal": {
-      "type": "http",
-      "url": ""
     }
   }
 }
