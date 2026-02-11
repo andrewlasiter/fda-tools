@@ -1,7 +1,7 @@
 ---
-description: Search and analyze clinical/scientific literature for 510(k) submission support — PubMed search, evidence categorization, gap analysis vs guidance requirements
+description: Search and analyze clinical/scientific literature and clinical trials for 510(k) submission support — PubMed, ClinicalTrials.gov, evidence categorization, and gap analysis vs guidance requirements
 allowed-tools: Bash, Read, Glob, Grep, Write, WebFetch, WebSearch
-argument-hint: "--product-code CODE [--device-description TEXT] [--project NAME] [--depth quick|standard|deep]"
+argument-hint: "--product-code CODE [--device-description TEXT] [--project NAME] [--depth quick|standard|deep] [--trials QUERY]"
 ---
 
 # FDA 510(k) Literature Review Assistant
@@ -33,23 +33,26 @@ echo "FDA_PLUGIN_ROOT=$FDA_PLUGIN_ROOT"
 
 ---
 
-You are conducting a literature search to support a 510(k) submission. The goal is to find and categorize relevant clinical and scientific evidence, then identify gaps vs guidance requirements.
+You are conducting a literature search and clinical trial analysis to support a 510(k) submission. The goal is to find and categorize relevant clinical and scientific evidence, then identify gaps vs guidance requirements.
 
 **KEY PRINCIPLE: Structured, reproducible searches.** Document search terms, databases, and results so the literature review can be reproduced and updated.
+
+> **Consolidated command.** This command also covers ClinicalTrials.gov device study searches (use `--trials`). Clinical trials are a key source of clinical evidence for 510(k) submissions, identifying endpoints, published results, and study design precedent.
 
 ## Parse Arguments
 
 From `$ARGUMENTS`, extract:
 
-- `--product-code CODE` (required unless --infer) — 3-letter FDA product code
-- `--device-description TEXT` — Device description (used to refine search terms)
-- `--intended-use TEXT` — IFU text (used to identify clinical claims needing evidence)
-- `--project NAME` — Save results to project folder
-- `--depth quick|standard|deep` — Search depth (default: standard)
-- `--infer` — Auto-detect product code from project data
-- `--focus CATEGORY` — Focus on specific evidence category (clinical, bench, biocompat, adverse)
-- `--output FILE` — Write results to file
-- `--refresh` — Force re-query all sources, ignoring cached results
+- `--product-code CODE` (required unless --infer) -- 3-letter FDA product code
+- `--device-description TEXT` -- Device description (used to refine search terms)
+- `--intended-use TEXT` -- IFU text (used to identify clinical claims needing evidence)
+- `--project NAME` -- Save results to project folder
+- `--depth quick|standard|deep` -- Search depth (default: standard)
+- `--infer` -- Auto-detect product code from project data
+- `--focus CATEGORY` -- Focus on specific evidence category (clinical, bench, biocompat, adverse)
+- `--output FILE` -- Write results to file
+- `--refresh` -- Force re-query all sources, ignoring cached results
+- `--trials QUERY` -- Search ClinicalTrials.gov for device clinical studies. QUERY is a device name, condition, or keyword. Additional trial filters: `--sponsor NAME`, `--status completed|recruiting|all`, `--device-only`, `--with-results`, `--limit N`, `--save`
 
 ## Step 1: Build Search Strategy
 
@@ -440,8 +443,71 @@ Append a sources table to every output showing which external APIs were queried 
 > Verify independently. Not regulatory advice.
 ```
 
+## ClinicalTrials.gov Search (--trials)
+
+When `--trials QUERY` is specified, search ClinicalTrials.gov for clinical studies involving medical devices similar to the user's device. This strengthens 510(k) submissions by:
+1. Identifying clinical endpoints used for similar devices
+2. Finding published study results for SE arguments
+3. Discovering ongoing trials (competitive intelligence)
+4. Benchmarking enrollment and study design
+
+### Resolve Device Context
+
+If `--product-code` is provided, look up the device type name from openFDA and use it as the search term.
+
+### Search ClinicalTrials.gov API v2
+
+```bash
+python3 << 'PYEOF'
+import urllib.request, urllib.parse, json
+
+search_term = "SEARCH_TERM"  # Replace
+limit = 20
+
+params = {
+    "format": "json",
+    "pageSize": str(limit),
+    "countTotal": "true",
+    "query.term": search_term,
+}
+
+url = f"https://clinicaltrials.gov/api/v2/studies?{urllib.parse.urlencode(params)}"
+req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/5.22.0)"})
+try:
+    with urllib.request.urlopen(req, timeout=20) as resp:
+        data = json.loads(resp.read())
+    total = data.get("totalCount", 0)
+    print(f"TOTAL:{total}")
+    for study in data.get("studies", []):
+        proto = study.get("protocolSection", {})
+        ident = proto.get("identificationModule", {})
+        status_mod = proto.get("statusModule", {})
+        design = proto.get("designModule", {})
+        outcomes = proto.get("outcomesModule", {})
+        nct_id = ident.get("nctId", "N/A")
+        title = ident.get("briefTitle", "N/A")
+        org = ident.get("organization", {}).get("fullName", "N/A")
+        overall_status = status_mod.get("overallStatus", "N/A")
+        enroll_count = design.get("enrollmentInfo", {}).get("count", "N/A")
+        print(f"STUDY:{nct_id}|{title[:80]}|{org}|{overall_status}|{enroll_count}")
+        for po in outcomes.get("primaryOutcomes", [])[:3]:
+            print(f"OUTCOME:{po.get('measure', 'N/A')}|{po.get('timeFrame', 'N/A')}")
+except Exception as e:
+    print(f"ERROR:{e}")
+PYEOF
+```
+
+### Clinical Evidence Analysis
+
+Present results showing study design patterns, typical enrollment, common endpoints, and relevance to the user's 510(k) submission.
+
+### Save Trial Results (--save)
+
+If `--save` is specified with `--project`, write results to `$PROJECTS_DIR/$PROJECT_NAME/clinical_trials.json`.
+
 ## Error Handling
 
 - **No product code**: ERROR with usage
 - **No search results**: Report "No literature found for {search terms}. Consider broadening search or running with --depth deep."
 - **WebSearch unavailable**: "Literature search requires web access. Run with internet connectivity."
+- **No clinical trials found**: "No clinical trials found. Try broader terms or check the device/condition name."

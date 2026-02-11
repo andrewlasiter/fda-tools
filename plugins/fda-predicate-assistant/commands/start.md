@@ -36,7 +36,101 @@ If `$FDA_PLUGIN_ROOT` is empty, report an error: "Could not locate the FDA Predi
 
 You are an interactive onboarding wizard that helps new and returning users get started with the FDA 510(k) pipeline. You detect existing project data, learn about the user's device, and recommend a personalized command sequence.
 
-## Step 1: Detect Existing Project Data
+## Step 1: Checking Data Source Connectivity
+
+Before gathering project information, verify that the external data sources this plugin depends on are reachable. Run a lightweight request against each endpoint and report the results.
+
+```bash
+python3 << 'PYEOF'
+import time, json, urllib.request, urllib.error
+
+ENDPOINTS = [
+    {
+        "name": "openFDA",
+        "command_ref": "device-clearances",
+        "url": "https://api.fda.gov/device/510k.json?limit=1",
+    },
+    {
+        "name": "ClinicalTrials.gov",
+        "command_ref": "clinical-trials",
+        "url": "https://clinicaltrials.gov/api/v2/studies?pageSize=1",
+    },
+    {
+        "name": "PubMed",
+        "command_ref": "literature",
+        "url": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=test&retmax=1",
+    },
+    {
+        "name": "AccessGUDID",
+        "command_ref": "device-ids",
+        "url": "https://accessgudid.nlm.nih.gov/api/v3/devices/lookup.json?di=test",
+    },
+]
+
+results = []
+for ep in ENDPOINTS:
+    start = time.time()
+    try:
+        req = urllib.request.Request(ep["url"], headers={"User-Agent": "FDA-Plugin/5.22.0"})
+        resp = urllib.request.urlopen(req, timeout=10)
+        elapsed = time.time() - start
+        code = resp.getcode()
+        # AccessGUDID returns 404 for the test DI but that still proves connectivity
+        if 200 <= code < 500:
+            results.append((ep["name"], ep["command_ref"], "connected", f"{elapsed*1000:.0f} ms (HTTP {code})"))
+        else:
+            results.append((ep["name"], ep["command_ref"], "unavailable", f"HTTP {code}"))
+    except urllib.error.HTTPError as e:
+        elapsed = time.time() - start
+        # 4xx responses (like 404 for AccessGUDID test query) still mean the server is reachable
+        if 400 <= e.code < 500:
+            results.append((ep["name"], ep["command_ref"], "connected", f"{elapsed*1000:.0f} ms (HTTP {e.code})"))
+        else:
+            results.append((ep["name"], ep["command_ref"], "unavailable", f"HTTP {e.code} — {e.reason}"))
+    except Exception as e:
+        elapsed = time.time() - start
+        results.append((ep["name"], ep["command_ref"], "unavailable", f"{type(e).__name__}: {e}"))
+
+any_unavailable = any(r[2] == "unavailable" for r in results)
+
+for name, ref, status, notes in results:
+    mark = "OK" if status == "connected" else "FAIL"
+    print(f"SOURCE:{name}|ref={ref}|status={mark}|notes={notes}")
+
+if any_unavailable:
+    print("HAS_UNAVAILABLE:True")
+else:
+    print("HAS_UNAVAILABLE:False")
+PYEOF
+```
+
+Display the results in a table:
+
+```
+## Checking Data Source Connectivity
+
+| Source | Status | Notes |
+|--------|--------|-------|
+| openFDA (~~device-clearances) | ✓ Connected / ✗ Unavailable | response time or error |
+| ClinicalTrials.gov (~~clinical-trials) | ✓ Connected / ✗ Unavailable | response time or error |
+| PubMed (~~literature) | ✓ Connected / ✗ Unavailable | response time or error |
+| AccessGUDID (~~device-ids) | ✓ Connected / ✗ Unavailable | response time or error |
+```
+
+- For each source where `status=OK`, display `✓ Connected` and include the response time from the `notes` field.
+- For each source where `status=FAIL`, display `✗ Unavailable` and include the error from the `notes` field.
+
+If any source is unavailable (`HAS_UNAVAILABLE:True`), append this note:
+
+> Some data sources are unreachable. Commands that depend on them will fall back gracefully. See [CONNECTORS.md](../CONNECTORS.md) for details on each data source.
+
+Finally, remind the user about MCP server configuration:
+
+> Check `.mcp.json` for configured MCP servers that extend this plugin's capabilities.
+
+---
+
+## Step 2: Detect Existing Project Data
 
 Scan for existing data to determine what the user already has:
 
@@ -91,7 +185,7 @@ PYEOF
 
 If existing projects are found, summarize their current stage. If this appears to be a first-time user (no settings, no projects), note that for the welcome message.
 
-## Step 2: Ask About Device Type
+## Step 3: Ask About Device Type
 
 Use AskUserQuestion to determine the device category:
 
@@ -105,7 +199,7 @@ Options:
 
 If user selects "Other", also ask follow-up about: reprocessed/reusable, combination product, or describe the device.
 
-## Step 3: Ask About Regulatory Stage
+## Step 4: Ask About Regulatory Stage
 
 Use AskUserQuestion:
 
@@ -117,9 +211,9 @@ Options:
 - **Analyzing predicates** — Have extraction data, need to review and score predicates
 - **Drafting submission** — Predicates accepted, working on 510(k) section drafts
 
-## Step 4: Stage Classification
+## Step 5: Stage Classification
 
-Combine the detection results from Step 1 with user answers from Steps 2-3 to determine the optimal starting point.
+Combine the detection results from Step 2 with user answers from Steps 3-4 to determine the optimal starting point.
 
 **Classification logic:**
 
@@ -134,7 +228,7 @@ Combine the detection results from Step 1 with user answers from Steps 2-3 to de
 | Drafting | Has review.json | Stage 4: Drafting |
 | Drafting | Has drafts | Stage 5: Assembly |
 
-## Step 5: Output Personalized Workflow
+## Step 6: Output Personalized Workflow
 
 Present the recommended command sequence using the standard FDA Professional CLI format:
 

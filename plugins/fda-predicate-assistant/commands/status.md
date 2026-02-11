@@ -1,6 +1,7 @@
 ---
-description: Show available FDA pipeline data, file freshness, script availability, and record counts
-allowed-tools: Bash, Read, Glob, Grep
+description: Show available FDA pipeline data, file freshness, script availability, record counts, and cached data manifests (also covers cache management and data gap analysis)
+allowed-tools: Bash, Read, Glob, Grep, Write
+argument-hint: "[--project NAME] [--cache] [--clear-cache] [--refresh-cache] [--gaps] [--years RANGE] [--product-codes CODES]"
 ---
 
 # FDA Pipeline Status
@@ -10,6 +11,8 @@ allowed-tools: Bash, Read, Glob, Grep
 > For external API dependencies and connection status, see [CONNECTORS.md](../CONNECTORS.md).
 
 You are reporting the current state of all FDA data across the pipeline. This answers: "What do I have to work with?"
+
+> **Consolidated command.** This command also covers functionality previously provided by separate cache management and gap analysis commands. Use `--cache` for cached data details, `--clear-cache` / `--refresh-cache` for cache operations, and `--gaps` for 3-way gap analysis of 510(k) data completeness.
 
 ## Resolve Plugin Root
 
@@ -438,6 +441,100 @@ FDA CORRESPONDENCE
   ⚠ Overdue items:
     #{id}: {summary} — {days} days past deadline
 ```
+
+## Cache Management (--cache, --clear-cache, --refresh-cache)
+
+When `--cache` is specified (optionally with `--project NAME`), show what FDA data has been cached for the project. This helps the user understand what data is available without re-querying APIs.
+
+### Show Cache Manifest
+
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_data_store.py" --project "$PROJECT_NAME" --show-manifest
+```
+
+Present the output:
+
+```
+CACHED DATA
+────────────────────────────────────────
+
+  Project: {name}
+  Last Updated: {date}
+
+  {For each CACHED entry:}
+  + {query_key} -- {compact_summary} ({time_ago})
+
+  {For each STALE entry:}
+  x {query_key} -- {compact_summary} ({time_ago}) [EXPIRED]
+
+  Cached: {N} queries | Stale: {N} queries
+```
+
+### Clear Cache (--clear-cache)
+
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_data_store.py" --project "$PROJECT_NAME" --clear
+```
+
+Report: "Cleared all cached data for project {name}. Next command runs will re-fetch from APIs."
+
+### Refresh Cache (--refresh-cache)
+
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_data_store.py" --project "$PROJECT_NAME" --refresh-all
+```
+
+Report: "Marked {N} entries as stale for project {name}. Data will be re-fetched on next use."
+
+## Data Gap Analysis (--gaps)
+
+When `--gaps` is specified, run a 3-way gap analysis cross-referencing:
+1. **FDA PMN database** (pmn96cur.txt / pmnlstmn.txt)
+2. **Existing extraction CSV** (output.csv)
+3. **Downloaded PDFs on disk**
+
+### Parse Gap Analysis Arguments
+
+From `$ARGUMENTS`, also check for:
+- `--years RANGE` -- Year filter (e.g., `2024,2025` or `2020-2025`)
+- `--product-codes CODES` -- Product code filter (e.g., `KGN,DXY`)
+- `--prefixes PREFIXES` -- K-number prefix override (e.g., `K24,K25,DEN`)
+
+### Locate PMN Database Files
+
+```bash
+python3 -c "
+import os, glob
+search_paths = [
+    os.path.expanduser('~/fda-510k-data'),
+    os.path.expanduser('~/fda-510k-data/extraction'),
+    os.getcwd(),
+]
+for base in search_paths:
+    for name in ['pmn96cur.txt', 'pmnlstmn.txt']:
+        path = os.path.join(base, name)
+        if os.path.exists(path):
+            size_mb = os.path.getsize(path) / 1024 / 1024
+            print(f'FOUND:{name}|{path}|{size_mb:.1f}MB')
+print('SEARCH_DONE')
+"
+```
+
+If no PMN files found, inform the user they can download them from FDA or run `/fda:extract stage1`.
+
+### Run Gap Analysis Script
+
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/gap_analysis.py" \
+  --years "$YEARS" \
+  --product-codes "$PRODUCT_CODES" \
+  --baseline "$BASELINE_CSV" \
+  --pdf-dir "$PDF_DIR" \
+  --output "$OUTPUT_MANIFEST" \
+  --pmn-files "$PMN_FILES"
+```
+
+Present results in the status output under a "GAP ANALYSIS" section showing PMN records matching filters, already extracted, needing download, etc.
 
 ## Recommendations
 

@@ -1,7 +1,7 @@
 ---
-description: Recommend the optimal FDA regulatory pathway (Traditional/Special/Abbreviated 510(k), De Novo, PMA) with algorithmic scoring
-allowed-tools: Bash, Read, Glob, Grep, WebSearch
-argument-hint: "<product-code> [--device-description TEXT] [--novel-features TEXT] [--project NAME]"
+description: Recommend the optimal FDA regulatory pathway with algorithmic scoring, and trace predicate lineage chains across generations of 510(k) clearances
+allowed-tools: Bash, Read, Glob, Grep, Write, WebSearch, WebFetch
+argument-hint: "<product-code> [--device-description TEXT] [--novel-features TEXT] [--project NAME] [--lineage --predicates K123456]"
 ---
 
 # FDA Regulatory Pathway Recommendation Engine
@@ -33,18 +33,24 @@ echo "FDA_PLUGIN_ROOT=$FDA_PLUGIN_ROOT"
 
 ---
 
-You are recommending the optimal FDA regulatory pathway for a medical device based on algorithmic scoring.
+You are recommending the optimal FDA regulatory pathway for a medical device based on algorithmic scoring, and optionally tracing predicate lineage chains.
+
+> **Consolidated command.** This command also covers predicate lineage tracing (use `--lineage`). Predicate chain analysis is a core part of pathway analysis -- understanding how predicate relationships propagate through device families reveals regulatory risk. The `fda-predicate-assessment` skill also auto-triggers for predicate-related queries.
 
 ## Parse Arguments
 
 From `$ARGUMENTS`, extract:
 
-- **Product code** (required) — 3-letter FDA product code
-- `--device-description TEXT` — Description of the device
-- `--novel-features TEXT` — Any novel technological features
-- `--project NAME` — Use existing project data to inform recommendation
-- `--own-predicate K123456` — If modifying your own previously cleared device
-- `--infer` — Auto-detect product code from project data
+- **Product code** (required for pathway recommendation) -- 3-letter FDA product code
+- `--device-description TEXT` -- Description of the device
+- `--novel-features TEXT` -- Any novel technological features
+- `--project NAME` -- Use existing project data to inform recommendation
+- `--own-predicate K123456` -- If modifying your own previously cleared device
+- `--infer` -- Auto-detect product code from project data
+- `--lineage` -- Trace predicate citation chains across generations of 510(k) clearances
+- `--predicates K123456[,K234567]` -- Starting predicate(s) to trace (used with `--lineage`)
+- `--generations N` -- How many generations back to trace (default: 3, max: 5, used with `--lineage`)
+- `--full-auto` -- No user prompts; all decisions deterministic
 
 If no product code and `--infer` active, use the same inference logic as other commands.
 
@@ -397,8 +403,72 @@ Where `$EXCLUSIONS_JSON` is a JSON object with each non-chosen pathway as key an
 }
 ```
 
+## Predicate Lineage Tracing (--lineage)
+
+When `--lineage` is specified, trace predicate citation chains across multiple generations of 510(k) clearances. This reveals how predicate relationships propagate through device families and identifies safety signals in the lineage.
+
+**KEY PRINCIPLE: No competitor platform does this well -- this is our unique differentiator.** Predicate networks are critical for understanding regulatory risk.
+
+### Lineage Arguments
+
+- `--predicates K123456[,K234567]` (required unless --infer) -- Starting predicate(s)
+- `--generations N` (default: 3) -- How many generations back (max 5)
+- `--product-code CODE` -- Filter lineage to same product code family
+- `--output FILE` -- Write lineage data to file (default: lineage.json in project folder)
+
+If `--infer` AND `--project`, check review.json for accepted predicates.
+
+### Build Generation 0 (Starting Devices)
+
+For each starting predicate, batch query openFDA for clearance data.
+
+### Trace Upstream (Ancestors)
+
+For each generation:
+1. **Method 1: PDF Text Extraction** -- Extract cited K-numbers from SE sections using 3-tier section detection from `references/section-patterns.md`
+2. **Method 2: openFDA Cross-Reference** -- Fallback for devices without PDF text
+3. **Method 3: Flat File Lookup** -- Check extraction output.csv
+
+### Check Safety Signals
+
+Batch recall check for all devices in the chain via openFDA recall API.
+
+### Score Chain Health (0-100)
+
+| Factor | Points | Criteria |
+|--------|--------|----------|
+| No recalled/withdrawn ancestors | 30 | -10 per recalled ancestor, -20 for Class I recall |
+| Product code consistency | 20 | All ancestors share same product code |
+| Chain depth available | 15 | Full chain traced (vs incomplete) |
+| Recency | 15 | Average ancestor age <10 years |
+| Clearance rate | 10 | No revoked/withdrawn ancestors |
+| Single-ancestor avoidance | 10 | Not a single-thread chain |
+
+**Interpretation:** 80-100 = Strong, 50-79 = Moderate, 0-49 = Weak chain.
+
+### Lineage Visualization
+
+Generate a text tree showing the predicate chain with recall status indicators:
+```
+K241335 (2024) -- Cervical Fusion Cage -- COMPANY A [CLEAN]
++-- K200123 (2020) -- Cervical Interbody -- COMPANY B [CLEAN]
+|   +-- K170456 (2017) -- Cervical Cage -- COMPANY C [RECALLED Class II]
++-- K190555 (2019) -- PEEK Cervical Cage -- COMPANY E [CLEAN]
+```
+
+### PMA Supplement Chain Tracing
+
+When P-numbers are encountered, trace their supplement chain via the openFDA PMA API and include in the visualization.
+
+### Write Lineage Output
+
+Write `lineage.json` to the project folder with nodes, edges, chain health score, and warnings.
+
 ## Error Handling
 
 - **No product code**: Ask the user, or use --infer logic
 - **API unavailable**: Score based on classification data from flat files (reduced accuracy)
 - **Novel device with no clearances**: Strongly recommend De Novo, suggest Pre-Sub meeting
+- **No predicates for lineage**: ERROR with usage example
+- **Incomplete chain**: Report what was found. Note: "Chain incomplete at generation N"
+- **Circular reference**: Detect and break cycles
