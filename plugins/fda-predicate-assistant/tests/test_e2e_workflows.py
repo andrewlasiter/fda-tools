@@ -196,7 +196,7 @@ class TestAgentCommandMapping:
     def test_all_commands_exist(self):
         """Every .md file in commands/ should be a real command."""
         cmd_files = [f for f in os.listdir(CMDS_DIR) if f.endswith(".md")]
-        assert len(cmd_files) == 42
+        assert len(cmd_files) == 43
 
     def test_research_agent_commands_exist(self):
         """Commands referenced by research-intelligence agent should exist."""

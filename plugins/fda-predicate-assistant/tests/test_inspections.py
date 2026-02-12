@@ -202,12 +202,12 @@ class TestPluginVersionAndCounts58:
     def test_command_count_is_41(self):
         """Verify 41 .md files in commands directory."""
         cmd_files = [f for f in os.listdir(CMDS_DIR) if f.endswith(".md")]
-        assert len(cmd_files) == 42, f"Expected 42 commands, found {len(cmd_files)}: {sorted(cmd_files)}"
+        assert len(cmd_files) == 43, f"Expected 43 commands, found {len(cmd_files)}: {sorted(cmd_files)}"
 
     def test_description_mentions_41_commands(self):
         with open(PLUGIN_JSON) as f:
             data = json.load(f)
-        assert "42 commands" in data["description"]
+        assert "43 commands" in data["description"]
 
     def test_inspections_command_exists(self):
         """Inspections feature is verified by command file existence."""

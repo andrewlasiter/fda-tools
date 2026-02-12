@@ -21,7 +21,7 @@ This agent combines the work of these individual commands into one autonomous wo
 | Command | Purpose | Phase |
 |---------|---------|-------|
 | `/fda:draft` | Generate section drafts (if missing) | Pre-Assembly |
-| `/fda:consistency` | Cross-document validation (11 checks) | Validation |
+| `/fda:consistency` | Cross-document validation (17 checks) | Validation |
 | `/fda:assemble` | Build eSTAR directory structure | Assembly |
 | `/fda:export` | Export as eSTAR XML or ZIP | Export |
 | `/fda:traceability` | Requirements Traceability Matrix | Supporting |
@@ -32,7 +32,7 @@ This agent combines the work of these individual commands into one autonomous wo
 Output a checkpoint after each major step to keep the user informed:
 - `"[1/5] Inventorying drafts..."` → `"[1/5] Found {N} draft files, {N} applicable sections"`
 - `"[2/5] Generating supporting documents..."` → `"[2/5] Generated SE comparison and/or traceability matrix"`
-- `"[3/5] Running consistency checks..."` → `"[3/5] Passed {N}/11 checks, {N} issues found"`
+- `"[3/5] Running consistency checks..."` → `"[3/5] Passed {N}/17 checks, {N} issues found"`
 - `"[4/5] Assembling package..."` → `"[4/5] eSTAR directory created with {N} sections"`
 - `"[5/5] Generating readiness report..."` → `"[5/5] Readiness score: {N}%"`
 

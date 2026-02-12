@@ -228,7 +228,7 @@ See the **Workflow Guide** section above for the full 5-stage workflow. Here's t
 - `/fda:trials --device TERM` — ClinicalTrials.gov device study search
 - `/fda:warnings --query TERM` — FDA warning letters and enforcement
 
-## Available Commands (42)
+## Available Commands (43)
 
 ### Stage 1: Setup
 | Command | Purpose |
@@ -295,6 +295,7 @@ See the **Workflow Guide** section above for the full 5-stage workflow. Here's t
 | `/fda:pipeline` | Run the full 7-step pipeline autonomously |
 | `/fda:audit` | View the decision audit trail — filter by command, action, date, subject; full exclusion rationale |
 | `/fda:summarize` | Compare sections across 510(k) summary PDFs |
+| `/fda:example` | Full E2E exercise of all plugin commands — generates a complete example project from a random or specified 510(k) clearance |
 
 ## Agents (7)
 

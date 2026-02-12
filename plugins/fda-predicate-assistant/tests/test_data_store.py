@@ -1222,7 +1222,7 @@ class TestVersionAssertions:
         if os.path.exists(plugin_json):
             with open(plugin_json) as f:
                 data = json.load(f)
-            assert "42 commands" in data["description"]
+            assert "43 commands" in data["description"]
 
 
 # ============================================================
@@ -1240,7 +1240,7 @@ class TestCommandCount:
         if os.path.exists(skill_md):
             with open(skill_md) as f:
                 content = f.read()
-            assert "## Available Commands (42)" in content
+            assert "## Available Commands (43)" in content
 
     def test_cache_command_listed(self):
         skill_md = os.path.join(

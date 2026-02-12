@@ -689,7 +689,7 @@ class TestPluginMetadata(unittest.TestCase):
         path = os.path.join(self.PLUGIN_ROOT, ".claude-plugin", "plugin.json")
         with open(path) as f:
             data = json.load(f)
-        self.assertIn("42 commands", data["description"])
+        self.assertIn("43 commands", data["description"])
 
     def test_skill_md_has_audit_command(self):
         path = os.path.join(self.PLUGIN_ROOT, "skills", "fda-510k-knowledge", "SKILL.md")
@@ -701,7 +701,7 @@ class TestPluginMetadata(unittest.TestCase):
         path = os.path.join(self.PLUGIN_ROOT, "skills", "fda-510k-knowledge", "SKILL.md")
         with open(path) as f:
             content = f.read()
-        self.assertIn("Commands (42)", content)
+        self.assertIn("Commands (43)", content)
 
     def test_skill_md_reference_count(self):
         path = os.path.join(self.PLUGIN_ROOT, "skills", "fda-510k-knowledge", "SKILL.md")

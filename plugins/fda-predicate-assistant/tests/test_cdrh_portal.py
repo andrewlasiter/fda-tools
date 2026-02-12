@@ -195,7 +195,7 @@ class TestSKILLMDUpdates:
         assert "42 references" in self.content
 
     def test_command_count_40(self):
-        assert "Commands (42)" in self.content or "42 commands" in self.content
+        assert "Commands (43)" in self.content or "43 commands" in self.content
 
 
 class TestVersionBump:

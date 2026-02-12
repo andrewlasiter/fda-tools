@@ -184,28 +184,28 @@ class TestConsistencyCheckAlignment:
         with open(os.path.join(AGENTS_DIR, 'submission-assembler.md')) as f:
             return f.read()
 
-    def test_consistency_has_11_checks(self, consistency_content):
-        """consistency.md must define 11 checks."""
+    def test_consistency_has_17_checks(self, consistency_content):
+        """consistency.md must define 17 checks."""
         checks = re.findall(r'### Check (\d+):', consistency_content)
-        assert len(checks) == 11, f"Expected 11 checks, found {len(checks)}: {checks}"
+        assert len(checks) == 17, f"Expected 17 checks, found {len(checks)}: {checks}"
 
     def test_check_11_is_section_map(self, consistency_content):
         """Check 11 must be eSTAR Section Map Alignment."""
         assert 'Check 11: eSTAR Section Map Alignment' in consistency_content
 
-    def test_assembler_says_11_checks(self, assembler_content):
-        """Assembler must reference 11 consistency checks."""
-        assert '11 checks' in assembler_content or '11 consistency checks' in assembler_content
+    def test_assembler_says_17_checks(self, assembler_content):
+        """Assembler must reference 17 consistency checks."""
+        assert '17 checks' in assembler_content or '17 consistency checks' in assembler_content
 
     def test_assembler_progress_matches(self, assembler_content):
         """Assembler progress checkpoint must reference correct check count."""
-        assert 'Passed {N}/11 checks' in assembler_content
+        assert 'Passed {N}/17 checks' in assembler_content
 
-    def test_consistency_report_has_11_rows(self, consistency_content):
-        """Report template must show 11 check rows."""
+    def test_consistency_report_has_17_rows(self, consistency_content):
+        """Report template must show 17 check rows."""
         # Count rows in the results table that have numbered checks
         table_rows = re.findall(r'\|\s*\d+\s*\|', consistency_content)
-        assert len(table_rows) >= 11, f"Expected 11+ table rows, found {len(table_rows)}"
+        assert len(table_rows) >= 17, f"Expected 17+ table rows, found {len(table_rows)}"
 
     def test_check_11_has_section_map_entries(self, consistency_content):
         """Check 11 must list draft-to-section mappings."""

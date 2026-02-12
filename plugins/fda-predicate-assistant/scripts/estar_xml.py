@@ -619,7 +619,8 @@ def extract_from_file(file_path, output_dir=None):
 def generate_xml(project_dir, template_type="nIVD", output_file=None, fmt="real"):
     """Generate eSTAR-compatible XML from project data for import into official template.
 
-    Reads review.json, draft_*.md, query.json, and import_data.json to produce XML.
+    Reads device_profile.json, review.json, draft_*.md, query.json, and import_data.json
+    to produce XML. Falls back through multiple data sources for each field.
 
     Args:
         project_dir: Path to the project directory.
@@ -654,6 +655,12 @@ def generate_xml(project_dir, template_type="nIVD", output_file=None, fmt="real"
         with open(review_file) as f:
             project_data["review"] = json.load(f)
 
+    # Read device_profile.json (from seed generator or manual creation)
+    profile_file = project_dir / "device_profile.json"
+    if profile_file.exists():
+        with open(profile_file) as f:
+            project_data["profile"] = json.load(f)
+
     # Read import_data.json (from previous import)
     import_file = project_dir / "import_data.json"
     if import_file.exists():
@@ -666,6 +673,11 @@ def generate_xml(project_dir, template_type="nIVD", output_file=None, fmt="real"
         section_name = draft_file.stem.replace("draft_", "")
         drafts[section_name] = draft_file.read_text(encoding="utf-8", errors="replace")
     project_data["drafts"] = drafts
+
+    # Auto-detect template type if set to "auto"
+    if template_type == "auto":
+        template_type = _detect_template_from_data(project_data)
+        print(f"Auto-detected template type: {template_type}")
 
     # Build XML
     if fmt == "legacy":
@@ -699,6 +711,47 @@ def generate_xml(project_dir, template_type="nIVD", output_file=None, fmt="real"
     return str(out_path)
 
 
+def _detect_template_from_data(project_data):
+    """Auto-detect appropriate eSTAR template type from project data.
+
+    IVD product codes use FDA 4078 (IVD eSTAR).
+    All other 510(k) devices use FDA 4062 (nIVD eSTAR).
+    PreSTAR is only used for Pre-Submission meetings (not auto-detected here).
+    """
+    # IVD review panels: immunology, microbiology, chemistry, hematology, toxicology, pathology
+    IVD_PANELS = {"IM", "MI", "CH", "HE", "TX", "PA"}
+
+    profile = project_data.get("profile", {})
+    import_data = project_data.get("import", {})
+    query = project_data.get("query", {})
+    classification = import_data.get("classification", {})
+
+    panel = (
+        classification.get("review_panel")
+        or profile.get("review_panel")
+        or ""
+    ).upper()
+
+    if panel in IVD_PANELS:
+        return "IVD"
+
+    # IVD regulation numbers are typically in 21 CFR 862-864
+    reg_num = (
+        classification.get("regulation_number")
+        or profile.get("regulation_number")
+        or ""
+    )
+    if reg_num:
+        try:
+            reg_prefix = int(str(reg_num).split(".")[0])
+            if 862 <= reg_prefix <= 864:
+                return "IVD"
+        except (ValueError, IndexError):
+            pass
+
+    return "nIVD"
+
+
 def _build_estar_xml(project_data, template_type):
     """Build real eSTAR-format XFA XML matching actual FDA template field paths."""
 
@@ -711,8 +764,14 @@ def _build_estar_xml(project_data, template_type):
 
 
 def _collect_project_values(project_data):
-    """Collect all field values from project data sources into a flat dict."""
+    """Collect all field values from project data sources into a flat dict.
+
+    Data priority: import_data > device_profile > query > review > drafts
+    This ensures eSTAR fields get populated whether data comes from an import,
+    a seed generator (device_profile.json), or manual drafts.
+    """
     import_data = project_data.get("import", {})
+    profile = project_data.get("profile", {})
     query = project_data.get("query", {})
     review = project_data.get("review", {})
     drafts = project_data.get("drafts", {})
@@ -720,6 +779,7 @@ def _collect_project_values(project_data):
     applicant = import_data.get("applicant", {})
     ifu = import_data.get("indications_for_use", {})
     sections = import_data.get("sections", {})
+    profile_sections = profile.get("extracted_sections", {})
 
     def get_val(key, *sources):
         for source in sources:
@@ -729,13 +789,13 @@ def _collect_project_values(project_data):
                     return val
         return ""
 
-    # Get product code (may be a list)
-    pc = get_val("product_code", classification, query)
+    # Get product code (may be a list) — try import, profile, query
+    pc = get_val("product_code", classification, profile, query)
     if isinstance(pc, list):
         pc = pc[0] if pc else ""
     pc = str(pc)
 
-    # Get predicates
+    # Get predicates from import or review
     predicates = import_data.get("predicates", [])
     if not predicates and review:
         for kn, info in review.get("predicates", {}).items():
@@ -746,8 +806,31 @@ def _collect_project_values(project_data):
                     "manufacturer": info.get("applicant", ""),
                 })
 
+    # Device trade name: import > profile > query > review
+    trade_name = get_val("device_trade_name", classification)
+    if not trade_name:
+        trade_name = get_val("trade_name", profile)
+    if not trade_name:
+        trade_name = get_val("device_name", profile, query, review)
+
+    # IFU: import > profile > query > review
+    ifu_text = get_val("indications_for_use", ifu)
+    if not ifu_text:
+        ifu_text = get_val("intended_use", profile, query, review)
+
+    # Device description: import sections > profile > profile extracted
+    desc_text = get_val("device_description_text", sections)
+    if not desc_text:
+        desc_text = get_val("device_description", profile)
+    if not desc_text:
+        desc_text = profile_sections.get("device_description", "")
+
+    # Materials from profile
+    materials_list = profile.get("materials", [])
+    materials_text = ", ".join(materials_list) if materials_list else ""
+
     return {
-        "applicant_name": get_val("applicant_name", applicant),
+        "applicant_name": get_val("applicant_name", applicant) or get_val("applicant", profile),
         "contact_first_name": get_val("contact_first_name", applicant),
         "contact_last_name": get_val("contact_last_name", applicant),
         "contact_name": get_val("contact_name", applicant),
@@ -758,26 +841,26 @@ def _collect_project_values(project_data):
         "address_state": get_val("address_state", applicant),
         "address_zip": get_val("address_zip", applicant),
         "address": get_val("address", applicant),
-        "device_trade_name": get_val("device_trade_name", classification),
-        "device_common_name": get_val("device_common_name", classification),
+        "device_trade_name": trade_name,
+        "device_common_name": get_val("device_common_name", classification) or get_val("classification_device_name", profile),
         "device_model": get_val("device_model", classification),
         "product_code": pc,
-        "regulation_number": get_val("regulation_number", classification),
-        "device_class": get_val("device_class", classification),
-        "review_panel": get_val("review_panel", classification),
+        "regulation_number": get_val("regulation_number", classification, profile),
+        "device_class": get_val("device_class", classification, profile),
+        "review_panel": get_val("review_panel", classification, profile),
         "submission_type": get_val("submission_type", classification),
-        "indications_for_use": get_val("indications_for_use", ifu),
+        "indications_for_use": ifu_text,
         "prescription_otc": get_val("prescription_otc", ifu),
-        "sterilization_method": get_val("sterilization_method", sections),
+        "sterilization_method": get_val("sterilization_method", sections, profile),
         "shelf_life_claim": get_val("shelf_life_claim", sections),
         "software_doc_level": get_val("software_doc_level", sections),
         "biocompat_contact_type": get_val("biocompat_contact_type", sections),
         "biocompat_contact_duration": get_val("biocompat_contact_duration", sections),
-        "biocompat_materials": get_val("biocompat_materials", sections),
-        "device_description_text": get_val("device_description_text", sections),
+        "biocompat_materials": get_val("biocompat_materials", sections) or materials_text,
+        "device_description_text": desc_text,
         "principle_of_operation": get_val("principle_of_operation", sections),
-        "se_discussion_text": get_val("se_discussion_text", sections),
-        "performance_summary": get_val("performance_summary", sections),
+        "se_discussion_text": get_val("se_discussion_text", sections) or profile_sections.get("technological_characteristics", ""),
+        "performance_summary": get_val("performance_summary", sections) or profile_sections.get("performance", ""),
         # Drafts
         "draft_device_description": drafts.get("device-description", ""),
         "draft_se_discussion": drafts.get("se-discussion", ""),
@@ -787,9 +870,9 @@ def _collect_project_values(project_data):
         "draft_financial_cert": drafts.get("financial-certification", ""),
         "draft_labeling": drafts.get("labeling", ""),
         "draft_software": drafts.get("software", ""),
-        "draft_sterilization": drafts.get("sterilization", ""),
+        "draft_sterilization": drafts.get("sterilization", "") or get_val("sterilization_text", profile),
         "draft_shelf_life": drafts.get("shelf-life", ""),
-        "draft_biocompatibility": drafts.get("biocompatibility", ""),
+        "draft_biocompatibility": drafts.get("biocompatibility", "") or profile_sections.get("biocompatibility", ""),
         "draft_emc": drafts.get("emc-electrical", ""),
         "draft_clinical": drafts.get("clinical", ""),
         "draft_doc": drafts.get("doc", ""),

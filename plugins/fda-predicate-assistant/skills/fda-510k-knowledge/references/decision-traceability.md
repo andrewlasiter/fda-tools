@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The FDA Predicate Assistant plugin makes autonomous decisions across 42 commands and 7 agents. This document describes the zero-trust audit trail that ensures every decision is independently verifiable by regulatory counsel, quality teams, and FDA reviewers.
+The FDA Predicate Assistant plugin makes autonomous decisions across 43 commands and 7 agents. This document describes the zero-trust audit trail that ensures every decision is independently verifiable by regulatory counsel, quality teams, and FDA reviewers.
 
 ## Why Zero-Trust Traceability
 
