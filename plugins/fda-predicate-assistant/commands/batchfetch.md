@@ -974,14 +974,15 @@ print("")
 # Enrich using module (includes progress reporting)
 enriched_rows, api_log = enricher.enrich_device_batch(device_rows)
 
-print(f"\n✓ Core enrichment complete! Generating Phase 1+2 reports...")
+print(f"\n✓ Core enrichment complete! Generating Phase 1, 2 & 3 reports...")
 print("")
 
 # ====================================================================
-# PHASE 1 & 2: REPORT GENERATION (with disclaimers)
+# PHASE 1, 2 & 3: REPORT GENERATION (with disclaimers)
 # ====================================================================
-# Note: These functions could be extracted to a separate reports module
-# in the future, but for now they remain here to minimize changes
+# Phase 1: Data integrity (quality, metadata, regulatory context)
+# Phase 2: Intelligence (clinical requirements, predicate acceptability)
+# Phase 3: Advanced analytics (MAUDE peer comparison, competitive intelligence)
 # ====================================================================
 
 def calculate_enrichment_completeness_score(row, api_log):
@@ -1357,6 +1358,301 @@ For detailed analysis, see:
 
     print(f"✓ Intelligence report: {report_path}")
 
+def generate_competitive_intelligence(project_dir, enriched_rows):
+    """
+    Phase 3 Feature 2: Competitive Intelligence Report
+
+    Generate market analysis report for each product code:
+    - Market concentration (Herfindahl-Hirschman Index)
+    - Top manufacturers by clearance count
+    - Technology trend detection (keyword YoY analysis)
+    - Gold standard predicates (most-cited devices)
+    """
+    from collections import Counter, defaultdict
+    from datetime import datetime, timedelta
+
+    # Group devices by product code
+    product_codes = {}
+    for row in enriched_rows:
+        pc = row.get('PRODUCTCODE', 'UNKNOWN')
+        if pc not in product_codes:
+            product_codes[pc] = []
+        product_codes[pc].append(row)
+
+    # Generate report for each product code
+    for product_code, devices in product_codes.items():
+        report_path = os.path.join(project_dir, f'competitive_intelligence_{product_code}.md')
+
+        # Query 510k API for all devices in this product code (last 5 years)
+        five_years_ago = (datetime.now() - timedelta(days=5*365)).strftime('%Y%m%d')
+
+        params = {
+            'search': f'product_code:{product_code} AND decision_date:[{five_years_ago} TO 20991231]',
+            'limit': 1000
+        }
+
+        market_data = api_query('device/510k.json', params)
+
+        if not market_data or 'results' not in market_data:
+            print(f"⚠ Could not fetch market data for {product_code}")
+            continue
+
+        all_devices = market_data['results']
+        total_clearances = len(all_devices)
+
+        # Add disclaimer header
+        report = get_markdown_header_disclaimer(f"Competitive Intelligence - {product_code}")
+
+        report += f"""
+# Competitive Intelligence Report
+## Product Code: {product_code}
+
+**Analysis Period:** Last 5 years ({five_years_ago[:4]}-present)
+**Total Clearances:** {total_clearances} devices
+**Data Source:** openFDA device/510k API
+**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M UTC')}
+
+---
+
+## Market Concentration Analysis
+
+"""
+
+        # Calculate market concentration (Herfindahl-Hirschman Index)
+        # HHI = sum of squared market shares (0-10000 scale)
+        # HHI < 1500: Competitive market
+        # HHI 1500-2500: Moderate concentration
+        # HHI > 2500: Highly concentrated
+
+        manufacturer_counts = Counter()
+        for device in all_devices:
+            applicant = device.get('applicant', 'Unknown')
+            manufacturer_counts[applicant] += 1
+
+        # Calculate HHI
+        hhi = 0
+        market_shares = []
+        for count in manufacturer_counts.values():
+            share = (count / total_clearances) * 100
+            market_shares.append(share)
+            hhi += share ** 2
+
+        # Classify market concentration
+        if hhi < 1500:
+            concentration_level = "COMPETITIVE"
+            concentration_note = "Low concentration - many players competing"
+        elif hhi < 2500:
+            concentration_level = "MODERATELY CONCENTRATED"
+            concentration_note = "Moderate concentration - several dominant players"
+        else:
+            concentration_level = "HIGHLY CONCENTRATED"
+            concentration_note = "High concentration - market dominated by few players"
+
+        report += f"""
+**Herfindahl-Hirschman Index (HHI):** {hhi:.0f}
+**Market Concentration:** {concentration_level}
+**Interpretation:** {concentration_note}
+
+### Market Share Distribution
+
+| Metric | Value |
+|--------|-------|
+| Total Manufacturers | {len(manufacturer_counts)} |
+| Top 4 Market Share (CR4) | {sum(sorted(market_shares, reverse=True)[:4]):.1f}% |
+| Top 8 Market Share (CR8) | {sum(sorted(market_shares, reverse=True)[:8]):.1f}% |
+| Median Clearances per Manufacturer | {sorted(manufacturer_counts.values())[len(manufacturer_counts)//2]} |
+
+---
+
+## Top Manufacturers
+
+"""
+
+        # Top 10 manufacturers
+        report += "| Rank | Manufacturer | Clearances | Market Share |\n"
+        report += "|------|-------------|------------|-------------|\n"
+
+        for i, (manufacturer, count) in enumerate(manufacturer_counts.most_common(10), 1):
+            share = (count / total_clearances) * 100
+            report += f"| {i} | {manufacturer[:50]} | {count} | {share:.1f}% |\n"
+
+        report += "\n---\n\n## Technology Trend Analysis\n\n"
+
+        # Keyword frequency analysis by year
+        # Extract keywords from device names and decision descriptions
+        current_year = datetime.now().year
+        yearly_keywords = defaultdict(lambda: Counter())
+
+        for device in all_devices:
+            decision_date = device.get('decision_date', '')
+            if decision_date and len(decision_date) >= 4:
+                year = int(decision_date[:4])
+
+                # Extract keywords from device name
+                device_name = device.get('device_name', '').lower()
+                # Common technology keywords
+                tech_keywords = ['wireless', 'connected', 'ai', 'machine learning', 'digital',
+                                'smart', 'robotic', 'laser', 'ultrasound', 'mri', 'ct',
+                                'disposable', 'reusable', 'implant', 'catheter', 'sensor',
+                                'software', 'algorithm', 'cloud', 'mobile', 'bluetooth']
+
+                for keyword in tech_keywords:
+                    if keyword in device_name:
+                        yearly_keywords[year][keyword] += 1
+
+        # Calculate year-over-year trends (last 3 years)
+        if yearly_keywords:
+            report += "**Emerging Technology Trends (Keywords YoY):**\n\n"
+            report += "| Keyword | "
+            years = sorted(yearly_keywords.keys(), reverse=True)[:3]
+            for year in years:
+                report += f"{year} | "
+            report += "Trend |\n"
+
+            report += "|---------|"
+            for _ in years:
+                report += "------|"
+            report += "-------|\n"
+
+            # Get all keywords that appeared in recent years
+            all_keywords = set()
+            for year in years:
+                all_keywords.update(yearly_keywords[year].keys())
+
+            # Sort by total occurrences across years
+            keyword_totals = {}
+            for kw in all_keywords:
+                keyword_totals[kw] = sum(yearly_keywords[year][kw] for year in years)
+
+            for keyword, _ in sorted(keyword_totals.items(), key=lambda x: x[1], reverse=True)[:15]:
+                counts = [yearly_keywords[year][keyword] for year in years]
+
+                # Calculate trend (simple: compare latest to earliest)
+                if len(counts) >= 2 and counts[-1] > 0:
+                    growth = ((counts[0] - counts[-1]) / counts[-1]) * 100
+                    if growth > 20:
+                        trend = f"↗ +{growth:.0f}%"
+                    elif growth < -20:
+                        trend = f"↘ {growth:.0f}%"
+                    else:
+                        trend = "→ Stable"
+                else:
+                    trend = "—"
+
+                report += f"| {keyword} | "
+                for count in counts:
+                    report += f"{count} | "
+                report += f"{trend} |\n"
+        else:
+            report += "No technology trend data available.\n"
+
+        report += "\n---\n\n## Gold Standard Predicates\n\n"
+
+        # Find most-cited devices (devices that appear as predicates in many submissions)
+        # Extract predicates from statement field
+        predicate_citations = Counter()
+
+        for device in all_devices:
+            statement = device.get('statement', '') or ''
+            # Look for K-numbers in statement (K-numbers follow pattern KXXXXXX)
+            import re
+            k_numbers = re.findall(r'K\d{6}', statement.upper())
+            for k_num in k_numbers:
+                predicate_citations[k_num] += 1
+
+        if predicate_citations:
+            report += """
+**Most-Cited Predicates** (Industry gold standards):
+
+These devices are frequently used as predicates, suggesting strong market acceptance and regulatory precedent.
+
+| Rank | K-Number | Citations | Interpretation |
+|------|----------|-----------|----------------|
+"""
+
+            for i, (k_number, citations) in enumerate(predicate_citations.most_common(15), 1):
+                if citations >= 5:
+                    strength = "Strong gold standard"
+                elif citations >= 3:
+                    strength = "Established predicate"
+                else:
+                    strength = "Referenced predicate"
+
+                report += f"| {i} | {k_number} | {citations} | {strength} |\n"
+        else:
+            report += "No predicate citation data available from this dataset.\n"
+
+        report += """
+
+---
+
+## Strategic Recommendations
+
+Based on this competitive intelligence:
+
+"""
+
+        # Generate strategic recommendations
+        if concentration_level == "COMPETITIVE":
+            report += """
+### Market Entry Strategy
+- **Opportunity:** Competitive market with many players suggests room for innovation
+- **Risk:** High competition may require stronger differentiation
+- **Recommendation:** Focus on unique value proposition, target underserved segments
+
+"""
+        elif concentration_level == "HIGHLY CONCENTRATED":
+            report += """
+### Market Entry Strategy
+- **Opportunity:** Concentrated market may have innovation gaps
+- **Risk:** Dominant players have established relationships and market power
+- **Recommendation:** Consider niche positioning, partnerships, or De Novo pathway if truly novel
+
+"""
+
+        # Top manufacturer insights
+        top_manufacturer = manufacturer_counts.most_common(1)[0]
+        report += f"""
+### Competitive Positioning
+- **Market Leader:** {top_manufacturer[0]} ({top_manufacturer[1]} clearances, {(top_manufacturer[1]/total_clearances)*100:.1f}% share)
+- **Recommendation:** Study their cleared devices for predicate selection and competitive differentiation
+
+"""
+
+        # Technology trends
+        if yearly_keywords:
+            top_trends = sorted(keyword_totals.items(), key=lambda x: x[1], reverse=True)[:3]
+            if top_trends:
+                report += f"""
+### Technology Focus Areas
+- **Dominant Technologies:** {', '.join([kw for kw, _ in top_trends])}
+- **Recommendation:** Align technology strategy with emerging trends or differentiate by addressing gaps
+
+"""
+
+        report += """
+---
+
+**End of Competitive Intelligence Report**
+
+**Next Steps:**
+1. Review gold standard predicates for SE comparison
+2. Analyze top competitors' cleared devices for positioning
+3. Monitor technology trends for innovation opportunities
+4. Use HHI data for market sizing and forecasting
+
+**Related Reports:**
+- `intelligence_report.md` - Phase 2 clinical and acceptability analysis
+- `regulatory_context.md` - CFR citations and guidance
+- `quality_report.md` - Data completeness metrics
+
+"""
+
+        with open(report_path, 'w') as f:
+            f.write(report)
+
+        print(f"✓ Competitive intelligence ({product_code}): {report_path}")
+
 # ====================================================================
 # GENERATE REPORTS
 # ====================================================================
@@ -1365,6 +1661,7 @@ generate_enrichment_process_report(PROJECT_DIR, enriched_rows, api_log)
 write_enrichment_metadata(PROJECT_DIR, enriched_rows, api_log)
 generate_regulatory_context(PROJECT_DIR, enriched_rows)
 generate_intelligence_report(PROJECT_DIR, enriched_rows)
+generate_competitive_intelligence(PROJECT_DIR, enriched_rows)
 
 # ====================================================================
 # WRITE ENRICHED CSV WITH DISCLAIMERS
@@ -1508,7 +1805,7 @@ print(f"✓ HTML report (with disclaimers): {report_path}")
 # FINAL SUMMARY
 # ====================================================================
 
-print(f"\n✓ Enrichment complete! Added 29 columns (12 core + 6 Phase 1 + 11 Phase 2)")
+print(f"\n✓ Enrichment complete! Added 34 columns (12 core + 6 Phase 1 + 7 Phase 2 + 2 CFR + 7 Phase 3)")
 print(f"")
 print(f"  Core Enrichment Columns (12):")
 print(f"  - maude_productcode_5y (⚠️  PRODUCT CODE level, not device-specific)")
@@ -1568,6 +1865,7 @@ print(f"    • enrichment_report.html (visual dashboard with disclaimers)")
 print(f"    • quality_report.md (Phase 1 data quality)")
 print(f"    • regulatory_context.md (CFR citations and guidance)")
 print(f"    • intelligence_report.md (Phase 2 strategic insights)")
+print(f"    • competitive_intelligence_{{PRODUCT_CODE}}.md (Phase 3 market analysis)")
 print(f"    • enrichment_metadata.json (full provenance)")
 print(f"")
 print(f"All enriched data is traceable, validated, regulation-linked, and strategically analyzed.")
@@ -1579,7 +1877,7 @@ EXIT_CODE=$?
 if [ $EXIT_CODE -eq 0 ]; then
     echo ""
     echo "✓ API enrichment complete (Phase 1, 2 & 3)!"
-    echo "  - Added 16 enrichment columns to CSV"
+    echo "  - Added 34 enrichment columns to CSV (12 core + 6 Phase 1 + 7 Phase 2 + 2 CFR + 7 Phase 3)"
     echo "  - Phase 1: Data integrity (6 columns)"
     echo "  - Phase 2: Intelligence layer (7 columns)"
     echo "  - Phase 3: Advanced analytics (7 columns)"
