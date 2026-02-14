@@ -1,12 +1,13 @@
 """
-FDA API Enrichment Module - Phase 1 & 2
-=======================================
+FDA API Enrichment Module - Phase 1, 2 & 3
+==========================================
 
 Production implementation of FDA 510(k) data enrichment with:
 - Phase 1: Data Integrity (provenance, quality scoring, regulatory context)
 - Phase 2: Intelligence Layer (clinical data detection, standards guidance, predicate assessment)
+- Phase 3: Advanced Analytics (MAUDE peer comparison, competitive intelligence)
 
-Version: 2.0.1 (Production Ready)
+Version: 3.0.0 (Phase 3 Release 1)
 Date: 2026-02-13
 
 IMPORTANT: This module provides enrichment data for research and intelligence purposes.
@@ -145,7 +146,7 @@ class FDAEnrichment:
         enriched_device = enricher.enrich_single_device(device_row, api_log)
     """
 
-    def __init__(self, api_key: Optional[str] = None, api_version: str = "2.0.1"):
+    def __init__(self, api_key: Optional[str] = None, api_version: str = "3.0.0"):
         """
         Initialize FDA enrichment system.
 
@@ -527,6 +528,159 @@ class FDAEnrichment:
             'assessment_basis': 'FDA SE Guidance (2014) + recall history + clearance age'
         }
 
+    def analyze_maude_peer_comparison(self, product_code: str, device_maude_count: int,
+                                      device_name: str = '') -> Dict[str, Any]:
+        """
+        Phase 3 Feature 1: MAUDE Peer Comparison
+
+        Compare device's MAUDE event count against peer distribution in same product code.
+        Uses statistical percentiles to classify device as EXCELLENT, GOOD, AVERAGE,
+        CONCERNING, or EXTREME_OUTLIER.
+
+        Args:
+            product_code: FDA product code (e.g., 'DQY', 'OVE')
+            device_maude_count: This device's MAUDE event count (from Phase 1)
+            device_name: Optional device name for brand fallback
+
+        Returns:
+            Dict with 7 new columns:
+                - peer_cohort_size: Number of peer devices analyzed
+                - peer_median_events: Median MAUDE count across peers
+                - peer_75th_percentile: 75th percentile threshold
+                - peer_90th_percentile: 90th percentile threshold
+                - device_percentile: This device's percentile rank (0-100)
+                - maude_classification: EXCELLENT/GOOD/AVERAGE/CONCERNING/EXTREME_OUTLIER
+                - peer_comparison_note: Interpretation text
+        """
+        import statistics
+
+        # Default response for unavailable/sparse data
+        default_response = {
+            'peer_cohort_size': 0,
+            'peer_median_events': 'N/A',
+            'peer_75th_percentile': 'N/A',
+            'peer_90th_percentile': 'N/A',
+            'device_percentile': 'N/A',
+            'maude_classification': 'INSUFFICIENT_DATA',
+            'peer_comparison_note': 'Insufficient peer data for comparison (cohort size < 10)'
+        }
+
+        # Query MAUDE for all devices in product code (aggregate product code level)
+        # Note: MAUDE data is at product code level, not K-number level
+        # We'll use decision_date from 510k API to get peer devices
+        try:
+            # Get peer devices from 510k API (last 5 years for statistical validity)
+            from datetime import datetime, timedelta
+            five_years_ago = (datetime.now() - timedelta(days=1825)).strftime('%Y%m%d')
+
+            params = {
+                'search': f'product_code:{product_code} AND decision_date:[{five_years_ago} TO 20991231]',
+                'limit': 1000  # Get up to 1000 peers for robust statistics
+            }
+
+            peer_data = self.api_query('device/510k.json', params)
+
+            if not peer_data or 'results' not in peer_data:
+                return default_response
+
+            peer_devices = peer_data['results']
+
+            if len(peer_devices) < 10:  # Require minimum 10 peers for statistical validity
+                default_response['peer_cohort_size'] = len(peer_devices)
+                default_response['peer_comparison_note'] = f'Cohort too small ({len(peer_devices)} devices) for reliable statistics'
+                return default_response
+
+            # Extract MAUDE counts for each peer
+            # Challenge: MAUDE is product-code level, not K-number level
+            # Solution: Use brand name fallback hierarchy
+            peer_maude_counts = []
+
+            for peer in peer_devices:
+                # Attempt 1: Query by K-number (often returns 0 due to indexing gaps)
+                k_num = peer.get('k_number', '')
+                maude_k = self.get_maude_events_by_product_code(k_num)  # Will return 0 if not indexed
+
+                # Attempt 2: If K-number query returns 0 and we have brand name, try brand query
+                if maude_k.get('maude_productcode_5y', 0) == 0:
+                    brand_name = peer.get('device_name', '')
+                    if brand_name:
+                        # Query MAUDE by brand name (more likely to match)
+                        brand_params = {
+                            'search': f'product_code:{product_code} AND brand_name:"{brand_name}"',
+                            'count': 'product_code'
+                        }
+                        brand_maude = self.api_query('device/event.json', brand_params)
+                        if brand_maude and 'results' in brand_maude:
+                            peer_maude_counts.append(brand_maude['results'][0].get('count', 0))
+                        else:
+                            peer_maude_counts.append(0)
+                    else:
+                        peer_maude_counts.append(0)
+                else:
+                    peer_maude_counts.append(maude_k.get('maude_productcode_5y', 0))
+
+            # Calculate statistical distribution
+            if len(peer_maude_counts) < 10:
+                return default_response
+
+            # Remove zeros for more meaningful statistics (devices with no events skew distribution)
+            non_zero_counts = [c for c in peer_maude_counts if c > 0]
+
+            if len(non_zero_counts) < 5:  # Need at least 5 non-zero for percentiles
+                return default_response
+
+            sorted_counts = sorted(non_zero_counts)
+
+            # Calculate percentiles
+            median = statistics.median(sorted_counts)
+            percentile_75 = statistics.quantiles(sorted_counts, n=4)[2]  # 75th percentile
+            percentile_90 = statistics.quantiles(sorted_counts, n=10)[8]  # 90th percentile
+            percentile_25 = statistics.quantiles(sorted_counts, n=4)[0]  # 25th percentile
+
+            # Calculate this device's percentile rank
+            if device_maude_count == 0:
+                device_pct = 0
+                classification = 'EXCELLENT'
+                note = 'Zero adverse events reported (best possible outcome)'
+            else:
+                # Count how many peers have fewer events than this device
+                devices_below = sum(1 for c in sorted_counts if c < device_maude_count)
+                device_pct = round((devices_below / len(sorted_counts)) * 100, 1)
+
+                # Classify based on percentile
+                if device_pct < 25:
+                    classification = 'EXCELLENT'
+                    note = f'Significantly below median ({device_maude_count} vs {median:.0f} median events)'
+                elif device_pct < 50:
+                    classification = 'GOOD'
+                    note = f'Below median ({device_maude_count} vs {median:.0f} median events)'
+                elif device_pct < 75:
+                    classification = 'AVERAGE'
+                    note = f'Near median ({device_maude_count} vs {median:.0f} median events)'
+                elif device_pct < 90:
+                    classification = 'CONCERNING'
+                    note = f'Above 75th percentile ({device_maude_count} vs {percentile_75:.0f} P75) - review severity'
+                else:
+                    classification = 'EXTREME_OUTLIER'
+                    note = f'Above 90th percentile ({device_maude_count} vs {percentile_90:.0f} P90) - DO NOT USE as predicate'
+
+            return {
+                'peer_cohort_size': len(sorted_counts),
+                'peer_median_events': round(median, 1),
+                'peer_75th_percentile': round(percentile_75, 1),
+                'peer_90th_percentile': round(percentile_90, 1),
+                'device_percentile': device_pct,
+                'maude_classification': classification,
+                'peer_comparison_note': note
+            }
+
+        except Exception as e:
+            # Graceful degradation on error
+            return {
+                **default_response,
+                'peer_comparison_note': f'Error during peer analysis: {str(e)[:100]}'
+            }
+
     def enrich_single_device(self, device_row: Dict[str, Any], api_log: List[Dict]) -> Dict[str, Any]:
         """
         Enrich a single device row with Phase 1 & 2 data.
@@ -575,6 +729,29 @@ class FDAEnrichment:
             clearance_date
         )
         enriched.update(acceptability_data)
+
+        # Phase 3: Advanced Analytics
+        # Feature 1: MAUDE Peer Comparison
+        device_maude_count = maude_data.get('maude_productcode_5y', 0)
+        if isinstance(device_maude_count, int) and device_maude_count >= 0:
+            peer_comparison = self.analyze_maude_peer_comparison(
+                product_code,
+                device_maude_count,
+                device_row.get('DEVICENAME', '')
+            )
+            enriched.update(peer_comparison)
+            api_log.append({'query': f'MAUDE_Peer:{product_code}', 'success': peer_comparison.get('peer_cohort_size', 0) >= 10})
+        else:
+            # No MAUDE data available - add default columns
+            enriched.update({
+                'peer_cohort_size': 0,
+                'peer_median_events': 'N/A',
+                'peer_75th_percentile': 'N/A',
+                'peer_90th_percentile': 'N/A',
+                'device_percentile': 'N/A',
+                'maude_classification': 'NO_MAUDE_DATA',
+                'peer_comparison_note': 'No MAUDE data available for this device'
+            })
 
         # Add device-specific CFR citations (Fix #3: Critical Expert Review Finding)
         device_cfr = get_device_specific_cfr(product_code)

@@ -960,7 +960,7 @@ print("━" * 60)
 print("")
 
 # Initialize enricher
-enricher = FDAEnrichment(api_key=API_KEY, api_version="2.0.1")
+enricher = FDAEnrichment(api_key=API_KEY, api_version="3.0.0")
 
 # Read base CSV data
 print(f"📂 Loading device data from {CSV_PATH}...")
@@ -1546,10 +1546,19 @@ print(f"  - Use /fda:test-plan command for comprehensive standards analysis")
 print(f"  - Automated standards detection not implemented (complexity: 10-50+ standards per device)")
 print(f"  - Refer to FDA Recognized Consensus Standards Database")
 print(f"")
-print(f"  Device-Specific CFR Citations (2 new columns):")
+print(f"  Device-Specific CFR Citations (2 columns):")
 print(f"  - regulation_number (e.g., '21 CFR 870.1340')")
 print(f"  - device_classification (e.g., 'Percutaneous Catheter')")
 print(f"  - Note: {len([r for r in enriched_rows if r.get('regulation_number', '') != 'VERIFY_MANUALLY'])} devices mapped to CFR parts")
+print(f"")
+print(f"  Phase 3: Advanced Analytics (7 columns):")
+print(f"  - peer_cohort_size (number of peer devices analyzed)")
+print(f"  - peer_median_events (median MAUDE events across peers)")
+print(f"  - peer_75th_percentile (75th percentile threshold)")
+print(f"  - peer_90th_percentile (90th percentile threshold)")
+print(f"  - device_percentile (this device's rank, 0-100)")
+print(f"  - maude_classification (EXCELLENT/GOOD/AVERAGE/CONCERNING/EXTREME_OUTLIER)")
+print(f"  - peer_comparison_note (interpretation)")
 print(f"")
 print(f"✓ Devices with recalls: {recalled_count}/{len(enriched_rows)}")
 print(f"")
@@ -1569,8 +1578,12 @@ EXIT_CODE=$?
 
 if [ $EXIT_CODE -eq 0 ]; then
     echo ""
-    echo "✓ API enrichment complete!"
-    echo "  - Added 11 intelligence columns to CSV"
+    echo "✓ API enrichment complete (Phase 1, 2 & 3)!"
+    echo "  - Added 16 enrichment columns to CSV"
+    echo "  - Phase 1: Data integrity (6 columns)"
+    echo "  - Phase 2: Intelligence layer (7 columns)"
+    echo "  - Phase 3: Advanced analytics (7 columns)"
+    echo "  - Device-specific CFR (2 columns)"
     echo "  - Risk dashboard: risk_analysis.html"
 else
     echo ""
