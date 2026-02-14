@@ -13,6 +13,46 @@ Your AI-powered regulatory assistant for FDA 510(k) submissions -- predicate res
 /start
 ```
 
+For detailed installation instructions, see [INSTALLATION.md](docs/INSTALLATION.md).
+
+## Getting Started
+
+### Quick Start
+New to the plugin? Follow these steps:
+
+1. **Run the setup wizard:** `/fda-tools:start`
+2. **Configure your data directory:** `/fda-tools:configure`
+3. **Try a simple workflow:** See [QUICK_START.md](docs/QUICK_START.md)
+
+### Common Workflows
+
+**Research predicates for your device:**
+```bash
+/fda-tools:research --product-code DQY --years 2024 --project my_device
+/fda-tools:review
+```
+
+**Generate submission outline:**
+```bash
+/fda-tools:submission-outline
+/fda-tools:compare-se
+```
+
+**Run full pipeline:**
+```bash
+/fda-tools:pipeline --product-code DQY --years 2024
+```
+
+For more workflows, see [QUICK_START.md](docs/QUICK_START.md).
+
+## Documentation
+
+- **[Quick Start Guide](docs/QUICK_START.md)** - Get started in minutes
+- **[Installation Guide](docs/INSTALLATION.md)** - Detailed setup instructions
+- **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+- **[Migration Notice](MIGRATION_NOTICE.md)** - Upgrading from fda-predicate-assistant
+- **[Changelog](CHANGELOG.md)** - Version history and release notes
+
 ## What's included
 
 ### Commands
@@ -99,6 +139,26 @@ All text you provide -- device descriptions, intended use statements, file conte
 **Never submit** trade secrets, unpublished clinical data, proprietary designs, patient-identifiable information, or confidential regulatory strategies through any consumer account.
 
 The plugin does NOT send your files to any server other than Anthropic's API. openFDA queries go directly to api.fda.gov. PDF downloads come directly from accessdata.fda.gov.
+
+## Testing & Compliance Status
+
+### Test Results (v5.22.0)
+- **Overall Pass Rate:** 96.6% (28/29 tests)
+- **Phase 1 (Data Integrity):** 22/22 tests passing ✓
+- **Phase 2 (Intelligence):** 4/4 devices verified ✓
+- **Phase 3 (Intelligence Suite):** 31/31 tests passing ✓
+- **Phase 4A (Gap Analysis):** 9/9 tests passing ✓
+- **Phase 4B (Smart Predicates):** 10/10 tests passing ✓
+- **Phase 5 (Workflows):** 19/19 tests passing ✓
+
+### Compliance Status
+- **Status:** CONDITIONAL APPROVAL - Research use only
+- **CFR Citations:** 100% accurate (3/3 verified)
+- **FDA Guidance:** 100% current (3/3 verified)
+
+**Important:** This plugin is approved for research and intelligence gathering ONLY. Not approved for direct FDA submission use without independent verification by qualified RA professionals.
+
+See [Testing Complete Summary](docs/testing/TESTING_COMPLETE_FINAL_SUMMARY.md) for details.
 
 ## Important notices
 

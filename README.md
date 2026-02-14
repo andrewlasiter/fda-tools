@@ -1,4 +1,4 @@
-![Version](https://img.shields.io/badge/version-5.8.0-blue)
+![Version](https://img.shields.io/badge/version-5.22.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Commands](https://img.shields.io/badge/commands-42-orange)
 ![Agents](https://img.shields.io/badge/agents-4-purple)
