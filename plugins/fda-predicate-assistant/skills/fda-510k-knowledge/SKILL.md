@@ -23,12 +23,14 @@ This project uses a two-stage pipeline for FDA 510(k) predicate analysis:
   - Full interactive: All 7 filter layers with AI recommendations
   - `--full-auto`: Skip all questions, use CLI args only
 - **Features:** Embedded reference data, preview with confirmation, project-based organization, query.json metadata
-- **Optional Enrichment:** `--enrich` flag adds 12 columns of real FDA API data (MAUDE events, recalls, validation)
+- **Optional Enrichment:** `--enrich` flag adds 18 columns of real FDA API data with Phase 1 data integrity features
 - **Best for:** Exploratory research, first-time users, complex filtering, collaborative workflows
 
 **API Enrichment (Optional `--enrich` flag):**
 - **Requires:** Free openFDA API key (120K requests/day, sign up at https://open.fda.gov/apis/authentication/)
-- **Adds 12 columns (all real FDA data):**
+- **Adds 18 columns (12 core + 6 Phase 1 data integrity):**
+
+  **Core Enrichment (12 columns):**
   - `maude_productcode_5y` — MAUDE events (⚠️ product code level, not device-specific)
   - `maude_trending` — Event trend (increasing/decreasing/stable)
   - `maude_recent_6m` — Events in last 6 months
@@ -41,9 +43,24 @@ This project uses a two-stage pipeline for FDA 510(k) predicate analysis:
   - `decision_description` — Clearance decision type
   - `expedited_review_flag` — Expedited review status (Y/N)
   - `summary_type` — Public document type (Summary/Statement)
-- **Generates:** `enrichment_report.html` with recall analysis and data limitations
+
+  **Phase 1: Data Integrity (6 columns):**
+  - `enrichment_timestamp` — ISO 8601 timestamp of data fetch
+  - `api_version` — openFDA API version (v2.1)
+  - `data_confidence` — HIGH/MEDIUM/LOW based on completeness
+  - `enrichment_quality_score` — 0-100 quality score (completeness, API success, freshness, validation)
+  - `cfr_citations` — Comma-separated CFR parts (21 CFR 803, 7, 807)
+  - `guidance_refs` — Count of applicable FDA guidance documents
+
+- **Generates 4 files:**
+  - `enrichment_report.html` — Recall analysis dashboard with data limitations
+  - `quality_report.md` — Quality scoring (0-100), validation summary, confidence distribution
+  - `enrichment_metadata.json` — Full provenance tracking (source API, timestamp, confidence per field)
+  - `regulatory_context.md` — CFR citations, guidance references, proper use guidelines
+
 - **Time savings:** ~3-4 hours per competitive analysis (automated recall/validation checks)
-- **Data integrity:** Conservative design—only real FDA data, no calculated fields, clear disclaimers
+- **Data integrity:** Every data point traceable to source with timestamp; automated quality validation; CFR/guidance linkage for regulatory compliance
+- **RA Professional Features:** Meets stringent RA requirements for data provenance, quality validation, and regulatory citation
 
 **CLI Script (For automation and scripted workflows):**
 - **Script:** `$FDA_PLUGIN_ROOT/scripts/batchfetch.py`
@@ -52,11 +69,15 @@ This project uses a two-stage pipeline for FDA 510(k) predicate analysis:
 - **Best for:** Repeatable workflows, CI/CD pipelines, batch processing, automation
 
 **Common Outputs (both approaches):**
-  - `510k_download.csv` — Full metadata (24 cols base, 36 cols with --enrich)
+  - `510k_download.csv` — Full metadata (24 cols base, 42 cols with --enrich including Phase 1)
   - `Applicant_ProductCode_Tables.xlsx` — Analytics workbook (3 sheets)
   - `merged_data.csv` — K-number + up to 6 predicates (7 cols)
   - `query.json` — Filter metadata and results summary (command only)
-  - `enrichment_report.html` — Recall analysis dashboard (with --enrich only)
+  - **With `--enrich` flag (Phase 1 Data Integrity):**
+    - `enrichment_report.html` — Recall analysis dashboard with data limitations
+    - `quality_report.md` — Quality scoring and validation summary
+    - `enrichment_metadata.json` — Complete provenance tracking
+    - `regulatory_context.md` — CFR citations and guidance references
   - Downloaded PDFs in: `DOWNLOAD_DIR/YEAR/APPLICANT/PRODUCTCODE/TYPE/`
 
 ### Stage 2: PredicateExtraction

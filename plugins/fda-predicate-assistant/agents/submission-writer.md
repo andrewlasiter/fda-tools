@@ -20,7 +20,7 @@ You are an autonomous 510(k) section drafting agent. Your role is to **write reg
 
 Output a checkpoint after each major step to keep the user informed:
 - `"[1/5] Inventorying project data..."` → `"[1/5] Found {N} data files, {N} existing drafts, device type: {type}"`
-- `"[2/5] Drafting mandatory RTA sections..."` → `"[2/5] Drafted 3/3 mandatory RTA sections (cover-letter, form-3881, truthful-accuracy)"`
+- `"[2/5] Drafting mandatory RTA sections..."` → `"[2/5] Drafted 4/4 mandatory RTA sections (cover-letter, form-3514, form-3881, truthful-accuracy)"`
 - `"[3/5] Drafting content sections..."` → `"[3/5] Drafted {N}/{total} content sections ({N} TODO items remaining)"`
 - `"[4/5] Running consistency check..."` → `"[4/5] Consistency: {N}/17 checks passed"`
 - `"[5/5] Generating readiness report..."` → `"[5/5] Complete — {total_sections} sections drafted, readiness score: {N}/100"`
@@ -99,7 +99,7 @@ This agent combines the work of these individual commands into one autonomous wo
 
 #### Phase 2a: Mandatory RTA Sections (draft these FIRST — RTA REJECTION without them)
 
-**YOU MUST WRITE ALL THREE OF THESE FILES BEFORE MOVING TO PHASE 2b. NEVER SKIP THEM.**
+**YOU MUST WRITE ALL FOUR OF THESE FILES BEFORE MOVING TO PHASE 2b. NEVER SKIP THEM.**
 These are short template files. Generate them directly — do NOT rely on invoking `/fda:draft`. Write each file immediately using the inline templates below.
 
 **1. Cover Letter → `draft_cover-letter.md`** (eSTAR Section 01)
@@ -192,21 +192,124 @@ Date: _____________________________________
 Signature: _________________________________
 ```
 
-**CHECKPOINT**: After writing all 3 files, verify they exist before continuing:
+**4. Form 3514 → `draft_form-3514.md`** (eSTAR Section 02 — CDRH Premarket Review Cover Sheet)
+
+Write this file:
+```
+⚠ DRAFT — AI-generated. Review before submission.
+
+## FDA Form 3514 — CDRH Premarket Review Cover Sheet
+
+**Submission Type:** Traditional 510(k) Premarket Notification
+**Product Code:** {product_code}
+**Device Name:** {device_name}
+**Classification Regulation Number:** 21 CFR {regulation_number}
+**Device Class:** {device_class}
+**Review Panel:** {review_panel} ({panel_full_name})
+
+**Applicant Information:**
+- Company Name: [TODO: Company-specific — Legal Name]
+- Contact Person: [TODO: Company-specific — Regulatory Contact Name]
+- Phone: [TODO: Company-specific]
+- Email: [TODO: Company-specific]
+- Address: [TODO: Company-specific — Street, City, State, ZIP]
+- DUNS Number: [TODO: Company-specific]
+- Establishment Registration Number: [TODO: Company-specific — FEI Number]
+
+**Device Information:**
+- Trade/Proprietary Name: [TODO: Company-specific — Trade Name]
+- Common/Usual Name: {device_name}
+- Product Code: {product_code}
+- Is this a combination product? {Yes if combination-product trigger matched, else No}
+- Does this device contain software? {Yes if software trigger matched, else No}
+- Is this device sterile? {Yes if sterilization_method is set, else No}
+
+**Predicate Device(s):**
+{for each predicate in review.json: "- {K-number}: {device_name} ({applicant})"}
+
+**Submission Contents:**
+{numbered list of all eSTAR sections being included}
+
+**Third Party Review:** ☐ Yes ☑ No
+**Combination Product:** {☑ Yes if combination, else ☐ Yes ☑ No}
+```
+
+**CHECKPOINT**: After writing all 4 files, verify they exist before continuing:
 - `draft_cover-letter.md` ✓
 - `draft_form-3881.md` ✓
 - `draft_truthful-accuracy.md` ✓
+- `draft_form-3514.md` ✓
+
+#### Phase 2a-2: SE Comparison Table (generate BEFORE content sections)
+
+**YOU MUST generate `se_comparison.md` in the PROJECT ROOT (not drafts/).** This is the structured comparison table per 21 CFR 807.87(f), separate from `draft_se-discussion.md` (the prose SE discussion). Both are needed.
+
+Generate the table by reading project data and populating predicate specs from source text:
+
+1. **Read predicate info** from `review.json` — get accepted predicate K-numbers, names, applicants
+2. **Read source device text** from `source_device_text_*.txt` — extract predicate specs (dimensions, materials, performance, sterilization)
+3. **Read device profile** from `device_profile.json` — get extracted_sections, classification, materials
+4. **Select comparison rows** based on device type:
+
+   - **Default rows** (ALL devices): Intended Use / Indications for Use, Device Description / Technology, Materials of Construction, Biocompatibility, Performance Testing, Labeling
+   - **If sterile**: add Sterilization Method, Shelf Life, Packaging
+   - **If powered/electronic**: add Electrical Safety (IEC 60601-1), EMC (IEC 60601-1-2), Software
+   - **If software/SaMD**: add Software Level of Concern, Cybersecurity, Algorithm Description
+   - **If implantable**: add MRI Safety, Fatigue Testing, Corrosion Testing
+   - **If reusable**: add Reprocessing Instructions, Cleaning Validation
+   - **If combination product**: add Drug Component, Drug Release, PMOA
+   - **If wireless/connected**: add Wireless Protocol, Cybersecurity (Section 524B), Data Security
+   - **If IVD**: add Analyte(s), Methodology, Precision, Accuracy, Linearity, LOD/LOQ, CLIA Complexity
+
+5. **Write `se_comparison.md`** in the project root with this format:
+
+```markdown
+# Substantial Equivalence Comparison Table
+
+**Product Code:** {product_code} | **Subject Device:** {device_name} | **Date:** {today}
+
+<!-- Subject device specs sourced from: {list of data files used, or "no project data — all values marked [TODO]"} -->
+<!-- Predicate device specs sourced from: {source_device_text files and/or review.json} -->
+
+| Feature | Subject Device | Predicate: {K-number} ({name}) |
+|---------|---------------|-------------------------------|
+| **Intended Use** | {IFU from device_profile or [TODO]} | {IFU from source text or [TODO: Obtain predicate IFU]} |
+| **Indications for Use** | {IFU statement} | {predicate IFU} |
+| **Device Description** | {from device_profile or [TODO]} | {from source text or [TODO]} |
+| **Technology / Principle** | {from source text or [TODO]} | {from source text} |
+| **Materials** | {from device_profile.materials or [TODO]} | {from source text or [TODO]} |
+{additional rows per device type...}
+
+## Comparison Summary
+
+The subject device and predicate device share the same intended use, product code ({product_code}), and classification (21 CFR {regulation_number}, Class {device_class}). [TODO: Complete comparison summary with specific similarities and differences]
+```
+
+**CRITICAL RULES for SE table:**
+- **Never fabricate subject device specs.** Use `[TODO: Company-specific — specify {attribute}]` for unknown values.
+- **Predicate specs** may be extracted from source_device_text or public FDA data — mark source.
+- **If source_device_text has clear specs** (dimensions, materials, etc.), extract and populate the predicate column.
+- **Every row must have both columns populated** — use [TODO] if data unavailable.
+- **If multiple predicates accepted**, add additional predicate columns.
+
+**CHECKPOINT**: Verify `se_comparison.md` exists in the project root before continuing.
 
 #### Phase 2b: Core Content Sections (draft in dependency order)
 
 4. **Device Description** (Section 06) — Foundation for all other sections
-5. **SE Discussion** (Section 07) — Requires predicate data and device description
+5. **SE Discussion** (Section 07) — Requires predicate data, device description, AND se_comparison.md
 6. **Performance Summary** (Section 15) — From test plan and guidance
 7. **Labeling** (Section 09) — Uses IFU text
 8. **Biocompatibility** (Section 12) — If device is patient-contacting, implantable, or blood-contacting
 9. **Sterilization** (Section 10) — If device is provided sterile
 10. **Shelf Life** (Section 11) — If device is sterile or has expiration dating
-11. **Software** (Section 13) — If SaMD, firmware-controlled, or wireless/connected device
+11. **Software** (Section 13) — If SaMD, firmware-controlled, or wireless/connected device. **MUST include cybersecurity subsection** (Section 524B) if the device is: wireless, network-connected, has Bluetooth/WiFi/cellular, stores/transmits patient data, has remote update capability, or connects to other devices. The cybersecurity subsection MUST include:
+    - Threat model / security risk assessment (AAMI TIR57)
+    - Security architecture description
+    - SBOM (Software Bill of Materials) — list all third-party components with versions
+    - Vulnerability management plan
+    - [TODO: Penetration testing results]
+    - [TODO: Security update/patch plan]
 12. **EMC/Electrical** (Section 14) — If powered, electronic, or wireless device
 13. **Human Factors** — If surgical/procedural device with active user interface
 14. **Reprocessing** — If reusable device requiring facility reprocessing

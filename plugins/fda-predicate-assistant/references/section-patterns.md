@@ -124,6 +124,201 @@ Case-insensitive regex patterns. Apply to each line or heading candidate.
 (?i)(?:label(?:ing)?\s+(?:requirements?|review)|instructions?\s+for\s+use|package\s+(?:insert|label)|iso\s*15223|udi|unique\s+device\s+identif|user\s+manual)
 ```
 
+### Regulatory / Submission History
+
+```regex
+(?i)(?:regulatory\s+(?:history|status|classification|pathway)|510\s*\(\s*k\s*\)\s+(?:submission|clearance|number)|special\s+510\s*\(\s*k\s*\)|abbreviated\s+510\s*\(\s*k\s*\)|third[- ]?party\s+review|de\s+novo\s+(?:classification|pathway)|pre[- ]?market\s+(?:notification|approval)|pma\s+(?:submission|approval)|classification\s+name|product\s+code|regulation\s+number|advisory\s+committee|review\s+panel|clearance\s+date|decision\s+(?:date|summary)|predicate\s+history)
+```
+
+**Variations:**
+- "Regulatory Pathway and Classification"
+- "510(k) Submission Type"
+- "Third-Party Review Status"
+- "Historical 510(k) Submissions"
+- "Regulatory Status"
+
+### Reprocessing (for reusable devices)
+
+```regex
+(?i)(?:reprocessing\s+(?:instructions?|validation|procedures?)|cleaning\s+(?:validation|instructions?|procedures?)|disinfection\s+(?:validation|protocol)|validated\s+cleaning\s+cycle|reusable\s+device|multi[- ]?use\s+device|sterilization\s+cycle|cleaning\s+efficacy|residual\s+(?:contamination|soil)|worst[- ]?case\s+soil|protein\s+residue|microbial\s+burden|cleaning\s+agent|automated\s+(?:washer|disinfector)|manual\s+cleaning|ultrasonic\s+cleaning)
+```
+
+**Variations:**
+- "Cleaning and Disinfection"
+- "Validated Reprocessing Procedures"
+- "Device Reuse Instructions"
+- "Sterilization and Reprocessing"
+- "Cleaning Validation Summary"
+
+### Packaging (for sterile devices)
+
+```regex
+(?i)(?:packaging\s+(?:design|validation|materials|testing)|primary\s+packaging|secondary\s+packaging|protective\s+packaging|package\s+(?:seal\s+)?integrity|astm\s*(?:f88|f1929|f2096)|peel\s+(?:strength|testing|test)|transit\s+(?:simulation|testing)|ista\s+(?:1a|2a|3a)|distribution\s+simulation|package\s+seal|barrier\s+(?:properties|material)|sterile\s+barrier\s+system|tyvek|foil\s+pouch)
+```
+
+**Variations:**
+- "Primary and Secondary Packaging"
+- "Package Integrity Testing"
+- "Sterile Barrier System"
+- "Packaging Validation"
+- "Transit and Distribution Testing"
+
+### Materials (detailed characterization)
+
+```regex
+(?i)(?:materials?\s+(?:of\s+construction|characterization|composition|specification)|raw\s+materials?|material\s+(?:safety|biocompatibility)|chemical\s+composition|material\s+(?:properties|testing)|polymer\s+characterization|metal\s+alloys?|surface\s+(?:finish|treatment|coating)|material\s+identification|certificate\s+of\s+analysis|material\s+supplier|peek|titanium|cobalt[- ]?chrome|stainless\s+steel|nitinol|silicone|polyurethane|pvc|pet\s+(?:polymer)?|polycarbonate|collagen|gelatin)
+```
+
+**Variations:**
+- "Materials of Construction and Composition"
+- "Raw Material Specifications"
+- "Material Characterization Report"
+- "Chemical and Physical Properties"
+- "Material Safety Assessment"
+
+### Environmental / Transportation Testing
+
+```regex
+(?i)(?:environmental\s+(?:testing|conditioning|simulation)|temperature\s+(?:cycling|shock|range)|humidity\s+(?:testing|conditioning)|altitude\s+(?:testing|simulation)|vibration\s+(?:testing|test)|shock\s+(?:testing|test)|drop\s+(?:testing|test)|transit\s+simulation|ista\s+(?:testing|standard)|mil[- ]?std|shipping\s+(?:validation|testing)|storage\s+conditions?|temperature\s+range|operating\s+conditions?|environmental\s+limits)
+```
+
+**Variations:**
+- "Environmental and Transportation Testing"
+- "Storage and Shipping Validation"
+- "Temperature and Humidity Limits"
+- "Distribution Simulation Testing"
+- "Environmental Conditioning"
+
+### Mechanical Testing (device-type specific)
+
+```regex
+(?i)(?:mechanical\s+(?:testing|properties|characterization|performance)|tensile\s+(?:strength|testing|test)|compression\s+(?:strength|testing|test)|flexural\s+(?:strength|testing|modulus)|torsion(?:al)?\s+(?:strength|testing|test)|fatigue\s+(?:testing|life|cycles)|wear\s+(?:testing|resistance)|burst\s+(?:pressure|test)|leak\s+(?:testing|test)|pressure\s+(?:testing|test)|flow\s+(?:rate|testing)|force\s+(?:measurement|testing)|dimensional\s+(?:verification|tolerances)|structural\s+integrity|mechanical\s+durability)
+```
+
+**Variations:**
+- "Mechanical and Structural Testing"
+- "Strength and Durability Testing"
+- "Mechanical Performance Characterization"
+- "Physical Testing Summary"
+- "Mechanical Properties"
+
+### Functional Testing (device operation)
+
+```regex
+(?i)(?:functional\s+(?:testing|validation|performance|verification)|operational\s+(?:testing|qualification)|performance\s+verification|functional\s+performance|device\s+function(?:ality)?|operation(?:al)?\s+testing|user\s+function|clinical\s+function|functional\s+requirements?|performance\s+specification|acceptance\s+testing|product\s+performance\s+testing)
+```
+
+**Variations:**
+- "Functional Performance Testing"
+- "Operational Qualification"
+- "Device Functionality Verification"
+- "Performance Specifications"
+- "Functional Requirements Testing"
+
+### Accelerated Aging / Real-Time Aging
+
+```regex
+(?i)(?:accelerated\s+ag(?:e|ing)|real[- ]?time\s+ag(?:e|ing)|aging\s+(?:protocol|study|validation)|astm\s*f1980|shelf[- ]?life\s+(?:validation|study|testing)|expiration\s+dat(?:e|ing)|aging\s+factor|q10\s+(?:factor|value)|aging\s+(?:temperature|time)|aged\s+(?:samples?|units?)|end[- ]?of[- ]?life\s+testing|package\s+aging)
+```
+
+**Variations:**
+- "Accelerated Aging Study"
+- "Real-Time Aging Protocol"
+- "Shelf Life Validation Summary"
+- "Aging Study Results"
+- "Package Integrity After Aging"
+
+### Antimicrobial / Drug Efficacy (for drug-device combinations)
+
+```regex
+(?i)(?:antimicrobial\s+(?:efficacy|testing|effectiveness|activity)|zone\s+of\s+inhibition|mic|mbc|minimum\s+inhibitory\s+concentration|minimum\s+bactericidal\s+concentration|aatcc\s+100|iso\s*20743|jis\s*z\s*2801|log\s+reduction|bacteriostatic|bactericidal|drug\s+(?:release|elution|content|dosing|stability)|pharmaceutical\s+testing|active\s+(?:ingredient|pharmaceutical)|drug\s+product\s+(?:testing|characterization)|antimicrobial\s+agent)
+```
+
+**Variations:**
+- "Antimicrobial Effectiveness Testing"
+- "Drug Release Characterization"
+- "Antimicrobial Activity Assessment"
+- "Drug Content and Stability"
+- "Pharmaceutical Testing Summary"
+
+### Electromagnetic Compatibility (detailed EMC/EMI)
+
+```regex
+(?i)(?:electromagnetic\s+(?:compatibility|interference|emissions?|immunity|disturbance)|emc\s+(?:testing|test)|emi\s+(?:testing|test)|iec\s*60601[- ]?1[- ]?2|wireless\s+(?:coexistence|performance|connectivity)|rf\s+(?:emissions?|immunity|testing|test|performance)|radiated\s+(?:emissions?|immunity)|conducted\s+(?:emissions?|immunity)|harmonic\s+(?:emissions?|current)|flicker|electrostatic\s+discharge|esd\s+(?:testing|test)|surge\s+(?:immunity|test)|burst\s+(?:immunity|test))
+```
+
+**Variations:**
+- "Electromagnetic Compatibility Testing"
+- "EMC/EMI Test Results"
+- "Wireless Coexistence Validation"
+- "RF Emissions and Immunity"
+- "IEC 60601-1-2 Compliance"
+
+### MRI Safety / Compatibility
+
+```regex
+(?i)(?:mri\s+(?:safety|compatibility|conditional|conditional\s+safe|safe|unsafe)|magnetic\s+resonance\s+(?:imaging|environment)|astm\s*f2503|astm\s*f2119|astm\s*f2182|magnetically\s+induced\s+(?:displacement|torque|force)|rf[- ]?induced\s+heating|image\s+artifact|gradient\s+field|static\s+(?:magnetic\s+)?field|3\s*[tT]|1\.5\s*[tT]|whole[- ]?body\s+sar|specific\s+absorption\s+rate)
+```
+
+**Variations:**
+- "MRI Conditional Safety"
+- "Magnetic Resonance Compatibility"
+- "MRI Safety Assessment"
+- "MRI Artifact Testing"
+- "RF-Induced Heating"
+
+### Animal Testing (pre-clinical)
+
+```regex
+(?i)(?:animal\s+(?:testing|study|studies|model|trial)|pre[- ]?clinical\s+(?:testing|study|studies|trial|evaluation)|in\s+vivo\s+(?:testing|study|studies|evaluation|performance)|ovine\s+(?:model|study)|porcine\s+(?:model|study)|canine\s+(?:model|study)|rodent\s+(?:model|study)|rabbit\s+(?:study|model)|cadaver\s+(?:study|testing)|animal\s+care\s+and\s+use\s+committee|iacuc|survival\s+study|acute\s+study|chronic\s+(?:implant|study)|histopathology|necropsy)
+```
+
+**Variations:**
+- "Pre-Clinical Animal Studies"
+- "In Vivo Testing Results"
+- "Animal Model Evaluation"
+- "Animal Study Summary"
+- "Histopathology and Necropsy"
+
+### Literature Review / Clinical Literature
+
+```regex
+(?i)(?:literature\s+(?:review|search|summary|analysis|evaluation|evidence)|published\s+(?:data|studies|literature|evidence)|peer[- ]?reviewed\s+(?:publications?|articles?|studies)|scientific\s+literature|clinical\s+literature|pubmed\s+search|systematic\s+review|meta[- ]?analysis|evidence[- ]?based|post[- ]?market\s+(?:data|literature|surveillance)|real[- ]?world\s+evidence|safety\s+and\s+effectiveness\s+literature)
+```
+
+**Variations:**
+- "Literature-Based Evidence"
+- "Published Clinical Data"
+- "Systematic Literature Review"
+- "Post-Market Literature Search"
+- "Scientific Literature Analysis"
+
+### Manufacturing / Quality System
+
+```regex
+(?i)(?:manufacturing\s+(?:process|site|description|location)|quality\s+(?:system|management\s+system)|iso\s*13485|fda\s+establishment|device\s+master\s+record|dmr|design\s+history\s+file|dhf|process\s+validation|process\s+controls?|manufacturing\s+controls?|facility\s+(?:description|location)|quality\s+assurance|good\s+manufacturing\s+practice|gmp\s+compliance)
+```
+
+**Variations:**
+- "Manufacturing Process Description"
+- "Quality System Compliance"
+- "ISO 13485 Certification"
+- "Manufacturing Site Location"
+- "Process Validation Summary"
+
+### Special 510(k) Requirements (for special pathway)
+
+```regex
+(?i)(?:special\s+510\s*\(\s*k\s*\)|design\s+controls?|risk\s+analysis\s+summary|declaration\s+of\s+conformity|doc\b|compliance\s+with\s+(?:recognized\s+)?standards?|consensus\s+standards?|guidance\s+document\s+compliance|special\s+controls?\s+compliance|design\s+changes?|device\s+modifications?|change\s+(?:description|rationale)|comparison\s+to\s+legally\s+marketed\s+device)
+```
+
+**Variations:**
+- "Special 510(k) Declaration"
+- "Design Control Summary"
+- "Consensus Standards Compliance"
+- "Device Modification Description"
+- "Declaration of Conformity"
+
 ---
 
 ## Tier 2: OCR-Tolerant Matching

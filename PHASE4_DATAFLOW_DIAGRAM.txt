@@ -1,0 +1,326 @@
+================================================================================
+PHASE 4: EXECUTIVE SUMMARY - DATA FLOW DIAGRAM
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         INPUT: enriched_rows                                 │
+│                                                                              │
+│  List[Dict] with 53 columns per device:                                     │
+│  • KNUMBER, APPLICANT, DEVICENAME, PRODUCTCODE, DECISIONDATE (base)         │
+│  • maude_productcode_5y, maude_trending, recalls_total (Phase 1)           │
+│  • predicate_clinical_history, predicate_acceptability (Phase 2)            │
+│  • peer_cohort_size, maude_classification, device_percentile (Phase 3)      │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    STEP 1: calculate_risk_summary()                          │
+│                                                                              │
+│  Aggregation Logic:                                                         │
+│  • Count EXTREME_OUTLIER devices                                            │
+│  • Count NOT_RECOMMENDED predicates                                         │
+│  • Count recalled devices (Class I, Class II, Class III)                    │
+│  • Count clinical data requirements                                         │
+│  • Calculate critical_risk_level: HIGH (>30%), MEDIUM (10-30%), LOW (<10%)  │
+│                                                                              │
+│  Output: risk_summary dict (8 metrics)                                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                  STEP 2: identify_best_predicates()                          │
+│                                                                              │
+│  Scoring Algorithm (starts at 100 points):                                  │
+│  ┌────────────────────────────────────────────────────────────────┐        │
+│  │ MAUDE Classification:                                           │        │
+│  │   EXCELLENT      → +20 pts                                      │        │
+│  │   GOOD           → +10 pts                                      │        │
+│  │   AVERAGE        →   0 pts                                      │        │
+│  │   CONCERNING     → -20 pts                                      │        │
+│  │   EXTREME_OUTLIER→ -100 pts (eliminates device)                │        │
+│  ├────────────────────────────────────────────────────────────────┤        │
+│  │ Acceptability:                                                  │        │
+│  │   ACCEPTABLE           → +20 pts                                │        │
+│  │   REVIEW_REQUIRED      → -10 pts                                │        │
+│  │   NOT_RECOMMENDED      → -100 pts (eliminates device)           │        │
+│  ├────────────────────────────────────────────────────────────────┤        │
+│  │ Recalls:                                                        │        │
+│  │   0 recalls → +10 pts                                           │        │
+│  │   1 recall  → -20 pts                                           │        │
+│  │   2+ recalls→ -100 pts (eliminates device)                      │        │
+│  ├────────────────────────────────────────────────────────────────┤        │
+│  │ Clearance Age:                                                  │        │
+│  │   <5 years   → +10 pts (recent standards)                       │        │
+│  │   5-10 years →   0 pts                                          │        │
+│  │   >10 years  → -10 pts                                          │        │
+│  │   >15 years  → -20 pts (outdated)                               │        │
+│  ├────────────────────────────────────────────────────────────────┤        │
+│  │ Clinical Data:                                                  │        │
+│  │   NO      → +10 pts (simpler path)                              │        │
+│  │   UNKNOWN →   0 pts                                             │        │
+│  │   YES     →  -5 pts (more complex)                              │        │
+│  └────────────────────────────────────────────────────────────────┘        │
+│                                                                              │
+│  Sort by score descending → return top 5                                    │
+│  Output: best_predicates list (5 devices with scores)                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    STEP 3: estimate_resources()                              │
+│                                                                              │
+│  Estimation Model:                                                          │
+│  ┌────────────────────────────────────────────────────────────────┐        │
+│  │ Base:                                                           │        │
+│  │   Timeline: 6 months                                            │        │
+│  │   Budget:   $50,000                                             │        │
+│  ├────────────────────────────────────────────────────────────────┤        │
+│  │ IF clinical_data_pct > 30%:                                     │        │
+│  │   Timeline: +12 months                                          │        │
+│  │   Budget:   +$350,000                                           │        │
+│  │ ELIF clinical_data_pct > 10%:                                   │        │
+│  │   Timeline: +6 months                                           │        │
+│  │   Budget:   +$150,000                                           │        │
+│  ├────────────────────────────────────────────────────────────────┤        │
+│  │ IF special_controls_pct > 30%:                                  │        │
+│  │   Timeline: +3 months                                           │        │
+│  │   Budget:   +$75,000                                            │        │
+│  ├────────────────────────────────────────────────────────────────┤        │
+│  │ Contingency: +50% for max estimates                             │        │
+│  └────────────────────────────────────────────────────────────────┘        │
+│                                                                              │
+│  Output: resources dict (timeline, budget, cost_drivers)                    │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│              STEP 4: generate_executive_summary()                            │
+│                                                                              │
+│  Template Composition:                                                      │
+│  ┌────────────────────────────────────────────────────────────────┐        │
+│  │ ## Risk Assessment (generate_risk_narrative)                    │        │
+│  │    ├─ HIGH:   CRITICAL CONCERNS + expand predicate search       │        │
+│  │    ├─ MEDIUM: MODERATE RISKS + manual review                    │        │
+│  │    └─ LOW:    Clean records + proceed with confidence           │        │
+│  ├────────────────────────────────────────────────────────────────┤        │
+│  │ ## Top 3 Insights (generate_top_insights)                       │        │
+│  │    ├─ Insight 1: Clinical data burden (HIGH/MEDIUM/LOW)         │        │
+│  │    ├─ Insight 2: Market concentration (CONCENTRATED/FRAGMENTED) │        │
+│  │    └─ Insight 3: MAUDE safety profile (STRONG/MIXED)            │        │
+│  ├────────────────────────────────────────────────────────────────┤        │
+│  │ ## Devices to Avoid (generate_avoid_list)                       │        │
+│  │    └─ Table: K-Number | Manufacturer | Issues | Rationale       │        │
+│  │       (max 10 devices with critical flags)                      │        │
+│  ├────────────────────────────────────────────────────────────────┤        │
+│  │ ## Recommended Predicates (generate_recommendation_list)        │        │
+│  │    └─ Table: Rank | K-Number | Score | Key Strengths            │        │
+│  │       (top 5 from identify_best_predicates)                     │        │
+│  ├────────────────────────────────────────────────────────────────┤        │
+│  │ ## Resource Planning                                            │        │
+│  │    ├─ Timeline: X-Y months                                      │        │
+│  │    ├─ Budget: $X - $Y                                           │        │
+│  │    └─ Cost drivers (bullet list)                                │        │
+│  ├────────────────────────────────────────────────────────────────┤        │
+│  │ ## Next Steps (generate_next_steps)                             │        │
+│  │    └─ 5 actionable steps (context-aware based on risk level)    │        │
+│  └────────────────────────────────────────────────────────────────┘        │
+│                                                                              │
+│  Output: markdown string (800-1200 words)                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                   STEP 5: save_executive_summary()                           │
+│                                                                              │
+│  File Operations:                                                           │
+│  • Path: {project_dir}/executive_summary.md                                 │
+│  • Encoding: UTF-8                                                          │
+│  • Mode: Write (overwrite if exists)                                        │
+│                                                                              │
+│  Return: absolute file path                                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       OUTPUT: executive_summary.md                           │
+│                                                                              │
+│  Structure:                                                                 │
+│  • Header (metadata: date, project, scope)                                  │
+│  • Section 1: Risk Assessment (HIGH/MEDIUM/LOW + narrative)                 │
+│  • Section 2: Top 3 Insights                                                │
+│  • Section 3: Devices to Avoid (table)                                      │
+│  • Section 4: Recommended Predicates (table)                                │
+│  • Section 5: Resource Planning (timeline, budget, drivers)                 │
+│  • Section 6: Next Steps (5 action items)                                   │
+│  • Footer (links to detailed reports + disclaimer)                          │
+│                                                                              │
+│  Characteristics:                                                           │
+│  • Length: 800-1200 words (~2 pages)                                        │
+│  • Format: Markdown with tables                                             │
+│  • Tone: Executive-friendly (clear, actionable)                             │
+│  • Compliance: Full disclaimers for research use                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+SCORING EXAMPLE: Best vs. Worst Predicate
+================================================================================
+
+DEVICE A (K241234) - "Best Predicate" Example:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Base Score:              100 pts
++ MAUDE (EXCELLENT):     +20 pts   → 120 pts
++ Acceptability (OK):    +20 pts   → 140 pts
++ No recalls:            +10 pts   → 150 pts
++ Recent (<5 years):     +10 pts   → 160 pts
++ No clinical data:      +10 pts   → 170 pts
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FINAL SCORE:             170 pts   ✅ Rank #1 - STRONG PREDICATE
+
+Recommendation: "Suitable for primary predicate citation"
+
+
+DEVICE B (K193456) - "Worst Predicate" Example:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Base Score:              100 pts
++ MAUDE (EXTREME):      -100 pts   →   0 pts
++ Acceptability (NOT):  -100 pts   → -100 pts
++ 3 recalls:            -100 pts   → -200 pts
++ Old (>15 years):       -20 pts   → -220 pts
++ Clinical data (YES):    -5 pts   → -225 pts
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FINAL SCORE:            -225 pts   ❌ DO NOT USE
+
+Recommendation: "Avoid as primary predicate - search for alternatives"
+
+================================================================================
+RESOURCE ESTIMATION EXAMPLE: High vs. Low Clinical
+================================================================================
+
+SCENARIO 1: Low Clinical Data (8% of predicates had clinical studies)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Base:                    6 months,    $50,000
+Clinical (8% < 10%):     0 months,         $0   (no clinical study needed)
+Special Controls (0%):   0 months,         $0
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Timeline:                6-12 months (6 base + 6 buffer)
+Budget:                  $50,000 - $75,000 (50% contingency)
+Cost Drivers:            Base 510(k) preparation
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+SCENARIO 2: High Clinical Data (67% of predicates had clinical studies)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Base:                    6 months,    $50,000
+Clinical (67% > 30%):   12 months,  $350,000   (full clinical study required)
+Special Controls (0%):   0 months,         $0
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Timeline:               18-24 months (18 total + 6 buffer)
+Budget:                 $400,000 - $600,000 (50% contingency)
+Cost Drivers:           Base 510(k) preparation
+                        Clinical studies (67% of predicates had clinical data)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+================================================================================
+INTEGRATION FLOW IN BATCHFETCH.MD
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Phase 1: Data Integrity (COMPLETE)                                         │
+│  ├─ get_maude_events_by_product_code()                                      │
+│  ├─ get_recall_history()                                                    │
+│  ├─ get_510k_validation()                                                   │
+│  └─ calculate_enrichment_completeness_score()                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Phase 2: Intelligence Layer (COMPLETE)                                     │
+│  ├─ assess_predicate_clinical_history()                                     │
+│  └─ assess_predicate_acceptability()                                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Phase 3: Advanced Analytics (COMPLETE)                                     │
+│  ├─ analyze_maude_peer_comparison()                                         │
+│  └─ generate_competitive_intelligence()                                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Existing Reports (COMPLETE)                                                │
+│  ├─ quality_report.md                                                       │
+│  ├─ intelligence_report.md                                                  │
+│  ├─ regulatory_context.md                                                   │
+│  ├─ competitive_intelligence_*.md                                           │
+│  └─ enrichment_report.html                                                  │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Phase 4: Executive Summary (NEW - TO BE IMPLEMENTED)                       │
+│  ├─ from lib.executive_summary import generate_executive_summary            │
+│  ├─ exec_summary = generate_executive_summary(enriched_rows, PROJECT_DIR)   │
+│  ├─ save_executive_summary(exec_summary, PROJECT_DIR)                       │
+│  └─ print("✓ Executive summary: executive_summary.md")                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  OUTPUT: 6 Files Total                                                      │
+│  1. enriched_devices.csv                                                    │
+│  2. enrichment_report.html                                                  │
+│  3. quality_report.md                                                       │
+│  4. intelligence_report.md                                                  │
+│  5. regulatory_context.md                                                   │
+│  6. executive_summary.md  ← NEW!                                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+DECISION TREE: When to Use Which Report?
+================================================================================
+
+USER QUESTION: "Can we proceed with this predicate search?"
+    │
+    └─► READ: executive_summary.md (2 pages, 5 minutes)
+        ├─ Risk Level: HIGH → Answer: "No, expand search"
+        ├─ Risk Level: MEDIUM → Answer: "Yes, with manual review"
+        └─ Risk Level: LOW → Answer: "Yes, proceed with confidence"
+
+
+USER QUESTION: "What's the data quality of this enrichment?"
+    │
+    └─► READ: quality_report.md (3 pages, 10 minutes)
+        └─ Enrichment Completeness Score: 87.5/100
+           API Success Rate: 95%
+
+
+USER QUESTION: "Do we need clinical studies for our device?"
+    │
+    └─► READ: intelligence_report.md (5 pages, 15 minutes)
+        └─ Predicate Clinical History: 67% had clinical data
+           Estimated Impact: +12 months, +$350K
+
+
+USER QUESTION: "Who are the top manufacturers in this space?"
+    │
+    └─► READ: competitive_intelligence_DQY.md (8 pages, 20 minutes)
+        └─ Market Concentration: HHI = 1847 (moderately concentrated)
+           Top 3 Manufacturers: ACME (23%), BETA (18%), GAMMA (14%)
+
+
+USER QUESTION: "Which CFR regulations apply to this device?"
+    │
+    └─► READ: regulatory_context.md (2 pages, 5 minutes)
+        └─ CFR Citations: 21 CFR 870.1340, 21 CFR 803, 21 CFR 7
+           Guidance Documents: MDR 2016, Recalls 2019, SE 2014
+
+
+USER QUESTION: "Show me ALL data in visual format"
+    │
+    └─► OPEN: enrichment_report.html (interactive dashboard)
+        └─ Charts, tables, filters, export to Excel
+
+================================================================================
+END OF DATA FLOW DIAGRAM
+================================================================================

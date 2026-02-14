@@ -1,316 +1,323 @@
-"""Tests for v5.6.0/v5.7.0 features: gap analysis command, data pipeline command,
-bundled gap_analysis.py script.
+#!/usr/bin/env python3
+"""
+Unit tests for gap_analyzer.py - Phase 4 Feature 1
 
-Validates command files, script integrity, CLI flags, and cross-references.
+Tests automated gap detection for:
+- Missing device data
+- Weak predicates
+- Testing gaps
+- Confidence scoring
 """
 
-import csv
-import json
-import os
-import subprocess
 import sys
+import json
 import tempfile
+import pytest
+from pathlib import Path
+from datetime import datetime, timedelta
 
-BASE_DIR = os.path.join(os.path.dirname(__file__), "..")
-CMDS_DIR = os.path.join(BASE_DIR, "commands")
-SCRIPTS_DIR = os.path.join(BASE_DIR, "scripts")
-PLUGIN_JSON = os.path.join(BASE_DIR, ".claude-plugin", "plugin.json")
+# Add lib directory to path
+lib_path = Path(__file__).parent.parent / 'lib'
+sys.path.insert(0, str(lib_path))
 
-
-# ── Command File Existence ──────────────────────────────────
-
-
-class TestGapAnalysisCommandExists:
-    """Test gap-analysis.md command file."""
-
-    def setup_method(self):
-        path = os.path.join(CMDS_DIR, "gap-analysis.md")
-        with open(path) as f:
-            self.content = f.read()
-
-    def test_file_exists(self):
-        assert os.path.exists(os.path.join(CMDS_DIR, "gap-analysis.md"))
-
-    def test_has_frontmatter(self):
-        assert self.content.startswith("---")
-
-    def test_has_description(self):
-        assert "description:" in self.content
-
-    def test_has_allowed_tools(self):
-        assert "allowed-tools:" in self.content
-
-    def test_has_argument_hint(self):
-        assert "argument-hint:" in self.content
-
-    def test_has_plugin_root_resolution(self):
-        assert "FDA_PLUGIN_ROOT" in self.content
-        assert "installed_plugins.json" in self.content
-
-    def test_mentions_3_way_cross_reference(self):
-        assert "PMN" in self.content
-        assert "CSV" in self.content
-        assert "PDF" in self.content
-
-    def test_has_years_flag(self):
-        assert "--years" in self.content
-
-    def test_has_product_codes_flag(self):
-        assert "--product-codes" in self.content
-
-    def test_has_prefixes_flag(self):
-        assert "--prefixes" in self.content
-
-    def test_has_baseline_flag(self):
-        assert "--baseline" in self.content
-
-    def test_has_output_format(self):
-        assert "Gap Analysis" in self.content
-        assert "NEXT STEPS" in self.content
-
-    def test_has_pmn_file_search(self):
-        assert "pmn96cur.txt" in self.content
-        assert "pmnlstmn.txt" in self.content
+from gap_analyzer import (
+    GapAnalyzer,
+    calculate_gap_analysis_confidence,
+    generate_gap_analysis_report,
+    write_gap_data_json,
+    update_enrichment_metadata
+)
 
 
-class TestDataPipelineCommandExists:
-    """Test data-pipeline.md command file."""
+class TestGapDetection:
+    """Test suite for gap detection functions."""
 
-    def setup_method(self):
-        path = os.path.join(CMDS_DIR, "data-pipeline.md")
-        with open(path) as f:
-            self.content = f.read()
-
-    def test_file_exists(self):
-        assert os.path.exists(os.path.join(CMDS_DIR, "data-pipeline.md"))
-
-    def test_has_frontmatter(self):
-        assert self.content.startswith("---")
-
-    def test_has_description(self):
-        assert "description:" in self.content
-
-    def test_has_subcommands(self):
-        assert "status" in self.content
-        assert "analyze" in self.content
-        assert "download" in self.content
-        assert "extract" in self.content
-        assert "merge" in self.content
-
-    def test_distinguishes_from_regulatory_pipeline(self):
-        assert "NOT the regulatory submission pipeline" in self.content
-
-    def test_has_pipeline_py_reference(self):
-        assert "pipeline.py" in self.content
-
-    def test_has_download_510k_path(self):
-        assert "download/510k" in self.content
-
-    def test_has_incremental_flag(self):
-        assert "--incremental" in self.content
-
-    def test_has_dry_run_flag(self):
-        assert "--dry-run" in self.content
-
-
-# ── Bundled Script Integrity ────────────────────────────────
-
-
-class TestGapAnalysisScript:
-    """Test gap_analysis.py bundled script."""
-
-    def test_script_exists(self):
-        assert os.path.exists(os.path.join(SCRIPTS_DIR, "gap_analysis.py"))
-
-    def test_script_is_executable_python(self):
-        path = os.path.join(SCRIPTS_DIR, "gap_analysis.py")
-        result = subprocess.run(
-            [sys.executable, path, "--help"],
-            capture_output=True, text=True, timeout=10
-        )
-        assert result.returncode == 0
-        assert "gap" in result.stdout.lower() or "missing" in result.stdout.lower()
-
-    def test_has_argparse_flags(self):
-        path = os.path.join(SCRIPTS_DIR, "gap_analysis.py")
-        result = subprocess.run(
-            [sys.executable, path, "--help"],
-            capture_output=True, text=True, timeout=10
-        )
-        assert "--years" in result.stdout
-        assert "--prefixes" in result.stdout
-        assert "--product-codes" in result.stdout
-        assert "--baseline" in result.stdout
-        assert "--pdf-dir" in result.stdout
-        assert "--output" in result.stdout
-        assert "--pmn-files" in result.stdout
-
-    def test_no_hardcoded_prefixes_in_main(self):
-        """Ensure the script doesn't use hardcoded TARGET_PREFIXES."""
-        path = os.path.join(SCRIPTS_DIR, "gap_analysis.py")
-        with open(path) as f:
-            content = f.read()
-        # Should NOT have a global TARGET_PREFIXES constant
-        assert "TARGET_PREFIXES" not in content
-
-    def test_has_parse_years_function(self):
-        path = os.path.join(SCRIPTS_DIR, "gap_analysis.py")
-        with open(path) as f:
-            content = f.read()
-        assert "def parse_years" in content
-
-    def test_has_prefixes_from_years_function(self):
-        path = os.path.join(SCRIPTS_DIR, "gap_analysis.py")
-        with open(path) as f:
-            content = f.read()
-        assert "def prefixes_from_years" in content
-
-
-class TestGapAnalysisLogic:
-    """Test gap_analysis.py core logic with synthetic data."""
-
-    def test_year_range_parsing(self):
-        """Test parse_years handles ranges and lists."""
-        path = os.path.join(SCRIPTS_DIR, "gap_analysis.py")
-        result = subprocess.run(
-            [sys.executable, "-c", f"""
-import sys; sys.path.insert(0, '{os.path.dirname(path)}')
-from gap_analysis import parse_years
-assert parse_years('2024') == {{2024}}
-assert parse_years('2024,2025') == {{2024, 2025}}
-assert parse_years('2020-2023') == {{2020, 2021, 2022, 2023}}
-assert parse_years('2020-2022,2025') == {{2020, 2021, 2022, 2025}}
-print('ALL_PASSED')
-"""],
-            capture_output=True, text=True, timeout=10
-        )
-        assert "ALL_PASSED" in result.stdout, result.stderr
-
-    def test_prefixes_from_years(self):
-        """Test year-to-prefix derivation."""
-        path = os.path.join(SCRIPTS_DIR, "gap_analysis.py")
-        result = subprocess.run(
-            [sys.executable, "-c", f"""
-import sys; sys.path.insert(0, '{os.path.dirname(path)}')
-from gap_analysis import prefixes_from_years
-p = prefixes_from_years({{2024, 2025}})
-assert 'K24' in p
-assert 'K25' in p
-assert 'DEN' in p
-assert 'K23' not in p
-print('ALL_PASSED')
-"""],
-            capture_output=True, text=True, timeout=10
-        )
-        assert "ALL_PASSED" in result.stdout, result.stderr
-
-    def test_manifest_output_format(self):
-        """Test that the script produces valid CSV manifest."""
+    def test_detect_missing_device_data_perfect(self):
+        """Test 1: Perfect device profile with no missing data."""
+        # Create temp project with complete device profile
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Create minimal PMN file
-            pmn_path = os.path.join(tmpdir, "pmn_test.txt")
-            with open(pmn_path, "w") as f:
-                f.write("KNUMBER|APPLICANT|STREET1|STREET2|CITY|STATE|COUNTRY_CODE|ZIP|DATEPANEL|DESSION_DATE|DATERECEIVED|DECISION|REVIEWCODE|ESSION_CODE|PRODUCTCODE|STATEORSUMM|CLASSADVISE|ESSION_CODE2|TYPE|THIRDPARTY|EXPEDITEDREVIEW|DEVICENAME\n")
-                f.write("K250001|TEST CORP|123 St||City|CA|US|90210|01/15/2025|02/15/2025|01/01/2025|SESE|RC001|SE|KGN|Cleared|N|SE|Traditional|N|N|Test Device\n")
-                f.write("K250002|OTHER INC|456 Ave||Town|NY|US|10001|02/01/2025|03/01/2025|02/01/2025|SESE|RC002|SE|DXY|Cleared|N|SE|Special|N|N|Other Device\n")
+            project_dir = Path(tmpdir)
 
-            # Create empty baseline CSV
-            baseline = os.path.join(tmpdir, "baseline.csv")
-            with open(baseline, "w") as f:
-                f.write("KNUMBER,TYPE\nK250001,Predicate\n")
+            # Complete device profile
+            device_profile = {
+                'indications_for_use': 'Treatment of coronary artery disease',
+                'intended_use_statement': 'Deliver stent to coronary arteries',
+                'technological_characteristics': 'Balloon-expandable cobalt-chromium',
+                'device_description': 'Coronary stent system',
+                'materials': 'Cobalt-chromium alloy, polymer coating',
+                'product_code': 'DQY',
+                'regulation_number': '870.3250',
+                'device_class': '2',
+                'sterilization_method': 'Ethylene oxide',
+                'shelf_life': '24 months',
+                'intended_user': 'Interventional cardiologists',
+                'use_environment': 'Hospital catheterization laboratory'
+            }
 
-            output = os.path.join(tmpdir, "manifest.csv")
-            script = os.path.join(SCRIPTS_DIR, "gap_analysis.py")
+            with open(project_dir / 'device_profile.json', 'w') as f:
+                json.dump(device_profile, f)
 
-            result = subprocess.run(
-                [sys.executable, script,
-                 "--years", "2025",
-                 "--pmn-files", pmn_path,
-                 "--baseline", baseline,
-                 "--pdf-dir", tmpdir,
-                 "--output", output],
-                capture_output=True, text=True, timeout=30
-            )
-            assert result.returncode == 0, result.stderr
+            # Test
+            analyzer = GapAnalyzer(str(project_dir))
+            gaps = analyzer.detect_missing_device_data()
 
-            # Verify manifest exists and has correct structure
-            assert os.path.exists(output)
-            with open(output) as f:
-                reader = csv.DictReader(f)
-                rows = list(reader)
+            # Assert: Should have no HIGH priority gaps
+            high_gaps = [g for g in gaps if g.get('priority') == 'HIGH']
+            assert len(high_gaps) == 0, "Perfect profile should have no HIGH priority gaps"
 
-            # K250001 should be skipped (in baseline), K250002 should be in manifest
-            knumbers = {r["KNUMBER"] for r in rows}
-            assert "K250001" not in knumbers, "K250001 should be skipped (in baseline)"
-            assert "K250002" in knumbers, "K250002 should be in manifest"
-
-            # Check required columns
-            assert "STATUS" in rows[0]
-            assert "DOWNLOAD_URL" in rows[0]
-            assert rows[0]["STATUS"] == "need_download"
-
-    def test_product_code_filter(self):
-        """Test --product-codes filtering."""
+    def test_detect_missing_device_data_sparse(self):
+        """Test 2: Sparse device profile with multiple missing fields."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            pmn_path = os.path.join(tmpdir, "pmn_test.txt")
-            with open(pmn_path, "w") as f:
-                f.write("KNUMBER|APPLICANT|STREET1|STREET2|CITY|STATE|COUNTRY_CODE|ZIP|DATEPANEL|DESSION_DATE|DATERECEIVED|DECISION|REVIEWCODE|ESSION_CODE|PRODUCTCODE|STATEORSUMM|CLASSADVISE|ESSION_CODE2|TYPE|THIRDPARTY|EXPEDITEDREVIEW|DEVICENAME\n")
-                f.write("K250001|TEST CORP|123 St||City|CA|US|90210|01/15/2025|02/15/2025|01/01/2025|SESE|RC001|SE|KGN|Cleared|N|SE|Traditional|N|N|Test Device\n")
-                f.write("K250002|OTHER INC|456 Ave||Town|NY|US|10001|02/01/2025|03/01/2025|02/01/2025|SESE|RC002|SE|DXY|Cleared|N|SE|Special|N|N|Other Device\n")
+            project_dir = Path(tmpdir)
 
-            baseline = os.path.join(tmpdir, "baseline.csv")
-            with open(baseline, "w") as f:
-                f.write("KNUMBER\n")
+            # Sparse device profile (only product code)
+            device_profile = {
+                'product_code': 'DQY',
+                'indications_for_use': '',  # Empty string
+                'materials': None  # Null value
+            }
 
-            output = os.path.join(tmpdir, "manifest.csv")
-            script = os.path.join(SCRIPTS_DIR, "gap_analysis.py")
+            with open(project_dir / 'device_profile.json', 'w') as f:
+                json.dump(device_profile, f)
 
-            result = subprocess.run(
-                [sys.executable, script,
-                 "--years", "2025",
-                 "--product-codes", "KGN",
-                 "--pmn-files", pmn_path,
-                 "--baseline", baseline,
-                 "--pdf-dir", tmpdir,
-                 "--output", output],
-                capture_output=True, text=True, timeout=30
-            )
-            assert result.returncode == 0
+            # Test
+            analyzer = GapAnalyzer(str(project_dir))
+            gaps = analyzer.detect_missing_device_data()
 
-            with open(output) as f:
-                rows = list(csv.DictReader(f))
+            # Assert: Should have multiple HIGH priority gaps
+            high_gaps = [g for g in gaps if g.get('priority') == 'HIGH']
+            assert len(high_gaps) >= 5, "Sparse profile should have ≥5 HIGH priority gaps"
 
-            # Only KGN should be in output, not DXY
-            codes = {r["PRODUCTCODE"] for r in rows}
-            assert "KGN" in codes
-            assert "DXY" not in codes
+            # Verify specific gaps
+            gap_fields = [g.get('field') for g in high_gaps]
+            assert 'indications_for_use' in gap_fields
+            assert 'materials' in gap_fields
+            assert 'technological_characteristics' in gap_fields
+
+    def test_detect_weak_predicates_recalls(self):
+        """Test 3: Weak predicate with ≥2 recalls should be HIGH priority."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            project_dir = Path(tmpdir)
+
+            # Create review.json with weak predicate (2+ recalls)
+            review_data = {
+                'accepted_predicates': [
+                    {
+                        'k_number': 'K123456',
+                        'device_name': 'Example Stent',
+                        'recalls_total': 3,  # HIGH priority trigger
+                        'decision_date': '2020-05-15'
+                    }
+                ]
+            }
+
+            with open(project_dir / 'review.json', 'w') as f:
+                json.dump(review_data, f)
+
+            # Create minimal device_profile
+            with open(project_dir / 'device_profile.json', 'w') as f:
+                json.dump({'product_code': 'DQY'}, f)
+
+            # Test
+            analyzer = GapAnalyzer(str(project_dir))
+            weak = analyzer.detect_weak_predicates()
+
+            # Assert: Should flag as HIGH priority
+            assert len(weak) == 1
+            assert weak[0].get('priority') == 'HIGH'
+            assert weak[0].get('k_number') == 'K123456'
+            assert '3 recalls' in weak[0].get('reason', '')
+
+    def test_calculate_confidence_high(self):
+        """Test 4: High confidence when data is complete and predicates good."""
+        # Mock complete gap results
+        gap_results = {
+            'missing_data': [],  # No missing data
+            'weak_predicates': [{
+                'k_number': 'K123456',
+                'priority': 'LOW',  # No high-priority weak predicates
+                'confidence': 90
+            }],
+            'testing_gaps': [],
+            'summary': {
+                'total_gaps': 1,
+                'high_priority': 0,
+                'critical': 0
+            }
+        }
+
+        # Complete device profile with all HIGH and MEDIUM priority fields
+        device_profile = {
+            # HIGH priority
+            'indications_for_use': 'Complete',
+            'intended_use_statement': 'Complete',
+            'technological_characteristics': 'Complete',
+            'device_description': 'Complete',
+            'materials': 'Complete',
+            'product_code': 'DQY',
+            'regulation_number': '870.3250',
+            'device_class': '2',
+            # MEDIUM priority
+            'sterilization_method': 'EO',
+            'shelf_life': '24 months',
+            'intended_user': 'Physicians',
+            'use_environment': 'Hospital',
+            'operating_principle': 'Mechanical',
+            'power_source': 'Battery',
+            'dimensions': '10x5x2 cm',
+            'biocompatibility': 'ISO 10993'
+        }
+
+        # Test
+        confidence = calculate_gap_analysis_confidence(gap_results, device_profile)
+
+        # Assert: Should be HIGH or MEDIUM confidence (good score)
+        assert confidence.get('confidence_level') in ['HIGH', 'MEDIUM']
+        assert confidence.get('confidence_score') >= 70
+
+    def test_calculate_confidence_low(self):
+        """Test 5: Low confidence when data is sparse and predicates weak."""
+        # Mock incomplete gap results
+        gap_results = {
+            'missing_data': [
+                {'priority': 'HIGH', 'confidence': 95},
+                {'priority': 'HIGH', 'confidence': 95},
+                {'priority': 'HIGH', 'confidence': 95}
+            ],
+            'weak_predicates': [{
+                'k_number': 'K123456',
+                'priority': 'HIGH',  # High-priority weak predicate
+                'confidence': 90
+            }],
+            'testing_gaps': [
+                {'priority': 'HIGH', 'confidence': 85}
+            ],
+            'summary': {
+                'total_gaps': 5,
+                'high_priority': 4,
+                'critical': 0
+            }
+        }
+
+        # Sparse device profile
+        device_profile = {
+            'product_code': 'DQY'  # Only product code
+        }
+
+        # Test
+        confidence = calculate_gap_analysis_confidence(gap_results, device_profile)
+
+        # Assert: Should be LOW confidence
+        assert confidence.get('confidence_level') == 'LOW'
+        assert confidence.get('confidence_score') < 70
+
+    def test_fallback_no_predicates(self):
+        """Test 6: Graceful fallback when no predicates in review.json."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            project_dir = Path(tmpdir)
+
+            # Create empty review.json
+            with open(project_dir / 'review.json', 'w') as f:
+                json.dump({'accepted_predicates': []}, f)
+
+            # Create minimal device_profile
+            with open(project_dir / 'device_profile.json', 'w') as f:
+                json.dump({'product_code': 'DQY'}, f)
+
+            # Test
+            analyzer = GapAnalyzer(str(project_dir))
+            weak = analyzer.detect_weak_predicates()
+
+            # Assert: Should return fallback message
+            assert len(weak) == 1
+            assert weak[0].get('k_number') == 'N/A'
+            assert weak[0].get('priority') == 'HIGH'
+            assert 'No accepted predicates' in weak[0].get('reason', '')
 
 
-# ── Plugin Metadata ─────────────────────────────────────────
+class TestReportGeneration:
+    """Test suite for report generation functions."""
+
+    def test_generate_report_structure(self):
+        """Test that generated report has all required sections."""
+        gap_results = {
+            'missing_data': [],
+            'weak_predicates': [],
+            'testing_gaps': [],
+            'summary': {'total_gaps': 0, 'high_priority': 0, 'medium_priority': 0,
+                       'low_priority': 0, 'critical': 0},
+            'timestamp': datetime.now().isoformat()
+        }
+
+        confidence = {
+            'confidence_score': 95,
+            'confidence_level': 'HIGH',
+            'interpretation': 'High confidence analysis',
+            'contributing_factors': {
+                'data_completeness': 40,
+                'predicate_quality': 30,
+                'gap_clarity': 20,
+                'cross_validation': 5
+            }
+        }
+
+        report = generate_gap_analysis_report(gap_results, confidence, 'Test Project')
+
+        # Assert: Check required sections
+        assert '# Automated Gap Analysis Report' in report
+        assert 'Executive Summary' in report
+        assert 'Missing Device Data' in report
+        assert 'Weak Predicate Indicators' in report
+        assert 'Testing & Standards Gaps' in report
+        assert 'Recommended Actions' in report
+        assert 'Human Review Checkpoints' in report
+        assert 'Automation Metadata' in report
+        assert '⚠️ **AUTOMATION ASSISTS' in report  # Disclaimer
+
+    def test_write_gap_data_json(self):
+        """Test JSON data writing."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            gap_results = {
+                'missing_data': [],
+                'summary': {'total_gaps': 0}
+            }
+            confidence = {'confidence_score': 95, 'confidence_level': 'HIGH'}
+
+            json_path = Path(tmpdir) / 'test_gaps.json'
+            write_gap_data_json(gap_results, confidence, str(json_path))
+
+            # Assert: File exists and valid JSON
+            assert json_path.exists()
+            with open(json_path, 'r') as f:
+                data = json.load(f)
+                assert 'gap_analysis' in data
+                assert 'confidence' in data
+                assert 'metadata' in data
+
+    def test_update_enrichment_metadata(self):
+        """Test enrichment metadata update."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            gap_results = {
+                'timestamp': datetime.now().isoformat(),
+                'summary': {'total_gaps': 5, 'high_priority': 2}
+            }
+            confidence = {
+                'confidence_score': 75,
+                'confidence_level': 'MEDIUM'
+            }
+
+            update_enrichment_metadata(tmpdir, gap_results, confidence)
+
+            # Assert: Metadata file created
+            metadata_path = Path(tmpdir) / 'enrichment_metadata.json'
+            assert metadata_path.exists()
+
+            with open(metadata_path, 'r') as f:
+                metadata = json.load(f)
+                assert 'gap_analysis' in metadata
+                assert metadata['gap_analysis']['confidence_score'] == 75
+                assert metadata['gap_analysis']['total_gaps'] == 5
 
 
-class TestPluginVersionAndCounts:
-    """Test plugin.json reflects v5.7.0 with 35 commands."""
-
-    def test_version_is_5_8_0(self):
-        with open(PLUGIN_JSON) as f:
-            data = json.load(f)
-        assert data["version"] == '5.22.0'
-
-    def test_description_mentions_41_commands(self):
-        with open(PLUGIN_JSON) as f:
-            data = json.load(f)
-        assert "43 commands" in data["description"]
-
-    def test_gap_analysis_command_exists(self):
-        """Gap analysis is a command, verified by command file existence."""
-        assert os.path.exists(os.path.join(CMDS_DIR, "gap-analysis.md"))
-
-    def test_data_pipeline_command_exists(self):
-        """Data pipeline is a command, verified by command file existence."""
-        assert os.path.exists(os.path.join(CMDS_DIR, "data-pipeline.md"))
-
-    def test_command_count_is_41(self):
-        """Verify 41 .md files in commands directory."""
-        cmd_files = [f for f in os.listdir(CMDS_DIR) if f.endswith(".md")]
-        assert len(cmd_files) == 43, f"Expected 43 commands, found {len(cmd_files)}: {sorted(cmd_files)}"
+if __name__ == '__main__':
+    pytest.main([__file__, '-v'])

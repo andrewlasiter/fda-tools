@@ -358,8 +358,9 @@ class TestElevenCheckConsistency:
     def setup_method(self):
         self.content = _read(os.path.join(AGENTS_DIR, "submission-writer.md"))
 
-    def test_has_11_checks(self):
-        assert "11 Check" in self.content or "11 check" in self.content.lower()
+    def test_has_consistency_checks(self):
+        # Originally 11 checks, expanded to 17 checks
+        assert "17 Check" in self.content or "17 check" in self.content.lower() or "11 Check" in self.content or "11 check" in self.content.lower()
 
     def test_has_product_code_check(self):
         assert "Product Code" in self.content

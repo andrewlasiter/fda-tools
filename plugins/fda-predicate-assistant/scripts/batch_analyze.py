@@ -286,7 +286,11 @@ def analyze_round(round_dir, include_taxonomy=False):
         pre_check = parse_pre_check(pdir / "pre_check_report.md")
         consistency = parse_consistency(pdir / "consistency_report.md")
         drafts = parse_drafts(pdir)
-        se = parse_se_comparison(pdir / "se_comparison.md")
+        se_path = pdir / "se_comparison.md"
+        if not se_path.exists():
+            # Fallback: check drafts/ subdirectory
+            se_path = pdir / "drafts" / "se_comparison.md"
+        se = parse_se_comparison(se_path)
 
         entry = {
             "project_name": proj["name"],

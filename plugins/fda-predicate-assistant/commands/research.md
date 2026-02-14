@@ -857,7 +857,182 @@ Search for IFU content in PDF text for this product code. Analyze:
 - **Evolution over time**: Have indications expanded or narrowed?
 - **If user provided --intended-use**: Compare their intended use against cleared IFUs. Flag any elements that go beyond what's been cleared before.
 
-## Step 7: Competitive Landscape
+## Step 7: RA Professional Review of Recommendations
+
+**IMPORTANT**: After identifying top 3-5 predicate candidates (Step 4), automatically invoke the RA professional advisor agent for expert regulatory oversight. This step ensures predicate recommendations meet FDA SE guidance standards and flags potential regulatory risks before the user invests in detailed comparison.
+
+### When to invoke RA review
+
+Invoke RA advisor when ALL of these conditions are met:
+- Top 3-5 predicate candidates have been identified (from Step 4)
+- User provided device description OR intended use
+- `--depth standard` or `--depth deep` (skip for `--depth quick`)
+
+### RA Advisor Review Scope
+
+The RA advisor reviews:
+
+1. **Predicate Selection Defensibility**
+   - Do top predicates meet FDA's predicate selection criteria per "The 510(k) Program" (2014) Section IV.B?
+   - Are predicates legally marketed, not recalled, appropriate for SE pathway?
+   - Is predicate age appropriate (<10 years preferred, >10 years requires justification)?
+   - Are predicate chains defensible (depth <3 generations preferred)?
+
+2. **SE Pathway Appropriateness**
+   - Based on device description and predicates, is 510(k) the right pathway?
+   - Are there red flags suggesting De Novo or PMA pathway instead?
+   - Do novel features create SE barriers that need Pre-Submission discussion?
+
+3. **Testing Strategy Gaps**
+   - Does guidance vs. predicate testing comparison (Step 5) reveal critical gaps?
+   - Are there testing requirements predicates didn't address?
+   - What's the risk of FDA requesting additional testing?
+
+4. **Regulatory Risk Flags**
+   - Borderline predicates (different product code, old clearance, limited testing)?
+   - Novel features with thin predicate precedent?
+   - High MAUDE event rates or recent recalls in product code?
+   - Missing clinical data where FDA might expect it?
+
+5. **Pre-Submission Meeting Triggers**
+   - Should user request Pre-Sub meeting before proceeding?
+   - What specific questions should be asked to FDA?
+
+### How to invoke RA advisor
+
+```bash
+# Create RA review context file
+cat << 'EOF' > "$PROJECTS_DIR/$PROJECT_NAME/ra_review_context.json"
+{
+  "stage": "predicate_recommendation",
+  "product_code": "$PRODUCT_CODE",
+  "device_name": "$DEVICE_NAME",
+  "device_class": "$DEVICE_CLASS",
+  "regulation_number": "$REGULATION_NUMBER",
+  "user_device_description": "$USER_DEVICE_DESCRIPTION",
+  "user_intended_use": "$USER_INTENDED_USE",
+  "top_predicates": [
+    {
+      "k_number": "K123456",
+      "applicant": "Company A",
+      "decision_date": "2023-01-15",
+      "citation_count": 12,
+      "section_context": "SE",
+      "age_years": 1.5,
+      "chain_depth": 2,
+      "ifu_extracted": "Device is indicated for...",
+      "testing_found": ["Biocompatibility", "Sterilization", "Performance"]
+    }
+  ],
+  "secondary_predicates": [
+    {
+      "k_number": "K234567",
+      "product_code": "FRO",
+      "rationale": "Supports antimicrobial feature claim"
+    }
+  ],
+  "guidance_gaps": [
+    {
+      "test_category": "Antimicrobial",
+      "guidance_requirement": "AATCC 100 testing",
+      "predicate_evidence": "0/3 predicates included"
+    }
+  ],
+  "safety_flags": [
+    "Class II recall in product code (K345678, 2023)"
+  ]
+}
+EOF
+
+# Invoke RA advisor agent with Task tool
+# Agent has access to full conversation context including:
+# - Research report generated in Steps 1-6
+# - Predicate analysis and rankings
+# - Testing strategy and gaps
+# - Safety intelligence
+```
+
+Use the Task tool to launch the `ra-professional-advisor` agent with this prompt:
+
+```
+Review predicate recommendations for {PRODUCT_CODE} 510(k) submission:
+
+Context file: $PROJECTS_DIR/$PROJECT_NAME/ra_review_context.json
+
+Your review should cover:
+1. Predicate defensibility per FDA SE guidance (2014)
+2. SE pathway appropriateness for this device type
+3. Testing strategy gaps and FDA risk
+4. Regulatory risk flags (borderline predicates, novel features)
+5. Pre-Submission meeting recommendation (yes/no + rationale)
+
+Provide:
+- Sign-off OR specific concerns requiring mitigation
+- Recommended actions before proceeding to formal comparison
+- Any Pre-Sub questions to ask FDA
+
+Expected output: Professional RA assessment suitable for inclusion in research report.
+```
+
+### Integrate RA review into research report
+
+After RA advisor completes review, integrate findings into research report:
+
+```
+RA PROFESSIONAL REVIEW
+────────────────────────────────────────
+
+Predicate Defensibility: {✓ Acceptable | ⚠ Review Required | ✗ Not Recommended}
+
+{RA advisor assessment summary}
+
+Recommended Actions:
+  • {Action 1 from RA advisor}
+  • {Action 2 from RA advisor}
+
+Pre-Submission Meeting: {Recommended | Optional | Not Needed}
+  Rationale: {RA advisor's rationale}
+
+  {If recommended:}
+  Suggested FDA Discussion Topics:
+    - {Topic 1}
+    - {Topic 2}
+
+────────────────────────────────────────
+```
+
+### Fallback if RA advisor unavailable
+
+If Task tool fails or RA advisor is not available:
+
+1. Skip this step (do not block research completion)
+2. Add note to Recommendations section:
+   ```
+   ⚠ RA Professional Review Recommended
+
+   Before proceeding with formal predicate comparison, consider:
+   - Verifying top predicates meet FDA predicate selection criteria (21 CFR 807.92)
+   - Confirming testing strategy addresses all FDA guidance requirements
+   - Evaluating whether Pre-Submission meeting is appropriate for your device
+
+   See plugins/fda-predicate-assistant/references/fda-predicate-criteria-2014.md
+   ```
+
+### Audit logging
+
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+  --project "$PROJECT_NAME" \
+  --command research \
+  --action ra_review_completed \
+  --subject "$PRODUCT_CODE" \
+  --decision "{ra_sign_off_status}" \
+  --mode "$MODE" \
+  --rationale "{RA advisor's key findings}" \
+  --metadata "{\"predicates_reviewed\":$PRED_COUNT,\"concerns_raised\":$CONCERN_COUNT,\"presub_recommended\":$PRESUB_BOOL}"
+```
+
+## Step 8: Competitive Landscape
 
 ### Top applicants
 

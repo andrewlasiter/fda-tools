@@ -98,6 +98,9 @@ Risk flags are independent of the confidence score. A device can have a high con
 | `RECALLED_CLASS_I` | Class I recall (most serious) | `/device/enforcement` where `classification:"Class I"` (note: recall API has no classification field) | CRITICAL |
 | `PMA_ONLY` | Device number starts with P (PMA, not 510(k)) | Number format check | MEDIUM |
 | `CLASS_III` | Device classification is Class III | `/device/classification` or `foiaclass.txt` | MEDIUM |
+| `WEB_VALIDATION_RED` | RED flag from web validator (Class I recall, withdrawn, active enforcement) | `web_predicate_validator.py` | CRITICAL |
+| `WEB_VALIDATION_YELLOW` | YELLOW flag from web validator (Class II recall, >10 years old) | `web_predicate_validator.py` | MEDIUM |
+| `FDA_CRITERIA_NON_COMPLIANT` | Failed FDA predicate selection criteria (2014 guidance) | FDA criteria compliance check | CRITICAL |
 | `OLD` | Decision date > 10 years ago | Decision date from database | LOW |
 | `HIGH_MAUDE` | > 100 adverse events for this product code | `/device/event` count by product code | MEDIUM |
 | `DEATH_EVENTS` | Any death events reported for this product code | `/device/event` where `event_type:"Death"` | HIGH |
@@ -246,3 +249,194 @@ This plugin uses two distinct scoring systems. They measure different things and
 | **Display prefix** | "Score:" or "PCS:" | "SRI:" |
 
 When displaying either score, always include the label to prevent ambiguity.
+
+## Web Validation Component (NEW - 2026-02-13)
+
+**Purpose**: Comprehensive validation against FDA web sources before accepting predicates.
+
+**Implementation**: Run `web_predicate_validator.py` on all predicate candidates during Step 3.5 of review workflow.
+
+### Validation Flags
+
+| Flag | Meaning | Auto-Decision (--full-auto) | Display |
+|------|---------|----------------------------|---------|
+| **GREEN** | Safe to use — no enforcement actions, no recalls, recent clearance | Accept (normal scoring) | ✓ GREEN |
+| **YELLOW** | Review required — Class II recalls, old clearance (>10 years), minor enforcement | Accept (normal scoring + note) | ⚠ YELLOW |
+| **RED** | Avoid — Class I recalls, withdrawn, major enforcement actions, NSE | AUTO-REJECT (bypass scoring) | ✗ RED |
+
+### Scoring Impact
+
+**RED-flagged predicates:**
+- Score adjustment: -50 points (or set score to 0)
+- In --full-auto mode: Automatically rejected regardless of base score
+- In interactive mode: Display prominent warning, recommend rejection
+
+**YELLOW-flagged predicates:**
+- Score adjustment: -10 points
+- In --full-auto mode: Apply normal threshold logic with penalty
+- In interactive mode: Display warning, allow user decision
+
+**GREEN-flagged predicates:**
+- No score adjustment
+- Proceed with normal scoring
+
+### Validation Data Collected
+
+For each predicate, the validator collects:
+- **Recalls**: Class I/II/III recalls from `/device/recall` API
+- **Enforcement actions**: Active/ongoing actions from `/device/enforcement` API
+- **Warning letters**: FDA warning letters mentioning this device
+- **Market status**: Whether predicate is still legally marketed
+
+### Integration with Review Workflow
+
+```python
+# Step 3.5: Web Validation
+validation_results = run_web_validator(predicate_candidates)
+
+for k_number, validation in validation_results.items():
+    if validation['flag'] == 'RED':
+        # AUTO-REJECT in --full-auto
+        predicate_data[k_number]['auto_reject'] = True
+        predicate_data[k_number]['reject_reason'] = f"RED validation: {validation['rationale']}"
+    elif validation['flag'] == 'YELLOW':
+        # Apply penalty
+        predicate_data[k_number]['score_adjustment'] = -10
+        predicate_data[k_number]['warning'] = f"YELLOW validation: {validation['rationale']}"
+```
+
+---
+
+## FDA Criteria Compliance Component (NEW - 2026-02-13)
+
+**Purpose**: Systematic verification against FDA's 2014 predicate selection criteria.
+
+**Reference**: "The 510(k) Program: Evaluating Substantial Equivalence in Premarket Notifications" (2014), Section IV.B
+
+### Required Criteria (All Must Pass)
+
+| # | Criterion | Check Method | Failure Consequence |
+|---|-----------|--------------|---------------------|
+| 1 | Legally Marketed | Web validation (no withdrawal/prohibition) | AUTO-REJECT |
+| 2 | 510(k) Pathway | K-number format (not P/H) | AUTO-REJECT |
+| 3 | Not Recalled | Class I recall check | AUTO-REJECT |
+| 4 | Same Intended Use | IFU keyword overlap >70% | FLAG for review |
+| 5 | Same/Similar Tech | Device description comparison | FLAG for review |
+
+### Compliance Scoring
+
+**Non-compliant (failed required criteria 1-3):**
+- Compliance status: `NOT_COMPLIANT`
+- Auto-decision: REJECT (bypass scoring)
+- Rationale: Include FDA citation (21 CFR 807.92)
+
+**Compliant with flags (criteria 4-5 concerns):**
+- Compliance status: `COMPLIANT_WITH_FLAGS`
+- Auto-decision: Apply normal scoring
+- Note flags in review card for user consideration
+
+**Fully compliant:**
+- Compliance status: `COMPLIANT`
+- Auto-decision: Apply normal scoring
+- Display compliance badge in review card
+
+### Integration with Review Workflow
+
+```python
+# Step 3.6: FDA Criteria Compliance Check
+for k_number in predicate_candidates:
+    compliance = check_fda_predicate_criteria(
+        k_number,
+        subject_device_ifu,
+        subject_device_product_code,
+        predicate_data[k_number]
+    )
+
+    if not compliance['compliant']:
+        # Non-compliant — AUTO-REJECT
+        predicate_data[k_number]['confidence_score'] = 0
+        predicate_data[k_number]['auto_reject'] = True
+        predicate_data[k_number]['reject_reason'] = compliance['rationale']
+```
+
+---
+
+## Combined Decision Logic (NEW - 2026-02-13)
+
+**Order of operations** in review workflow:
+
+1. **Base scoring** (Steps 3A-3E): Calculate 0-100 confidence score
+2. **Web validation** (Step 3.5): Apply RED/YELLOW/GREEN flags
+3. **FDA criteria** (Step 3.6): Verify compliance
+4. **Combined decision**:
+
+```python
+def make_final_decision(predicate_data, auto_threshold=70):
+    # Pre-validation rejections (bypass scoring)
+    if predicate_data['web_validation']['flag'] == 'RED':
+        return 'REJECT', 'RED validation flag'
+
+    if not predicate_data['fda_criteria_compliance']['compliant']:
+        return 'REJECT', 'Failed FDA criteria'
+
+    # Apply score adjustments
+    final_score = predicate_data['confidence_score']
+    final_score += predicate_data.get('score_adjustment', 0)  # Web validation penalty
+
+    # Scoring thresholds
+    if final_score >= auto_threshold:
+        return 'ACCEPT', f'Score {final_score} >= {auto_threshold}'
+    elif final_score >= 40:
+        return 'DEFER', f'Ambiguous score {final_score}'
+    else:
+        return 'REJECT', f'Low confidence {final_score}'
+```
+
+**Example:**
+```
+Predicate: K234567
+Base score: 75/100 (Strong)
+Web validation: YELLOW (-10 penalty) → Adjusted: 65/100
+FDA criteria: COMPLIANT (no additional penalty)
+Final decision (threshold=70): DEFER (65 < 70)
+```
+
+---
+
+## Audit Trail Requirements (NEW - 2026-02-13)
+
+For regulatory defensibility, log all validation and compliance checks:
+
+```json
+{
+  "audit_trail": {
+    "web_validation": {
+      "validated_at": "2026-02-13T14:30:00Z",
+      "flag": "GREEN",
+      "recalls_checked": true,
+      "enforcement_checked": true,
+      "result": "No issues found"
+    },
+    "fda_criteria_compliance": {
+      "checked_at": "2026-02-13T14:30:05Z",
+      "compliant": true,
+      "criteria_checked": [
+        "Legally Marketed (✓)",
+        "510(k) Pathway (✓)",
+        "Not Recalled (✓)",
+        "Same IFU (✓ - 92% overlap)",
+        "Same Tech (✓ - same product code)"
+      ],
+      "citation": "510(k) Program (2014) Section IV.B; 21 CFR 807.92"
+    }
+  }
+}
+```
+
+Store audit trail in `review.json` for each predicate.
+
+---
+
+**Version:** 5.23.0 (includes web validation + FDA criteria)
+**Last Updated:** 2026-02-13
+**Maintained By:** FDA Predicate Assistant Plugin

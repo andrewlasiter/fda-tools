@@ -338,6 +338,160 @@ else:
 PYEOF
 ```
 
+### 3.5: Web-Based Predicate Validation
+
+**NEW ENHANCEMENT**: Comprehensive validation against FDA web sources (recalls, enforcement, warning letters).
+
+Run the web validator on all unique predicate candidates:
+
+```bash
+# Collect all unique K-numbers from predicate candidates
+UNIQUE_KNUMBERS=$(python3 << 'PYEOF'
+import sys, json
+
+# Load extraction results (from Step 1)
+# Extract unique K-numbers from predicates and references
+knumbers = set()
+# ... collect from parsed output.csv ...
+print(','.join(sorted(knumbers)))
+PYEOF
+)
+
+# Run web validation
+python3 "$FDA_PLUGIN_ROOT/scripts/web_predicate_validator.py" \
+  --k-numbers "$UNIQUE_KNUMBERS" \
+  --format json > "$PROJECTS_DIR/$PROJECT_NAME/web_validation.json"
+```
+
+Parse the validation results:
+
+```python
+import json
+
+with open(f'{project_dir}/web_validation.json') as f:
+    validation = json.load(f)
+
+for k_number, result in validation.items():
+    flag = result['flag']  # 'GREEN', 'YELLOW', or 'RED'
+    rationale = result['rationale']  # List of reasons
+
+    # Apply validation scoring:
+    if flag == 'RED':
+        # Class I recall, withdrawn, or active enforcement
+        # AUTO-REJECT in --full-auto mode
+        # In interactive mode, warn user prominently
+        validation_score = -50  # Penalty to push below acceptance threshold
+    elif flag == 'YELLOW':
+        # Class II recall, >10 years old, minor enforcement
+        validation_score = -10  # Minor penalty
+    else:  # GREEN
+        validation_score = 0  # No penalty
+
+    # Store in predicate data
+    predicate_data[k_number]['web_validation'] = {
+        'flag': flag,
+        'rationale': rationale,
+        'score_adjustment': validation_score,
+        'recalls': result.get('recalls', []),
+        'enforcement_actions': result.get('enforcement_actions', []),
+        'warning_letters': result.get('warning_letters', [])
+    }
+```
+
+**Important**: RED-flagged predicates should be automatically rejected in `--full-auto` mode and prominently warned in interactive mode.
+
+### 3.6: FDA Predicate Criteria Compliance Check
+
+**NEW ENHANCEMENT**: Systematic verification against FDA's 2014 guidance criteria.
+
+Apply the compliance checklist from `references/fda-predicate-criteria-2014.md`:
+
+```python
+def check_fda_predicate_criteria(k_number, subject_ifu, subject_product_code, predicate_data):
+    """
+    Verify predicate meets FDA selection criteria per 510(k) Program (2014) Section IV.B
+
+    Returns: {compliant: bool, flags: [issues], rationale: str}
+    """
+    flags = []
+    compliant = True
+
+    # Criterion 1: Legally Marketed
+    web_val = predicate_data.get('web_validation', {})
+    if web_val.get('flag') == 'RED':
+        if 'withdrawn' in str(web_val.get('rationale', [])).lower():
+            flags.append('WITHDRAWN — Not legally marketed')
+            compliant = False
+
+    # Criterion 2: Regulatory Pathway (510(k) only)
+    if k_number.startswith('P'):
+        flags.append('PMA_DEVICE — Cannot serve as 510(k) predicate')
+        compliant = False
+    elif k_number.startswith('H'):
+        flags.append('HDE_DEVICE — Cannot serve as 510(k) predicate')
+        compliant = False
+    # De Novo (DEN) devices CAN serve as predicates
+
+    # Criterion 3: Not Recalled (Class I = fail)
+    recalls = web_val.get('recalls', [])
+    class_i_recalls = [r for r in recalls if r.get('classification') == 'Class I']
+    if class_i_recalls:
+        flags.append(f'CLASS_I_RECALL — {len(class_i_recalls)} Class I recall(s)')
+        compliant = False
+
+    # Criterion 4: Same Intended Use
+    # Compare IFU text from predicate PDF (if available) to subject IFU
+    # For now, check product code as proxy
+    pred_product_code = predicate_data.get('device_info', {}).get('product_code')
+    if pred_product_code and pred_product_code != subject_product_code:
+        # Different product code — may still be valid if same panel
+        # Get panel from classification (if available)
+        # For now, flag for manual review
+        flags.append(f'DIFFERENT_PRODUCT_CODE — {pred_product_code} vs {subject_product_code}')
+        # Don't auto-fail, but flag for review
+
+    # Criterion 5: Same/Similar Technological Characteristics
+    # This requires device description comparison — defer to manual review
+    # Flag only if obvious mismatch (e.g., different energy source)
+
+    if compliant:
+        rationale = 'All FDA criteria met per 510(k) Program guidance (2014) Section IV.B'
+    else:
+        rationale = f"Failed FDA criteria: {', '.join(flags)}"
+
+    return {
+        'compliant': compliant,
+        'flags': flags,
+        'rationale': rationale,
+        'citation': '510(k) Program (2014) Section IV.B; 21 CFR 807.92'
+    }
+```
+
+Apply to each predicate:
+
+```python
+for k_number in predicate_candidates:
+    compliance = check_fda_predicate_criteria(
+        k_number,
+        subject_device_ifu,
+        subject_device_product_code,
+        predicate_data[k_number]
+    )
+
+    predicate_data[k_number]['fda_criteria_compliance'] = compliance
+
+    # Adjust scoring based on compliance
+    if not compliance['compliant']:
+        # Non-compliant predicates should be rejected
+        predicate_data[k_number]['confidence_score'] = 0
+        predicate_data[k_number]['auto_reject_reason'] = compliance['rationale']
+```
+
+**Integration with Scoring:**
+- Non-compliant predicates → score = 0 (auto-reject)
+- Compliant with flags → no penalty, but flag for review
+- Fully compliant → no change
+
 ## Step 4: Apply Risk Flags
 
 After scoring, apply risk flags per the definitions in `references/confidence-scoring.md`:
@@ -382,9 +536,27 @@ Proceeding with manual review of 3 devices...
 
 Fully autonomous processing — **NEVER call AskUserQuestion**. All decisions are deterministic:
 
+**Pre-validation:** Before scoring decisions, apply web validation and FDA criteria checks:
+
+1. **RED-flagged predicates** (Class I recall, withdrawn, active enforcement):
+   - AUTO-REJECT immediately regardless of score
+   - Rationale: `"Auto-rejected (full-auto): {validation_rationale}"`
+
+2. **Non-compliant with FDA criteria** (failed required criteria):
+   - AUTO-REJECT immediately regardless of score
+   - Rationale: `"Auto-rejected (full-auto): Failed FDA predicate criteria - {flags}"`
+
+**Scoring decisions** (for predicates that pass validation):
+
 - **Score >= {auto-threshold, default 70}**: Auto-accept with rationale `"Auto-accepted (full-auto, score >= {threshold})"`
 - **Score 40 to {threshold-1}**: Auto-defer with rationale `"Auto-deferred for manual review (full-auto, ambiguous score {score})"`
 - **Score < 40**: Auto-reject with rationale `"Auto-rejected (full-auto, low confidence score {score})"`
+
+**Special cases:**
+
+- **YELLOW-flagged predicates** (Class II recall, >10 years old):
+  - Apply normal scoring thresholds
+  - Add note to rationale: `"Note: YELLOW validation flag - {reason}"`
 
 All auto-decisions are logged with `"auto_decision": true` in review.json.
 
@@ -394,6 +566,18 @@ Full-Auto Review Results:
   Auto-accepted (score >= {threshold}): {N} predicates
   Auto-deferred (score 40-{threshold-1}): {N} predicates
   Auto-rejected (score < 40): {N} predicates
+  Auto-rejected (RED validation flag): {N} predicates
+  Auto-rejected (FDA criteria non-compliant): {N} predicates
+
+  Web Validation Summary:
+    ✓ GREEN (safe): {N}
+    ⚠ YELLOW (review): {N}
+    ✗ RED (avoid): {N}
+
+  FDA Criteria Compliance:
+    ✓ Compliant: {N}
+    ⚠ Compliant with flags: {N}
+    ✗ Non-compliant: {N}
 
   Total: {N} predicates processed with 0 user interactions
 ```
@@ -428,6 +612,16 @@ SCORE BREAKDOWN
   Regulatory History: 10/10  (clean)
 
   Flags: OLD
+
+VALIDATION STATUS (NEW)
+────────────────────────────────────────
+
+  Web Validation: ⚠ YELLOW (Class II recall 2023)
+  FDA Criteria:   ✓ COMPLIANT (all criteria met)
+
+  Recalls: 1 Class II recall (device label error, resolved)
+  Enforcement: None
+  Compliance: Meets all FDA predicate selection criteria per 2014 guidance
 
 CONTEXT
 ────────────────────────────────────────
@@ -555,6 +749,254 @@ python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
   --files-written "$PROJECTS_DIR/$PROJECT_NAME/review.json,$PROJECTS_DIR/$PROJECT_NAME/output_reviewed.csv"
 ```
 
+## Step 5: RA Professional Final Review
+
+**IMPORTANT**: After all predicate decisions are made (accepted/rejected/deferred), invoke the RA professional advisor agent for final regulatory sign-off before writing outputs. This step ensures the final predicate selection meets FDA compliance standards and provides a professional regulatory rationale for audit defense.
+
+### When to invoke RA final review
+
+Invoke RA advisor when:
+- User has made all predicate accept/reject decisions (interactive or --full-auto mode)
+- At least 1 predicate was accepted
+- Project is intended for actual FDA submission (not just exploratory research)
+
+**Skip this step for**:
+- `--dry-run` mode
+- Projects with 0 accepted predicates
+- Quick exploratory reviews
+
+### RA Advisor Final Review Scope
+
+The RA advisor performs final regulatory sign-off on:
+
+1. **Accepted Predicates Compliance**
+   - Do all accepted predicates meet FDA predicate selection criteria (21 CFR 807.92)?
+   - Are predicates legally marketed, not recalled (verified via web validation)?
+   - Do accepted predicates support the intended SE pathway?
+   - Any predicates with YELLOW or RED validation flags that need mitigation?
+
+2. **Rejected Predicates Rationale**
+   - Are rejection rationales defensible in FDA review?
+   - Were any borderline predicates rejected that should have been reconsidered?
+   - Is the rejection of different-product-code predicates appropriate?
+
+3. **FDA Criteria Compliance Verification**
+   - Verify all 5 FDA predicate criteria met for each accepted predicate:
+     1. Legally marketed in U.S.
+     2. 510(k) pathway (not PMA/HDE)
+     3. Not recalled or NSE
+     4. Same intended use as subject device
+     5. Same/similar technological characteristics
+   - Flag any accepted predicates that don't meet all 5 criteria
+
+4. **Risk Assessment**
+   - Overall predicate chain health (recalls, chain depth, age)
+   - Testing strategy gaps from accepted predicates
+   - Novel features with thin precedent
+   - Regulatory risks that require Pre-Submission discussion
+
+5. **Professional Sign-Off or Escalation**
+   - **GREEN Sign-Off**: Accepted predicates are defensible, proceed with SE comparison
+   - **YELLOW Review Required**: Minor concerns, specific mitigations recommended
+   - **RED Escalation**: Major regulatory risks, recommend Pre-Submission or pathway reconsideration
+
+### How to invoke RA advisor
+
+```bash
+# Create RA final review context file
+cat << 'EOF' > "$PROJECTS_DIR/$PROJECT_NAME/ra_final_review_context.json"
+{
+  "stage": "final_predicate_approval",
+  "product_code": "$PRODUCT_CODE",
+  "device_name": "$DEVICE_NAME",
+  "review_mode": "$REVIEW_MODE",
+  "summary": {
+    "total_evaluated": $TOTAL_PREDICATES,
+    "accepted": $ACCEPTED,
+    "rejected": $REJECTED,
+    "deferred": $DEFERRED,
+    "reclassified": $RECLASSIFIED
+  },
+  "accepted_predicates": [
+    {
+      "k_number": "K123456",
+      "score": 92,
+      "classification": "Predicate",
+      "web_validation": {
+        "flag": "GREEN",
+        "rationale": []
+      },
+      "fda_criteria_compliance": {
+        "compliant": true,
+        "flags": []
+      },
+      "decision_rationale": "Strong predicate with SE section citations...",
+      "risk_flags": []
+    }
+  ],
+  "rejected_predicates": [
+    {
+      "k_number": "K234567",
+      "score": 35,
+      "reason": "Different product code (KGN), only found in general text",
+      "web_validation": {
+        "flag": "YELLOW",
+        "rationale": ["Class II recall 2023"]
+      }
+    }
+  ],
+  "overall_validation_summary": {
+    "green": 5,
+    "yellow": 2,
+    "red": 1
+  },
+  "compliance_summary": {
+    "compliant": 6,
+    "compliant_with_flags": 1,
+    "non_compliant": 1
+  }
+}
+EOF
+
+# Invoke RA advisor agent with Task tool
+```
+
+Use the Task tool to launch the `ra-professional-advisor` agent with this prompt:
+
+```
+Perform final regulatory sign-off for 510(k) predicate selection:
+
+Context file: $PROJECTS_DIR/$PROJECT_NAME/ra_final_review_context.json
+
+Your final review must verify:
+1. All accepted predicates meet FDA predicate selection criteria (21 CFR 807.92, 510(k) Program 2014 Section IV.B)
+2. Web validation flags (YELLOW/RED) have appropriate mitigation
+3. FDA criteria compliance verified for all accepted predicates
+4. Rejection rationales are defensible in FDA review
+5. Overall predicate strategy supports SE pathway
+
+Provide professional sign-off:
+- **Sign-Off Level**: GREEN (proceed) | YELLOW (review required) | RED (escalate)
+- **FDA Criteria Verification**: List any compliance concerns
+- **Risk Mitigation**: Specific actions required for YELLOW/RED predicates
+- **Regulatory Rationale**: Professional justification for acceptance decisions
+- **Pre-Submission Recommendation**: Yes/No + specific discussion topics
+
+Expected output: Professional RA sign-off suitable for regulatory audit defense.
+```
+
+### Integrate RA final review into review.json
+
+After RA advisor completes final review, add findings to review.json:
+
+```json
+{
+  "ra_final_review": {
+    "reviewed_at": "2026-02-13T16:30:00Z",
+    "sign_off_level": "GREEN|YELLOW|RED",
+    "fda_criteria_verified": true|false,
+    "compliance_concerns": [
+      {
+        "k_number": "K234567",
+        "concern": "YELLOW validation flag (Class II recall)",
+        "mitigation": "Verify recall was addressed, document in SE justification"
+      }
+    ],
+    "regulatory_rationale": "All accepted predicates meet FDA predicate selection criteria per 21 CFR 807.92 and 510(k) Program (2014) Section IV.B. Predicates are legally marketed, not subject to Class I recalls, and support SE determination for the subject device.",
+    "risk_assessment": "Low regulatory risk. Primary predicate (K241335) has clean record and recent clearance. Secondary predicate (K234567) has resolved Class II recall but provides strong technological precedent.",
+    "recommended_actions": [
+      "Proceed with formal SE comparison (/fda:compare-se)",
+      "Document Class II recall mitigation in SE justification",
+      "Include predicate testing data in submission"
+    ],
+    "presub_meeting": {
+      "recommended": false,
+      "rationale": "SE pathway is clear with strong predicate precedent. No novel features requiring FDA pre-clearance discussion."
+    },
+    "professional_sign_off": "Accepted predicates are defensible and meet FDA standards. Proceed with 510(k) submission preparation.",
+    "ra_citation": "21 CFR 807.92, FDA Guidance 'The 510(k) Program: Evaluating Substantial Equivalence' (2014) Section IV.B"
+  }
+}
+```
+
+### Display RA final review in output
+
+Present RA final review to user:
+
+```
+RA PROFESSIONAL FINAL REVIEW
+────────────────────────────────────────
+
+Sign-Off Level: ✓ GREEN (Proceed with SE Comparison)
+
+FDA Criteria Verified: ✓ All accepted predicates compliant
+
+{If YELLOW or RED sign-off:}
+Compliance Concerns:
+  • K234567: YELLOW validation flag (Class II recall 2023)
+    → Mitigation: Verify recall resolved, document in SE justification
+
+Regulatory Rationale:
+  {RA advisor's professional justification}
+
+Risk Assessment: {Low|Medium|High} regulatory risk
+  {RA advisor's risk summary}
+
+Recommended Actions:
+  1. {Action 1}
+  2. {Action 2}
+
+Pre-Submission Meeting: {Recommended|Optional|Not Needed}
+  {Rationale}
+
+Professional Sign-Off:
+  "{RA advisor's final statement}"
+
+  Citation: 21 CFR 807.92, FDA Guidance "The 510(k) Program" (2014) Section IV.B
+
+────────────────────────────────────────
+```
+
+### Fallback if RA advisor unavailable
+
+If Task tool fails or RA advisor unavailable:
+
+1. Skip this step (do not block review completion)
+2. Add warning to review.json:
+   ```json
+   {
+     "ra_final_review": {
+       "status": "not_performed",
+       "warning": "RA professional review was not completed. Verify accepted predicates meet FDA criteria (21 CFR 807.92) before proceeding.",
+       "recommendation": "Consult regulatory affairs professional to verify predicate selection defensibility."
+     }
+   }
+   ```
+3. Display warning to user:
+   ```
+   ⚠ RA Professional Review Not Completed
+
+   Before proceeding with SE comparison, verify:
+   - All accepted predicates meet FDA predicate selection criteria
+   - Web validation flags (YELLOW/RED) are addressed
+   - FDA criteria compliance confirmed for each predicate
+
+   See plugins/fda-predicate-assistant/references/fda-predicate-criteria-2014.md
+   ```
+
+### Audit logging
+
+```bash
+python3 "$FDA_PLUGIN_ROOT/scripts/fda_audit_logger.py" \
+  --project "$PROJECT_NAME" \
+  --command review \
+  --action ra_final_review_completed \
+  --decision "{sign_off_level}" \
+  --mode "$REVIEW_MODE" \
+  --rationale "{RA advisor's sign-off statement}" \
+  --metadata "{\"sign_off_level\":\"$SIGN_OFF_LEVEL\",\"compliance_verified\":$COMPLIANCE_BOOL,\"presub_recommended\":$PRESUB_BOOL,\"concerns_count\":$CONCERN_COUNT}"
+```
+
 ## Step 6: Write Outputs
 
 ### review.json
@@ -586,6 +1028,20 @@ Write structured review data to the project folder:
         "product_code_match": 15,
         "recency": 10,
         "regulatory_history": 5
+      },
+      "web_validation": {
+        "flag": "GREEN",
+        "rationale": ["No enforcement actions or recalls found"],
+        "score_adjustment": 0,
+        "recalls": [],
+        "enforcement_actions": [],
+        "warning_letters": []
+      },
+      "fda_criteria_compliance": {
+        "compliant": true,
+        "flags": [],
+        "rationale": "All FDA criteria met per 510(k) Program guidance (2014) Section IV.B",
+        "citation": "510(k) Program (2014) Section IV.B; 21 CFR 807.92"
       },
       "original_classification": "Predicate",
       "reclassification": "Predicate",
