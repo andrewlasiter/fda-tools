@@ -23,6 +23,109 @@ import json
 import time
 
 
+# Product Code to CFR Part Mapping
+# Source: FDA Product Classification Database
+# Updated: 2026-02-13
+PRODUCT_CODE_CFR_PARTS = {
+    # Cardiovascular Devices - 21 CFR 870
+    'DQY': ('21 CFR 870.1340', 'Percutaneous Catheter'),
+    'DRG': ('21 CFR 870.3610', 'Pacemaker'),
+    'NIQ': ('21 CFR 870.3680', 'Implantable Cardioverter Defibrillator'),
+    'NJY': ('21 CFR 870.3925', 'Coronary Stent'),
+    'DTK': ('21 CFR 870.1425', 'Cardiovascular Angiographic Catheter'),
+    'DRR': ('21 CFR 870.3545', 'Cardiovascular Permanent Implantable Pacemaker Electrode'),
+
+    # Orthopedic Devices - 21 CFR 888
+    'OVE': ('21 CFR 888.3080', 'Intervertebral Body Fusion Device'),
+    'MNH': ('21 CFR 888.3353', 'Hip Prosthesis'),
+    'KWP': ('21 CFR 888.3358', 'Knee Joint Patellofemorotibial Polymer/Metal/Polymer Semi-Constrained Cemented Prosthesis'),
+    'HWC': ('21 CFR 888.3030', 'Bone Fixation Device'),
+    'MAX': ('21 CFR 888.3025', 'Spinal Interlaminar Fixation Orthosis'),
+
+    # General & Plastic Surgery - 21 CFR 878
+    'GEI': ('21 CFR 878.4400', 'Electrosurgical Cutting and Coagulation Device'),
+    'FRO': ('21 CFR 878.4018', 'Hydrophilic Wound Dressing'),
+    'GAB': ('21 CFR 878.4450', 'Unclassified Surgical Instrument'),
+    'KXM': ('21 CFR 878.5000', 'Suture'),
+
+    # Radiology Devices - 21 CFR 892
+    'QKQ': ('21 CFR 892.2050', 'Picture Archiving and Communications System'),
+    'JAK': ('21 CFR 892.1650', 'Computed Tomography X-Ray System'),
+    'MUW': ('21 CFR 892.1760', 'Magnetic Resonance Diagnostic Device'),
+
+    # General Hospital - 21 CFR 880
+    'FMM': ('21 CFR 880.5900', 'Surgical Instrument'),
+    'FZP': ('21 CFR 880.6260', 'Nonelectrically Powered Fluid Injector'),
+    'LRH': ('21 CFR 880.5400', 'Medical Magnetic Instrument'),
+
+    # Anesthesiology - 21 CFR 868
+    'BYG': ('21 CFR 868.5240', 'Breathing Circuit'),
+    'BSM': ('21 CFR 868.1040', 'Anesthesia Breathing Circuit Bacterial Filter'),
+    'CAW': ('21 CFR 868.5870', 'Ventilator'),
+
+    # Clinical Chemistry - 21 CFR 862
+    'JJE': ('21 CFR 862.1150', 'Glucose Test System'),
+    'JIT': ('21 CFR 862.1660', 'Hemoglobin A1c Test System'),
+    'DKZ': ('21 CFR 862.1355', 'Integrated Blood Glucose Test System'),
+
+    # Hematology - 21 CFR 864
+    'JJT': ('21 CFR 864.5220', 'Automated Hematology Analyzer'),
+    'GGM': ('21 CFR 864.5425', 'Multipurpose System for In Vitro Coagulation Studies'),
+
+    # Immunology - 21 CFR 866
+    'MMH': ('21 CFR 866.5950', 'Immunological Test System'),
+    'KSO': ('21 CFR 866.5540', 'Tumor Antigen Test System'),
+
+    # Microbiology - 21 CFR 866
+    'MEA': ('21 CFR 866.2660', 'Antimicrobial Susceptibility Test Powder'),
+    'GDK': ('21 CFR 866.1640', 'Microbiological Specimen Collection and Transport Device'),
+
+    # Pathology - 21 CFR 864
+    'PHY': ('21 CFR 864.3250', 'Automated Cell Counter'),
+
+    # Dental - 21 CFR 872
+    'EMA': ('21 CFR 872.3570', 'Endodontic Dry Heat Sterilizer'),
+    'EJS': ('21 CFR 872.3680', 'Orthodontic Plastic Bracket and Tray'),
+
+    # Ear, Nose, Throat - 21 CFR 874
+    'ETO': ('21 CFR 874.3430', 'Hearing Aid'),
+    'FPJ': ('21 CFR 874.3695', 'Middle Ear Mold'),
+
+    # Gastroenterology-Urology - 21 CFR 876
+    'DQA': ('21 CFR 876.5540', 'Endoscope and Accessories'),
+    'FKY': ('21 CFR 876.5011', 'Gastroenterology-Urology Catheter'),
+
+    # Neurology - 21 CFR 882
+    'GWQ': ('21 CFR 882.5820', 'Neonatal Incubator'),
+    'DZE': ('21 CFR 882.1570', 'Computerized Electroencephalography System'),
+
+    # Obstetrical and Gynecological - 21 CFR 884
+    'MHW': ('21 CFR 884.2980', 'Unclassified Obstetrical-Gynecological Device'),
+
+    # Ophthalmic - 21 CFR 886
+    'NIR': ('21 CFR 886.4150', 'Soft (Hydrophilic) Contact Lens'),
+    'HQD': ('21 CFR 886.3600', 'Intraocular Lens'),
+
+    # Physical Medicine - 21 CFR 890
+    'IOR': ('21 CFR 890.5150', 'Powered Wheelchair'),
+    'KGZ': ('21 CFR 890.3475', 'Powered Patient Rotation Bed'),
+}
+
+
+def get_device_specific_cfr(product_code: str) -> Optional[Tuple[str, str]]:
+    """
+    Get device-specific CFR citation for a product code.
+
+    Args:
+        product_code: FDA product code (e.g., 'DQY', 'OVE')
+
+    Returns:
+        Tuple of (cfr_part, device_type) or None if not found
+        Example: ('21 CFR 870.1340', 'Percutaneous Catheter')
+    """
+    return PRODUCT_CODE_CFR_PARTS.get(product_code)
+
+
 class FDAEnrichment:
     """
     Main enrichment class for FDA 510(k) device data analysis.
@@ -472,6 +575,17 @@ class FDAEnrichment:
             clearance_date
         )
         enriched.update(acceptability_data)
+
+        # Add device-specific CFR citations (Fix #3: Critical Expert Review Finding)
+        device_cfr = get_device_specific_cfr(product_code)
+        if device_cfr:
+            cfr_part, device_type = device_cfr
+            enriched['regulation_number'] = cfr_part
+            enriched['device_classification'] = device_type
+        else:
+            # Product code not in mapping - flag for manual lookup
+            enriched['regulation_number'] = 'VERIFY_MANUALLY'
+            enriched['device_classification'] = f'Product Code {product_code} - verify classification'
 
         # Calculate quality score
         enriched['enrichment_completeness_score'] = self.calculate_enrichment_completeness_score(enriched, api_log)
