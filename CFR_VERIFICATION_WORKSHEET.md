@@ -1,9 +1,32 @@
 # CFR Citation Verification Worksheet
 
-**Purpose:** Independent verification of all CFR citations used in FDA API enrichment.
+**Purpose:** Independent verification of regulatory framework CFR citations used in FDA API enrichment.
 **Verified By:** ________________ (RA professional - name and credentials)
 **Date:** ________________
 **Status:** ☐ PENDING / ☐ VERIFIED / ☐ ISSUES FOUND
+
+---
+
+## Scope of Verification
+
+### What is Being Verified (3 CFRs)
+
+This worksheet verifies **regulatory framework CFRs** - the 3 CFR parts we cite to justify our data collection approach:
+
+1. **21 CFR Part 803** - Justifies collecting MAUDE adverse event data
+2. **21 CFR Part 7** - Justifies collecting recall data
+3. **21 CFR Part 807** - Justifies collecting 510(k) clearance data
+
+### What is NOT Being Verified
+
+**Device-specific CFRs** (e.g., 21 CFR 870.1340, 21 CFR 888.3080) are **not verified** because:
+
+- They come directly from FDA's own database (regulation_number field)
+- FDA has already verified them as part of device classification
+- We trust FDA's database values as authoritative
+- They vary by device and are not static framework citations
+
+**Verification Principle:** We verify OUR citations (framework CFRs), but trust FDA's own data (device-specific CFRs).
 
 ---
 
