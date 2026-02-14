@@ -911,7 +911,7 @@ class TestProjectsDirResolution:
         settings_path = tmp_path / "settings.md"
         settings_path.write_text("projects_dir: /custom/projects/path\n")
         with patch("fda_data_store.os.path.expanduser") as mock_expand:
-            mock_expand.side_effect = lambda p: str(settings_path) if "fda-predicate-assistant" in p else p.replace("~", str(tmp_path))
+            mock_expand.side_effect = lambda p: str(settings_path) if "fda-tools" in p else p.replace("~", str(tmp_path))
             with patch("fda_data_store.os.path.exists", return_value=True):
                 with patch("builtins.open", return_value=open(str(settings_path))):
                     result = get_projects_dir()

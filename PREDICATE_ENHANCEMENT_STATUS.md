@@ -88,18 +88,18 @@ python3 build_structured_cache.py --both
 
 ### Full-Text Feature Search
 ```bash
-/fda-predicate-assistant:search-predicates --features "wireless, Bluetooth" --product-codes DQY
-/fda-predicate-assistant:search-predicates --features "antimicrobial, silver" --product-codes KGN,FRO
+/fda-tools:search-predicates --features "wireless, Bluetooth" --product-codes DQY
+/fda-tools:search-predicates --features "antimicrobial, silver" --product-codes KGN,FRO
 ```
 
 ### Research with RA Oversight
 ```bash
-/fda-predicate-assistant:research DQY --device-description "wireless cardiac catheter" --depth standard
+/fda-tools:research DQY --device-description "wireless cardiac catheter" --depth standard
 ```
 
 ### Review with Validation
 ```bash
-/fda-predicate-assistant:review --project my_device --full-auto
+/fda-tools:review --project my_device --full-auto
 ```
 
 ---

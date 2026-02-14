@@ -68,7 +68,7 @@ class FDAClient:
         if key:
             return key
 
-        settings_path = os.path.expanduser("~/.claude/fda-predicate-assistant.local.md")
+        settings_path = os.path.expanduser("~/.claude/fda-tools.local.md")
         if os.path.exists(settings_path):
             with open(settings_path) as f:
                 content = f.read()
@@ -79,7 +79,7 @@ class FDAClient:
 
     def _check_enabled(self):
         """Check if API is enabled in settings."""
-        settings_path = os.path.expanduser("~/.claude/fda-predicate-assistant.local.md")
+        settings_path = os.path.expanduser("~/.claude/fda-tools.local.md")
         if os.path.exists(settings_path):
             with open(settings_path) as f:
                 content = f.read()

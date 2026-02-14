@@ -428,7 +428,7 @@ to use FDA Recognized Consensus Standards Database and /fda:test-plan command.
 
 ```bash
 # No changes to command syntax - just use --enrich flag
-/fda-predicate-assistant:batchfetch \
+/fda-tools:batchfetch \
   --product-codes DQY \
   --years 2023-2024 \
   --project my_analysis \
@@ -453,7 +453,7 @@ to use FDA Recognized Consensus Standards Database and /fda:test-plan command.
 Run a test project to verify everything works:
 
 ```bash
-/fda-predicate-assistant:batchfetch \
+/fda-tools:batchfetch \
   --product-codes DQY \
   --years 2024 \
   --project phase_1_2_test \

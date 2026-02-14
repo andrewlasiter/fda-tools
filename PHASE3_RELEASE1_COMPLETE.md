@@ -336,7 +336,7 @@ All Phase 3 features are research tools, NOT regulatory advice. Every output inc
 ### 4. End-to-End Testing (1 hour)
 
 **Real Data Validation:**
-- Run `/fda-predicate-assistant:batchfetch --product-codes DQY,OVE,GEI --years 2024 --enrich --full-auto`
+- Run `/fda-tools:batchfetch --product-codes DQY,OVE,GEI --years 2024 --enrich --full-auto`
 - Verify all 7 Phase 3 columns populated
 - Check classification distribution (expect bell curve)
 - Validate percentile calculations manually

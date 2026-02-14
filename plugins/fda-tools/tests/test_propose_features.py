@@ -89,7 +89,7 @@ class TestProposeCommand:
 
     def test_has_plugin_root_resolution(self):
         assert "installed_plugins.json" in self.content
-        assert "fda-predicate-assistant@" in self.content
+        assert "fda-tools@" in self.content
 
     def test_has_audit_logging(self):
         assert "audit_log.jsonl" in self.content

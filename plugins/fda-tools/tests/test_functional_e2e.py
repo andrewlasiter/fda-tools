@@ -106,7 +106,7 @@ class TestConfigureCommand:
 
     def test_settings_file_path(self):
         """configure.md must reference the correct settings file."""
-        assert "fda-predicate-assistant.local.md" in self.content
+        assert "fda-tools.local.md" in self.content
 
     def test_settings_keys_documented(self):
         """Key settings must be documented."""

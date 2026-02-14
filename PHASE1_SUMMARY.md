@@ -62,7 +62,7 @@ Phase 1 implements **Data Integrity** improvements to the BatchFetch API enrichm
 Phase 1 features are **automatic** when using the `--enrich` flag:
 
 ```bash
-/fda-predicate-assistant:batchfetch \
+/fda-tools:batchfetch \
   --product-codes DQY \
   --years 2024 \
   --project cardiac_catheters_2024 \
@@ -290,7 +290,7 @@ The `enrichment_metadata.json` file provides complete audit trail:
 
 1. **Test with Real Data:**
    ```bash
-   /fda-predicate-assistant:batchfetch \
+   /fda-tools:batchfetch \
      --product-codes DQY \
      --years 2024 \
      --project test_phase1 \

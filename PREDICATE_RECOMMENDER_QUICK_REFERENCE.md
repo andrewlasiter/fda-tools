@@ -47,7 +47,7 @@ recommender.export_json(recommendations, 'output.json')
 python3 lib/predicate_recommender.py device_profile.json 510k_download_enriched.csv 5
 
 # With batchfetch integration
-/fda-predicate-assistant:batchfetch \
+/fda-tools:batchfetch \
   --subject-device device_profile.json \
   --product-codes DQY \
   --years 2020-2025 \

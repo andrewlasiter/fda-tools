@@ -278,7 +278,7 @@ pytest tests/test_fda_enrichment.py -v
 ### Immediate (User Action Required)
 1. **Test enrichment end-to-end:**
    ```bash
-   /fda-predicate-assistant:batchfetch --product-codes DQY,OVE,GEI --years 2024 --enrich --full-auto
+   /fda-tools:batchfetch --product-codes DQY,OVE,GEI --years 2024 --enrich --full-auto
    ```
 
 2. **Verify outputs:**

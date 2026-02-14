@@ -46,7 +46,7 @@ mkdir -p audit_outputs/device_1_DQY
 cd audit_outputs/device_1_DQY
 
 # Run enrichment
-/fda-predicate-assistant:batchfetch --product-codes DQY --years 2024 --enrich --full-auto
+/fda-tools:batchfetch --product-codes DQY --years 2024 --enrich --full-auto
 ```
 
 **Expected Output Files:**
@@ -74,7 +74,7 @@ cd /home/linux/.claude/plugins/marketplaces/fda-tools
 mkdir -p audit_outputs/device_2_GEI
 cd audit_outputs/device_2_GEI
 
-/fda-predicate-assistant:batchfetch --product-codes GEI --years 2024 --enrich --full-auto
+/fda-tools:batchfetch --product-codes GEI --years 2024 --enrich --full-auto
 ```
 
 **Expected Output Files:** (same 6 files as Device 1)
@@ -95,7 +95,7 @@ cd /home/linux/.claude/plugins/marketplaces/fda-tools
 mkdir -p audit_outputs/device_3_QKQ
 cd audit_outputs/device_3_QKQ
 
-/fda-predicate-assistant:batchfetch --product-codes QKQ --years 2024 --enrich --full-auto
+/fda-tools:batchfetch --product-codes QKQ --years 2024 --enrich --full-auto
 ```
 
 **Expected Output Files:** (same 6 files)
@@ -116,7 +116,7 @@ cd /home/linux/.claude/plugins/marketplaces/fda-tools
 mkdir -p audit_outputs/device_4_KWP
 cd audit_outputs/device_4_KWP
 
-/fda-predicate-assistant:batchfetch --product-codes KWP --years 2024 --enrich --full-auto
+/fda-tools:batchfetch --product-codes KWP --years 2024 --enrich --full-auto
 ```
 
 **Expected Output Files:** (same 6 files)
@@ -138,7 +138,7 @@ cd /home/linux/.claude/plugins/marketplaces/fda-tools
 mkdir -p audit_outputs/device_5_FRO
 cd audit_outputs/device_5_FRO
 
-/fda-predicate-assistant:batchfetch --product-codes FRO --years 2024 --enrich --full-auto
+/fda-tools:batchfetch --product-codes FRO --years 2024 --enrich --full-auto
 ```
 
 **Expected Output Files:** (same 6 files)
@@ -463,7 +463,7 @@ After audit completion:
 
 **Run enrichment:**
 ```bash
-/fda-predicate-assistant:batchfetch --product-codes [CODE] --years 2024 --enrich --full-auto --project audit_device_[N]_[CODE]
+/fda-tools:batchfetch --product-codes [CODE] --years 2024 --enrich --full-auto --project audit_device_[N]_[CODE]
 ```
 
 **Check output files:**

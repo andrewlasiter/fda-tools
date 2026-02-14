@@ -12,7 +12,7 @@
 ## Overview
 
 This is a **genuine manual audit**, not a simulated or extrapolated assessment. The auditor will:
-1. Run actual `/fda-predicate-assistant:batchfetch --enrich` commands
+1. Run actual `/fda-tools:batchfetch --enrich` commands
 2. Manually compare each enriched value against FDA API responses
 3. Cross-check against FDA.gov web interfaces
 4. Document actual findings (not estimates)
@@ -56,7 +56,7 @@ For each device, complete all 9 audit sections below. Estimated time: 1 hour per
 **Step 1.1:** Run enrichment command
 ```bash
 cd /home/linux/.claude/plugins/marketplaces/fda-tools
-/fda-predicate-assistant:batchfetch --product-codes [PRODUCT_CODE] --years 2024 --enrich --full-auto
+/fda-tools:batchfetch --product-codes [PRODUCT_CODE] --years 2024 --enrich --full-auto
 ```
 
 **Step 1.2:** Extract enriched MAUDE value

@@ -264,7 +264,7 @@ All enrichment features now meet professional RA standards:
 Run a test enrichment to see the fixes in action:
 
 ```bash
-/fda-predicate-assistant:batchfetch \
+/fda-tools:batchfetch \
   --product-codes DQY \
   --years 2024 \
   --project phase1_2_professional \

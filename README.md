@@ -15,15 +15,15 @@ AI-powered tools for FDA medical device regulatory work. Built for regulatory af
 From your terminal:
 
 ```bash
-claude plugin marketplace add andrewlasiter/fda-predicate-assistant
-claude plugin install fda-predicate-assistant@fda-tools
+claude plugin marketplace add andrewlasiter/fda-tools
+claude plugin install fda-tools@fda-tools
 ```
 
 Or from inside a Claude Code or Claude Desktop session:
 
 ```
-/plugin marketplace add andrewlasiter/fda-predicate-assistant
-/plugin install fda-predicate-assistant@fda-tools
+/plugin marketplace add andrewlasiter/fda-tools
+/plugin install fda-tools@fda-tools
 ```
 
 Start a new session after installing to load the plugin.
@@ -46,11 +46,11 @@ Start a new session after installing to load the plugin.
 
 ## Plugins
 
-### [FDA Predicate Assistant](./plugins/fda-predicate-assistant/)
+### [FDA Predicate Assistant](./plugins/fda-tools/)
 
 42 commands, 7 autonomous agents, and 712 tests covering every stage of the 510(k) workflow — from predicate research through CDRH Portal submission. Integrates with all 7 openFDA Device API endpoints and bundles Python scripts for batch PDF processing and data pipeline maintenance.
 
-See the [full documentation](./plugins/fda-predicate-assistant/README.md) for commands, agents, installation details, and quick start examples.
+See the [full documentation](./plugins/fda-tools/README.md) for commands, agents, installation details, and quick start examples.
 
 ## License
 

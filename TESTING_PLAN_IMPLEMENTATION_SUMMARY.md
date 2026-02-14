@@ -195,7 +195,7 @@ Select 5 devices spanning:
 #### Step 2: Run Enrichment (2 hours)
 For each device:
 ```bash
-/fda-predicate-assistant:batchfetch --product-codes [CODE] --years 2024 --enrich --full-auto
+/fda-tools:batchfetch --product-codes [CODE] --years 2024 --enrich --full-auto
 ```
 
 Verify 6 output files:

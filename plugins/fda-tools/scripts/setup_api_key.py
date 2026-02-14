@@ -17,7 +17,7 @@ import urllib.request
 import urllib.parse
 import json
 
-SETTINGS_PATH = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+SETTINGS_PATH = os.path.expanduser('~/.claude/fda-tools.local.md')
 
 SETTINGS_TEMPLATE = """# FDA Predicate Assistant - Local Settings
 # This file is NOT checked into git. It stores user-specific configuration.

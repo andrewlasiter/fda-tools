@@ -385,7 +385,7 @@ metadata['disclaimers'] = get_json_disclaimers_section()
 
 **Step 4:** Test integration
 ```bash
-/fda-predicate-assistant:batchfetch --product-codes DQY --years 2024 --enrich --full-auto
+/fda-tools:batchfetch --product-codes DQY --years 2024 --enrich --full-auto
 # Verify output identical to before, but now with disclaimers
 ```
 

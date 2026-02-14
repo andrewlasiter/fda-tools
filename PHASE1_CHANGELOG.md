@@ -243,7 +243,7 @@ All Phase 1 success criteria met:
 Phase 1 features are **automatic** when using `--enrich` flag:
 
 ```bash
-/fda-predicate-assistant:batchfetch --product-codes DQY --years 2024 --enrich --full-auto
+/fda-tools:batchfetch --product-codes DQY --years 2024 --enrich --full-auto
 ```
 
 ### New Console Output

@@ -1361,7 +1361,7 @@ Phase 4: Automation
 **How to Use:**
 Just run enrichment as usual - Phase 3 & 4 features activate automatically!
 
-/fda-predicate-assistant:batchfetch --product-codes DQY --years 2024 --enrich
+/fda-tools:batchfetch --product-codes DQY --years 2024 --enrich
 
 **New Outputs:**
 - 12 new CSV columns (peer comparison, review time, competition)

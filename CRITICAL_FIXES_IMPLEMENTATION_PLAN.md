@@ -453,7 +453,7 @@ All changes are in version control and can be reverted.
 ## Next Steps After Completion
 
 1. **Run test suite:** `pytest tests/test_fda_enrichment.py -v`
-2. **Test enrichment command:** `/fda-predicate-assistant:batchfetch --product-codes DQY,OVE,GEI --years 2024 --enrich --full-auto`
+2. **Test enrichment command:** `/fda-tools:batchfetch --product-codes DQY,OVE,GEI --years 2024 --enrich --full-auto`
 3. **Verify outputs:**
    - CSV has correct columns
    - regulatory_context.md has device-specific CFR section

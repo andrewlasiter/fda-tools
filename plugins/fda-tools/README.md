@@ -9,7 +9,7 @@ Your AI-powered regulatory assistant for FDA 510(k) submissions -- predicate res
 ## Installation
 
 ```
-/install andrewlasiter/fda-tools fda-predicate-assistant
+/install andrewlasiter/fda-tools fda-tools
 /start
 ```
 

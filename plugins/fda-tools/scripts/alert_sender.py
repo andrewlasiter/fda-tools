@@ -4,7 +4,7 @@ Alert delivery module for FDA Monitor.
 
 Supports webhook (POST) and stdout (JSON) delivery.
 Reads alert JSON from ~/fda-510k-data/monitor_alerts/.
-Config from ~/.claude/fda-predicate-assistant.local.md.
+Config from ~/.claude/fda-tools.local.md.
 """
 
 import json
@@ -17,7 +17,7 @@ from pathlib import Path
 
 
 DEFAULT_ALERT_DIR = os.path.expanduser("~/fda-510k-data/monitor_alerts")
-SETTINGS_PATH = os.path.expanduser("~/.claude/fda-predicate-assistant.local.md")
+SETTINGS_PATH = os.path.expanduser("~/.claude/fda-tools.local.md")
 
 
 def load_settings():
@@ -147,7 +147,7 @@ def send_webhook(alerts, settings, webhook_url=None):
         return {"success": False, "error": "No webhook_url configured"}
 
     payload = {
-        "source": "fda-predicate-assistant-monitor",
+        "source": "fda-tools-monitor",
         "version": "4.8.0",
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "alert_count": len(alerts),

@@ -1532,7 +1532,7 @@ def list_fields(pdf_path):
 
 def get_settings():
     """Read plugin settings to find projects_dir."""
-    settings_path = os.path.expanduser("~/.claude/fda-predicate-assistant.local.md")
+    settings_path = os.path.expanduser("~/.claude/fda-tools.local.md")
     projects_dir = os.path.expanduser("~/fda-510k-data/projects")
     if os.path.exists(settings_path):
         with open(settings_path) as f:

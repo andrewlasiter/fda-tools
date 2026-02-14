@@ -368,7 +368,7 @@ cp plugins/fda-predicate-assistant/commands/batchfetch.md.backup \
    plugins/fda-predicate-assistant/commands/batchfetch.md
 
 # Verify original works
-/fda-predicate-assistant:batchfetch --product-codes DQY --years 2024 --enrich
+/fda-tools:batchfetch --product-codes DQY --years 2024 --enrich
 ```
 
 Backup location: `plugins/fda-predicate-assistant/commands/batchfetch.md.backup`
@@ -381,7 +381,7 @@ Backup location: `plugins/fda-predicate-assistant/commands/batchfetch.md.backup`
 
 ```bash
 # Test with small dataset to verify integration works in production
-/fda-predicate-assistant:batchfetch \
+/fda-tools:batchfetch \
   --product-codes DQY \
   --years 2024 \
   --enrich \

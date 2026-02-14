@@ -402,7 +402,7 @@ All output files designed for **professional regulatory submissions**:
 Phase 1 & 2 features are **automatic** with the existing `--enrich` flag:
 
 ```bash
-/fda-predicate-assistant:batchfetch \
+/fda-tools:batchfetch \
   --product-codes DQY \
   --years 2023-2024 \
   --project cardiac_catheters_analysis \

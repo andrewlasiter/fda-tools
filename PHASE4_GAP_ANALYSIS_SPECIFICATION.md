@@ -1609,7 +1609,7 @@ FDA Risk: HIGH — new functionality requires comprehensive security documentati
 ### CLI Signature
 
 ```bash
-/fda-predicate-assistant:gap-analysis \
+/fda-tools:gap-analysis \
   --project PROJECT_NAME \
   [--predicates K241335,K234567] \
   [--product-code CODE] \

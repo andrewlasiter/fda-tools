@@ -93,7 +93,7 @@ except Exception:
 
 def get_projects_dir():
     """Determine the projects directory from settings or default."""
-    settings_path = os.path.expanduser("~/.claude/fda-predicate-assistant.local.md")
+    settings_path = os.path.expanduser("~/.claude/fda-tools.local.md")
     if os.path.exists(settings_path):
         with open(settings_path) as f:
             m = re.search(r"projects_dir:\s*(.+)", f.read())

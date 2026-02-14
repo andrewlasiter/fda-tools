@@ -285,13 +285,13 @@ Aging study per ASTM F1980 with Q10=2.0..."
 ### Quick Start
 
 ```bash
-/fda-predicate-assistant:gap-analysis --project my_project
+/fda-tools:gap-analysis --project my_project
 ```
 
 ### Full Options
 
 ```bash
-/fda-predicate-assistant:gap-analysis \
+/fda-tools:gap-analysis \
   --project my_project \
   --predicates K241335,K234567 \
   --product-code SBA \

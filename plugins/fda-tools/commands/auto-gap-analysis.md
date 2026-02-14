@@ -23,7 +23,7 @@ This command analyzes your project files and generates:
 ## Usage
 
 ```bash
-/fda-predicate-assistant:auto-gap-analysis [--project PROJECT_NAME] [--output-dir PATH]
+/fda-tools:auto-gap-analysis [--project PROJECT_NAME] [--output-dir PATH]
 ```
 
 ### Arguments
@@ -35,13 +35,13 @@ This command analyzes your project files and generates:
 
 ```bash
 # Analyze current project
-/fda-predicate-assistant:auto-gap-analysis
+/fda-tools:auto-gap-analysis
 
 # Analyze specific project
-/fda-predicate-assistant:auto-gap-analysis --project cardiovascular-stent
+/fda-tools:auto-gap-analysis --project cardiovascular-stent
 
 # Custom output location
-/fda-predicate-assistant:auto-gap-analysis --output-dir ~/reports/
+/fda-tools:auto-gap-analysis --output-dir ~/reports/
 ```
 
 ## What Gets Analyzed

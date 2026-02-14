@@ -24,7 +24,7 @@ This command ranks predicates using:
 ## Usage
 
 ```bash
-/fda-predicate-assistant:smart-predicates [--project PROJECT_NAME] [--top-n N] [--output-dir PATH]
+/fda-tools:smart-predicates [--project PROJECT_NAME] [--top-n N] [--output-dir PATH]
 ```
 
 ### Arguments
@@ -37,13 +37,13 @@ This command ranks predicates using:
 
 ```bash
 # Rank predicates for current project
-/fda-predicate-assistant:smart-predicates
+/fda-tools:smart-predicates
 
 # Get top 5 predicates for specific project
-/fda-predicate-assistant:smart-predicates --project cardiovascular-stent --top-n 5
+/fda-tools:smart-predicates --project cardiovascular-stent --top-n 5
 
 # Custom output location
-/fda-predicate-assistant:smart-predicates --output-dir ~/reports/
+/fda-tools:smart-predicates --output-dir ~/reports/
 ```
 
 ## How It Works

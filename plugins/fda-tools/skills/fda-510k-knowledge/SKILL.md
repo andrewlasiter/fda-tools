@@ -16,7 +16,7 @@ This project uses a two-stage pipeline for FDA 510(k) predicate analysis:
 ### Stage 1: BatchFetch
 
 **Interactive Command (Recommended for AI-assisted workflows):**
-- **Command:** `/fda-predicate-assistant:batchfetch`
+- **Command:** `/fda-tools:batchfetch`
 - **Purpose:** AI-guided filter selection through Claude Code's native interface with preview before download
 - **Modes:**
   - `--quick`: Express mode (2 questions: product codes + years)
@@ -269,14 +269,14 @@ See the **Workflow Guide** section above for the full 5-stage workflow. Here's t
 
 **Option A (Interactive filtering with enrichment - Recommended):**
 ```
-/fda-predicate-assistant:batchfetch --product-codes CODE --years RANGE --quick --enrich
+/fda-tools:batchfetch --product-codes CODE --years RANGE --quick --enrich
 → /fda:extract stage2 --project NAME → /fda:review --project NAME
 → /fda:draft --project NAME → /fda:assemble --project NAME → /fda:pre-check --project NAME
 ```
 
 **Option B (Interactive filtering without enrichment):**
 ```
-/fda-predicate-assistant:batchfetch --product-codes CODE --years RANGE --quick
+/fda-tools:batchfetch --product-codes CODE --years RANGE --quick
 → /fda:extract stage2 --project NAME → /fda:review --project NAME
 → /fda:draft --project NAME → /fda:assemble --project NAME → /fda:pre-check --project NAME
 ```
@@ -312,7 +312,7 @@ See the **Workflow Guide** section above for the full 5-stage workflow. Here's t
 ### Stage 2: Data Collection
 | Command | Purpose |
 |---------|---------|
-| `/fda-predicate-assistant:batchfetch` | **Interactive FDA 510(k) filtering** — AI-guided filter selection with preview (quick/full/full-auto modes). Optional `--enrich` flag adds 12 columns of real FDA API data (recalls, MAUDE, validation) |
+| `/fda-tools:batchfetch` | **Interactive FDA 510(k) filtering** — AI-guided filter selection with preview (quick/full/full-auto modes). Optional `--enrich` flag adds 12 columns of real FDA API data (recalls, MAUDE, validation) |
 | `/fda:extract` | Download 510(k) PDFs and extract predicate relationships |
 | `/fda:validate` | Validate device numbers against FDA databases |
 | `/fda:research` | Full submission research — predicates, testing, competitive landscape |
@@ -372,7 +372,7 @@ See the **Workflow Guide** section above for the full 5-stage workflow. Here's t
 
 ## Agents (7)
 
-Autonomous agents handle complex multi-step workflows. Launch them with the Task tool specifying `subagent_type: "fda-predicate-assistant:<agent-name>"`.
+Autonomous agents handle complex multi-step workflows. Launch them with the Task tool specifying `subagent_type: "fda-tools:<agent-name>"`.
 
 | Agent | Purpose | When to Use |
 |-------|---------|-------------|
@@ -404,13 +404,13 @@ Autonomous agents handle complex multi-step workflows. Launch them with the Task
 
 **Interactive filtering with enrichment (recommended for AI assistance):**
 ```
-/fda-predicate-assistant:batchfetch --product-codes KGN --years 2024 --quick --enrich
+/fda-tools:batchfetch --product-codes KGN --years 2024 --quick --enrich
 /fda:extract stage2 --project NAME  — Extract predicates from downloaded PDFs
 ```
 
 **Or basic filtering (without enrichment):**
 ```
-/fda-predicate-assistant:batchfetch --product-codes KGN --years 2024 --quick
+/fda-tools:batchfetch --product-codes KGN --years 2024 --quick
 /fda:extract stage2 --project NAME  — Extract predicates from downloaded PDFs
 ```
 

@@ -773,7 +773,7 @@ class PredicateRecommender:
 
 **Command Example:**
 ```bash
-/fda-predicate-assistant:batchfetch \
+/fda-tools:batchfetch \
   --subject-device ~/fda-510k-data/projects/my_device/device_profile.json \
   --product-codes DQY \
   --years 2020-2025 \

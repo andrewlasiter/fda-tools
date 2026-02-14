@@ -25,19 +25,19 @@
    cd /home/linux/.claude/plugins/marketplaces/fda-tools
    
    # Device 1
-   /fda-predicate-assistant:batchfetch --product-codes DQY --years 2024 --enrich --full-auto
+   /fda-tools:batchfetch --product-codes DQY --years 2024 --enrich --full-auto
    
    # Device 2
-   /fda-predicate-assistant:batchfetch --product-codes GEI --years 2024 --enrich --full-auto
+   /fda-tools:batchfetch --product-codes GEI --years 2024 --enrich --full-auto
    
    # Device 3
-   /fda-predicate-assistant:batchfetch --product-codes QKQ --years 2024 --enrich --full-auto
+   /fda-tools:batchfetch --product-codes QKQ --years 2024 --enrich --full-auto
    
    # Device 4
-   /fda-predicate-assistant:batchfetch --product-codes KWP --years 2024 --enrich --full-auto
+   /fda-tools:batchfetch --product-codes KWP --years 2024 --enrich --full-auto
    
    # Device 5
-   /fda-predicate-assistant:batchfetch --product-codes FRO --years 2024 --enrich --full-auto
+   /fda-tools:batchfetch --product-codes FRO --years 2024 --enrich --full-auto
    ```
 
 2. **Complete audit template for each** (5 hours)
@@ -63,7 +63,7 @@
 
 1. **Run enrichment on 1 device** (e.g., DQY)
    ```bash
-   /fda-predicate-assistant:batchfetch --product-codes DQY --years 2024 --enrich --full-auto
+   /fda-tools:batchfetch --product-codes DQY --years 2024 --enrich --full-auto
    ```
 
 2. **Complete full audit for that 1 device**

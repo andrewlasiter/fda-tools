@@ -227,7 +227,7 @@ class TestAgentCommandMapping:
 class TestPluginRootConsistency:
     """Validate that all commands use the same root resolution pattern."""
 
-    RESOLUTION_MARKER = "fda-predicate-assistant@"
+    RESOLUTION_MARKER = "fda-tools@"
 
     def test_all_commands_use_same_resolution_pattern(self):
         """Every command with FDA_PLUGIN_ROOT should use installed_plugins.json."""

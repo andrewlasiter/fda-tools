@@ -330,7 +330,7 @@ Automated market analysis reports for each product code with strategic recommend
 **Start using Phase 3 features today:**
 
 ```bash
-/fda-predicate-assistant:batchfetch --product-codes DQY --years 2024 --enrich --full-auto
+/fda-tools:batchfetch --product-codes DQY --years 2024 --enrich --full-auto
 ```
 
 **New outputs:**

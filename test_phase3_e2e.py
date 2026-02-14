@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 # Add lib directory to path
-lib_path = Path(__file__).parent / 'plugins' / 'fda-predicate-assistant' / 'lib'
+lib_path = Path(__file__).parent / 'plugins' / 'fda-tools' / 'lib'
 sys.path.insert(0, str(lib_path))
 
 from fda_enrichment import FDAEnrichment

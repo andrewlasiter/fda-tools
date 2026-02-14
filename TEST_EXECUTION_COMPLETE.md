@@ -117,7 +117,7 @@ Select **5 diverse devices** spanning risk profiles:
 
 **Step 1: Run Full Enrichment**
 ```bash
-/fda-predicate-assistant:batchfetch --product-codes [CODE] --years 2024 --enrich --full-auto
+/fda-tools:batchfetch --product-codes [CODE] --years 2024 --enrich --full-auto
 ```
 
 **Step 2: Verify Output Files**

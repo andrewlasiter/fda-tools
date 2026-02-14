@@ -204,7 +204,7 @@ class TestPreCheckCommand:
 
     def test_has_plugin_root_resolution(self):
         assert "installed_plugins.json" in self.content
-        assert "fda-predicate-assistant@" in self.content
+        assert "fda-tools@" in self.content
 
     def test_has_full_auto_mode(self):
         assert "--full-auto" in self.content
