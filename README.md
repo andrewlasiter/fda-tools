@@ -1,8 +1,8 @@
-![Version](https://img.shields.io/badge/version-5.7.0-blue)
+![Version](https://img.shields.io/badge/version-5.8.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Commands](https://img.shields.io/badge/commands-42-orange)
 ![Agents](https://img.shields.io/badge/agents-4-purple)
-![Tests](https://img.shields.io/badge/tests-712-brightgreen)
+![Tests](https://img.shields.io/badge/tests-722-brightgreen)
 ![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-blueviolet)
 ![FDA 510(k)](https://img.shields.io/badge/FDA-510(k)-red)
 
@@ -32,6 +32,8 @@ Start a new session after installing to load the plugin.
 
 - **Find predicates** — Search FDA databases, trace predicate lineage, manually propose predicates, and validate device numbers
 - **Analyze safety** — Pull MAUDE adverse events, recall history, and UDI/GUDID records for any product code or device
+- **Compare adverse events** — Statistical peer comparison with percentile-based classification (EXCELLENT → EXTREME_OUTLIER)
+- **Competitive intelligence** — Market concentration (HHI), top manufacturers, technology trends, and gold standard predicates
 - **Look up standards** — Search FDA Recognized Consensus Standards by product code, standard number, or keyword
 - **Plan your submission** — Get pathway recommendations, generate testing plans, and prepare Pre-Sub packages
 - **Generate documents** — Substantial equivalence tables, submission outlines, regulatory prose drafts for 18 eSTAR sections
