@@ -1,11 +1,11 @@
 {
   "name": "fda-tools",
-  "version": "5.22.0",
-  "description": "AI-powered FDA 510(k) regulatory assistant with 43 commands — predicate search, substantial equivalence analysis, submission drafting, safety surveillance, and guidance lookup",
+  "version": "5.25.0",
+  "description": "AI-powered FDA 510(k) regulatory assistant with 45 commands — predicate search, substantial equivalence analysis, submission drafting, data management, section comparison, and regulatory intelligence",
   "author": {
     "name": "PredicateExtraction"
   },
   "repository": "https://github.com/andrewlasiter/fda-predicate-assistant",
   "license": "MIT",
-  "keywords": ["fda", "510k", "medical-device", "predicate", "regulatory", "extraction"]
+  "keywords": ["fda", "510k", "medical-device", "predicate", "regulatory", "extraction", "data-management", "section-comparison"]
 }

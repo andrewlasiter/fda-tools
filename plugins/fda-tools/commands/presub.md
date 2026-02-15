@@ -192,18 +192,201 @@ Based on available data, generate appropriate Pre-Sub questions:
 
 Limit to 5-7 questions per FDA recommendation.
 
-### Determine Q-Sub Type
+### Determine Meeting Type (ENHANCED - TICKET-001)
 
-If `--qsub-type` not explicitly provided, auto-detect:
+If `--meeting-type` not explicitly provided, auto-detect using Python function:
 
-| Condition | Recommended Q-Sub Type |
-|-----------|----------------------|
-| ≥4 questions OR novel features OR complex predicate justification | **Q-Sub (Formal Meeting)** — teleconference or in-person |
-| ≤3 well-scoped questions AND no novel technology | **Q-Sub (Written Feedback Only)** — fastest turnaround |
-| No questions, just data update or follow-up | **Q-Sub (Information)** — no FDA feedback expected |
-| Clinical study planned (IDE needed) | **Pre-IDE** — different review division |
+```bash
+MEETING_TYPE_RESULT=$(python3 << 'PYEOF'
+import os, sys
 
-Report the recommendation: "Recommended Q-Sub type: {type} — {rationale based on question count and complexity}."
+# Get context from environment
+question_count = int(os.environ.get("QUESTION_COUNT", "0"))
+device_description = os.environ.get("DEVICE_DESCRIPTION", "").lower()
+has_predicates = os.environ.get("HAS_PREDICATES", "false").lower() == "true"
+novel_features = any(kw in device_description for kw in ["novel", "first-of-kind", "unprecedented", "no predicate"])
+
+# Auto-detection decision tree
+def detect_meeting_type():
+    # Pre-IDE: Clinical study planned
+    if "clinical study" in device_description or "ide" in device_description:
+        return ("pre-ide", "Clinical study planned → Pre-IDE meeting")
+
+    # Administrative: Pathway determination without technical questions
+    if "pathway" in device_description or "de novo" in device_description:
+        if question_count <= 2:
+            return ("administrative", "Pathway determination focus → Administrative meeting")
+
+    # Formal meeting: Complex or high question count
+    if question_count >= 4:
+        return ("formal", f"{question_count} questions → formal meeting recommended")
+
+    if novel_features:
+        return ("formal", "Novel features detected → formal meeting for FDA feedback")
+
+    # Written response: Simple, well-scoped questions
+    if 1 <= question_count <= 3:
+        return ("written", f"{question_count} well-scoped questions → written feedback sufficient")
+
+    # Info-only: No questions, just notification
+    if question_count == 0:
+        return ("info-only", "No questions → informational meeting (no FDA feedback expected)")
+
+    # Default: Written response
+    return ("written", "Default recommendation for straightforward submissions")
+
+meeting_type, rationale = detect_meeting_type()
+print(f"{meeting_type}|{rationale}")
+PYEOF
+)
+
+# Parse result
+MEETING_TYPE=$(echo "$MEETING_TYPE_RESULT" | cut -d'|' -f1)
+DETECTION_RATIONALE=$(echo "$MEETING_TYPE_RESULT" | cut -d'|' -f2)
+DETECTION_METHOD="auto"
+
+# Export for metadata generation
+export MEETING_TYPE
+export DETECTION_RATIONALE
+export DETECTION_METHOD
+
+echo "Meeting Type Auto-Detected: $MEETING_TYPE"
+echo "Rationale: $DETECTION_RATIONALE"
+```
+
+**Meeting Type Descriptions:**
+- **formal** — Formal Pre-Sub meeting (teleconference/in-person), 5-7 questions expected
+- **written** — Written feedback only (no meeting), 1-3 well-scoped questions
+- **info** — Informational meeting for FDA awareness, minimal questions
+- **pre-ide** — Pre-IDE meeting for clinical study protocol discussion
+- **administrative** — Administrative/pathway determination meeting
+- **info-only** — Information-only communication, no FDA feedback expected
+
+**Override:** User can force specific meeting type with `--meeting-type formal|written|info|pre-ide|administrative|info-only`
+
+Report the recommendation: "Recommended meeting type: {meeting_type} — {rationale}"
+
+## Step 3.5: Select Questions from Question Bank (NEW - TICKET-001)
+
+Using the meeting type determined above, select appropriate questions from presub_questions.json based on meeting_type_defaults and auto_triggers.
+
+```bash
+QUESTION_SELECTION_RESULT=$(python3 << 'PYEOF'
+import json, os, sys
+
+# Load question bank
+question_bank_path = os.path.join(os.environ.get("FDA_PLUGIN_ROOT", ""), "data/question_banks/presub_questions.json")
+if not os.path.exists(question_bank_path):
+    print("QUESTION_BANK_MISSING")
+    sys.exit(1)
+
+with open(question_bank_path) as f:
+    question_bank = json.load(f)
+
+# Get meeting type and device characteristics
+meeting_type = os.environ.get("MEETING_TYPE", "formal")
+device_description = os.environ.get("DEVICE_DESCRIPTION", "").lower()
+has_predicates = os.environ.get("HAS_PREDICATES", "false").lower() == "true"
+
+# Get default questions for meeting type
+default_question_ids = question_bank.get("meeting_type_defaults", {}).get(meeting_type, [])
+selected_ids = set(default_question_ids)
+
+# Check auto-triggers
+auto_triggers = question_bank.get("auto_triggers", {})
+device_keywords = {
+    "patient_contacting": ["patient contact", "contacting", "skin contact", "tissue contact"],
+    "sterile_device": ["sterile", "sterilization", "sterilized"],
+    "powered_device": ["powered", "electrical", "electronic", "battery"],
+    "software_device": ["software", "algorithm", "ai", "machine learning", "ml"],
+    "implant_device": ["implant", "implantable", "permanent"],
+    "reusable_device": ["reusable", "reprocessing", "cleaning", "disinfection"],
+    "novel_technology": ["novel", "first-of-kind", "unprecedented", "no predicate"]
+}
+
+for trigger_name, keywords in device_keywords.items():
+    if any(kw in device_description for kw in keywords):
+        triggered_ids = auto_triggers.get(trigger_name, [])
+        selected_ids.update(triggered_ids)
+
+# Get question details
+questions = question_bank.get("questions", [])
+selected_questions = [q for q in questions if q.get("id") in selected_ids]
+
+# Sort by priority (descending)
+selected_questions.sort(key=lambda q: q.get("priority", 0), reverse=True)
+
+# Limit to 7 questions max (Pre-Sub best practice)
+selected_questions = selected_questions[:7]
+
+# Format output
+question_count = len(selected_questions)
+question_list = []
+for i, q in enumerate(selected_questions, 1):
+    question_list.append(f"Q{i}:{q['id']}:{q['text']}")
+
+# Export for presub_metadata.json
+question_ids_json = json.dumps([q['id'] for q in selected_questions])
+
+print(f"QUESTION_COUNT:{question_count}")
+print(f"QUESTION_IDS:{question_ids_json}")
+for q_line in question_list:
+    print(q_line)
+
+PYEOF
+)
+
+# Parse question selection results
+export QUESTION_COUNT=$(echo "$QUESTION_SELECTION_RESULT" | grep "^QUESTION_COUNT:" | cut -d':' -f2)
+export QUESTION_IDS=$(echo "$QUESTION_SELECTION_RESULT" | grep "^QUESTION_IDS:" | cut -d':' -f2-)
+export SELECTED_QUESTIONS=$(echo "$QUESTION_SELECTION_RESULT" | grep "^Q[0-9]")
+
+echo "Selected $QUESTION_COUNT questions for $MEETING_TYPE meeting"
+```
+
+## Step 3.6: Load Template File (NEW - TICKET-001)
+
+Based on the meeting type, load the appropriate template file from data/templates/presub_meetings/.
+
+```bash
+# Map meeting type to template file
+case "$MEETING_TYPE" in
+    formal)
+        TEMPLATE_FILE="formal_meeting.md"
+        ;;
+    written)
+        TEMPLATE_FILE="written_response.md"
+        ;;
+    info)
+        TEMPLATE_FILE="info_meeting.md"
+        ;;
+    pre-ide)
+        TEMPLATE_FILE="pre_ide.md"
+        ;;
+    administrative)
+        TEMPLATE_FILE="administrative_meeting.md"
+        ;;
+    info-only)
+        TEMPLATE_FILE="info_only.md"
+        ;;
+    *)
+        TEMPLATE_FILE="formal_meeting.md"  # Default fallback
+        ;;
+esac
+
+TEMPLATE_PATH="$FDA_PLUGIN_ROOT/data/templates/presub_meetings/$TEMPLATE_FILE"
+
+if [ ! -f "$TEMPLATE_PATH" ]; then
+    echo "ERROR: Template file not found: $TEMPLATE_PATH"
+    exit 1
+fi
+
+export TEMPLATE_FILE
+export TEMPLATE_PATH
+export TEMPLATE_USED="$TEMPLATE_FILE"
+
+echo "Using template: $TEMPLATE_FILE"
+```
 
 ## Step 4: Generate Pre-Sub Package
 
@@ -240,7 +423,226 @@ Before generating the document, resolve all placeholders using this priority sys
 - Automated tools can grep for `[TODO:` to find remaining work items
 - The document is always complete (no empty/broken sections)
 
-Write the `presub_plan.md` document using the Pre-Sub format from `references/submission-structure.md` and `references/output-formatting.md`:
+### Step 4.1: Populate Template with Data (NEW - TICKET-001)
+
+Read the template file loaded in Step 3.6 and populate all {placeholder} variables with available data.
+
+```bash
+python3 << 'PYEOF'
+import os, json, re
+from datetime import datetime, timedelta
+
+# Read template file
+template_path = os.environ.get("TEMPLATE_PATH", "")
+if not template_path or not os.path.exists(template_path):
+    print("ERROR: Template file not found")
+    exit(1)
+
+with open(template_path) as f:
+    template_content = f.read()
+
+# Gather all available data
+product_code = os.environ.get("PRODUCT_CODE", "")
+device_class = os.environ.get("DEVICE_CLASS", "")
+regulation_number = os.environ.get("REGULATION_NUMBER", "")
+classification_device_name = os.environ.get("CLASSIFICATION_DEVICE_NAME", "")
+review_panel = os.environ.get("REVIEW_PANEL", "")
+device_description = os.environ.get("DEVICE_DESCRIPTION", "")
+intended_use = os.environ.get("INTENDED_USE", "")
+meeting_type = os.environ.get("MEETING_TYPE", "formal")
+question_count = os.environ.get("QUESTION_COUNT", "0")
+selected_questions_raw = os.environ.get("SELECTED_QUESTIONS", "")
+
+# Parse selected questions
+selected_questions = []
+if selected_questions_raw:
+    for line in selected_questions_raw.split('\n'):
+        if line.startswith('Q'):
+            parts = line.split(':', 2)
+            if len(parts) == 3:
+                q_num = parts[0]
+                q_id = parts[1]
+                q_text = parts[2]
+                selected_questions.append({
+                    'num': q_num,
+                    'id': q_id,
+                    'text': q_text
+                })
+
+# Format auto-generated questions
+auto_generated_questions = ""
+if selected_questions:
+    for q in selected_questions:
+        auto_generated_questions += f"### {q['num']}: {q['id']}\n\n{q['text']}\n\n"
+else:
+    auto_generated_questions = "[TODO: Company-specific — Add specific questions for FDA]\n\n"
+
+# Format question summary list for cover letter
+question_summary_list = ""
+if selected_questions:
+    for q in selected_questions:
+        # Extract first sentence or 80 chars of question text
+        summary = q['text'].split('.')[0][:80]
+        question_summary_list += f"- {summary}\n"
+else:
+    question_summary_list = "- Predicate selection strategy\n- Testing requirements and standards\n"
+
+# Get current date and calculate timeline dates
+today = datetime.now()
+generated_date = today.strftime("%Y-%m-%d")
+cover_letter_date = today.strftime("%B %d, %Y")
+presub_prep_date = (today + timedelta(weeks=2)).strftime("%Y-%m-%d")
+presub_submission_date = (today + timedelta(weeks=4)).strftime("%Y-%m-%d")
+fda_deadline_date = (today + timedelta(days=75, weeks=4)).strftime("%Y-%m-%d")
+expected_feedback_date = fda_deadline_date
+target_510k_date = (today + timedelta(weeks=20)).strftime("%Y-%m-%d")
+
+# Build placeholder mapping
+placeholders = {
+    # Classification data
+    'product_code': product_code,
+    'device_class': device_class,
+    'regulation_number': regulation_number,
+    'classification_device_name': classification_device_name,
+    'review_panel': review_panel,
+
+    # Device information
+    'device_description': device_description if device_description else "[TODO: Company-specific — Device description]",
+    'device_description_short': device_description[:100] if device_description else "[TODO: Short device description]",
+    'intended_use': intended_use if intended_use else "[TODO: Company-specific — Indications for use]",
+    'primary_use_summary': "[TODO: Primary clinical use]",
+    'device_type_category': "a medical device",
+
+    # Meeting information
+    'meeting_type': meeting_type,
+    'meeting_format': 'teleconference' if meeting_type in ['formal', 'written', 'administrative'] else 'informational',
+    'question_count': question_count,
+
+    # Questions
+    'auto_generated_questions': auto_generated_questions,
+    'question_summary_list': question_summary_list,
+
+    # Dates
+    'generated_date': generated_date,
+    'cover_letter_date': cover_letter_date,
+    'presub_prep_date': presub_prep_date,
+    'presub_submission_date': presub_submission_date,
+    'fda_deadline_date': fda_deadline_date,
+    'expected_feedback_date': expected_feedback_date,
+    'target_510k_date': target_510k_date,
+
+    # Contact information (placeholders for company to fill)
+    'applicant_name': "[TODO: Company Name]",
+    'contact_first_name': "[TODO: First Name]",
+    'contact_last_name': "[TODO: Last Name]",
+    'contact_title': "[TODO: Title]",
+    'contact_email': "[TODO: email@company.com]",
+    'contact_phone': "[TODO: Phone]",
+    'device_trade_name': "[TODO: Device Trade Name]",
+
+    # FDA office mapping
+    'review_division_name': f"Division of {review_panel}" if review_panel else "[TODO: Division Name]",
+    'office_name': f"Office of {review_panel.split()[0] if review_panel else 'Device Evaluation'}",
+
+    # Features (placeholders)
+    'feature_1': "[TODO: Key feature 1]",
+    'feature_2': "[TODO: Key feature 2]",
+    'feature_3': "[TODO: Key feature 3]",
+
+    # Additional placeholders
+    'principle_of_operation': "[TODO: Company-specific — How the device works]",
+    'components_list': "[TODO: Company-specific — Device components]",
+    'materials_list': "[TODO: Company-specific — Materials in patient contact]",
+    'dimensions': "[TODO: Dimensions]",
+    'weight': "[TODO: Weight]",
+    'sterilization_method': "[TODO: Sterilization method]",
+    'shelf_life_claim': "[TODO: Shelf life]",
+    'rx_otc': "Rx (Prescription Use)",
+
+    # Predicate placeholders
+    'predicate_analysis_table': "[TODO: Company-specific — Run /fda:review to select predicates]",
+    'primary_predicate_k_number': "[TODO: K-number]",
+    'primary_predicate_device_name': "[TODO: Device name]",
+    'primary_predicate_applicant': "[TODO: Applicant]",
+    'primary_predicate_decision_date': "[TODO: Date]",
+    'primary_predicate_product_code': product_code,
+    'se_rationale_summary': "[TODO: Company-specific — SE rationale]",
+
+    # Testing placeholders
+    'biocompatibility_testing_plan': "[TODO: Company-specific — Biocompatibility testing plan]",
+    'biocompat_endpoints_list': "Cytotoxicity, Sensitization, Irritation",
+    'performance_testing_plan': "[TODO: Company-specific — Performance testing plan]",
+    'performance_standards_list': "[TODO: Applicable standards]",
+    'sterilization_testing_plan': "[TODO: Company-specific — Sterilization validation]",
+    'sterilization_standards': "ISO 11135 or ISO 11137",
+    'electrical_testing_plan': "[TODO: Company-specific — Electrical safety testing]",
+    'software_testing_plan': "[TODO: Company-specific — Software V&V]",
+    'software_level': "[TODO: Level of Concern]",
+    'clinical_data_summary': "[TODO: Company-specific — Clinical data or rationale for exemption]",
+
+    # Regulatory background
+    'standards_list': "[TODO: Company-specific — Run /fda:standards {product_code}]",
+    'additional_guidance_list': "[TODO: Device-specific guidance documents]",
+    'safety_intelligence_summary': "[TODO: Company-specific — Run /fda:safety {product_code}]",
+    'maude_event_count': "[TODO]",
+    'recall_count': "[TODO]",
+    'literature_summary': "[TODO: Company-specific — Run /fda:literature]",
+    'competitive_analysis': "[TODO: Company-specific — Market analysis]",
+
+    # Project metadata
+    'project_name': os.environ.get("PROJECT_NAME", "[TODO: Project Name]"),
+
+    # Pathway
+    'proposed_pathway': "Traditional",
+    'pathway_rationale': "[TODO: Company-specific — Pathway selection rationale]",
+
+    # Additional meeting-type specific placeholders
+    'development_status': "[TODO: Current development stage]",
+    'preliminary_testing_summary': "[TODO: Preliminary testing completed]",
+    'classification_uncertainty': "[TODO: Classification questions]",
+    'pathway_option_1': "Traditional 510(k)",
+    'pathway_rationale_1': "[TODO: Traditional pathway rationale]",
+    'pathway_advantages_1': "[TODO: Advantages]",
+    'pathway_concerns_1': "[TODO: Concerns]",
+    'pathway_option_2': "De Novo",
+    'pathway_rationale_2': "[TODO: De Novo pathway rationale]",
+    'pathway_advantages_2': "[TODO: Advantages]",
+    'pathway_concerns_2': "[TODO: Concerns]",
+
+    # Pluralization helpers
+    's': 's' if int(question_count) != 1 else '',
+    'is_are': 'are' if int(question_count) != 1 else 'is',
+}
+
+# Replace all {placeholder} variables
+populated_content = template_content
+for key, value in placeholders.items():
+    placeholder_pattern = '{' + key + '}'
+    populated_content = populated_content.replace(placeholder_pattern, str(value))
+
+# Write populated template to output file
+project_name = os.environ.get("PROJECT_NAME", "")
+if project_name:
+    projects_dir = os.path.expanduser("~/fda-510k-data/projects")
+    output_path = os.path.join(projects_dir, project_name, "presub_plan.md")
+else:
+    output_path = "presub_plan.md"
+
+# Create parent directory if needed
+os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+with open(output_path, 'w') as f:
+    f.write(populated_content)
+
+print(f"PRESUB_PLAN_WRITTEN:{output_path}")
+print(f"TEMPLATE_USED:{os.environ.get('TEMPLATE_FILE', '')}")
+print(f"QUESTIONS_POPULATED:{len(selected_questions)}")
+print(f"PLACEHOLDERS_TOTAL:{len(placeholders)}")
+
+PYEOF
+```
+
+The populated template is now written. Continue with the legacy inline markdown generation below for backward compatibility:
 
 ```markdown
 # Pre-Submission Meeting Request
@@ -963,6 +1365,124 @@ Next steps:
   2. Review auto-generated FDA questions — add, modify, or remove as needed
   3. Have your regulatory team review the complete package
   4. Submit to FDA via the Pre-Submission program
+```
+
+## Step 6: Generate Pre-Sub Metadata (NEW - TICKET-001)
+
+Generate structured `presub_metadata.json` to capture meeting data for PreSTAR XML generation:
+
+```bash
+python3 << 'PYEOF'
+import json, os
+from datetime import datetime, timezone
+
+# Get project directory
+project_name = os.environ.get("PROJECT_NAME", "")
+projects_dir = os.path.expanduser("~/fda-510k-data/projects")
+project_dir = os.path.join(projects_dir, project_name) if project_name else ""
+
+if not project_dir or not os.path.exists(project_dir):
+    print("METADATA_SKIPPED:no_project_directory")
+    exit(0)
+
+# Build metadata dict
+metadata = {
+    "version": "1.0",
+    "generated_at": datetime.now(timezone.utc).isoformat(),
+    "meeting_type": os.environ.get("MEETING_TYPE", "formal"),
+    "detection_method": os.environ.get("DETECTION_METHOD", "auto"),
+    "detection_rationale": os.environ.get("DETECTION_RATIONALE", ""),
+    "product_code": os.environ.get("PRODUCT_CODE", ""),
+    "device_description": os.environ.get("DEVICE_DESCRIPTION", ""),
+    "intended_use": os.environ.get("INTENDED_USE", ""),
+    "questions_generated": json.loads(os.environ.get("QUESTION_IDS", "[]")),
+    "question_count": int(os.environ.get("QUESTION_COUNT", "0")),
+    "template_used": os.environ.get("TEMPLATE_USED", ""),
+    "fda_form": "FDA-5064",
+    "expected_timeline_days": 75,
+    "auto_triggers_fired": os.environ.get("AUTO_TRIGGERS", "").split(",") if os.environ.get("AUTO_TRIGGERS") else [],
+    "data_sources_used": ["classification", "review.json", "guidance_cache"],
+    "metadata": {
+        "placeholder_count": int(os.environ.get("PLACEHOLDER_COUNT", "0")),
+        "auto_filled_fields": os.environ.get("AUTO_FILLED_FIELDS", "").split(",") if os.environ.get("AUTO_FILLED_FIELDS") else []
+    }
+}
+
+# Write metadata file
+metadata_path = os.path.join(project_dir, "presub_metadata.json")
+with open(metadata_path, "w") as f:
+    json.dump(metadata, f, indent=2)
+
+print(f"METADATA_WRITTEN:{metadata_path}")
+PYEOF
+```
+
+Report metadata generation:
+```
+Pre-Sub metadata generated: {metadata_path}
+  Meeting Type: {meeting_type} ({detection_method})
+  Questions: {question_count} generated
+  Template: {template_used}
+  FDA Form: FDA-5064 (PreSTAR)
+```
+
+## Step 7: Generate PreSTAR XML (NEW - TICKET-001)
+
+Generate PreSTAR XML for FDA eSTAR import (if project directory exists):
+
+```bash
+# Only generate XML if we have a project directory
+if [ -n "$PROJECT_NAME" ] && [ -d "$PROJECTS_DIR/$PROJECT_NAME" ]; then
+    python3 "$FDA_PLUGIN_ROOT/scripts/estar_xml.py" generate \
+        --project "$PROJECT_NAME" \
+        --template PreSTAR \
+        --format real \
+        --output "$PROJECTS_DIR/$PROJECT_NAME/presub_prestar.xml"
+
+    # Check if XML generation succeeded
+    if [ -f "$PROJECTS_DIR/$PROJECT_NAME/presub_prestar.xml" ]; then
+        echo ""
+        echo "PreSTAR XML generated: $PROJECTS_DIR/$PROJECT_NAME/presub_prestar.xml"
+        echo "  Template: PreSTAR (FDA 5064)"
+        echo "  Questions: Populated from presub_metadata.json"
+        echo "  Fields: Administrative info, device description, IFU, questions"
+        echo ""
+        echo "Next steps for XML:"
+        echo "  1. Open FDA PreSTAR template PDF (Form FDA 5064)"
+        echo "  2. In Adobe Acrobat: Form > Import Data"
+        echo "  3. Select presub_prestar.xml"
+        echo "  4. Review populated fields and add attachments"
+        echo "  5. See docs/estar-workflow.md for detailed instructions"
+    fi
+else
+    echo "PRESTAR_XML_SKIPPED:no_project_directory"
+fi
+```
+
+Update final report to include XML status:
+```
+Pre-Submission plan written to: {output_path}
+
+The plan includes:
+  • Cover letter template
+  • Device description section {auto-populated / template}
+  • Proposed regulatory strategy: {pathway}
+  • Predicate justification: {count} predicates {with scores / template}
+  • {N} FDA questions auto-generated
+  • Testing strategy: {from guidance / template}
+  • PreSTAR XML: Ready for FDA eSTAR import  ← NEW
+
+Files generated:
+  1. presub_plan.md — Markdown for human review
+  2. presub_metadata.json — Structured meeting data
+  3. presub_prestar.xml — FDA eSTAR import-ready XML
+
+Next steps:
+  1. Fill in [TODO: ...] placeholders in presub_plan.md
+  2. Review auto-generated FDA questions — add, modify, or remove as needed
+  3. Import presub_prestar.xml into FDA PreSTAR template (Form FDA 5064)
+  4. Have your regulatory team review the complete package
+  5. Submit to FDA via the Pre-Submission program
 ```
 
 ## Subcommand: --track (FDA Correspondence Tracking)

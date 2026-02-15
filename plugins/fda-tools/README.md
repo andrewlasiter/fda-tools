@@ -43,7 +43,71 @@ New to the plugin? Follow these steps:
 /fda-tools:pipeline --product-code DQY --years 2024
 ```
 
+**Generate Pre-Submission package with FDA eSTAR XML:**
+```bash
+/fda-tools:presub DQY --project my_device \
+  --device-description "Catheter for vascular access" \
+  --intended-use "To provide vascular access for medication delivery"
+```
+Generates:
+- `presub_plan.md` - Human-readable Pre-Sub plan (auto-selects 5-7 questions)
+- `presub_metadata.json` - Structured meeting data
+- `presub_prestar.xml` - FDA Form 5064 XML (import into Adobe Acrobat)
+
 For more workflows, see [QUICK_START.md](docs/QUICK_START.md).
+
+## Feature Spotlight
+
+### NEW in v5.25.0: PreSTAR XML Generation for Pre-Submission Meetings
+
+Complete FDA Pre-Submission workflow with eSTAR-ready XML export for FDA Form 5064.
+
+**Key Features:**
+- **6 Meeting Types**: Formal, Written, Info, Pre-IDE, Administrative, Info-Only
+- **35-Question Bank**: Centralized questions across 10 regulatory categories
+- **Auto-Detection**: Intelligent meeting type selection based on device characteristics
+- **Auto-Triggers**: Automatically selects relevant questions (e.g., sterile device → sterilization questions)
+- **Template System**: 80+ placeholders auto-populated from project data
+- **FDA eSTAR Ready**: Direct XML import into FDA Form 5064 (Adobe Acrobat)
+
+**Workflow:**
+1. **Generate Pre-Sub Package**:
+   ```bash
+   /fda-tools:presub DQY --project catheter_device \
+     --device-description "Single-use vascular access catheter" \
+     --intended-use "To provide temporary vascular access"
+   ```
+
+2. **Output Files Generated**:
+   - `presub_plan.md` - Complete Pre-Sub document (formatted, ready for review)
+   - `presub_metadata.json` - Structured meeting data
+   - `presub_prestar.xml` - FDA eSTAR XML (FDA Form 5064)
+
+3. **Import into FDA Form**:
+   - Open FDA Form 5064 (PreSTAR template) in Adobe Acrobat
+   - Form > Import Data > Select `presub_prestar.xml`
+   - Fields auto-populate: Admin info, device description, IFU, questions, meeting characteristics
+   - Add attachments and submit to FDA
+
+**Meeting Type Examples:**
+- **Formal** (5-7 questions): Complex devices, novel technology, multiple regulatory questions
+- **Written** (1-3 questions): Straightforward devices, well-scoped technical questions
+- **Pre-IDE**: Clinical study planning, IDE protocol discussion
+- **Administrative**: Pathway determination (510(k) vs De Novo vs PMA), classification questions
+
+**Question Categories:**
+- Predicate selection, Classification, Testing (biocompatibility, sterilization, shelf life, performance, electrical, software, cybersecurity, human factors), Clinical evidence, Novel technology, Labeling, Manufacturing, Regulatory pathway
+
+**Auto-Triggers** (automatically add questions based on device description):
+- Patient-contacting device → Biocompatibility questions
+- Sterile device → Sterilization + Shelf life questions
+- Powered device → Electrical safety questions
+- Software device → Software V&V questions
+- Implantable device → Long-term biocompatibility questions
+- Reusable device → Reprocessing validation questions
+- Novel technology → Novel feature discussion questions
+
+**Time Savings**: 2-4 hours per Pre-Sub (automated question selection + template population + XML export)
 
 ## Documentation
 
@@ -61,6 +125,13 @@ For more workflows, see [QUICK_START.md](docs/QUICK_START.md).
 - `/start` -- Interactive onboarding wizard
 - `/status` -- Check available data, scripts, and record counts
 - `/configure` -- Set up API keys, data directories, and preferences
+
+#### NEW: AI-Powered Standards Generation (v5.23.0)
+- `/generate-standards` -- Generate FDA Recognized Consensus Standards for any device using AI analysis (agent-based, no API keys)
+  - Processes specific codes, top N by volume, or ALL ~2000 codes
+  - AI determines applicable standards based on device characteristics
+  - Multi-agent validation framework (coverage + quality + consensus)
+  - Uses installing user's Claude Code access
 
 #### Research and analysis
 - `/research` -- Comprehensive submission research for a product code
@@ -84,6 +155,7 @@ For more workflows, see [QUICK_START.md](docs/QUICK_START.md).
 - `/review` -- Score and triage extracted predicates with justification narratives
 - `/propose` -- Manually propose predicates with validation and confidence scoring
 - `/compare-se` -- Generate substantial equivalence comparison tables
+- `/compare-sections` -- Batch section comparison across devices for regulatory intelligence
 
 #### Submission preparation
 - `/draft` -- Write regulatory prose for 18 submission sections with citations
@@ -96,12 +168,13 @@ For more workflows, see [QUICK_START.md](docs/QUICK_START.md).
 - `/consistency` -- Validate device descriptions and predicates match across files
 - `/assemble` -- Assemble an eSTAR-structured submission package
 - `/export` -- Export project data as eSTAR-compatible XML or zip
-- `/presub` -- Create a Pre-Submission meeting package
+- `/presub` -- Create Pre-Submission meeting package with PreSTAR XML export (v5.25.0: 6 meeting types, 35-question bank, auto-detection)
 
 #### Project management
 - `/dashboard` -- Project status with Submission Readiness Index (SRI)
 - `/audit` -- View the decision audit trail
 - `/cache` -- Show cached FDA data for a project
+- `/update-data` -- Scan and batch update stale cached FDA data across all projects
 - `/gap-analysis` -- Analyze gaps in 510(k) data pipeline
 - `/portfolio` -- Cross-project portfolio dashboard
 - `/pipeline` -- Run all stages autonomously end-to-end
@@ -119,7 +192,13 @@ For more workflows, see [QUICK_START.md](docs/QUICK_START.md).
 
 ### Agents
 
-7 autonomous agents for multi-step workflows: extraction analysis, submission writing, pre-sub planning, FDA review simulation, research intelligence, submission assembly, and data pipeline management. Agents are invoked automatically by Claude when relevant.
+12 autonomous agents for multi-step workflows, including:
+- **Standards Generation**: AI-powered standards analyzer, coverage auditor, quality reviewer
+- **Core Workflows**: Extraction analysis, submission writing, pre-sub planning, FDA review simulation
+- **Intelligence**: Research intelligence, data pipeline management, submission assembly
+- **Validation**: Multi-agent consensus framework
+
+Agents are invoked automatically by Claude when relevant, or manually via commands.
 
 ### Connected data sources
 

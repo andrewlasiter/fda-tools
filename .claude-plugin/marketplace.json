@@ -6,15 +6,15 @@
     "email": "andrewlasiter@users.noreply.github.com"
   },
   "metadata": {
-    "description": "FDA regulatory tools for medical device 510(k) analysis, predicate extraction, and submission preparation. v5.22.0 includes advanced intelligence suite with workflow automation, semantic search, and ML-powered recommendations.",
-    "version": "5.22.0"
+    "description": "FDA regulatory tools for medical device 510(k) analysis, predicate extraction, and submission preparation. v5.25.0 adds PreSTAR XML generation for Pre-Submission meetings with 6 meeting types, 35-question bank, and auto-detection. v5.23.0 adds AI-powered standards generation with 100% product code coverage.",
+    "version": "5.25.0"
   },
   "plugins": [
     {
       "name": "fda-tools",
       "source": "./plugins/fda-tools",
-      "description": "⚠️ BREAKING CHANGE v5.22.0: Plugin renamed from fda-predicate-assistant to fda-tools. See migration guide. | AI-powered FDA 510(k) regulatory assistant with 43 commands, 8 agents, and advanced intelligence suite — Phase 5: workflow orchestration, streaming processor, semantic search, device clustering | Phase 4: smart predicate recommendations (ML-powered), automated gap analysis | Phase 3: MAUDE peer comparison, competitive intelligence, review time predictions | Phase 1-2: data provenance tracking, quality validation, CFR citations, clinical data detection, FDA standards intelligence, predicate chain validation | Core features: predicate extraction, substantial equivalence analysis, submission drafting, FDA review simulation, safety surveillance, guidance lookup, and full eSTAR export | 96.6% test pass rate, research use only",
-      "version": "5.22.0",
+      "description": "AI-powered FDA 510(k) regulatory assistant with 51 commands, 12 agents — NEW v5.25.0: PreSTAR XML generation for Pre-Submission meetings with 6 meeting types, 35-question bank, and auto-detection | v5.23.0: AI-powered standards generation with 100% product code coverage (agent-based, no API keys required) | Phase 5: workflow orchestration, streaming processor, semantic search | Phase 4: ML-powered predicate recommendations, automated gap analysis | Phase 3: MAUDE peer comparison, competitive intelligence | Phase 1-2: data provenance, quality validation, CFR citations | Core features: predicate extraction, substantial equivalence analysis, submission drafting, FDA review simulation, safety surveillance, guidance lookup, standards generation, and full eSTAR/PreSTAR export | Agent-based architecture uses installing user's Claude Code access",
+      "version": "5.25.0",
       "author": {
         "name": "PredicateExtraction"
       },

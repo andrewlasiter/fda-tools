@@ -619,8 +619,8 @@ def extract_from_file(file_path, output_dir=None):
 def generate_xml(project_dir, template_type="nIVD", output_file=None, fmt="real"):
     """Generate eSTAR-compatible XML from project data for import into official template.
 
-    Reads device_profile.json, review.json, draft_*.md, query.json, and import_data.json
-    to produce XML. Falls back through multiple data sources for each field.
+    Reads device_profile.json, review.json, draft_*.md, query.json, import_data.json,
+    and presub_metadata.json to produce XML. Falls back through multiple data sources for each field.
 
     Args:
         project_dir: Path to the project directory.
@@ -666,6 +666,12 @@ def generate_xml(project_dir, template_type="nIVD", output_file=None, fmt="real"
     if import_file.exists():
         with open(import_file) as f:
             project_data["import"] = json.load(f)
+
+    # Read presub_metadata.json (NEW - TICKET-001, from /fda:presub command)
+    presub_file = project_dir / "presub_metadata.json"
+    if presub_file.exists():
+        with open(presub_file) as f:
+            project_data["presub_metadata"] = json.load(f)
 
     # Read draft files
     drafts = {}
@@ -775,6 +781,7 @@ def _collect_project_values(project_data):
     query = project_data.get("query", {})
     review = project_data.get("review", {})
     drafts = project_data.get("drafts", {})
+    presub_metadata = project_data.get("presub_metadata", {})  # NEW - TICKET-001
     classification = import_data.get("classification", {})
     applicant = import_data.get("applicant", {})
     ifu = import_data.get("indications_for_use", {})
@@ -829,6 +836,64 @@ def _collect_project_values(project_data):
     materials_list = profile.get("materials", [])
     materials_text = ", ".join(materials_list) if materials_list else ""
 
+    # PreSTAR XML fields from presub_metadata.json (NEW - TICKET-001)
+    presub_questions = ""
+    presub_characteristics = ""
+
+    if presub_metadata:
+        # Load question bank to get full question text
+        question_bank_path = os.path.join(os.path.dirname(__file__), "..", "data", "question_banks", "presub_questions.json")
+        question_bank = {}
+        if os.path.exists(question_bank_path):
+            try:
+                with open(question_bank_path) as f:
+                    question_bank = json.load(f)
+            except:
+                pass
+
+        # Format questions for QPTextField110
+        questions_generated = presub_metadata.get("questions_generated", [])
+        if questions_generated and question_bank:
+            questions_list = question_bank.get("questions", [])
+            question_texts = []
+            for q_id in questions_generated:
+                # Find question by ID
+                for q in questions_list:
+                    if q.get("id") == q_id:
+                        question_texts.append(f"{q_id}: {q.get('text', '')}")
+                        break
+
+            if question_texts:
+                presub_questions = "\n\n".join([f"Question {i+1}:\n{text}" for i, text in enumerate(question_texts)])
+
+        # Format submission characteristics for SCTextField110
+        meeting_type = presub_metadata.get("meeting_type", "")
+        meeting_type_display = {
+            "formal": "Formal Pre-Submission Meeting",
+            "written": "Written Feedback Request (Q-Sub)",
+            "info": "Informational Meeting",
+            "pre-ide": "Pre-IDE Meeting",
+            "administrative": "Administrative Meeting",
+            "info-only": "Informational Submission (No Meeting)"
+        }.get(meeting_type, meeting_type)
+
+        device_desc = presub_metadata.get("device_description", "")
+        intended_use_presub = presub_metadata.get("intended_use", "")
+        question_count = presub_metadata.get("question_count", 0)
+        detection_rationale = presub_metadata.get("detection_rationale", "")
+
+        characteristics_parts = []
+        characteristics_parts.append(f"Meeting Type: {meeting_type_display}")
+        if detection_rationale:
+            characteristics_parts.append(f"Selection Rationale: {detection_rationale}")
+        characteristics_parts.append(f"Number of Questions: {question_count}")
+        if device_desc:
+            characteristics_parts.append(f"\nDevice Description:\n{device_desc[:500]}")  # Truncate to 500 chars
+        if intended_use_presub:
+            characteristics_parts.append(f"\nProposed Indications for Use:\n{intended_use_presub[:500]}")  # Truncate to 500 chars
+
+        presub_characteristics = "\n\n".join(characteristics_parts)
+
     return {
         "applicant_name": get_val("applicant_name", applicant) or get_val("applicant", profile),
         "contact_first_name": get_val("contact_first_name", applicant),
@@ -881,6 +946,9 @@ def _collect_project_values(project_data):
         "predicates": predicates,
         # Date
         "date": datetime.now(tz=timezone.utc).strftime("%Y-%m-%d"),
+        # PreSTAR XML fields (NEW - TICKET-001)
+        "presub_questions": presub_questions,
+        "presub_characteristics": presub_characteristics,
     }
 
 
@@ -1265,11 +1333,11 @@ def _build_prestar_xml(project_data):
         '      </Classification>',
         '',
         '      <SubmissionCharacteristics>',
-        f'        <SCTextField110></SCTextField110>',
+        f'        <SCTextField110>{e(v["presub_characteristics"])}</SCTextField110>',
         '      </SubmissionCharacteristics>',
         '',
         '      <Questions>',
-        f'        <QPTextField110></QPTextField110>',
+        f'        <QPTextField110>{e(v["presub_questions"])}</QPTextField110>',
         '      </Questions>',
         '',
         '    </root>',
