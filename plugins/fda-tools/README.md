@@ -126,12 +126,47 @@ Complete FDA Pre-Submission workflow with eSTAR-ready XML export for FDA Form 50
 - `/status` -- Check available data, scripts, and record counts
 - `/configure` -- Set up API keys, data directories, and preferences
 
-#### NEW: AI-Powered Standards Generation (v5.23.0)
-- `/generate-standards` -- Generate FDA Recognized Consensus Standards for any device using AI analysis (agent-based, no API keys)
-  - Processes specific codes, top N by volume, or ALL ~2000 codes
-  - AI determines applicable standards based on device characteristics
-  - Multi-agent validation framework (coverage + quality + consensus)
-  - Uses installing user's Claude Code access
+#### NEW: AI-Powered Standards Generation (v5.26.0)
+- `/fda-tools:generate-standards` -- Generate FDA Recognized Consensus Standards for any device using AI analysis
+
+  **Key Features:**
+  - **AI-Powered Analysis**: Autonomous agent analyzes device characteristics and determines applicable standards
+  - **Flexible Scope**: Process specific codes, top N by clearance volume, or all ~7000 FDA product codes
+  - **Resilient Processing**: Automatic checkpoint/resume, exponential backoff retry, progress tracking with ETA
+  - **Multi-Agent Validation**: Coverage auditor (≥99.5% threshold) + quality reviewer (≥95% appropriateness)
+  - **Multiple Output Formats**: Individual JSON files + consolidated HTML reports + validation summaries
+  - **No API Keys Required**: Uses your Claude Code access (agent-based, no external API dependencies)
+
+  **Usage Examples:**
+  ```bash
+  # Generate standards for specific product codes
+  /fda-tools:generate-standards DQY OVE GEI
+
+  # Process top 100 devices by clearance volume
+  /fda-tools:generate-standards --top 100
+
+  # Process ALL FDA product codes (7000+ codes, 4-6 hours)
+  /fda-tools:generate-standards --all
+
+  # Force restart (clear existing checkpoint)
+  /fda-tools:generate-standards --all --force-restart
+
+  # Resume from checkpoint after interruption
+  /fda-tools:generate-standards --all  # Auto-resumes if checkpoint exists
+  ```
+
+  **Output Files:**
+  - `data/standards/{category}/{code}.json` - Individual standard determinations with reasoning
+  - `data/validation_report.html` - Visual dashboard with coverage + quality metrics
+  - `data/standards_coverage_report.md` - Detailed coverage analysis
+  - `data/standards_quality_report.md` - Quality assessment with recommendations
+
+  **Progress Tracking:**
+  - Real-time progress display (X/Y codes, Z% complete)
+  - Live ETA calculation based on current processing rate
+  - Automatic checkpointing every 10 codes
+  - Category breakdown summary every 50 codes
+  - Graceful handling of API failures with retry logic
 
 #### Research and analysis
 - `/research` -- Comprehensive submission research for a product code
@@ -192,13 +227,16 @@ Complete FDA Pre-Submission workflow with eSTAR-ready XML export for FDA Form 50
 
 ### Agents
 
-12 autonomous agents for multi-step workflows, including:
-- **Standards Generation**: AI-powered standards analyzer, coverage auditor, quality reviewer
+15 autonomous agents for multi-step workflows, including:
+- **Standards Generation** (v5.26.0):
+  - `standards-ai-analyzer` - Analyzes device characteristics and determines applicable FDA Recognized Consensus Standards
+  - `standards-coverage-auditor` - Validates standards coverage against regulatory requirements (≥99.5% weighted threshold)
+  - `standards-quality-reviewer` - Reviews standards appropriateness and regulatory justification (≥95% quality threshold)
 - **Core Workflows**: Extraction analysis, submission writing, pre-sub planning, FDA review simulation
 - **Intelligence**: Research intelligence, data pipeline management, submission assembly
-- **Validation**: Multi-agent consensus framework
+- **Validation**: Multi-agent consensus framework for quality assurance
 
-Agents are invoked automatically by Claude when relevant, or manually via commands.
+Agents are invoked automatically by Claude when relevant, or manually via `/fda-tools:generate-standards`.
 
 ### Connected data sources
 
@@ -229,6 +267,13 @@ The plugin does NOT send your files to any server other than Anthropic's API. op
 - **Phase 4A (Gap Analysis):** 9/9 tests passing ✓
 - **Phase 4B (Smart Predicates):** 10/10 tests passing ✓
 - **Phase 5 (Workflows):** 19/19 tests passing ✓
+
+### New in v5.26.0
+- **AI-Powered Standards Generation:** Comprehensive testing pending
+  - Agent validation framework implemented (coverage + quality + consensus)
+  - Checkpoint/resume functionality verified
+  - External standards database (54 standards, 10 categories)
+  - HTML report generation validated
 
 ### Compliance Status
 - **Status:** CONDITIONAL APPROVAL - Research use only

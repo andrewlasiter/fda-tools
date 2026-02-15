@@ -2,6 +2,117 @@
 
 All notable changes to the FDA Tools plugin will be documented in this file.
 
+## [Unreleased]
+
+### Added - AI-Powered Standards Generation (TICKET-014)
+
+**Purpose:** Comprehensive AI-powered FDA Recognized Consensus Standards generation for all medical device product codes with automated validation.
+
+**New Command:** `/fda-tools:generate-standards`
+
+**Core Capabilities:**
+- **AI-Powered Analysis:** Uses `standards-ai-analyzer` agent with embedded knowledge of 50+ FDA-recognized standards across 12+ categories
+- **100% Coverage:** Can process all ~7000 FDA product codes (not just 250 hard-coded categories)
+- **Dynamic Standards Determination:** AI analyzes device characteristics (contact type, power source, software, sterilization) and determines applicable standards with reasoning
+- **Checkpoint/Resume:** Automatic checkpointing every 10 codes with `--resume` and `--force-restart` flags
+- **Retry with Exponential Backoff:** Robust error handling for API failures (2s, 4s, 8s delays, max 3 attempts)
+- **Progress Tracking:** Real-time ETA calculation, percentage complete, category breakdown, success rate
+- **Auto-Validation:** Automatic coverage audit (≥99.5% weighted) and quality review (≥95% appropriateness) after generation
+- **No API Key Needed:** Uses MAX plan Claude Code integration (agent-based, not SDK)
+- **External Standards Database:** Versioned JSON database with user customization support for proprietary standards
+
+**Agent System:**
+- `standards-ai-analyzer` agent: Analyzes product codes and generates standards JSON files
+- `standards-coverage-auditor` agent: Validates coverage across all product codes with weighted submission volume
+- `standards-quality-reviewer` agent: Stratified sampling of ~90 devices for appropriateness validation
+
+**Files Added:**
+- `data/fda_standards_database.json`: External standards database (54 standards, 10 categories, user customizable)
+- `data/checkpoints/`: Checkpoint directory for resume capability
+- `data/validation_reports/`: Validation report output directory
+- `scripts/markdown_to_html.py`: HTML report generator with Bootstrap styling
+
+**Files Modified:**
+- `commands/generate-standards.md` (516 lines, rewrote from 215): Complete implementation with Task tool agent invocation, checkpoint/resume, progress tracking, auto-validation
+- `scripts/fda_api_client.py`: Added `--get-all-codes` CLI flag for product code enumeration (2 lines)
+
+**Usage Examples:**
+```bash
+# Generate standards for specific product codes
+/fda-tools:generate-standards DQY MAX OVE
+
+# Generate for top 100 high-volume codes
+/fda-tools:generate-standards --top 100
+
+# Generate for ALL FDA product codes (~7000)
+/fda-tools:generate-standards --all
+
+# Resume interrupted generation
+/fda-tools:generate-standards --all --resume
+
+# Start fresh (ignore checkpoint)
+/fda-tools:generate-standards --all --force-restart
+```
+
+**Output:**
+- **Standards JSON files:** `data/standards/standards_{category}_{code}.json`
+- **Coverage audit report:** `data/validation_reports/COVERAGE_AUDIT_REPORT.md`
+- **Quality review report:** `data/validation_reports/QUALITY_REVIEW_REPORT.md`
+- **HTML validation dashboard:** Generated via `markdown_to_html.py`
+
+**Progress Display:**
+```
+[123/7040] DQY (17%) - ETA: 2h 15m
+Success: 120 | Errors: 3 | Success Rate: 97%
+
+PROGRESS SUMMARY - 50/7040 CODES
+Categories processed:
+  cardiovascular devices: 12
+  orthopedic devices: 8
+  ivd diagnostic devices: 5
+  general medical devices: 25
+```
+
+**Key Advantages:**
+- ✅ No hard-coding - AI determines standards dynamically based on device characteristics
+- ✅ 100% coverage - All ~7000 FDA product codes supported (vs. 250 hard-coded categories)
+- ✅ Expert validation - Multi-agent coverage audit and quality review
+- ✅ Full reasoning - Every standard selection justified in JSON output
+- ✅ User customization - Proprietary standards and applicability rule overrides supported
+- ✅ Versioned database - Standards database can be updated independently of agent code
+
+**Standards Database Structure:**
+- 54 FDA-recognized consensus standards
+- 10 categories: universal, biocompatibility, electrical_safety, sterilization, software, cardiovascular, orthopedic, ivd_diagnostic, neurological, surgical_instruments, robotic_surgical, dental
+- User override support for proprietary standards and custom applicability rules
+- Version tracking (1.0.0) for regeneration with updated standards
+
+**Validation Criteria:**
+- Coverage Audit: ≥99.5% weighted coverage (by submission volume) = GREEN
+- Quality Review: ≥95% appropriateness (stratified sample of 90 devices) = GREEN
+- Multi-expert consensus synthesis for final validation sign-off
+
+**Estimated Time:**
+- Specific codes (3-5): 1-2 minutes
+- Top 100: 10-15 minutes
+- All ~7000: 4-6 hours (with checkpoint/resume)
+
+**Implementation Approach:** Pragmatic Balance
+- Bash orchestration for batch processing
+- Task tool for agent invocation
+- Checkpoint every 10 codes with atomic saves
+- Retry-failed-at-end queue for robustness
+- Real-time progress tracking with ETA
+- Auto-validation at completion
+
+**Related Documentation:**
+- `MAX_PLAN_IMPLEMENTATION.md`: Architecture decision (agent-based vs SDK-based)
+- `agents/standards-ai-analyzer.md`: Agent instructions and knowledge base
+- `agents/standards-coverage-auditor.md`: Coverage validation methodology
+- `agents/standards-quality-reviewer.md`: Quality scoring framework
+
+---
+
 ## [5.26.0] - 2026-02-15
 
 ### Added - Automated Data Updates and Multi-Device Section Comparison

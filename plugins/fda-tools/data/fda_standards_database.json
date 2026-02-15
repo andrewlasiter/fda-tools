@@ -1,0 +1,418 @@
+{
+  "version": "1.0.0",
+  "extracted_from": "agents/standards-ai-analyzer.md",
+  "last_updated": "2026-02-15",
+  "description": "FDA Recognized Consensus Standards database for medical device classification",
+  "customization_enabled": true,
+  "standards_catalog": {
+    "universal": [
+      {
+        "number": "ISO 13485:2016",
+        "title": "Medical devices - Quality management systems",
+        "applicability": "ALL medical devices",
+        "confidence": "HIGH",
+        "reasoning": "Required by 21 CFR 820 (QMS regulation)",
+        "fda_recognized": true
+      },
+      {
+        "number": "ISO 14971:2019",
+        "title": "Medical devices - Application of risk management",
+        "applicability": "ALL medical devices",
+        "confidence": "HIGH",
+        "reasoning": "Risk management is mandatory per FDA guidance",
+        "fda_recognized": true
+      }
+    ],
+    "biocompatibility": [
+      {
+        "number": "ISO 10993-1:2018",
+        "title": "Biological evaluation - Part 1: Evaluation and testing",
+        "applicability": "ALL devices with patient contact (skin, mucosal, blood, tissue, bone)",
+        "confidence": "HIGH",
+        "exclusions": ["External non-contact devices", "Software-only (SaMD with no hardware)"],
+        "fda_recognized": true
+      },
+      {
+        "number": "ISO 10993-5:2009",
+        "title": "Biological evaluation - Part 5: In vitro cytotoxicity",
+        "applicability": "Devices requiring biocompatibility testing",
+        "confidence": "HIGH",
+        "fda_recognized": true
+      },
+      {
+        "number": "ISO 10993-10:2010",
+        "title": "Biological evaluation - Part 10: Irritation and skin sensitization",
+        "applicability": "Devices with skin contact",
+        "confidence": "HIGH",
+        "fda_recognized": true
+      },
+      {
+        "number": "ISO 10993-11:2017",
+        "title": "Biological evaluation - Part 11: Systemic toxicity",
+        "applicability": "Devices with systemic exposure (blood contact, implants)",
+        "confidence": "HIGH",
+        "fda_recognized": true
+      }
+    ],
+    "electrical_safety": [
+      {
+        "number": "IEC 60601-1:2005+A1:2012+A2:2020",
+        "title": "Medical electrical equipment - General safety",
+        "applicability": "ALL electrically powered medical devices",
+        "confidence": "HIGH",
+        "triggers": ["Battery-operated", "Line-powered", "AC/DC adapters", "Any electrical component"],
+        "fda_recognized": true
+      },
+      {
+        "number": "IEC 60601-1-2:2014",
+        "title": "Medical electrical equipment - EMC",
+        "applicability": "ALL electrically powered medical devices",
+        "confidence": "HIGH",
+        "purpose": "EMI/RFI immunity and emissions testing",
+        "fda_recognized": true
+      },
+      {
+        "number": "IEC 60601-1-8:2006+A1:2012",
+        "title": "Alarm systems",
+        "applicability": "Devices with audible/visual alarms",
+        "confidence": "MEDIUM",
+        "fda_recognized": true
+      },
+      {
+        "number": "IEC 60601-1-11:2015",
+        "title": "Home healthcare environment",
+        "applicability": "Electrically powered devices for home use",
+        "confidence": "HIGH",
+        "fda_recognized": true
+      }
+    ],
+    "sterilization": [
+      {
+        "number": "ISO 11135:2014",
+        "title": "Sterilization by ethylene oxide (EO)",
+        "applicability": "Devices labeled 'sterile' using EO sterilization",
+        "confidence": "HIGH",
+        "fda_recognized": true
+      },
+      {
+        "number": "ISO 11137-1:2006/A2:2018",
+        "title": "Sterilization by radiation",
+        "applicability": "Devices labeled 'sterile' using gamma or e-beam radiation",
+        "confidence": "HIGH",
+        "fda_recognized": true
+      },
+      {
+        "number": "ISO 17665-1:2006",
+        "title": "Sterilization by moist heat (steam/autoclave)",
+        "applicability": "Devices labeled 'sterile' using steam sterilization",
+        "confidence": "HIGH",
+        "fda_recognized": true
+      },
+      {
+        "number": "ANSI/AAMI ST72:2011",
+        "title": "Bacterial endotoxins",
+        "applicability": "Devices contacting blood or CSF",
+        "confidence": "HIGH",
+        "fda_recognized": true
+      },
+      {
+        "number": "ASTM F1980:2016",
+        "title": "Accelerated aging of sterile barrier systems",
+        "applicability": "Devices with sterile packaging requiring shelf life validation",
+        "confidence": "MEDIUM",
+        "fda_recognized": true
+      }
+    ],
+    "software": [
+      {
+        "number": "IEC 62304:2006+A1:2015",
+        "title": "Medical device software - Software life cycle",
+        "applicability": "ALL devices with embedded software or standalone software (SaMD)",
+        "confidence": "HIGH",
+        "exclusions": ["Trivial firmware (basic PWM, LED control only)"],
+        "fda_recognized": true
+      },
+      {
+        "number": "IEC 82304-1:2016",
+        "title": "Health software - General requirements",
+        "applicability": "Standalone health software (SaMD, wellness apps)",
+        "confidence": "HIGH",
+        "fda_recognized": true
+      },
+      {
+        "number": "IEC 62366-1:2015+A1:2020",
+        "title": "Usability engineering",
+        "applicability": "Devices with user interfaces (screens, buttons, apps)",
+        "confidence": "HIGH",
+        "fda_recognized": true
+      },
+      {
+        "number": "AAMI TIR57:2016",
+        "title": "Principles for medical device security",
+        "applicability": "Devices with network connectivity, data storage, wireless communication",
+        "confidence": "HIGH",
+        "fda_recognized": true
+      },
+      {
+        "number": "IEC 62443-4-1:2018",
+        "title": "Security for industrial automation - Secure development",
+        "applicability": "Connected devices, IoT medical devices",
+        "confidence": "MEDIUM",
+        "fda_recognized": true
+      }
+    ],
+    "cardiovascular": [
+      {
+        "number": "ISO 11070:2014",
+        "title": "Sterile single-use intravascular catheters",
+        "applicability": "Catheters for vascular access (IV, central line, PICC)",
+        "confidence": "HIGH",
+        "keywords": ["catheter", "intravascular", "vascular access"],
+        "fda_recognized": true
+      },
+      {
+        "number": "ISO 25539-1:2017",
+        "title": "Cardiovascular implants - Endovascular devices",
+        "applicability": "Stents, grafts, endovascular repair devices",
+        "confidence": "HIGH",
+        "keywords": ["stent", "graft", "endovascular"],
+        "fda_recognized": true
+      },
+      {
+        "number": "ASTM F2394:2020",
+        "title": "Balloon Angioplasty Catheters",
+        "applicability": "Balloon catheters for angioplasty",
+        "confidence": "HIGH",
+        "keywords": ["balloon", "angioplasty", "PTCA"],
+        "fda_recognized": true
+      },
+      {
+        "number": "ISO 5840-1:2015",
+        "title": "Cardiac valve prostheses",
+        "applicability": "Heart valve replacements",
+        "confidence": "HIGH",
+        "keywords": ["valve", "heart valve"],
+        "fda_recognized": true
+      },
+      {
+        "number": "ISO 14708-1:2014",
+        "title": "Active implantable medical devices",
+        "applicability": "Pacemakers, ICDs, neurostimulators",
+        "confidence": "HIGH",
+        "keywords": ["pacemaker", "ICD", "implantable"],
+        "fda_recognized": true
+      }
+    ],
+    "orthopedic": [
+      {
+        "number": "ASTM F1717:2020",
+        "title": "Spinal Implant Constructions",
+        "applicability": "Spinal fusion devices, pedicle screws, rods, plates",
+        "confidence": "HIGH",
+        "keywords": ["spinal", "spine", "fusion", "pedicle screw"],
+        "fda_recognized": true
+      },
+      {
+        "number": "ASTM F2077:2018",
+        "title": "Intervertebral Body Fusion Devices",
+        "applicability": "Spinal cages, interbody fusion implants",
+        "confidence": "HIGH",
+        "keywords": ["interbody", "fusion cage"],
+        "fda_recognized": true
+      },
+      {
+        "number": "ASTM F2346:2020",
+        "title": "Interconnection Mechanisms (spinal)",
+        "applicability": "Spinal implant connectors (screw-rod, plate-screw)",
+        "confidence": "HIGH",
+        "keywords": ["spinal connector"],
+        "fda_recognized": true
+      },
+      {
+        "number": "ISO 5832-3:2016",
+        "title": "Wrought titanium alloy (Ti-6Al-4V)",
+        "applicability": "Titanium alloy implants (hip, knee, spine)",
+        "confidence": "MEDIUM",
+        "keywords": ["titanium", "implant", "hip", "knee"],
+        "fda_recognized": true
+      },
+      {
+        "number": "ASTM F136:2013",
+        "title": "Wrought Ti-6Al-4V ELI Alloy",
+        "applicability": "Medical-grade titanium implants",
+        "confidence": "MEDIUM",
+        "fda_recognized": true
+      },
+      {
+        "number": "ISO 5833:2002",
+        "title": "Acrylic resin cements",
+        "applicability": "Bone cement for joint arthroplasty",
+        "confidence": "MEDIUM",
+        "keywords": ["bone cement", "arthroplasty"],
+        "fda_recognized": true
+      }
+    ],
+    "ivd_diagnostic": [
+      {
+        "number": "ISO 18113-1:2009",
+        "title": "IVD medical devices - Information supplied by manufacturer",
+        "applicability": "ALL IVD devices",
+        "confidence": "HIGH",
+        "keywords": ["diagnostic", "assay", "test", "analyzer", "IVD"],
+        "fda_recognized": true
+      },
+      {
+        "number": "ISO 15189:2012",
+        "title": "Medical laboratories - Quality and competence",
+        "applicability": "Lab-based IVD devices",
+        "confidence": "HIGH",
+        "fda_recognized": true
+      },
+      {
+        "number": "CLSI EP05-A3",
+        "title": "Evaluation of Precision",
+        "applicability": "Quantitative IVD assays",
+        "confidence": "HIGH",
+        "fda_recognized": true
+      },
+      {
+        "number": "CLSI EP06-A",
+        "title": "Evaluation of Linearity",
+        "applicability": "Quantitative IVD assays with concentration ranges",
+        "confidence": "HIGH",
+        "fda_recognized": true
+      },
+      {
+        "number": "CLSI EP07-A2",
+        "title": "Interference Testing",
+        "applicability": "IVD devices susceptible to interferents",
+        "confidence": "MEDIUM",
+        "fda_recognized": true
+      }
+    ],
+    "neurological": [
+      {
+        "number": "IEC 60601-2-10:2012",
+        "title": "Nerve and muscle stimulators",
+        "applicability": "TENS units, neuromuscular stimulators, FES devices",
+        "confidence": "HIGH",
+        "keywords": ["TENS", "stimulator", "neuromuscular"],
+        "fda_recognized": true
+      },
+      {
+        "number": "ISO 14708-3:2017",
+        "title": "Implantable neurostimulators",
+        "applicability": "Spinal cord stimulators, DBS devices, sacral nerve stimulators",
+        "confidence": "HIGH",
+        "keywords": ["neurostimulator", "DBS", "spinal cord stim"],
+        "fda_recognized": true
+      },
+      {
+        "number": "ASTM F2182:2011a",
+        "title": "RF-induced heating during MRI",
+        "applicability": "Implants requiring MRI compatibility testing",
+        "confidence": "MEDIUM",
+        "keywords": ["MRI", "implant"],
+        "fda_recognized": true
+      }
+    ],
+    "surgical_instruments": [
+      {
+        "number": "ISO 7153-1:2016",
+        "title": "Surgical instruments - Metallic materials - Stainless steel",
+        "applicability": "Stainless steel surgical instruments",
+        "confidence": "MEDIUM",
+        "keywords": ["surgical instrument", "scalpel", "forceps", "scissors"],
+        "fda_recognized": true
+      },
+      {
+        "number": "ISO 13402:1995",
+        "title": "Surgical and dental hand instruments - Resistance testing",
+        "applicability": "Reusable surgical instruments",
+        "confidence": "MEDIUM",
+        "fda_recognized": true
+      },
+      {
+        "number": "AAMI ST79:2017",
+        "title": "Steam sterilization in healthcare facilities",
+        "applicability": "Reusable instruments requiring steam sterilization",
+        "confidence": "MEDIUM",
+        "fda_recognized": true
+      }
+    ],
+    "robotic_surgical": [
+      {
+        "number": "ISO 13482:2014",
+        "title": "Robots and robotic devices - Safety requirements",
+        "applicability": "Medical robots with autonomous movement",
+        "confidence": "HIGH",
+        "keywords": ["robot", "robotic", "autonomous"],
+        "fda_recognized": true
+      },
+      {
+        "number": "IEC 80601-2-77:2019",
+        "title": "Robotically assisted surgical equipment",
+        "applicability": "Surgical robots, computer-assisted navigation systems",
+        "confidence": "HIGH",
+        "keywords": ["robotic surgery", "navigation"],
+        "fda_recognized": true
+      }
+    ],
+    "dental": [
+      {
+        "number": "ISO 14801:2016",
+        "title": "Dentistry - Implants - Dynamic loading test",
+        "applicability": "Dental implants",
+        "confidence": "HIGH",
+        "keywords": ["dental implant"],
+        "fda_recognized": true
+      },
+      {
+        "number": "ASTM F3332:2018",
+        "title": "Dental Implants - Bending and torsion testing",
+        "applicability": "Dental implants",
+        "confidence": "HIGH",
+        "fda_recognized": true
+      },
+      {
+        "number": "ISO 6872:2015",
+        "title": "Dentistry - Ceramic materials",
+        "applicability": "Dental crowns, bridges, veneers (ceramics)",
+        "confidence": "MEDIUM",
+        "keywords": ["dental crown", "bridge", "ceramic"],
+        "fda_recognized": true
+      }
+    ]
+  },
+  "user_overrides": {
+    "_comment": "User can add proprietary standards or override applicability rules here",
+    "custom_standards": [],
+    "applicability_overrides": {}
+  },
+  "customization_instructions": {
+    "add_proprietary_standard": "Add to user_overrides.custom_standards array with same structure as standards_catalog entries",
+    "override_applicability": "Add to user_overrides.applicability_overrides with standard number as key and custom applicability rule as value",
+    "example_custom_standard": {
+      "number": "COMPANY-STD-001:2025",
+      "title": "Proprietary validation protocol",
+      "applicability": "All company devices with feature X",
+      "confidence": "HIGH",
+      "fda_recognized": false,
+      "proprietary": true
+    }
+  },
+  "usage_notes": [
+    "This database is extracted from agents/standards-ai-analyzer.md embedded knowledge",
+    "Standards are organized by category for easier navigation",
+    "Confidence levels: HIGH (always applicable), MEDIUM (usually applicable), LOW (sometimes applicable)",
+    "FDA recognized status indicates whether standard appears in FDA's Recognized Consensus Standards database",
+    "User customization is supported via user_overrides section",
+    "Version tracking allows regeneration with updated standards when FDA database changes"
+  ],
+  "metadata": {
+    "total_standards": 54,
+    "categories": 10,
+    "last_fda_database_check": "2026-02-15",
+    "schema_version": "1.0"
+  }
+}

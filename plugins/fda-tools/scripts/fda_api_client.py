@@ -321,6 +321,138 @@ class FDAClient:
         else:
             return {"error": f"Unsupported device number format: {device_number}", "degraded": True}
 
+    def get_all_product_codes(self, use_cache=True):
+        """Enumerate ALL FDA product codes from classification database.
+
+        Returns a list of all product codes (~2000 codes total).
+        Uses pagination to retrieve all results.
+
+        Args:
+            use_cache: If True, uses cached results (recommended for performance)
+
+        Returns:
+            List of product code strings (e.g., ['DQY', 'MAX', 'OVE', ...])
+        """
+        cache_file = self.cache_dir / "all_product_codes.json"
+
+        # Try cache first if enabled
+        if use_cache and cache_file.exists():
+            try:
+                with open(cache_file) as f:
+                    cached = json.load(f)
+                # Check TTL (use 30 days for product code enumeration since it's relatively stable)
+                if time.time() - cached.get("_cached_at", 0) < (30 * 24 * 60 * 60):
+                    return cached.get("codes", [])
+            except (json.JSONDecodeError, OSError):
+                pass
+
+        # Fetch all product codes via pagination
+        all_codes = set()
+        limit = 1000  # Max per request
+        skip = 0
+
+        print("🔄 Enumerating all FDA product codes (this may take a minute)...")
+
+        while True:
+            result = self._request("classification", {"limit": str(limit), "skip": str(skip)})
+
+            if result.get("degraded"):
+                print(f"⚠️  Warning: API degraded during enumeration: {result.get('error')}")
+                break
+
+            results = result.get("results", [])
+            if not results:
+                break
+
+            # Extract product codes
+            for item in results:
+                code = item.get("product_code")
+                if code:
+                    all_codes.add(code.upper())
+
+            print(f"   Fetched {len(results)} devices (total codes: {len(all_codes)})")
+
+            # Check if there are more results
+            total = result.get("meta", {}).get("results", {}).get("total", 0)
+            if skip + len(results) >= total:
+                break
+
+            skip += limit
+            time.sleep(0.3)  # Rate limiting
+
+        codes_list = sorted(list(all_codes))
+
+        # Cache results
+        try:
+            with open(cache_file, "w") as f:
+                json.dump({
+                    "_cached_at": time.time(),
+                    "codes": codes_list,
+                    "total": len(codes_list)
+                }, f, indent=2)
+            print(f"✅ Found {len(codes_list)} product codes (cached for 30 days)")
+        except OSError:
+            pass
+
+        return codes_list
+
+    def get_device_characteristics(self, product_code):
+        """Get enhanced device characteristics for AI analysis.
+
+        Retrieves device classification info plus recent 510(k) clearances
+        to provide richer context for standards determination.
+
+        Args:
+            product_code: FDA product code (e.g., 'DQY')
+
+        Returns:
+            Dictionary with enhanced device information including:
+                - product_code, name, class, regulation, review_panel, medical_specialty
+                - recent_clearances: list of recent K-numbers with decision dates
+                - submission_volume: approximate number of clearances (last 5 years)
+        """
+        # Get classification info
+        classification = self.get_classification(product_code)
+
+        if not classification.get("results"):
+            return {
+                "product_code": product_code,
+                "name": "Unknown Device",
+                "class": "",
+                "regulation": "",
+                "review_panel": "",
+                "medical_specialty": "",
+                "error": "Product code not found in classification database"
+            }
+
+        device = classification["results"][0]
+
+        # Get recent clearances for additional context
+        clearances = self.get_clearances(product_code, limit=5, sort="decision_date:desc")
+        recent_clearances = []
+        if clearances.get("results"):
+            for item in clearances["results"]:
+                recent_clearances.append({
+                    "k_number": item.get("k_number"),
+                    "decision_date": item.get("decision_date"),
+                    "device_name": item.get("device_name", "")[:100]  # Truncate long names
+                })
+
+        # Get total submission volume (approximate)
+        volume_result = self.get_clearances(product_code, limit=1)
+        submission_volume = volume_result.get("meta", {}).get("results", {}).get("total", 0)
+
+        return {
+            "product_code": product_code,
+            "name": device.get("device_name", "Unknown Device"),
+            "class": device.get("device_class", ""),
+            "regulation": device.get("regulation_number", ""),
+            "review_panel": device.get("review_panel", ""),
+            "medical_specialty": device.get("medical_specialty", ""),
+            "recent_clearances": recent_clearances,
+            "submission_volume": submission_volume
+        }
+
     # --- Cache Management ---
 
     def cache_stats(self):
@@ -389,6 +521,7 @@ def main():
     parser.add_argument("--clear-expired", action="store_true", help="Clear expired cache")
     parser.add_argument("--lookup", help="Look up a device number (K/P/DEN)")
     parser.add_argument("--classify", help="Classify a product code")
+    parser.add_argument("--get-all-codes", action="store_true", help="Enumerate all FDA product codes")
     args = parser.parse_args()
 
     client = FDAClient()
@@ -438,6 +571,11 @@ def main():
             print(f"Regulation: {r.get('regulation_number')}")
         else:
             print(f"Not found: {args.classify}")
+
+    elif args.get_all_codes:
+        codes = client.get_all_product_codes()
+        for code in codes:
+            print(code)
 
 
 if __name__ == "__main__":
