@@ -154,7 +154,7 @@ We propose the following testing to support substantial equivalence:
 
 {biocompatibility_testing_plan}
 
-**Proposed Standards:** ISO 10993-1:2018
+**Proposed Standards:** ISO 10993-1:2009 (or latest edition)
 
 **Endpoints:** {biocompat_endpoints_list}
 
@@ -180,7 +180,7 @@ We propose the following testing to support substantial equivalence:
 
 {electrical_testing_plan}
 
-**Proposed Standards:** IEC 60601-1, IEC 60601-1-2
+**Proposed Standards:** IEC 60601-1, Edition 3.2 (2020); IEC 60601-1-2, Edition 4.0 (2014)
 
 [TODO: Company-specific — Electrical safety and EMC testing plan if device is powered]
 

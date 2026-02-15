@@ -243,7 +243,7 @@ We propose to pursue {proposed_pathway}.
 
 {biocompatibility_testing_plan}
 
-**Standards Followed:** ISO 10993-1:2018
+**Standards Followed:** ISO 10993-1:2009 (or latest edition)
 
 **Endpoints:** {biocompat_endpoints_list}
 

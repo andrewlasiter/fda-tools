@@ -124,7 +124,7 @@ We will pursue clearance via the **{proposed_pathway} 510(k)** pathway.
 
 {biocompatibility_testing_plan}
 
-**Standards:** ISO 10993-1:2018
+**Standards:** ISO 10993-1:2009 (or latest edition)
 
 **Endpoints:** {biocompat_endpoints_list}
 
@@ -150,7 +150,7 @@ We will pursue clearance via the **{proposed_pathway} 510(k)** pathway.
 
 {electrical_testing_plan}
 
-**Standards:** IEC 60601-1, IEC 60601-1-2
+**Standards:** IEC 60601-1, Edition 3.2 (2020); IEC 60601-1-2, Edition 4.0 (2014)
 
 [TODO: Company-specific — Electrical safety testing status if device is powered]
 

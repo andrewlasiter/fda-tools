@@ -133,7 +133,7 @@ We propose the following testing to support substantial equivalence:
 
 {biocompatibility_testing_plan}
 
-**Proposed Standards:** ISO 10993-1:2018
+**Proposed Standards:** ISO 10993-1:2009 (or latest edition)
 
 [TODO: Company-specific — Brief biocompatibility testing plan if device has patient contact]
 

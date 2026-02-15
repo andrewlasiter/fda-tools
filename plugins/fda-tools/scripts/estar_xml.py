@@ -670,8 +670,30 @@ def generate_xml(project_dir, template_type="nIVD", output_file=None, fmt="real"
     # Read presub_metadata.json (NEW - TICKET-001, from /fda:presub command)
     presub_file = project_dir / "presub_metadata.json"
     if presub_file.exists():
-        with open(presub_file) as f:
-            project_data["presub_metadata"] = json.load(f)
+        try:
+            with open(presub_file) as f:
+                presub_data = json.load(f)
+
+            # Validate schema version (CRITICAL-2 fix)
+            presub_version = presub_data.get("version", "unknown")
+            supported_versions = ["1.0"]
+            if presub_version not in supported_versions:
+                print(f"WARNING: presub_metadata.json version {presub_version} may be incompatible. "
+                      f"Supported versions: {', '.join(supported_versions)}", file=sys.stderr)
+
+            # Validate required fields
+            required_fields = ["meeting_type", "questions_generated", "question_count"]
+            missing_fields = [f for f in required_fields if f not in presub_data]
+            if missing_fields:
+                print(f"WARNING: presub_metadata.json missing required fields: {', '.join(missing_fields)}",
+                      file=sys.stderr)
+
+            project_data["presub_metadata"] = presub_data
+        except json.JSONDecodeError as e:
+            print(f"ERROR: Failed to parse presub_metadata.json: {e}", file=sys.stderr)
+            # Don't load invalid data
+        except Exception as e:
+            print(f"ERROR: Failed to read presub_metadata.json: {e}", file=sys.stderr)
 
     # Read draft files
     drafts = {}
@@ -1536,10 +1558,27 @@ def _build_legacy_xml(project_data, template_type):
 
 
 def _xml_escape(text):
-    """Escape special XML characters."""
+    """Escape special XML characters and filter control characters.
+
+    Filters control characters (U+0000-U+001F except tab/newline/carriage return)
+    to prevent XML injection and ensure FDA eSTAR compatibility.
+    """
     if not text:
         return ""
     text = str(text)
+
+    # Filter control characters (except tab, newline, carriage return)
+    # U+0000-U+001F except U+0009 (tab), U+000A (newline), U+000D (carriage return)
+    filtered_text = []
+    for char in text:
+        code = ord(char)
+        if code < 0x20 and code not in (0x09, 0x0A, 0x0D):
+            # Skip control characters
+            continue
+        filtered_text.append(char)
+    text = ''.join(filtered_text)
+
+    # Escape XML special characters
     text = text.replace("&", "&amp;")
     text = text.replace("<", "&lt;")
     text = text.replace(">", "&gt;")

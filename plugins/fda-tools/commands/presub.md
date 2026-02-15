@@ -274,14 +274,38 @@ Using the meeting type determined above, select appropriate questions from presu
 QUESTION_SELECTION_RESULT=$(python3 << 'PYEOF'
 import json, os, sys
 
-# Load question bank
+# Load question bank with proper error handling (CRITICAL-1 fix)
 question_bank_path = os.path.join(os.environ.get("FDA_PLUGIN_ROOT", ""), "data/question_banks/presub_questions.json")
 if not os.path.exists(question_bank_path):
+    print("ERROR: Question bank not found at: " + question_bank_path, file=sys.stderr)
     print("QUESTION_BANK_MISSING")
     sys.exit(1)
 
-with open(question_bank_path) as f:
-    question_bank = json.load(f)
+try:
+    with open(question_bank_path) as f:
+        question_bank = json.load(f)
+except json.JSONDecodeError as e:
+    print(f"ERROR: Invalid JSON in question bank: {e}", file=sys.stderr)
+    print("QUESTION_BANK_INVALID")
+    sys.exit(1)
+except Exception as e:
+    print(f"ERROR: Failed to load question bank: {e}", file=sys.stderr)
+    print("QUESTION_BANK_ERROR")
+    sys.exit(1)
+
+# Validate question bank schema
+required_keys = ["version", "questions", "meeting_type_defaults", "auto_triggers"]
+missing_keys = [k for k in required_keys if k not in question_bank]
+if missing_keys:
+    print(f"ERROR: Question bank missing required keys: {', '.join(missing_keys)}", file=sys.stderr)
+    print("QUESTION_BANK_SCHEMA_ERROR")
+    sys.exit(1)
+
+# Validate version compatibility
+supported_versions = ["1.0"]
+bank_version = question_bank.get("version", "unknown")
+if bank_version not in supported_versions:
+    print(f"WARNING: Question bank version {bank_version} may be incompatible. Supported: {', '.join(supported_versions)}", file=sys.stderr)
 
 # Get meeting type and device characteristics
 meeting_type = os.environ.get("MEETING_TYPE", "formal")
@@ -292,22 +316,57 @@ has_predicates = os.environ.get("HAS_PREDICATES", "false").lower() == "true"
 default_question_ids = question_bank.get("meeting_type_defaults", {}).get(meeting_type, [])
 selected_ids = set(default_question_ids)
 
-# Check auto-triggers
+# Check auto-triggers with enhanced keyword matching (CRITICAL-3 fix)
 auto_triggers = question_bank.get("auto_triggers", {})
+
+# Normalize device description for better matching (handle hyphens, spacing, British spelling)
+import re
+normalized_desc = device_description.lower()
+normalized_desc = re.sub(r'[-_]', ' ', normalized_desc)  # Normalize hyphens/underscores to spaces
+
 device_keywords = {
-    "patient_contacting": ["patient contact", "contacting", "skin contact", "tissue contact"],
-    "sterile_device": ["sterile", "sterilization", "sterilized"],
-    "powered_device": ["powered", "electrical", "electronic", "battery"],
-    "software_device": ["software", "algorithm", "ai", "machine learning", "ml"],
-    "implant_device": ["implant", "implantable", "permanent"],
-    "reusable_device": ["reusable", "reprocessing", "cleaning", "disinfection"],
-    "novel_technology": ["novel", "first-of-kind", "unprecedented", "no predicate"]
+    "patient_contacting": [
+        "patient contact", "contacting", "skin contact", "tissue contact",
+        "body contact", "mucosal contact", "blood contact", "patient contacting",
+        "external communication", "surface contact"
+    ],
+    "sterile_device": [
+        "sterile", "sterilization", "sterilized", "sterilisation", "sterilised",
+        "eto", "ethylene oxide", "e beam", "gamma irradiation", "steam sterilization",
+        "aseptic", "sterility"
+    ],
+    "powered_device": [
+        "powered", "electrical", "electronic", "battery", "electric",
+        "mains powered", "ac powered", "rechargeable", "power supply",
+        "electrically powered"
+    ],
+    "software_device": [
+        "software", "algorithm", "ai", "machine learning", "ml",
+        "artificial intelligence", "ai based", "ai enabled", "computer aided",
+        "automated analysis", "digital", "computational"
+    ],
+    "implant_device": [
+        "implant", "implantable", "permanent", "permanently implanted",
+        "long term implant", "chronic implant", "indwelling"
+    ],
+    "reusable_device": [
+        "reusable", "reprocessing", "cleaning", "disinfection", "reuseable",
+        "multi use", "multiple use", "re usable", "reprocessable"
+    ],
+    "novel_technology": [
+        "novel", "first of kind", "unprecedented", "no predicate",
+        "first in class", "new technology", "innovative", "breakthrough"
+    ]
 }
 
 for trigger_name, keywords in device_keywords.items():
-    if any(kw in device_description for kw in keywords):
-        triggered_ids = auto_triggers.get(trigger_name, [])
-        selected_ids.update(triggered_ids)
+    # Check both original and normalized descriptions for maximum coverage
+    for kw in keywords:
+        normalized_kw = re.sub(r'[-_]', ' ', kw.lower())
+        if normalized_kw in normalized_desc or kw in device_description:
+            triggered_ids = auto_triggers.get(trigger_name, [])
+            selected_ids.update(triggered_ids)
+            break  # Found match for this trigger, no need to check other keywords
 
 # Get question details
 questions = question_bank.get("questions", [])
@@ -1373,7 +1432,7 @@ Generate structured `presub_metadata.json` to capture meeting data for PreSTAR X
 
 ```bash
 python3 << 'PYEOF'
-import json, os
+import json, os, sys
 from datetime import datetime, timezone
 
 # Get project directory
@@ -1408,12 +1467,46 @@ metadata = {
     }
 }
 
-# Write metadata file
-metadata_path = os.path.join(project_dir, "presub_metadata.json")
-with open(metadata_path, "w") as f:
-    json.dump(metadata, f, indent=2)
+# Validate metadata schema (HIGH-2 fix)
+required_fields = ["version", "meeting_type", "questions_generated", "question_count", "fda_form"]
+missing_fields = [f for f in required_fields if f not in metadata]
+if missing_fields:
+    print(f"ERROR: Metadata missing required fields: {', '.join(missing_fields)}", file=sys.stderr)
+    sys.exit(1)
 
-print(f"METADATA_WRITTEN:{metadata_path}")
+# Validate data types
+if not isinstance(metadata["questions_generated"], list):
+    print("ERROR: questions_generated must be a list", file=sys.stderr)
+    sys.exit(1)
+if not isinstance(metadata["question_count"], int):
+    print("ERROR: question_count must be an integer", file=sys.stderr)
+    sys.exit(1)
+
+# Validate version
+if metadata["version"] not in ["1.0"]:
+    print(f"WARNING: Metadata version {metadata['version']} may be incompatible", file=sys.stderr)
+
+# Write metadata file atomically (RISK-1 fix)
+# Use temp file + rename to prevent corruption on interrupt
+import tempfile
+metadata_path = os.path.join(project_dir, "presub_metadata.json")
+temp_fd, temp_path = tempfile.mkstemp(dir=project_dir, suffix=".json.tmp", prefix="presub_metadata_")
+try:
+    # Write to temp file
+    with os.fdopen(temp_fd, "w") as f:
+        json.dump(metadata, f, indent=2)
+
+    # Atomic rename (overwrites existing file)
+    os.replace(temp_path, metadata_path)
+    print(f"METADATA_WRITTEN:{metadata_path}")
+except Exception as e:
+    # Clean up temp file on error
+    try:
+        os.unlink(temp_path)
+    except:
+        pass
+    print(f"ERROR: Failed to write metadata: {e}", file=sys.stderr)
+    sys.exit(1)
 PYEOF
 ```
 
