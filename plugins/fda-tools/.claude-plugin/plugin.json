@@ -1,6 +1,6 @@
 {
   "name": "fda-tools",
-  "version": "5.25.0",
+  "version": "5.25.1",
   "description": "AI-powered FDA 510(k) regulatory assistant with 45 commands — predicate search, substantial equivalence analysis, submission drafting, data management, section comparison, and regulatory intelligence",
   "author": {
     "name": "PredicateExtraction"

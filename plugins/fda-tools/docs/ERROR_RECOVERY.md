@@ -160,7 +160,10 @@ cat -v ~/fda-510k-data/projects/YOUR_PROJECT/presub_metadata.json
 grep "auto_triggers_fired" ~/fda-510k-data/projects/YOUR_PROJECT/presub_metadata.json
 
 # Manually edit presub_metadata.json to remove incorrect questions
+# Use your preferred editor (nano, vim, emacs, or vscode)
 nano ~/fda-510k-data/projects/YOUR_PROJECT/presub_metadata.json
+# Or: vim ~/fda-510k-data/projects/YOUR_PROJECT/presub_metadata.json
+# Or: code ~/fda-510k-data/projects/YOUR_PROJECT/presub_metadata.json
 
 # Regenerate XML with updated metadata
 python3 plugins/fda-tools/scripts/estar_xml.py generate \
@@ -181,9 +184,9 @@ If a Pre-Sub package was generated with an earlier plugin version:
 
 ```bash
 # Restore from git (if committed)
-git checkout HEAD~1 ~/fda-510k-data/projects/YOUR_PROJECT/presub_plan.md
-git checkout HEAD~1 ~/fda-510k-data/projects/YOUR_PROJECT/presub_metadata.json
-git checkout HEAD~1 ~/fda-510k-data/projects/YOUR_PROJECT/presub_prestar.xml
+git checkout HEAD~1 -- ~/fda-510k-data/projects/YOUR_PROJECT/presub_plan.md
+git checkout HEAD~1 -- ~/fda-510k-data/projects/YOUR_PROJECT/presub_metadata.json
+git checkout HEAD~1 -- ~/fda-510k-data/projects/YOUR_PROJECT/presub_prestar.xml
 
 # Or restore from backup
 cp ~/fda-510k-data/projects/YOUR_PROJECT/presub_plan.md.backup \
