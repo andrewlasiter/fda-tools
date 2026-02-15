@@ -1,0 +1,31 @@
+{
+  "category": "Dental Implants and Prosthetics",
+  "product_codes": ["EXE", "EXH", "NIR", "OBO"],
+  "applicable_standards": [
+    {
+      "number": "ISO 14801:2016",
+      "title": "Dentistry - Implants - Dynamic loading test for endosseous dental implants",
+      "applicability": "Fatigue testing for dental implants under cyclic loading"
+    },
+    {
+      "number": "ASTM F3332:2018",
+      "title": "Standard Test Method for Static Bending and Torsion Testing of Dental Implants",
+      "applicability": "Mechanical testing for implant strength"
+    },
+    {
+      "number": "ISO 10993-1:2018",
+      "title": "Biological evaluation of medical devices - Part 1: Evaluation and testing",
+      "applicability": "Biocompatibility testing framework for oral cavity contact"
+    },
+    {
+      "number": "ISO 13485:2016",
+      "title": "Medical devices - Quality management systems",
+      "applicability": "QMS requirements for dental device manufacturing"
+    },
+    {
+      "number": "ISO 17664-1:2021",
+      "title": "Processing of health care products - Information to be provided by the medical device manufacturer for the processing of medical devices",
+      "applicability": "Reprocessing instructions for reusable dental instruments"
+    }
+  ]
+}
