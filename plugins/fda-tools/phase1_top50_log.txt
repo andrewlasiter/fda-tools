@@ -1,0 +1,324 @@
+
+============================================================
+KNOWLEDGE-BASED STANDARDS GENERATION
+Processing 24 product codes
+Source: FDA Recognized Consensus Standards Database
+============================================================
+
+============================================================
+Processing DQY
+============================================================
+  📋 Catheter, Percutaneous
+  🏥 Class 2
+  📂 Category: cardiovascular
+  📊 7 applicable standards
+  💾 Saved: standards_cardiovascular_devices_dqy.json
+  ✅ Top standards:
+     • ISO 10993-1:2018 (HIGH) - Biological evaluation - Part 1: Evaluation and tes...
+     • ISO 14971:2019 (HIGH) - Risk management for medical devices...
+     • ISO 13485:2016 (HIGH) - Quality management systems...
+
+============================================================
+Processing KGN
+============================================================
+  📋 Wound Dressing With Animal-Derived Material(S)
+  🏥 Class U
+  📂 Category: general
+  📊 3 applicable standards
+  💾 Saved: standards_general_medical_devices_kgn.json
+  ✅ Top standards:
+     • ISO 13485:2016 (HIGH) - Quality management systems...
+     • ISO 14971:2019 (HIGH) - Risk management for medical devices...
+     • ISO 10993-1:2018 (MEDIUM) - Biological evaluation of medical devices - Part 1...
+
+============================================================
+Processing MAX
+============================================================
+  📋 Intervertebral Fusion Device With Bone Graft, Lumbar
+  🏥 Class 2
+  📂 Category: orthopedic
+  📊 7 applicable standards
+  💾 Saved: standards_orthopedic_devices_max.json
+  ✅ Top standards:
+     • ISO 10993-1:2018 (HIGH) - Biological evaluation - Part 1...
+     • ISO 14971:2019 (HIGH) - Risk management...
+     • ISO 13485:2016 (HIGH) - Quality management systems...
+
+============================================================
+Processing FRN
+============================================================
+  📋 Pump, Infusion
+  🏥 Class 2
+  📂 Category: orthopedic
+  📊 7 applicable standards
+  💾 Saved: standards_orthopedic_devices_frn.json
+  ✅ Top standards:
+     • ISO 10993-1:2018 (HIGH) - Biological evaluation - Part 1...
+     • ISO 14971:2019 (HIGH) - Risk management...
+     • ISO 13485:2016 (HIGH) - Quality management systems...
+
+============================================================
+Processing DSI
+============================================================
+  📋 Detector And Alarm, Arrhythmia
+  🏥 Class 2
+  📂 Category: general
+  📊 3 applicable standards
+  💾 Saved: standards_general_medical_devices_dsi.json
+  ✅ Top standards:
+     • ISO 13485:2016 (HIGH) - Quality management systems...
+     • ISO 14971:2019 (HIGH) - Risk management for medical devices...
+     • ISO 10993-1:2018 (MEDIUM) - Biological evaluation of medical devices - Part 1...
+
+============================================================
+Processing GEI
+============================================================
+  📋 Electrosurgical, Cutting & Coagulation & Accessories
+  🏥 Class 2
+  📂 Category: surgical
+  📊 5 applicable standards
+  💾 Saved: standards_surgical_instruments_gei.json
+  ✅ Top standards:
+     • ISO 13485:2016 (HIGH) - Quality management systems...
+     • ISO 14971:2019 (HIGH) - Risk management...
+     • ISO 7153-1:2016 (HIGH) - Surgical instruments - Metallic materials - Part 1...
+
+============================================================
+Processing OVE
+============================================================
+  📋 Intervertebral Fusion Device With Integrated Fixation, Cervical
+  🏥 Class 2
+  📂 Category: orthopedic
+  📊 7 applicable standards
+  💾 Saved: standards_orthopedic_devices_ove.json
+  ✅ Top standards:
+     • ISO 10993-1:2018 (HIGH) - Biological evaluation - Part 1...
+     • ISO 14971:2019 (HIGH) - Risk management...
+     • ISO 13485:2016 (HIGH) - Quality management systems...
+
+============================================================
+Processing NIQ
+============================================================
+  📋 Coronary Drug-Eluting Stent
+  🏥 Class 3
+  📂 Category: cardiovascular
+  📊 7 applicable standards
+  💾 Saved: standards_cardiovascular_devices_niq.json
+  ✅ Top standards:
+     • ISO 10993-1:2018 (HIGH) - Biological evaluation - Part 1: Evaluation and tes...
+     • ISO 14971:2019 (HIGH) - Risk management for medical devices...
+     • ISO 13485:2016 (HIGH) - Quality management systems...
+
+============================================================
+Processing DTK
+============================================================
+  📋 Filter, Intravascular, Cardiovascular
+  🏥 Class 2
+  📂 Category: cardiovascular
+  📊 7 applicable standards
+  💾 Saved: standards_cardiovascular_devices_dtk.json
+  ✅ Top standards:
+     • ISO 10993-1:2018 (HIGH) - Biological evaluation - Part 1: Evaluation and tes...
+     • ISO 14971:2019 (HIGH) - Risk management for medical devices...
+     • ISO 13485:2016 (HIGH) - Quality management systems...
+
+============================================================
+Processing JJE
+============================================================
+  📋 Analyzer, Chemistry (Photometric, Discrete), For Clinical Use
+  🏥 Class 1
+  📂 Category: diagnostic_ivd
+  📊 7 applicable standards
+  💾 Saved: standards_in_vitro_diagnostic_devices_jje.json
+  ✅ Top standards:
+     • ISO 13485:2016 (HIGH) - Quality management systems...
+     • ISO 14971:2019 (HIGH) - Risk management...
+     • ISO 15189:2012 (HIGH) - Medical laboratories - Requirements for quality an...
+
+============================================================
+Processing LCX
+============================================================
+  📋 Kit, Test, Pregnancy, Hcg, Over The Counter
+  🏥 Class 2
+  📂 Category: diagnostic_ivd
+  📊 7 applicable standards
+  💾 Saved: standards_in_vitro_diagnostic_devices_lcx.json
+  ✅ Top standards:
+     • ISO 13485:2016 (HIGH) - Quality management systems...
+     • ISO 14971:2019 (HIGH) - Risk management...
+     • ISO 15189:2012 (HIGH) - Medical laboratories - Requirements for quality an...
+
+============================================================
+Processing QIH
+============================================================
+  📋 Automated Radiological Image Processing Software
+  🏥 Class 2
+  📂 Category: software_samd
+  📊 7 applicable standards
+  💾 Saved: standards_software_as_a_medical_device_qih.json
+  ✅ Top standards:
+     • IEC 62304:2006+A1:2015 (HIGH) - Software life cycle processes...
+     • IEC 82304-1:2016 (HIGH) - Health software - General requirements...
+     • ISO 14971:2019 (HIGH) - Risk management...
+
+============================================================
+Processing GZB
+============================================================
+  📋 Stimulator, Spinal-Cord, Implanted (Pain Relief)
+  🏥 Class 2
+  📂 Category: orthopedic
+  📊 7 applicable standards
+  💾 Saved: standards_orthopedic_devices_gzb.json
+  ✅ Top standards:
+     • ISO 10993-1:2018 (HIGH) - Biological evaluation - Part 1...
+     • ISO 14971:2019 (HIGH) - Risk management...
+     • ISO 13485:2016 (HIGH) - Quality management systems...
+
+============================================================
+Processing OLO
+============================================================
+  📋 Orthopedic Stereotaxic Instrument
+  🏥 Class 2
+  📂 Category: orthopedic
+  📊 7 applicable standards
+  💾 Saved: standards_orthopedic_devices_olo.json
+  ✅ Top standards:
+     • ISO 10993-1:2018 (HIGH) - Biological evaluation - Part 1...
+     • ISO 14971:2019 (HIGH) - Risk management...
+     • ISO 13485:2016 (HIGH) - Quality management systems...
+
+============================================================
+Processing QBH
+============================================================
+  📋 Lower Respiratory Microbial Nucleic Acid Detection System
+  🏥 Class 2
+  📂 Category: general
+  📊 3 applicable standards
+  💾 Saved: standards_general_medical_devices_qbh.json
+  ✅ Top standards:
+     • ISO 13485:2016 (HIGH) - Quality management systems...
+     • ISO 14971:2019 (HIGH) - Risk management for medical devices...
+     • ISO 10993-1:2018 (MEDIUM) - Biological evaluation of medical devices - Part 1...
+
+============================================================
+Processing FTL
+============================================================
+  📋 Mesh, Surgical, Polymeric
+  🏥 Class 2
+  📂 Category: surgical
+  📊 5 applicable standards
+  💾 Saved: standards_surgical_instruments_ftl.json
+  ✅ Top standards:
+     • ISO 13485:2016 (HIGH) - Quality management systems...
+     • ISO 14971:2019 (HIGH) - Risk management...
+     • ISO 7153-1:2016 (HIGH) - Surgical instruments - Metallic materials - Part 1...
+
+============================================================
+Processing MJR
+============================================================
+  📋 Unknown Device
+  🏥 Class 
+  📂 Category: general
+  📊 3 applicable standards
+  💾 Saved: standards_general_medical_devices_mjr.json
+  ✅ Top standards:
+     • ISO 13485:2016 (HIGH) - Quality management systems...
+     • ISO 14971:2019 (HIGH) - Risk management for medical devices...
+     • ISO 10993-1:2018 (MEDIUM) - Biological evaluation of medical devices - Part 1...
+
+============================================================
+Processing OZO
+============================================================
+  📋 Automated Insulin Dosing , Threshold Suspend
+  🏥 Class 3
+  📂 Category: general
+  📊 3 applicable standards
+  💾 Saved: standards_general_medical_devices_ozo.json
+  ✅ Top standards:
+     • ISO 13485:2016 (HIGH) - Quality management systems...
+     • ISO 14971:2019 (HIGH) - Risk management for medical devices...
+     • ISO 10993-1:2018 (MEDIUM) - Biological evaluation of medical devices - Part 1...
+
+============================================================
+Processing QPA
+============================================================
+  📋 Unknown Device
+  🏥 Class 
+  📂 Category: general
+  📊 3 applicable standards
+  💾 Saved: standards_general_medical_devices_qpa.json
+  ✅ Top standards:
+     • ISO 13485:2016 (HIGH) - Quality management systems...
+     • ISO 14971:2019 (HIGH) - Risk management for medical devices...
+     • ISO 10993-1:2018 (MEDIUM) - Biological evaluation of medical devices - Part 1...
+
+============================================================
+Processing EXE
+============================================================
+  📋 Protector, Ostomy
+  🏥 Class 1
+  📂 Category: general
+  📊 3 applicable standards
+  💾 Saved: standards_general_medical_devices_exe.json
+  ✅ Top standards:
+     • ISO 13485:2016 (HIGH) - Quality management systems...
+     • ISO 14971:2019 (HIGH) - Risk management for medical devices...
+     • ISO 10993-1:2018 (MEDIUM) - Biological evaluation of medical devices - Part 1...
+
+============================================================
+Processing EXH
+============================================================
+  📋 Bag, Urinary, Ileostomy
+  🏥 Class 1
+  📂 Category: general
+  📊 3 applicable standards
+  💾 Saved: standards_general_medical_devices_exh.json
+  ✅ Top standards:
+     • ISO 13485:2016 (HIGH) - Quality management systems...
+     • ISO 14971:2019 (HIGH) - Risk management for medical devices...
+     • ISO 10993-1:2018 (MEDIUM) - Biological evaluation of medical devices - Part 1...
+
+============================================================
+Processing FRO
+============================================================
+  📋 Dressing, Wound, Drug
+  🏥 Class U
+  📂 Category: general
+  📊 3 applicable standards
+  💾 Saved: standards_general_medical_devices_fro.json
+  ✅ Top standards:
+     • ISO 13485:2016 (HIGH) - Quality management systems...
+     • ISO 14971:2019 (HIGH) - Risk management for medical devices...
+     • ISO 10993-1:2018 (MEDIUM) - Biological evaluation of medical devices - Part 1...
+
+============================================================
+Processing LWV
+============================================================
+  📋 Unknown Device
+  🏥 Class 
+  📂 Category: general
+  📊 3 applicable standards
+  💾 Saved: standards_general_medical_devices_lwv.json
+  ✅ Top standards:
+     • ISO 13485:2016 (HIGH) - Quality management systems...
+     • ISO 14971:2019 (HIGH) - Risk management for medical devices...
+     • ISO 10993-1:2018 (MEDIUM) - Biological evaluation of medical devices - Part 1...
+
+============================================================
+Processing OBO
+============================================================
+  📋 Tomography, Optical Coherence
+  🏥 Class 2
+  📂 Category: general
+  📊 3 applicable standards
+  💾 Saved: standards_general_medical_devices_obo.json
+  ✅ Top standards:
+     • ISO 13485:2016 (HIGH) - Quality management systems...
+     • ISO 14971:2019 (HIGH) - Risk management for medical devices...
+     • ISO 10993-1:2018 (MEDIUM) - Biological evaluation of medical devices - Part 1...
+
+============================================================
+SUMMARY
+============================================================
+  ✅ Generated: 24 files
+  📂 Output: /home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/data/standards

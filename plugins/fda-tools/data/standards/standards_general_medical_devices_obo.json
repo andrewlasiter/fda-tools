@@ -1,0 +1,45 @@
+{
+  "category": "General Medical Devices",
+  "product_codes": [
+    "OBO"
+  ],
+  "device_examples": [
+    "Tomography, Optical Coherence"
+  ],
+  "device_class": "2",
+  "regulation_number": "886.1570",
+  "review_panel": "OP",
+  "applicable_standards": [
+    {
+      "number": "ISO 13485:2016",
+      "title": "Quality management systems",
+      "applicability": "FDA recognized consensus standard for general devices",
+      "frequency": 0.95,
+      "confidence": "HIGH",
+      "source": "FDA_recognized_standards"
+    },
+    {
+      "number": "ISO 14971:2019",
+      "title": "Risk management for medical devices",
+      "applicability": "FDA recognized consensus standard for general devices",
+      "frequency": 0.9,
+      "confidence": "HIGH",
+      "source": "FDA_recognized_standards"
+    },
+    {
+      "number": "ISO 10993-1:2018",
+      "title": "Biological evaluation of medical devices - Part 1",
+      "applicability": "FDA recognized consensus standard for general devices",
+      "frequency": 0.75,
+      "confidence": "MEDIUM",
+      "source": "FDA_recognized_standards"
+    }
+  ],
+  "generation_metadata": {
+    "method": "knowledge_based",
+    "source": "FDA_recognized_consensus_standards",
+    "confidence_level": "HIGH",
+    "manual_review_required": false,
+    "notes": "Standards selected from FDA recognized consensus standards database"
+  }
+}

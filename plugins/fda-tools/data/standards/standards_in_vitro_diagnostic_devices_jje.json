@@ -1,0 +1,77 @@
+{
+  "category": "In Vitro Diagnostic Devices",
+  "product_codes": [
+    "JJE"
+  ],
+  "device_examples": [
+    "Analyzer, Chemistry (Photometric, Discrete), For Clinical Use"
+  ],
+  "device_class": "1",
+  "regulation_number": "862.2160",
+  "review_panel": "CH",
+  "applicable_standards": [
+    {
+      "number": "ISO 13485:2016",
+      "title": "Quality management systems",
+      "applicability": "FDA recognized consensus standard for diagnostic_ivd devices",
+      "frequency": 0.9,
+      "confidence": "HIGH",
+      "source": "FDA_recognized_standards"
+    },
+    {
+      "number": "ISO 14971:2019",
+      "title": "Risk management",
+      "applicability": "FDA recognized consensus standard for diagnostic_ivd devices",
+      "frequency": 0.85,
+      "confidence": "HIGH",
+      "source": "FDA_recognized_standards"
+    },
+    {
+      "number": "ISO 15189:2012",
+      "title": "Medical laboratories - Requirements for quality and competence",
+      "applicability": "FDA recognized consensus standard for diagnostic_ivd devices",
+      "frequency": 0.75,
+      "confidence": "HIGH",
+      "source": "FDA_recognized_standards"
+    },
+    {
+      "number": "CLSI EP05-A3",
+      "title": "Evaluation of Precision of Quantitative Measurement Procedures",
+      "applicability": "FDA recognized consensus standard for diagnostic_ivd devices",
+      "frequency": 0.7,
+      "confidence": "HIGH",
+      "source": "FDA_recognized_standards"
+    },
+    {
+      "number": "CLSI EP06-A",
+      "title": "Evaluation of Linearity of Quantitative Measurement Procedures",
+      "applicability": "FDA recognized consensus standard for diagnostic_ivd devices",
+      "frequency": 0.65,
+      "confidence": "MEDIUM",
+      "source": "FDA_recognized_standards"
+    },
+    {
+      "number": "CLSI EP07-A2",
+      "title": "Interference Testing in Clinical Chemistry",
+      "applicability": "FDA recognized consensus standard for diagnostic_ivd devices",
+      "frequency": 0.6,
+      "confidence": "MEDIUM",
+      "source": "FDA_recognized_standards"
+    },
+    {
+      "number": "ISO 18113-1:2009",
+      "title": "IVD medical devices - Information supplied by manufacturer",
+      "applicability": "FDA recognized consensus standard for diagnostic_ivd devices",
+      "frequency": 0.55,
+      "confidence": "MEDIUM",
+      "source": "FDA_recognized_standards"
+    }
+  ],
+  "generation_metadata": {
+    "method": "knowledge_based",
+    "source": "FDA_recognized_consensus_standards",
+    "confidence_level": "HIGH",
+    "manual_review_required": false,
+    "notes": "Standards selected from FDA recognized consensus standards database"
+  }
+}

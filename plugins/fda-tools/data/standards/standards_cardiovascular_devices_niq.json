@@ -1,0 +1,77 @@
+{
+  "category": "Cardiovascular Devices",
+  "product_codes": [
+    "NIQ"
+  ],
+  "device_examples": [
+    "Coronary Drug-Eluting Stent"
+  ],
+  "device_class": "3",
+  "regulation_number": "",
+  "review_panel": "CV",
+  "applicable_standards": [
+    {
+      "number": "ISO 10993-1:2018",
+      "title": "Biological evaluation - Part 1: Evaluation and testing",
+      "applicability": "FDA recognized consensus standard for cardiovascular devices",
+      "frequency": 0.95,
+      "confidence": "HIGH",
+      "source": "FDA_recognized_standards"
+    },
+    {
+      "number": "ISO 14971:2019",
+      "title": "Risk management for medical devices",
+      "applicability": "FDA recognized consensus standard for cardiovascular devices",
+      "frequency": 0.9,
+      "confidence": "HIGH",
+      "source": "FDA_recognized_standards"
+    },
+    {
+      "number": "ISO 13485:2016",
+      "title": "Quality management systems",
+      "applicability": "FDA recognized consensus standard for cardiovascular devices",
+      "frequency": 0.85,
+      "confidence": "HIGH",
+      "source": "FDA_recognized_standards"
+    },
+    {
+      "number": "IEC 60601-1:2005+A1:2012",
+      "title": "Medical electrical equipment - General safety",
+      "applicability": "FDA recognized consensus standard for cardiovascular devices",
+      "frequency": 0.75,
+      "confidence": "HIGH",
+      "source": "FDA_recognized_standards"
+    },
+    {
+      "number": "ISO 11070:2014",
+      "title": "Sterile single-use intravascular catheters",
+      "applicability": "FDA recognized consensus standard for cardiovascular devices",
+      "frequency": 0.7,
+      "confidence": "HIGH",
+      "source": "FDA_recognized_standards"
+    },
+    {
+      "number": "ASTM F2394:2020",
+      "title": "Guide for Balloon Angioplasty Catheters",
+      "applicability": "FDA recognized consensus standard for cardiovascular devices",
+      "frequency": 0.6,
+      "confidence": "MEDIUM",
+      "source": "FDA_recognized_standards"
+    },
+    {
+      "number": "ISO 25539-1:2017",
+      "title": "Cardiovascular implants - Endovascular devices",
+      "applicability": "FDA recognized consensus standard for cardiovascular devices",
+      "frequency": 0.55,
+      "confidence": "MEDIUM",
+      "source": "FDA_recognized_standards"
+    }
+  ],
+  "generation_metadata": {
+    "method": "knowledge_based",
+    "source": "FDA_recognized_consensus_standards",
+    "confidence_level": "HIGH",
+    "manual_review_required": false,
+    "notes": "Standards selected from FDA recognized consensus standards database"
+  }
+}

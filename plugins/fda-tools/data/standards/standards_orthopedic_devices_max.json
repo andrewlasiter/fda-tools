@@ -1,0 +1,77 @@
+{
+  "category": "Orthopedic Devices",
+  "product_codes": [
+    "MAX"
+  ],
+  "device_examples": [
+    "Intervertebral Fusion Device With Bone Graft, Lumbar"
+  ],
+  "device_class": "2",
+  "regulation_number": "888.3080",
+  "review_panel": "OR",
+  "applicable_standards": [
+    {
+      "number": "ISO 10993-1:2018",
+      "title": "Biological evaluation - Part 1",
+      "applicability": "FDA recognized consensus standard for orthopedic devices",
+      "frequency": 0.95,
+      "confidence": "HIGH",
+      "source": "FDA_recognized_standards"
+    },
+    {
+      "number": "ISO 14971:2019",
+      "title": "Risk management",
+      "applicability": "FDA recognized consensus standard for orthopedic devices",
+      "frequency": 0.9,
+      "confidence": "HIGH",
+      "source": "FDA_recognized_standards"
+    },
+    {
+      "number": "ISO 13485:2016",
+      "title": "Quality management systems",
+      "applicability": "FDA recognized consensus standard for orthopedic devices",
+      "frequency": 0.85,
+      "confidence": "HIGH",
+      "source": "FDA_recognized_standards"
+    },
+    {
+      "number": "ASTM F1717:2020",
+      "title": "Standard Test Methods for Spinal Implant Constructions",
+      "applicability": "FDA recognized consensus standard for orthopedic devices",
+      "frequency": 0.75,
+      "confidence": "HIGH",
+      "source": "FDA_recognized_standards"
+    },
+    {
+      "number": "ASTM F2077:2018",
+      "title": "Test Methods for Intervertebral Body Fusion Devices",
+      "applicability": "FDA recognized consensus standard for orthopedic devices",
+      "frequency": 0.7,
+      "confidence": "HIGH",
+      "source": "FDA_recognized_standards"
+    },
+    {
+      "number": "ISO 5832-3:2016",
+      "title": "Implants for surgery - Metallic materials - Titanium alloy",
+      "applicability": "FDA recognized consensus standard for orthopedic devices",
+      "frequency": 0.65,
+      "confidence": "MEDIUM",
+      "source": "FDA_recognized_standards"
+    },
+    {
+      "number": "ASTM F2346:2020",
+      "title": "Static and Fatigue Testing of Interconnection Mechanisms",
+      "applicability": "FDA recognized consensus standard for orthopedic devices",
+      "frequency": 0.6,
+      "confidence": "MEDIUM",
+      "source": "FDA_recognized_standards"
+    }
+  ],
+  "generation_metadata": {
+    "method": "knowledge_based",
+    "source": "FDA_recognized_consensus_standards",
+    "confidence_level": "HIGH",
+    "manual_review_required": false,
+    "notes": "Standards selected from FDA recognized consensus standards database"
+  }
+}

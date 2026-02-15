@@ -1,0 +1,77 @@
+{
+  "category": "Software as a Medical Device",
+  "product_codes": [
+    "QIH"
+  ],
+  "device_examples": [
+    "Automated Radiological Image Processing Software"
+  ],
+  "device_class": "2",
+  "regulation_number": "892.2050",
+  "review_panel": "RA",
+  "applicable_standards": [
+    {
+      "number": "IEC 62304:2006+A1:2015",
+      "title": "Software life cycle processes",
+      "applicability": "FDA recognized consensus standard for software_samd devices",
+      "frequency": 0.95,
+      "confidence": "HIGH",
+      "source": "FDA_recognized_standards"
+    },
+    {
+      "number": "IEC 82304-1:2016",
+      "title": "Health software - General requirements",
+      "applicability": "FDA recognized consensus standard for software_samd devices",
+      "frequency": 0.85,
+      "confidence": "HIGH",
+      "source": "FDA_recognized_standards"
+    },
+    {
+      "number": "ISO 14971:2019",
+      "title": "Risk management",
+      "applicability": "FDA recognized consensus standard for software_samd devices",
+      "frequency": 0.9,
+      "confidence": "HIGH",
+      "source": "FDA_recognized_standards"
+    },
+    {
+      "number": "ISO 13485:2016",
+      "title": "Quality management systems",
+      "applicability": "FDA recognized consensus standard for software_samd devices",
+      "frequency": 0.85,
+      "confidence": "HIGH",
+      "source": "FDA_recognized_standards"
+    },
+    {
+      "number": "IEC 62366-1:2015",
+      "title": "Medical devices - Usability engineering",
+      "applicability": "FDA recognized consensus standard for software_samd devices",
+      "frequency": 0.75,
+      "confidence": "HIGH",
+      "source": "FDA_recognized_standards"
+    },
+    {
+      "number": "AAMI TIR57:2016",
+      "title": "Principles for medical device security",
+      "applicability": "FDA recognized consensus standard for software_samd devices",
+      "frequency": 0.7,
+      "confidence": "HIGH",
+      "source": "FDA_recognized_standards"
+    },
+    {
+      "number": "IEC 62443-4-1:2018",
+      "title": "Security for industrial automation - Secure product development",
+      "applicability": "FDA recognized consensus standard for software_samd devices",
+      "frequency": 0.6,
+      "confidence": "MEDIUM",
+      "source": "FDA_recognized_standards"
+    }
+  ],
+  "generation_metadata": {
+    "method": "knowledge_based",
+    "source": "FDA_recognized_consensus_standards",
+    "confidence_level": "HIGH",
+    "manual_review_required": false,
+    "notes": "Standards selected from FDA recognized consensus standards database"
+  }
+}

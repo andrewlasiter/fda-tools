@@ -1,0 +1,61 @@
+{
+  "category": "Surgical Instruments",
+  "product_codes": [
+    "FTL"
+  ],
+  "device_examples": [
+    "Mesh, Surgical, Polymeric"
+  ],
+  "device_class": "2",
+  "regulation_number": "878.3300",
+  "review_panel": "SU",
+  "applicable_standards": [
+    {
+      "number": "ISO 13485:2016",
+      "title": "Quality management systems",
+      "applicability": "FDA recognized consensus standard for surgical devices",
+      "frequency": 0.9,
+      "confidence": "HIGH",
+      "source": "FDA_recognized_standards"
+    },
+    {
+      "number": "ISO 14971:2019",
+      "title": "Risk management",
+      "applicability": "FDA recognized consensus standard for surgical devices",
+      "frequency": 0.85,
+      "confidence": "HIGH",
+      "source": "FDA_recognized_standards"
+    },
+    {
+      "number": "ISO 7153-1:2016",
+      "title": "Surgical instruments - Metallic materials - Part 1",
+      "applicability": "FDA recognized consensus standard for surgical devices",
+      "frequency": 0.75,
+      "confidence": "HIGH",
+      "source": "FDA_recognized_standards"
+    },
+    {
+      "number": "ISO 13402:1995",
+      "title": "Surgical and dental hand instruments - Determination of resistance",
+      "applicability": "FDA recognized consensus standard for surgical devices",
+      "frequency": 0.65,
+      "confidence": "MEDIUM",
+      "source": "FDA_recognized_standards"
+    },
+    {
+      "number": "ASTM F1980:2016",
+      "title": "Accelerated aging of sterile barrier systems",
+      "applicability": "FDA recognized consensus standard for surgical devices",
+      "frequency": 0.6,
+      "confidence": "MEDIUM",
+      "source": "FDA_recognized_standards"
+    }
+  ],
+  "generation_metadata": {
+    "method": "knowledge_based",
+    "source": "FDA_recognized_consensus_standards",
+    "confidence_level": "HIGH",
+    "manual_review_required": false,
+    "notes": "Standards selected from FDA recognized consensus standards database"
+  }
+}
