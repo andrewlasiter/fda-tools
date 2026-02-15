@@ -1138,6 +1138,325 @@ NEXT STEPS
 ────────────────────────────────────────
 ```
 
+## Step 8: Predicate Diversity Analysis (Sprint 6 - NEW)
+
+After predicate review is complete, analyze the diversity of accepted predicates to identify "echo chamber" risk (where all predicates are too similar).
+
+**Purpose:** Ensure SE argument strength through diverse predicate set. FDA may question submissions where all predicates share the same manufacturer, technology, or narrow time range.
+
+### Run Diversity Analysis
+
+```bash
+python3 << 'PYEOF'
+import json
+import os
+import sys
+import re
+
+# Add lib directory to Python path
+plugin_root = os.environ.get('FDA_PLUGIN_ROOT', '')
+if not plugin_root:
+    installed_plugins_path = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
+    if os.path.exists(installed_plugins_path):
+        with open(installed_plugins_path) as ipf:
+            installed_data = json.load(ipf)
+            for key, value in installed_data.get('plugins', {}).items():
+                if key.startswith('fda-tools@') or key.startswith('fda-predicate-assistant@'):
+                    for entry in value:
+                        install_path = entry.get('installPath', '')
+                        if os.path.isdir(install_path):
+                            plugin_root = install_path
+                            break
+                if plugin_root:
+                    break
+
+if plugin_root:
+    sys.path.insert(0, os.path.join(plugin_root, 'lib'))
+
+from predicate_diversity import PredicateDiversityAnalyzer
+
+# Load review.json to get accepted predicates
+settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+projects_dir = os.path.expanduser('~/fda-510k-data/projects')
+if os.path.exists(settings_path):
+    with open(settings_path) as f:
+        m = re.search(r'projects_dir:\s*(.+)', f.read())
+        if m:
+            projects_dir = os.path.expanduser(m.group(1).strip())
+
+project = "PROJECT"  # Replace with actual project name
+pdir = os.path.join(projects_dir, project)
+
+review_path = os.path.join(pdir, 'review.json')
+if not os.path.exists(review_path):
+    print("DIVERSITY_ANALYSIS:SKIPPED - review.json not found")
+    sys.exit(0)
+
+with open(review_path) as f:
+    review_data = json.load(f)
+
+# Extract accepted predicates only
+accepted_predicates = [
+    p for p in review_data.get('predicates', [])
+    if p.get('decision') == 'accept'
+]
+
+if len(accepted_predicates) == 0:
+    print("DIVERSITY_ANALYSIS:SKIPPED - no accepted predicates")
+    sys.exit(0)
+
+print(f"DIVERSITY_ANALYSIS:RUNNING - {len(accepted_predicates)} accepted predicates")
+
+# Run diversity analysis
+analyzer = PredicateDiversityAnalyzer(accepted_predicates)
+diversity_report = analyzer.analyze()
+
+# Display scorecard
+print("\n" + "="*60)
+print("PREDICATE DIVERSITY SCORECARD")
+print("="*60)
+print(f"\nTotal Score: {diversity_report['total_score']}/100 ({diversity_report['grade']})\n")
+
+print(f"Manufacturer Diversity: {diversity_report['manufacturer_score']}/30")
+print(f"  {diversity_report['unique_manufacturers']} manufacturers: {', '.join(diversity_report['manufacturer_list'][:5])}")
+if len(diversity_report['manufacturer_list']) > 5:
+    print(f"    (+ {len(diversity_report['manufacturer_list']) - 5} more)")
+
+print(f"\nTechnology Diversity: {diversity_report['technology_score']}/30")
+print(f"  {diversity_report['unique_technologies']} technologies: {', '.join(diversity_report['technology_list'][:5])}")
+if len(diversity_report['technology_list']) > 5:
+    print(f"    (+ {len(diversity_report['technology_list']) - 5} more)")
+
+print(f"\nAge Diversity: {diversity_report['age_score']}/25")
+if diversity_report['most_recent_year']:
+    print(f"  Clearance year span: {diversity_report['clearance_year_span']} years ({diversity_report['oldest_year']}-{diversity_report['most_recent_year']})")
+    print(f"  Most recent: {diversity_report['most_recent_year']}")
+else:
+    print(f"  No clearance date data available")
+
+print(f"\nRegulatory Pathway: {diversity_report['pathway_score']}/10")
+print(f"Geographic Diversity: {diversity_report['geographic_score']}/10")
+
+print(f"\nGRADE: {diversity_report['grade']}")
+
+# Show warning for poor diversity
+if diversity_report['grade'] in ['POOR', 'FAIR']:
+    print("\n⚠️  WARNING: Weak predicate diversity may result in FDA questions")
+
+# Show recommendations
+if diversity_report['recommendations']:
+    print("\nRECOMMENDATIONS:")
+    for i, rec in enumerate(diversity_report['recommendations'], 1):
+        print(f"  {i}. {rec}")
+
+# Suggest specific actions for improvement
+if diversity_report['total_score'] < 60:
+    print("\nSUGGESTED ACTIONS TO IMPROVE DIVERSITY:")
+
+    # Get product code from first predicate
+    product_code = accepted_predicates[0].get('product_code', 'UNKNOWN')
+
+    if diversity_report['manufacturer_score'] < 20:
+        current_mfrs = diversity_report['manufacturer_list']
+        print(f"  - Run: /fda:batchfetch --product-code {product_code} --manufacturer '<different manufacturer>'")
+        print(f"    Current manufacturers: {', '.join(current_mfrs)}")
+        print(f"    Look for: Competing manufacturers in same device category")
+
+    if diversity_report['technology_score'] < 20:
+        current_tech = diversity_report['technology_list'][0] if diversity_report['technology_list'] else 'generic'
+        print(f"  - Look for predicates with different technology approach")
+        print(f"    Current technology: {current_tech}")
+        print(f"    Consider: Different materials, coatings, or mechanisms")
+
+    if diversity_report['age_score'] < 15:
+        most_recent = diversity_report.get('most_recent_year')
+        oldest = diversity_report.get('oldest_year')
+        if most_recent and oldest:
+            print(f"  - Include predicates spanning wider time range")
+            print(f"    Current range: {oldest}-{most_recent} ({diversity_report['clearance_year_span']} years)")
+            print(f"    Recommended: 5+ year span for historical context")
+
+print("\n" + "="*60)
+
+# Save diversity report to review.json
+review_data['predicate_diversity'] = diversity_report
+
+with open(review_path, 'w') as f:
+    json.dump(review_data, f, indent=2)
+
+print(f"\nDIVERSITY_REPORT:SAVED to review.json")
+
+PYEOF
+```
+
+### Diversity Scorecard Interpretation
+
+**Grading Scale:**
+- **80-100 (EXCELLENT):** Strong diversity across all dimensions, low echo chamber risk
+- **60-79 (GOOD):** Adequate diversity, minor improvements possible
+- **40-59 (FAIR):** Moderate diversity concerns, consider adding more diverse predicates
+- **0-39 (POOR):** High echo chamber risk, FDA may question SE argument strength
+
+**Scoring Breakdown:**
+
+1. **Manufacturer Diversity (0-30 points)**
+   - 1 manufacturer: 0 points ❌ CRITICAL RISK
+   - 2 manufacturers: 10 points ⚠️ MODERATE
+   - 3 manufacturers: 20 points ✅ GOOD
+   - 4+ manufacturers: 30 points ✅ EXCELLENT
+
+2. **Technology Diversity (0-30 points)**
+   - 1 technology type: 0 points ❌ CRITICAL RISK
+   - 2 technology types: 10 points ⚠️ MODERATE
+   - 3 technology types: 20 points ✅ GOOD
+   - 4+ technology types: 30 points ✅ EXCELLENT
+
+3. **Age Diversity (0-25 points)**
+   - Base score (0-15): Year span from oldest to newest predicate
+   - Recency bonus (+10): Most recent predicate within last 2 years
+   - Goal: 5+ year span with recent predicates
+
+4. **Regulatory Pathway (0-10 points)**
+   - Mix of Traditional, Special, Abbreviated 510(k), De Novo: 10 points
+   - Single pathway: 0 points
+
+5. **Geographic Diversity (0-10 points)**
+   - 2+ countries: 10 points
+   - Single country: 0 points
+
+### Example Output (Poor Diversity)
+
+```
+============================================================
+PREDICATE DIVERSITY SCORECARD
+============================================================
+
+Total Score: 20/100 (POOR)
+
+Manufacturer Diversity: 0/30
+  1 manufacturers: Boston Scientific
+
+Technology Diversity: 0/30
+  1 technologies: drug-eluting
+
+Age Diversity: 10/25
+  Clearance year span: 2 years (2021-2023)
+  Most recent: 2023
+
+Regulatory Pathway: 0/10
+Geographic Diversity: 10/10
+
+GRADE: POOR
+
+⚠️  WARNING: Weak predicate diversity may result in FDA questions
+
+RECOMMENDATIONS:
+  1. CRITICAL: Add predicate from different manufacturer (avoid echo chamber risk)
+    → Current manufacturer: Boston Scientific
+    → Search for predicates from competing manufacturers (Boston Scientific, Medtronic, Abbott, etc.)
+  2. CRITICAL: Add predicate with different technology approach
+    → Current technology: drug-eluting
+    → Consider predicates with different materials, coatings, or mechanisms
+  3. MAJOR: Expand clearance date range (current span: 2 years)
+    → Include predicates spanning wider time range (5+ years recommended)
+    → Most recent: 2023, consider adding older predicates for historical context
+
+SUGGESTED ACTIONS TO IMPROVE DIVERSITY:
+  - Run: /fda:batchfetch --product-code DQY --manufacturer '<different manufacturer>'
+    Current manufacturers: Boston Scientific
+    Look for: Competing manufacturers in same device category
+  - Look for predicates with different technology approach
+    Current technology: drug-eluting
+    Consider: Different materials, coatings, or mechanisms
+  - Include predicates spanning wider time range
+    Current range: 2021-2023 (2 years)
+    Recommended: 5+ year span for historical context
+
+============================================================
+
+DIVERSITY_REPORT:SAVED to review.json
+```
+
+### Example Output (Excellent Diversity)
+
+```
+============================================================
+PREDICATE DIVERSITY SCORECARD
+============================================================
+
+Total Score: 90/100 (EXCELLENT)
+
+Manufacturer Diversity: 30/30
+  4 manufacturers: Abbott, Boston Scientific, Cook Medical, Medtronic
+
+Technology Diversity: 30/30
+  5 technologies: bare-metal, coated, drug-eluting, manual, single-use
+
+Age Diversity: 20/25
+  Clearance year span: 7 years (2017-2024)
+  Most recent: 2024
+
+Regulatory Pathway: 10/10
+Geographic Diversity: 0/10
+
+GRADE: EXCELLENT
+
+RECOMMENDATIONS:
+  1. Excellent predicate diversity - no improvements needed
+
+============================================================
+
+DIVERSITY_REPORT:SAVED to review.json
+```
+
+### Integration with Step 7 Summary
+
+Update the post-review summary to include diversity score:
+
+```
+  FDA Predicate Review Summary
+  Project: {name}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Generated: {date} | v5.22.0
+
+RESULTS
+────────────────────────────────────────
+
+  Accepted predicates:     8
+  Rejected (reference):    4
+  Rejected (noise):        1
+  Deferred:                2
+  Reclassified:            3 (2 upgraded, 1 downgraded)
+
+PREDICATE DIVERSITY
+────────────────────────────────────────
+
+  Diversity Score:  {score}/100 ({grade})
+  Manufacturers:    {n} unique
+  Technology Types: {n} unique
+  Year Span:        {n} years ({oldest}-{newest})
+
+  {If POOR or FAIR grade:}
+  ⚠️  WARNING: Weak diversity - consider adding more diverse predicates
+
+TOP ACCEPTED PREDICATES
+────────────────────────────────────────
+
+  | # | K-Number | Score | Device | Applicant |
+  |---|----------|-------|--------|-----------|
+  | 1 | K241335  | 92/100 (Strong) | Collagen Wound Dressing | COMPANY A |
+  | 2 | K238901  | 87/100 (Strong) | Foam Dressing | COMPANY B |
+  | 3 | K225678  | 85/100 (Strong) | Antimicrobial Dressing | COMPANY C |
+
+NEXT STEPS
+────────────────────────────────────────
+
+  1. Build SE comparison table — `/fda:compare-se --predicates K241335,K238901`
+  2. Look up guidance documents — `/fda:guidance {PRODUCT_CODE}`
+  {If diversity score < 60:}
+  3. Improve predicate diversity — see recommendations in diversity scorecard above
+```
+
 ## Error Handling
 
 - **No output.csv found**: "No extraction results found for project '{name}'. Run `/fda:extract both --project {name}` first."

@@ -1,7 +1,7 @@
 ---
-description: Export project data as eSTAR-compatible XML or zip package — validates completeness and generates readiness report
+description: Export 510(k) submission package in FDA eCopy format, eSTAR XML, or zip package — validates completeness and generates readiness report
 allowed-tools: Bash, Read, Glob, Grep, Write
-argument-hint: "--project NAME [--format xml|zip] [--template nIVD|IVD|PreSTAR] [--validate]"
+argument-hint: "--project NAME [--format ecopy|xml|zip|pdf] [--template nIVD|IVD|PreSTAR] [--validate]"
 ---
 
 # FDA eSTAR Export
@@ -44,12 +44,14 @@ You are exporting project data into an eSTAR-compatible format for submission pr
 From `$ARGUMENTS`, extract:
 
 - `--project NAME` (required) — Project to export
-- `--format xml|zip` (default: xml) — Export format:
+- `--format ecopy|xml|zip|pdf` (default: xml) — Export format:
+  - `ecopy`: Generate FDA eCopy submission package (Sprint 6 - NEW) with numbered folders and PDF conversion
   - `xml`: Generate eSTAR-compatible XML for Adobe Acrobat import
   - `zip`: Package all section files + XML in eSTAR naming convention
-- `--template nIVD|IVD|PreSTAR` (default: nIVD) — eSTAR template type
+  - `pdf`: Export all draft markdown files to PDF (bulk conversion)
+- `--template nIVD|IVD|PreSTAR` (default: nIVD) — eSTAR template type (for xml/zip formats)
 - `--validate` — Run completeness validation before export
-- `--output FILE` — Output file path (default: project_dir/estar_export_{template}.{xml|zip})
+- `--output FILE` — Output file path (default: project_dir/estar_export_{template}.{xml|zip} or project_dir/eCopy)
 - `--attach FILE [SECTION]` — Include an attachment file in the ZIP package. SECTION is the 2-digit section number. Can be specified multiple times. Also includes any files in `attachments.json`.
 
 ## Step 1: Inventory Project Data
@@ -252,6 +254,304 @@ with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
     zf.writestr('README.md', readme)
 
 print(f"ZIP_CREATED:{zip_path}|{included} files")
+PYEOF
+```
+
+### Format: eCopy (Sprint 6 - NEW)
+
+Generate FDA eCopy submission package per "eCopy Program for Medical Device Submissions" guidance (August 2019).
+
+**Requirements:**
+- pandoc: `sudo apt install pandoc texlive-xelatex` (for PDF conversion)
+- openpyxl (optional): `pip install openpyxl` (for Excel checklist)
+
+**Execution:**
+
+```bash
+python3 << 'PYEOF'
+import json
+import os
+import sys
+import re
+
+# Add lib directory to Python path
+plugin_root = os.environ.get('FDA_PLUGIN_ROOT', '')
+if not plugin_root:
+    installed_plugins_path = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
+    if os.path.exists(installed_plugins_path):
+        with open(installed_plugins_path) as ipf:
+            installed_data = json.load(ipf)
+            for key, value in installed_data.get('plugins', {}).items():
+                if key.startswith('fda-tools@') or key.startswith('fda-predicate-assistant@'):
+                    for entry in value:
+                        install_path = entry.get('installPath', '')
+                        if os.path.isdir(install_path):
+                            plugin_root = install_path
+                            break
+                if plugin_root:
+                    break
+
+if plugin_root:
+    sys.path.insert(0, os.path.join(plugin_root, 'lib'))
+
+from ecopy_exporter import eCopyExporter
+
+# Load project path
+settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+projects_dir = os.path.expanduser('~/fda-510k-data/projects')
+if os.path.exists(settings_path):
+    with open(settings_path) as f:
+        m = re.search(r'projects_dir:\s*(.+)', f.read())
+        if m:
+            projects_dir = os.path.expanduser(m.group(1).strip())
+
+project_name = "PROJECT"  # Replace with actual project name
+project_path = os.path.join(projects_dir, project_name)
+
+if not os.path.isdir(project_path):
+    print(f"ERROR: Project directory not found: {project_path}")
+    sys.exit(1)
+
+# Export eCopy
+print("="*60)
+print("FDA eCopy Export")
+print("="*60)
+print(f"\nProject: {project_name}")
+print(f"Project Path: {project_path}\n")
+
+exporter = eCopyExporter(project_path)
+
+if not exporter.pandoc_available:
+    print("⚠️  WARNING: pandoc not installed")
+    print("   Markdown files will be copied without PDF conversion")
+    print("   Install: sudo apt install pandoc texlive-xelatex")
+    print()
+
+result = exporter.export()
+
+print("eCopy Export Complete")
+print("="*60)
+print(f"\neCopy Path: {result['ecopy_path']}")
+print(f"Status: {result['validation']['status']}")
+print(f"Sections Created: {result['sections_created']}")
+print(f"Files Converted: {result['files_converted']}")
+print(f"Total Size: {result['total_size_mb']} MB")
+print(f"Pandoc Available: {result['pandoc_available']}")
+
+print("\nValidation Results:")
+print(f"  ✓ Mandatory sections present: {result['validation']['mandatory_sections']}")
+print(f"  ✓ File naming correct: {result['validation']['file_naming']}")
+print(f"  ✓ Size under 4 GB: {result['validation']['size_ok']}")
+print(f"  ✓ eCopy checklist generated: {result['validation']['checklist_ok']}")
+
+if result['validation']['errors']:
+    print("\n❌ ERRORS:")
+    for error in result['validation']['errors']:
+        print(f"  - {error}")
+
+if result['validation']['warnings']:
+    print("\n⚠️  WARNINGS:")
+    for warning in result['validation']['warnings']:
+        print(f"  - {warning}")
+
+if result['conversion_errors']:
+    print("\n⚠️  CONVERSION ERRORS:")
+    for error in result['conversion_errors']:
+        print(f"  - {error}")
+
+print("\neCopy Structure:")
+print("  0001-CoverLetter/")
+print("  0002-Administrative/")
+print("  0003-510kSummary/")
+print("  0004-DeviceDescription/")
+print("  0005-SubstantialEquivalence/")
+print("  0006-ProposedLabeling/")
+print("  0007-Sterilization/")
+print("  0008-Biocompatibility/")
+print("  0009-Software/")
+print("  0010-ElectricalSafetyEMC/")
+print("  0011-ShelfLife/")
+print("  0012-PerformanceTesting/")
+print("  0013-Clinical/")
+print("  0014-HumanFactors/")
+print("  0015-CombinationProduct/")
+print("  0016-Reprocessing/")
+print("  0017-DeclarationOfConformity/")
+print("  0018-Other/")
+print("  0019-MRISafety/  (NEW - Sprint 6)")
+print("  eCopy-Checklist.xlsx")
+
+print("\nNext Steps:")
+print("  1. Review eCopy-Checklist.xlsx for completeness")
+print("  2. Validate PDFs open correctly")
+print("  3. Upload to FDA eSubmitter portal")
+print("  4. Submit 510(k) application")
+
+print("\nFDA Submission Portal:")
+print("  https://ccp.fda.gov/prweb/PRAuth/app/default/extsso")
+
+print("\n" + "="*60)
+
+# Store export metadata
+export_metadata = {
+    "export_date": __import__('datetime').datetime.now().isoformat(),
+    "export_format": "eCopy",
+    "ecopy_path": result['ecopy_path'],
+    "sections_created": result['sections_created'],
+    "files_converted": result['files_converted'],
+    "total_size_mb": result['total_size_mb'],
+    "validation_status": result['validation']['status'],
+    "pandoc_available": result['pandoc_available']
+}
+
+export_metadata_path = os.path.join(project_path, 'export_metadata.json')
+with open(export_metadata_path, 'w') as f:
+    json.dump(export_metadata, f, indent=2)
+
+print(f"EXPORT_METADATA:SAVED to {export_metadata_path}")
+
+PYEOF
+```
+
+**Output Structure:**
+
+The eCopy exporter creates a numbered folder structure per FDA eCopy guidance:
+
+```
+{project_path}/eCopy/
+├── 0001-CoverLetter/
+│   └── cover-letter.pdf
+├── 0002-Administrative/
+│   ├── truthful-accuracy.pdf
+│   └── form-3514.pdf
+├── 0003-510kSummary/
+│   └── form-3881.pdf
+├── 0004-DeviceDescription/
+│   └── device-description.pdf
+├── 0005-SubstantialEquivalence/
+│   ├── se-discussion.pdf
+│   └── SE-comparison-table.pdf
+├── 0006-ProposedLabeling/
+│   └── IFU.pdf
+├── 0007-Sterilization/
+│   └── sterilization.pdf
+├── 0008-Biocompatibility/
+│   └── biocompatibility.pdf
+├── 0009-Software/  (if SaMD)
+│   └── software-documentation.pdf
+├── 0010-ElectricalSafetyEMC/
+│   └── emc-electrical.pdf
+├── 0011-ShelfLife/
+│   └── shelf-life.pdf
+├── 0012-PerformanceTesting/
+│   ├── performance-summary.pdf
+│   └── testing-rationale.pdf
+├── 0013-Clinical/  (if applicable)
+│   └── clinical.pdf
+├── 0014-HumanFactors/  (if applicable)
+│   └── human-factors.pdf
+├── 0015-CombinationProduct/  (if combination)
+│   └── combination-product.pdf
+├── 0016-Reprocessing/  (if reusable)
+│   └── reprocessing.pdf
+├── 0017-DeclarationOfConformity/
+│   └── doc.pdf
+├── 0018-Other/
+│   └── (miscellaneous files)
+├── 0019-MRISafety/  (if implantable - NEW SPRINT 6)
+│   └── mri-safety.pdf
+└── eCopy-Checklist.xlsx
+```
+
+**PDF Styling:**
+
+All PDFs generated with FDA-compliant formatting:
+- Font: Times New Roman 12pt
+- Margins: 1 inch all sides
+- Table of contents (--toc)
+- Numbered sections (--number-sections)
+- Hyperlinked cross-references
+
+**Validation:**
+
+- Mandatory sections (01-06) present
+- Total package size <4 GB (FDA limit)
+- Individual section size <200 MB (recommended)
+- eCopy checklist generated
+
+### Format: PDF (Bulk Export)
+
+Export all markdown drafts to PDF without eCopy folder structure:
+
+```bash
+python3 << 'PYEOF'
+import os
+import glob
+import subprocess
+from pathlib import Path
+
+# Load project path
+import re
+settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+projects_dir = os.path.expanduser('~/fda-510k-data/projects')
+if os.path.exists(settings_path):
+    with open(settings_path) as f:
+        m = re.search(r'projects_dir:\s*(.+)', f.read())
+        if m:
+            projects_dir = os.path.expanduser(m.group(1).strip())
+
+project_name = "PROJECT"  # Replace
+project_path = Path(projects_dir) / project_name
+pdf_export_dir = project_path / "pdf_export"
+pdf_export_dir.mkdir(exist_ok=True)
+
+# Find all draft markdown files
+draft_files = list(project_path.glob("draft_*.md"))
+draft_files += list((project_path / "drafts").glob("*.md")) if (project_path / "drafts").exists() else []
+
+print(f"Found {len(draft_files)} markdown files to convert")
+
+converted = 0
+errors = []
+
+for md_file in draft_files:
+    pdf_file = pdf_export_dir / f"{md_file.stem}.pdf"
+
+    try:
+        cmd = [
+            "pandoc",
+            str(md_file),
+            "-o",
+            str(pdf_file),
+            "--pdf-engine=xelatex",
+            "--toc",
+            "--number-sections",
+            "-V", "mainfont=Times New Roman",
+            "-V", "fontsize=12pt",
+            "-V", "geometry:margin=1in",
+        ]
+
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+
+        if result.returncode == 0:
+            print(f"✓ {md_file.name} → {pdf_file.name}")
+            converted += 1
+        else:
+            print(f"✗ {md_file.name} - FAILED")
+            errors.append(f"{md_file.name}: {result.stderr}")
+
+    except Exception as e:
+        print(f"✗ {md_file.name} - ERROR: {str(e)}")
+        errors.append(f"{md_file.name}: {str(e)}")
+
+print(f"\nConverted: {converted}/{len(draft_files)} files")
+print(f"Output: {pdf_export_dir}")
+
+if errors:
+    print(f"\nErrors: {len(errors)}")
+    for error in errors[:5]:  # Show first 5 errors
+        print(f"  - {error}")
+
 PYEOF
 ```
 

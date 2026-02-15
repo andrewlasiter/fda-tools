@@ -1,0 +1,288 @@
+{
+  "implantable_product_codes": [
+    "GZB",
+    "OLO",
+    "LWV",
+    "MWN",
+    "DSI",
+    "DXH",
+    "DWD",
+    "OVE",
+    "MNH",
+    "KWP",
+    "MAX",
+    "MQP",
+    "NIQ",
+    "NKN",
+    "NZN",
+    "FRO",
+    "DZE",
+    "LPJ",
+    "MEB",
+    "KWC"
+  ],
+  "product_code_details": {
+    "GZB": {
+      "name": "Neurostimulator, Deep Brain",
+      "mri_concern": "Active implant, metallic leads, RF heating risk",
+      "device_class": "III"
+    },
+    "OLO": {
+      "name": "Spinal Cord Stimulator",
+      "mri_concern": "Active implant, metallic leads, RF heating risk",
+      "device_class": "III"
+    },
+    "LWV": {
+      "name": "Cochlear Implant",
+      "mri_concern": "Active implant, magnet, internal electronics",
+      "device_class": "III"
+    },
+    "MWN": {
+      "name": "Implantable Cardioverter Defibrillator (ICD)",
+      "mri_concern": "Active implant, metallic leads, RF heating risk",
+      "device_class": "III"
+    },
+    "DSI": {
+      "name": "Pacemaker, Permanent Implantable",
+      "mri_concern": "Active implant, metallic leads, RF heating risk",
+      "device_class": "III"
+    },
+    "DXH": {
+      "name": "Cardiac Resynchronization Therapy (CRT) Device",
+      "mri_concern": "Active implant, metallic leads, RF heating risk",
+      "device_class": "III"
+    },
+    "DWD": {
+      "name": "Implantable Loop Recorder",
+      "mri_concern": "Active implant, ferromagnetic components",
+      "device_class": "II"
+    },
+    "OVE": {
+      "name": "Intervertebral Body Fusion Device",
+      "mri_concern": "Metallic endplates (titanium/CoCrMo), displacement force",
+      "device_class": "II"
+    },
+    "MNH": {
+      "name": "Spinal Interlaminar Fixation Orthosis",
+      "mri_concern": "Metallic screws and rods, displacement force",
+      "device_class": "II"
+    },
+    "KWP": {
+      "name": "Hip Joint Metal/Polymer Semi-Constrained Prosthesis",
+      "mri_concern": "Metallic femoral stem and acetabular shell",
+      "device_class": "II"
+    },
+    "MAX": {
+      "name": "Knee Joint Patellar (Femoral) Metallic Resurfacing Prosthesis",
+      "mri_concern": "Metallic components (CoCrMo), displacement force",
+      "device_class": "II"
+    },
+    "MQP": {
+      "name": "Shoulder Joint Glenoid (Hemi-Shoulder) Metallic Cemented Prosthesis",
+      "mri_concern": "Metallic components (titanium/CoCrMo)",
+      "device_class": "II"
+    },
+    "NIQ": {
+      "name": "Prosthetic Heart Valve",
+      "mri_concern": "Metallic frame (titanium/nitinol), displacement force",
+      "device_class": "III"
+    },
+    "NKN": {
+      "name": "Vascular Stent",
+      "mri_concern": "Metallic stent (nitinol/stainless steel), RF heating",
+      "device_class": "II"
+    },
+    "NZN": {
+      "name": "Transcatheter Aortic Valve Replacement (TAVR)",
+      "mri_concern": "Metallic frame (nitinol), displacement force",
+      "device_class": "III"
+    },
+    "FRO": {
+      "name": "Hydrogel Wound Dressing",
+      "mri_concern": "May contain metallic components in combination products",
+      "device_class": "II"
+    },
+    "DZE": {
+      "name": "Coronary Drug-Eluting Stent",
+      "mri_concern": "Metallic stent (CoCr/platinum-chromium), RF heating",
+      "device_class": "III"
+    },
+    "LPJ": {
+      "name": "Intraocular Lens",
+      "mri_concern": "May contain metallic haptics",
+      "device_class": "II"
+    },
+    "MEB": {
+      "name": "Bone Screw",
+      "mri_concern": "Metallic screws (titanium/stainless steel)",
+      "device_class": "II"
+    },
+    "KWC": {
+      "name": "Bone Plate",
+      "mri_concern": "Metallic plates (titanium/stainless steel), displacement force",
+      "device_class": "II"
+    }
+  },
+  "material_mri_safety": {
+    "Ti-6Al-4V": {
+      "classification": "MR_CONDITIONAL",
+      "astm_f2182_required": true,
+      "typical_heating": "<2°C at 3T",
+      "magnetic_susceptibility": "Low (paramagnetic)",
+      "notes": "Most common titanium alloy for implants, excellent MR compatibility"
+    },
+    "Titanium": {
+      "classification": "MR_CONDITIONAL",
+      "astm_f2182_required": true,
+      "typical_heating": "<2°C at 3T",
+      "magnetic_susceptibility": "Low (paramagnetic)",
+      "notes": "Commercially pure titanium (CP Ti), excellent MR compatibility"
+    },
+    "Stainless Steel 316L": {
+      "classification": "MR_CONDITIONAL",
+      "astm_f2182_required": true,
+      "typical_heating": "<2°C at 1.5T, testing required at 3T",
+      "magnetic_susceptibility": "Low to moderate (weakly ferromagnetic)",
+      "notes": "Requires careful testing, may have higher displacement forces"
+    },
+    "CoCrMo": {
+      "classification": "MR_CONDITIONAL",
+      "astm_f2182_required": true,
+      "typical_heating": "<1.5°C at 3T",
+      "magnetic_susceptibility": "Low (paramagnetic)",
+      "notes": "Cobalt-chromium-molybdenum alloy, good MR compatibility"
+    },
+    "CoCr": {
+      "classification": "MR_CONDITIONAL",
+      "astm_f2182_required": true,
+      "typical_heating": "<1.5°C at 3T",
+      "magnetic_susceptibility": "Low (paramagnetic)",
+      "notes": "Cobalt-chromium alloy, commonly used in stents"
+    },
+    "Platinum-Iridium": {
+      "classification": "MR_CONDITIONAL",
+      "astm_f2182_required": true,
+      "typical_heating": "<3°C at 3T (lead material)",
+      "magnetic_susceptibility": "Very low (diamagnetic)",
+      "notes": "Used in neurostimulator and pacemaker leads"
+    },
+    "Nitinol": {
+      "classification": "MR_CONDITIONAL",
+      "astm_f2182_required": true,
+      "typical_heating": "<2.5°C at 3T",
+      "magnetic_susceptibility": "Low (slightly ferromagnetic at martensitic state)",
+      "notes": "Nickel-titanium shape memory alloy, common in stents and frames"
+    },
+    "MP35N": {
+      "classification": "MR_CONDITIONAL",
+      "astm_f2182_required": true,
+      "typical_heating": "<2°C at 3T",
+      "magnetic_susceptibility": "Very low (non-magnetic)",
+      "notes": "Nickel-cobalt alloy, used in lead wires"
+    },
+    "PEEK": {
+      "classification": "MR_SAFE",
+      "astm_f2182_required": false,
+      "typical_heating": "Negligible (polymer)",
+      "magnetic_susceptibility": "None (diamagnetic)",
+      "notes": "Polyetheretherketone, radiolucent, no MRI safety concerns"
+    },
+    "UHMWPE": {
+      "classification": "MR_SAFE",
+      "astm_f2182_required": false,
+      "typical_heating": "Negligible (polymer)",
+      "magnetic_susceptibility": "None (diamagnetic)",
+      "notes": "Ultra-high molecular weight polyethylene, no MRI safety concerns"
+    },
+    "Silicone": {
+      "classification": "MR_SAFE",
+      "astm_f2182_required": false,
+      "typical_heating": "Negligible (polymer)",
+      "magnetic_susceptibility": "None (diamagnetic)",
+      "notes": "Medical-grade silicone, no MRI safety concerns"
+    },
+    "Ceramic": {
+      "classification": "MR_SAFE",
+      "astm_f2182_required": false,
+      "typical_heating": "Negligible (ceramic)",
+      "magnetic_susceptibility": "None (diamagnetic)",
+      "notes": "Alumina or zirconia ceramic, no MRI safety concerns"
+    }
+  },
+  "mri_field_strengths": {
+    "1.5T": {
+      "description": "Most common clinical MRI scanner",
+      "prevalence": "~60% of installed base",
+      "testing_priority": "Required"
+    },
+    "3T": {
+      "description": "High-field clinical MRI scanner (requires additional testing)",
+      "prevalence": "~35% of installed base, growing",
+      "testing_priority": "Highly recommended"
+    },
+    "7T": {
+      "description": "Ultra-high-field research MRI (rarely encountered)",
+      "prevalence": "<5% research institutions only",
+      "testing_priority": "Optional, research use only"
+    }
+  },
+  "astm_f2182_test_methods": {
+    "rf_heating": {
+      "standard": "ASTM F2182-19e2",
+      "test_method": "Measurement of Radio Frequency Induced Heating Near Passive Implants During Magnetic Resonance Imaging",
+      "acceptance_criteria": "Temperature rise ≤2°C for MR Conditional, <1°C for MR Safe (if applicable)",
+      "typical_test_duration": "15 minutes continuous RF exposure",
+      "equipment_required": "Fiber optic temperature probes, phantom, MRI scanner"
+    },
+    "displacement_force": {
+      "standard": "ASTM F2052-21",
+      "test_method": "Standard Test Method for Measurement of Magnetically Induced Displacement Force on Medical Devices in the Magnetic Resonance Environment",
+      "acceptance_criteria": "Displacement force < device weight (for translational movement)",
+      "equipment_required": "Deflection angle apparatus or force transducer"
+    },
+    "image_artifact": {
+      "standard": "ASTM F2119-07(2013)",
+      "test_method": "Standard Test Method for Evaluation of MR Image Artifacts from Passive Implants",
+      "acceptance_criteria": "Artifact extent documented, typically ≤50mm radius from implant",
+      "sequences_required": "T1-weighted, T2-weighted, gradient-echo (GRE)"
+    },
+    "torque": {
+      "standard": "ASTM F2213-17",
+      "test_method": "Standard Test Method for Measurement of Magnetically Induced Torque on Medical Devices in the Magnetic Resonance Environment",
+      "acceptance_criteria": "Torque < retention forces of fixation (for orthopedic implants)",
+      "equipment_required": "Torsion balance or torque sensor"
+    }
+  },
+  "fda_guidance": {
+    "title": "Establishing Safety and Compatibility of Passive Implants in the Magnetic Resonance (MR) Environment",
+    "date": "August 2021",
+    "url": "https://www.fda.gov/regulatory-information/search-fda-guidance-documents/establishing-safety-and-compatibility-passive-implants-magnetic-resonance-mr-environment",
+    "key_recommendations": [
+      "Use consensus standards (ASTM F2182, F2052, F2119, F2213)",
+      "Test at clinically relevant field strengths (1.5T and 3T minimum)",
+      "Document MR Conditional labeling conditions (field strength, SAR, scan duration)",
+      "Provide artifact characterization for diagnostic imaging impact",
+      "Include MRI safety information in labeling (IFU Section 7)"
+    ]
+  },
+  "mri_safety_classifications": {
+    "MR_SAFE": {
+      "definition": "Non-conducting, non-metallic, non-magnetic items that pose no known hazards in all MR environments",
+      "examples": ["PEEK implants", "Ceramic implants", "Pure polymer devices"],
+      "testing_required": "Minimal (material composition verification)",
+      "labeling": "MR Safe - Safe for all MRI environments"
+    },
+    "MR_CONDITIONAL": {
+      "definition": "Items that have been demonstrated to pose no known hazards in a specified MR environment with specified conditions of use",
+      "examples": ["Titanium implants", "Nitinol stents", "CoCrMo joint prostheses"],
+      "testing_required": "ASTM F2182, F2052, F2119 at relevant field strengths",
+      "labeling": "MR Conditional - Safe under specified conditions (field strength, SAR limits, scan duration)"
+    },
+    "MR_UNSAFE": {
+      "definition": "Items that pose unacceptable risk to the patient or other individuals in the MR environment",
+      "examples": ["Ferromagnetic aneurysm clips (pre-1990s)", "Some cochlear implants with magnets"],
+      "testing_required": "Displacement force > 3x device weight indicates unsafe",
+      "labeling": "MR Unsafe - Do not expose to MRI"
+    }
+  }
+}

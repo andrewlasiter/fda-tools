@@ -582,6 +582,277 @@ COMBINATION_PRODUCT_RECOMMENDATIONS:
 AUTO_TRIGGER: Section 15 (Combination Product Information) generation REQUIRED
 ```
 
+## Step 0.65: MRI Safety Auto-Detection (NEW - SPRINT 6)
+
+**After combination product detection and before brand name validation**, detect if this is an implantable device requiring MRI safety information per FDA guidance "Establishing Safety and Compatibility of Passive Implants in the Magnetic Resonance (MR) Environment" (August 2021).
+
+### Purpose
+
+Automatically detect implantable devices and trigger Section 19 (MRI Safety) generation to ensure compliance with FDA MRI safety labeling requirements.
+
+### Detection Process
+
+Use the implantable product codes database to determine if MRI safety testing is required:
+
+```bash
+python3 << 'PYEOF'
+import json
+import os
+import sys
+import re
+
+# Add data directory to path
+plugin_root = os.environ.get('FDA_PLUGIN_ROOT', '')
+if not plugin_root:
+    installed_plugins_path = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
+    if os.path.exists(installed_plugins_path):
+        with open(installed_plugins_path) as ipf:
+            installed_data = json.load(ipf)
+            for key, value in installed_data.get('plugins', {}).items():
+                if key.startswith('fda-tools@') or key.startswith('fda-predicate-assistant@'):
+                    for entry in value:
+                        install_path = entry.get('installPath', '')
+                        if os.path.isdir(install_path):
+                            plugin_root = install_path
+                            break
+                if plugin_root:
+                    break
+
+# Load implantable product codes database
+implantable_db_path = os.path.join(plugin_root, 'data', 'implantable_product_codes.json')
+if not os.path.exists(implantable_db_path):
+    print("MRI_SAFETY_DETECTION:ERROR - implantable_product_codes.json not found")
+    sys.exit(1)
+
+with open(implantable_db_path) as f:
+    implantable_db = json.load(f)
+
+# Load device profile
+settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+projects_dir = os.path.expanduser('~/fda-510k-data/projects')
+if os.path.exists(settings_path):
+    with open(settings_path) as f:
+        m = re.search(r'projects_dir:\s*(.+)', f.read())
+        if m:
+            projects_dir = os.path.expanduser(m.group(1).strip())
+
+project = "PROJECT"  # Replace with actual project name
+pdir = os.path.join(projects_dir, project)
+
+device_profile_path = os.path.join(pdir, 'device_profile.json')
+if not os.path.exists(device_profile_path):
+    print("MRI_SAFETY_DETECTION:ERROR - device_profile.json not found")
+    sys.exit(1)
+
+with open(device_profile_path) as f:
+    device_profile = json.load(f)
+
+product_code = device_profile.get('product_code', '')
+device_name = device_profile.get('trade_name', 'Device')
+device_description = device_profile.get('device_description', '').lower()
+
+# Check if product code is implantable
+implantable_codes = implantable_db.get('implantable_product_codes', [])
+is_implantable = product_code in implantable_codes
+
+print("MRI_SAFETY_DETECTION:")
+print(f"  Product Code: {product_code}")
+print(f"  Device Type: {'Implantable' if is_implantable else 'Non-implantable'}")
+
+if not is_implantable:
+    print("  Status: MRI safety section NOT required (non-implantable device)")
+    print("  Action: Skip Section 19 generation")
+else:
+    # Device is implantable - detect materials
+    product_details = implantable_db.get('product_code_details', {}).get(product_code, {})
+    material_db = implantable_db.get('material_mri_safety', {})
+
+    print(f"  Device Name: {product_details.get('name', 'Unknown')}")
+    print(f"  MRI Concern: {product_details.get('mri_concern', 'Unknown')}")
+
+    # Material detection keywords
+    material_keywords = {
+        'Ti-6Al-4V': ['ti-6al-4v', 'ti6al4v', 'grade 5 titanium', 'ti alloy'],
+        'Titanium': ['titanium', 'ti alloy', 'cp titanium', 'commercially pure titanium'],
+        'Stainless Steel 316L': ['316l', 'stainless steel', 'ss 316l', 'surgical steel'],
+        'CoCrMo': ['cocrmo', 'cobalt chromium molybdenum', 'co-cr-mo', 'cocr'],
+        'CoCr': ['cobalt chromium', 'co-cr', 'cocr alloy'],
+        'Platinum-Iridium': ['pt-ir', 'platinum iridium', 'pt/ir', 'platinum-iridium'],
+        'Nitinol': ['nitinol', 'niti', 'nickel titanium', 'shape memory alloy'],
+        'MP35N': ['mp35n', 'mp-35n', 'nickel-cobalt alloy'],
+        'PEEK': ['peek', 'polyetheretherketone', 'poly-ether-ether-ketone'],
+        'UHMWPE': ['uhmwpe', 'ultra-high molecular weight polyethylene', 'uhmw-pe'],
+        'Silicone': ['silicone', 'silicone elastomer', 'medical-grade silicone'],
+        'Ceramic': ['ceramic', 'alumina', 'zirconia', 'aluminum oxide']
+    }
+
+    detected_materials = []
+    metallic_materials = []
+
+    for material, keywords in material_keywords.items():
+        if any(keyword in device_description for keyword in keywords):
+            detected_materials.append(material)
+            material_info = material_db.get(material, {})
+            if material_info.get('astm_f2182_required', False):
+                metallic_materials.append(material)
+
+    # Also search in extracted sections if available
+    extracted_sections = device_profile.get('extracted_sections', {})
+    for section_name, section_content in extracted_sections.items():
+        section_text = str(section_content).lower()
+        for material, keywords in material_keywords.items():
+            if material not in detected_materials:
+                if any(keyword in section_text for keyword in keywords):
+                    detected_materials.append(material)
+                    material_info = material_db.get(material, {})
+                    if material_info.get('astm_f2182_required', False):
+                        metallic_materials.append(material)
+
+    print(f"  Materials Detected: {len(detected_materials)}")
+    if detected_materials:
+        for mat in detected_materials:
+            mat_info = material_db.get(mat, {})
+            print(f"    - {mat}: {mat_info.get('classification', 'Unknown')} ({mat_info.get('magnetic_susceptibility', 'Unknown')})")
+    else:
+        print("    - No specific materials detected (requires manual specification)")
+
+    # Determine expected MRI classification
+    if not detected_materials:
+        expected_classification = "MR Conditional (material-dependent)"
+    elif all(material_db.get(mat, {}).get('classification') == 'MR_SAFE' for mat in detected_materials):
+        expected_classification = "MR Safe"
+    elif any(material_db.get(mat, {}).get('classification') == 'MR_UNSAFE' for mat in detected_materials):
+        expected_classification = "MR Unsafe (RARE - verify material composition)"
+    else:
+        expected_classification = "MR Conditional"
+
+    astm_f2182_required = len(metallic_materials) > 0
+
+    print(f"\nMRI_SAFETY_REQUIREMENTS:")
+    print(f"  Expected MRI Classification: {expected_classification}")
+    print(f"  ASTM F2182 Testing Required: {'Yes' if astm_f2182_required else 'No (polymer-only device)'}")
+    print(f"  Metallic Components: {', '.join(metallic_materials) if metallic_materials else 'None detected'}")
+
+    # Auto-trigger Section 19 generation
+    print(f"\nAUTO_TRIGGER: Section 19 (MRI Safety) generation REQUIRED")
+    print(f"  Template: templates/mri_safety_section.md")
+    print(f"  Status: DRAFT (requires ASTM F2182/F2052/F2119 test data)")
+
+    # Add ASTM F2182 to standards list
+    standards_to_add = [
+        "ASTM F2182-19e2 - Standard Test Method for Measurement of Radio Frequency Induced Heating Near Passive Implants During Magnetic Resonance Imaging",
+        "ASTM F2052-21 - Standard Test Method for Measurement of Magnetically Induced Displacement Force on Medical Devices in the Magnetic Resonance Environment",
+        "ASTM F2119-07(2013) - Standard Test Method for Evaluation of MR Image Artifacts from Passive Implants"
+    ]
+
+    if astm_f2182_required:
+        print(f"\nMRI_SAFETY_STANDARDS_AUTO_TRIGGERED: {len(standards_to_add)}")
+        for std in standards_to_add:
+            print(f"  + {std}")
+
+    # Add IFU requirement
+    print(f"\nIFU_REQUIREMENTS:")
+    print(f"  Section 7.2 (MRI Safety Information) REQUIRED")
+    print(f"  Labeling: MRI safety classification, scan conditions, warnings")
+
+    # Provide testing recommendations
+    print(f"\nRECOMMENDATIONS:")
+    print(f"  Priority 1: Conduct ASTM F2182 RF heating testing at 1.5T and 3T")
+    print(f"  Priority 2: Conduct ASTM F2052 displacement force testing")
+    print(f"  Priority 3: Conduct ASTM F2119 image artifact characterization")
+    print(f"  Priority 4: Update Section 19 with actual test results (remove placeholders)")
+    print(f"  External Test Lab Required: Yes (ASTM F2182 certified, ~$5K-$15K, 2-4 weeks)")
+
+    # Store MRI safety info in device_profile.json
+    device_profile['mri_safety'] = {
+        'required': True,
+        'product_code': product_code,
+        'implantable': True,
+        'detected_materials': detected_materials,
+        'metallic_materials': metallic_materials,
+        'expected_classification': expected_classification,
+        'astm_f2182_required': astm_f2182_required,
+        'section_19_required': True,
+        'ifu_section_7_2_required': True
+    }
+
+    with open(device_profile_path, 'w') as f:
+        json.dump(device_profile, f, indent=2)
+
+    print(f"\nMRI_SAFETY_INFO: Saved to device_profile.json")
+
+PYEOF
+```
+
+### Auto-Trigger Rules
+
+**Mandatory Section 19 Generation:**
+- Product code in `implantable_product_codes` → Auto-generate Section 19
+- Contains metallic materials (Ti, SS, CoCrMo, nitinol) → ASTM F2182 testing required
+- Section 19 generated with placeholder data for test results
+
+**IFU Requirements:**
+- Section 7.2 (MRI Safety Information) REQUIRED for all implantable devices
+- Must specify MRI safety classification (MR Safe, MR Conditional, MR Unsafe)
+- If MR Conditional: specify field strength limits, SAR limits, scan duration limits
+
+**Standards Auto-Triggered:**
+- ASTM F2182-19e2 (RF heating)
+- ASTM F2052-21 (displacement force)
+- ASTM F2119-07 (image artifact)
+- ASTM F2213-17 (torque) - if applicable for orthopedic implants
+
+### Example Detection Output
+
+```
+MRI_SAFETY_DETECTION:
+  Product Code: OVE
+  Device Type: Implantable
+  Device Name: Intervertebral Body Fusion Device
+  MRI Concern: Metallic endplates (titanium/CoCrMo), displacement force
+  Materials Detected: 3
+    - Ti-6Al-4V: MR_CONDITIONAL (Low (paramagnetic))
+    - PEEK: MR_SAFE (None (diamagnetic))
+    - CoCrMo: MR_CONDITIONAL (Low (paramagnetic))
+
+MRI_SAFETY_REQUIREMENTS:
+  Expected MRI Classification: MR Conditional
+  ASTM F2182 Testing Required: Yes
+  Metallic Components: Ti-6Al-4V, CoCrMo
+
+AUTO_TRIGGER: Section 19 (MRI Safety) generation REQUIRED
+  Template: templates/mri_safety_section.md
+  Status: DRAFT (requires ASTM F2182/F2052/F2119 test data)
+
+MRI_SAFETY_STANDARDS_AUTO_TRIGGERED: 3
+  + ASTM F2182-19e2 - Standard Test Method for Measurement of Radio Frequency Induced Heating Near Passive Implants During Magnetic Resonance Imaging
+  + ASTM F2052-21 - Standard Test Method for Measurement of Magnetically Induced Displacement Force on Medical Devices in the Magnetic Resonance Environment
+  + ASTM F2119-07(2013) - Standard Test Method for Evaluation of MR Image Artifacts from Passive Implants
+
+IFU_REQUIREMENTS:
+  Section 7.2 (MRI Safety Information) REQUIRED
+  Labeling: MRI safety classification, scan conditions, warnings
+
+RECOMMENDATIONS:
+  Priority 1: Conduct ASTM F2182 RF heating testing at 1.5T and 3T
+  Priority 2: Conduct ASTM F2052 displacement force testing
+  Priority 3: Conduct ASTM F2119 image artifact characterization
+  Priority 4: Update Section 19 with actual test results (remove placeholders)
+  External Test Lab Required: Yes (ASTM F2182 certified, ~$5K-$15K, 2-4 weeks)
+
+MRI_SAFETY_INFO: Saved to device_profile.json
+```
+
+**Non-Implantable Device Example:**
+
+```
+MRI_SAFETY_DETECTION:
+  Product Code: DQY
+  Device Type: Non-implantable
+  Status: MRI safety section NOT required (non-implantable device)
+  Action: Skip Section 19 generation
+```
+
 ## Step 0.75: Brand Name Validation
 
 **After loading project data (Step 0.5) and before generating any section**, validate that the applicant's identity is consistent with the device data:

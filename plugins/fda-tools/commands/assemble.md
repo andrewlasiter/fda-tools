@@ -750,6 +750,232 @@ Mark combination product gaps in the eSTAR index:
 
 Include missing artwork in the eSTAR index as `CRITICAL GAP` status for Section 09.
 
+## MRI Safety Readiness Checks (Sprint 6 - NEW)
+
+**Auto-trigger:** If `device_profile['mri_safety']['required'] == True` (implantable device detected in Step 0.65)
+
+Perform MRI safety readiness checks per FDA guidance "Establishing Safety and Compatibility of Passive Implants in the Magnetic Resonance (MR) Environment" (August 2021):
+
+### 1. Section 19 Present
+
+**Check:** Does `estar/19_MRI_Safety/` directory exist with content?
+
+- ✅ **PASS:** Section 19 present with substantive content (not just template)
+- ❌ **CRITICAL GAP:** Section 19 (MRI Safety) MISSING
+  ```
+  ✗ CRITICAL GAP: Section 19 (MRI Safety) MISSING
+    This is an implantable device (product code: {product_code}).
+    FDA requires MRI safety information per August 2021 guidance.
+    → Run: /fda:draft mri-safety --project NAME
+  ```
+
+### 2. ASTM F2182 Testing Documented
+
+**Check:** Does Section 19.2 include RF heating, displacement force, and artifact test data?
+
+Search for placeholders: `{{max_delta_t}}`, `{{scanner_model}}`, `{{max_force}}`
+
+- ✅ **PASS:** ASTM F2182/F2052/F2119 test results documented (no placeholders)
+- ❌ **CRITICAL GAP:** ASTM F2182 testing results NOT documented
+  ```
+  ✗ CRITICAL GAP: ASTM F2182 testing results NOT documented
+    Section 19 contains template placeholders ({{max_delta_t}}, {{scanner_model}}, etc.)
+
+    Required Testing:
+    □ ASTM F2182-19e2: RF-induced heating at 1.5T and 3T
+    □ ASTM F2052-21: Magnetically induced displacement force
+    □ ASTM F2119-07: Image artifact characterization
+    {If orthopedic: □ ASTM F2213-17: Magnetically induced torque}
+
+    → Complete ASTM F2182/F2052/F2119 testing at accredited lab (~$5K-$15K, 2-4 weeks)
+    → Update Section 19.2 with actual test results
+    → Remove all {{placeholder}} variables
+  ```
+
+### 3. MRI Safety Classification Stated
+
+**Check:** Does Section 19.1 state "MR Safe", "MR Conditional", or "MR Unsafe"?
+
+Search for: `{{mri_classification}}` placeholder or actual classification statement
+
+- ✅ **PASS:** MRI safety classification clearly stated
+- ❌ **CRITICAL GAP:** MRI safety classification NOT determined
+  ```
+  ✗ CRITICAL GAP: MRI safety classification NOT determined
+    Section 19.1 contains placeholder {{mri_classification}}
+
+    Determine Classification Based on ASTM F2182 Results:
+    - If all materials are polymers (PEEK, UHMWPE) → MR Safe
+    - If metallic with ΔT ≤2.0°C and force/weight <1.0 → MR Conditional
+    - If ΔT >2.0°C or force/weight ≥1.0 → MR Unsafe (RARE - review materials)
+
+    → Based on ASTM F2182 results, determine classification
+    → Update Section 19.1 with final classification
+  ```
+
+### 4. IFU Section 7.2 (MRI Safety) Present
+
+**Check:** Does IFU include Section 7.2 with MRI safety information?
+
+Search draft_labeling.md or IFU files for: "MRI", "MR Conditional", "magnetic resonance"
+
+- ✅ **PASS:** IFU includes MRI safety information in Section 7.2
+- ❌ **CRITICAL GAP:** IFU missing MRI safety information
+  ```
+  ✗ CRITICAL GAP: IFU missing MRI safety information
+    FDA requires MRI safety labeling for all implantable devices.
+
+    Required IFU Content (Section 7.2):
+    □ MRI safety classification (MR Safe/Conditional/Unsafe)
+    □ Maximum field strength (e.g., ≤3.0 Tesla)
+    □ Maximum SAR limit (e.g., ≤2.0 W/kg)
+    □ Maximum scan duration (e.g., ≤15 minutes)
+    □ Patient warnings and instructions
+    □ Image artifact extent disclosure
+
+    → Add IFU Section 7.2 using template from Section 19.4
+    → Ensure consistency between Section 19 and IFU labeling
+  ```
+
+### 5. MR Conditional Labeling Complete (if applicable)
+
+**Check (if MR Conditional):** Does Section 19.3 specify all conditional parameters?
+
+Required parameters for MR Conditional:
+- Maximum static field strength (Tesla)
+- Maximum spatial gradient (T/m)
+- Maximum whole-body-averaged SAR (W/kg)
+- Maximum scan duration (minutes)
+- MR scanning mode restrictions
+
+- ✅ **PASS:** All MR Conditional parameters specified
+- ❌ **CRITICAL GAP:** MR Conditional parameters incomplete
+  ```
+  ✗ CRITICAL GAP: MR Conditional parameters incomplete
+    Device classified as MR Conditional but labeling conditions not fully specified.
+
+    Missing Parameters:
+    {List placeholders found: {{max_field_strength}}, {{max_sar}}, etc.}
+
+    → Complete Section 19.3 with all conditional parameters
+    → Ensure parameters are based on ASTM F2182 test conditions
+  ```
+
+### 6. Test Lab Accreditation Documented
+
+**Check:** Does Section 19.5 reference accredited test lab with report numbers?
+
+Search for: test lab name, ISO/IEC 17025, report numbers
+
+- ✅ **PASS:** Test lab accreditation and report traceability documented
+- ⚠️ **MAJOR GAP:** Test lab accreditation not documented
+  ```
+  ⚠ MAJOR GAP: Test lab accreditation not documented
+    Section 19.5 missing test lab information and report numbers.
+
+    Required Documentation:
+    □ Test lab name and accreditation (ISO/IEC 17025)
+    □ Test report numbers for RF heating, displacement, artifact
+    □ Test dates and test article serial numbers
+    □ Statement of test article representativeness
+
+    → Add test lab information to Section 19.5
+    → Attach test reports to eSTAR Section 19 folder
+  ```
+
+### MRI Safety Gap Summary
+
+Generate summary report:
+
+```markdown
+MRI_SAFETY_READINESS_SCORECARD
+────────────────────────────────────────
+
+Device: {device_name}
+Product Code: {product_code}
+Device Type: Implantable
+Expected MRI Classification: {expected_classification}
+Materials Detected: {material_list}
+
+Readiness: {n}/6 checks PASSED
+
+CRITICAL Gaps (MUST fix before submission):
+  {count}/4 core checks PASSED
+
+  {If any CRITICAL gaps:}
+  - Section 19 missing (0/1) → Run /fda:draft mri-safety
+  - ASTM F2182 testing not documented (0/1) → Complete testing, update Section 19.2
+  - MRI classification not determined (0/1) → Determine from test results, update Section 19.1
+  - IFU Section 7.2 missing (0/1) → Add MRI safety information to IFU
+  {If MR Conditional:}
+  - MR Conditional parameters incomplete (0/1) → Complete Section 19.3
+
+MAJOR Gaps (strongly recommended to fix):
+  - Test lab accreditation not documented (0/1) → Complete Section 19.5
+
+Recommendations:
+  Priority 1: Complete ASTM F2182 testing (external test lab, ~$5K-$15K, 2-4 weeks)
+  Priority 2: Determine MRI safety classification based on test results
+  Priority 3: Update Section 19 with actual test data (remove all placeholders)
+  Priority 4: Add MRI safety information to IFU Section 7.2
+  Priority 5: Ensure consistency between Section 19 and IFU labeling
+
+External Testing Required:
+  - ASTM F2182-19e2: RF heating test (15-minute scan, temperature probes)
+  - ASTM F2052-21: Magnetically induced displacement test (deflection angle)
+  - ASTM F2119-07: Image artifact characterization (T1, T2, GRE sequences)
+  {If orthopedic implant:}
+  - ASTM F2213-17: Magnetically induced torque test
+
+Test Lab Resources:
+  - Accredited labs: [List of ASTM F2182 certified test laboratories]
+  - Typical cost: $5,000-$15,000 for complete MRI safety testing suite
+  - Typical turnaround: 2-4 weeks from test article receipt
+```
+
+**Integration with eSTAR Index:**
+
+Mark MRI safety gaps in the eSTAR index:
+- Section 19 missing → `CRITICAL GAP` status
+- Test data incomplete (placeholders present) → Mark Section 19 as `TEMPLATE` with gap note
+- IFU Section 7.2 missing → Add note to Section 09 (Labeling) entry
+- All checks passed → Mark Section 19 as `DRAFT` (requires professional review)
+
+**Example Gap Detection Output:**
+
+```
+MRI_SAFETY_READINESS_SCORECARD
+────────────────────────────────────────
+Device: SpineFix Lumbar Interbody Cage
+Product Code: OVE
+Device Type: Implantable
+Expected MRI Classification: MR Conditional
+Materials Detected: Ti-6Al-4V, PEEK, CoCrMo
+
+Readiness: 2/6 checks PASSED
+
+CRITICAL Gaps (MUST fix before submission):
+  2/4 core checks PASSED
+
+  ✗ ASTM F2182 testing not documented (0/1)
+  ✗ IFU Section 7.2 missing (0/1)
+
+MAJOR Gaps (strongly recommended to fix):
+  ✗ Test lab accreditation not documented (0/1)
+
+Recommendations:
+  Priority 1: Complete ASTM F2182 testing (external test lab, ~$10K, 3 weeks)
+  Priority 2: Update Section 19.2 with actual test data (remove placeholders)
+  Priority 3: Add IFU Section 7.2 with MR Conditional labeling
+  Priority 4: Document test lab accreditation in Section 19.5
+
+External Testing Required:
+  - ASTM F2182-19e2: RF heating test at 1.5T and 3T
+  - ASTM F2052-21: Displacement force test
+  - ASTM F2119-07: Image artifact characterization
+  - ASTM F2213-17: Torque test (orthopedic implant)
+```
+
 ## Error Handling
 
 - **No --project**: ERROR: "Project name required. Usage: /fda:assemble --project NAME"
