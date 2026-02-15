@@ -805,6 +805,667 @@ End-to-end testing and polish for v5.26.0 features (automated data updates and m
 
 ---
 
+## 🚨 CRITICAL FIXES (Expert Panel Findings - TICKET-014 Follow-Up)
+
+### TICKET-017: Standards Generation Accuracy Validation
+**Status:** Not Started
+**Priority:** URGENT (blocks TICKET-014 production use)
+**Effort:** 40-60 hours
+**Assignee:** TBD + Independent RA Consultant
+**Due Date:** Q2 2026
+
+**Description:**
+Expert panel review identified unverified accuracy claims (spec claims 95%, actual testing found 50% error rate). Must validate tool accuracy before production regulatory use.
+
+**Expert Panel Findings:**
+- Testing Engineer: "Found 50% error rate in sample review (6 errors / 12 standards)"
+- QA Director: "validation_reports/ directory is EMPTY. No auditor or reviewer agent has EVER run."
+- RA Manager: "75-85% accuracy for medium confidence requires manual verification that erases time savings"
+
+**Requirements:**
+
+**1. Independent Validation Study (30 hours)**
+- Hire qualified RA consultant to manually review 500 product codes
+- Compare tool output to consultant's expert determinations
+- Calculate actual accuracy metrics (precision, recall, F1 score)
+- Test cases must include:
+  - Universal standards (ISO 13485, ISO 14971) - expect 100% accuracy
+  - Device-specific standards (expect ≥98% accuracy)
+  - Edge cases (combination products, novel materials, Class U) - document limitations
+
+**2. Validation Report (8 hours)**
+- Document test methodology
+- Publish accuracy metrics by standard category
+- Identify systematic errors (e.g., "tool misses ISO 10993-4 for blood-contacting devices")
+- Create error taxonomy (over-application vs. under-application)
+
+**3. Fix Systematic Errors (10-15 hours)**
+- Address errors found in validation study
+- Update standards database with missing critical standards
+- Refine keyword matching logic or AI determination rules
+- Re-run validation on fixed version (target ≥95% accuracy)
+
+**4. ISO 17025 Lab Review (7 hours, optional)**
+- Get accredited testing lab to verify tool outputs for 50 product codes
+- Third-party validation adds credibility
+
+**Acceptance Criteria:**
+- [ ] ≥500 product codes validated by independent RA consultant
+- [ ] Overall accuracy ≥95% for high-confidence standards
+- [ ] Overall accuracy ≥85% for medium-confidence standards
+- [ ] Published validation report with methodology and metrics
+- [ ] Systematic errors identified and fixed
+- [ ] Re-validation confirms ≥95% accuracy target met
+- [ ] Optional: ISO 17025 lab third-party verification
+
+**Related Files:**
+- `agents/standards-ai-analyzer.md` (needs fixes based on validation)
+- `agents/standards-coverage-auditor.md` (must actually run in validation)
+- `agents/standards-quality-reviewer.md` (must actually run in validation)
+- `EXPERT-PANEL-REVIEW-SUMMARY.md` (findings document)
+
+**Dependencies:**
+- TICKET-014 (Standards Generation) - builds on existing implementation
+
+**Estimated Cost:**
+- RA consultant: 30 hours × $300/hr = $9,000
+- ISO 17025 lab (optional): $3,000-5,000
+
+**Risks:**
+- If accuracy <90%, tool may not be viable for regulatory use
+- May discover database gaps requiring TICKET-018 (full FDA database)
+
+**Value:**
+- Provides objective evidence for accuracy claims
+- Enables users to trust tool output with documented validation
+- Meets QMS requirements (21 CFR 820.70(i) for automated processes)
+
+---
+
+### TICKET-018: Connect to Full FDA Standards Database
+**Status:** Not Started
+**Priority:** URGENT (blocks production regulatory use)
+**Effort:** 50-70 hours
+**Assignee:** TBD
+**Due Date:** Q2 2026
+
+**Description:**
+Expert panel unanimously identified 96.5% database coverage gap as "regulatory malpractice." Current tool has 54 standards; FDA recognizes ~1,900 standards.
+
+**Expert Panel Findings:**
+- Pre-Sub Specialist: "54 vs. 1,900 standards = 3.5% coverage. Missing ASTM F2516 for nitinol could cost $200K-400K in delays."
+- Testing Engineer: "For spinal fusion (OVE), tool outputs F1717 but MISSES F136, F2077, ISO 10993-11, ISO 14607 - all SHOWSTOPPERS."
+- All 5 experts: Database gap is the #1 critical flaw
+
+**Requirements:**
+
+**1. FDA Database API Integration (25 hours)**
+- Use FDA's Recognized Consensus Standards database API
+- Endpoint: https://catalog.data.gov/dataset/fda-recognized-consensus-standards
+- Download full database (1,550-1,900 standards as of 2026)
+- Parse structure:
+  - Standard number (e.g., "ISO 10993-1:2018")
+  - Title
+  - Recognition date
+  - Scope/applicability
+  - Product code mappings (if available)
+  - Withdrawal/superseded status
+
+**2. Daily Update Automation (15 hours)**
+- Automated daily check for FDA database updates
+- FDA publishes List updates every 2-4 months (Lists 61, 62, 63, etc.)
+- Detect new standards, withdrawn standards, updated versions
+- Generate change log for user notification
+- Alert users when previously-generated determinations may be outdated
+
+**3. Version-Specific Guidance (10 hours)**
+- For each standard, track:
+  - Which edition is FDA-recognized (e.g., IEC 62304:2006 vs. 2015)
+  - Effective recognition date
+  - Superseded versions (can still use under grandfather clause)
+- Provide guidance: "FDA recognizes IEC 60601-1:2005+A1:2012. 2020 edition exists but not yet recognized."
+
+**4. Database Schema Update (15 hours)**
+- Expand from 54-standard JSON to 1,900+ standard relational database
+- Add fields:
+  - `recognition_date` (when FDA added to list)
+  - `withdrawal_date` (if standard removed)
+  - `superseded_by` (if newer version exists)
+  - `product_code_hints` (FDA's suggested applicability)
+  - `guidance_references` (which FDA guidance mentions this standard)
+
+**5. Backward Compatibility (5 hours)**
+- Maintain existing 54-standard "core" database for offline use
+- Add flag: `is_core_standard` (the 54 most common standards)
+- Allow users to filter: "Show me ONLY core standards" vs. "Show all FDA-recognized"
+
+**Acceptance Criteria:**
+- [ ] Database contains ≥1,500 FDA-recognized standards (vs. current 54)
+- [ ] Automated daily updates from FDA database
+- [ ] Version-specific guidance (which edition is recognized)
+- [ ] Change log tracks FDA List updates
+- [ ] User notification when standards added/removed
+- [ ] Backward compatible with existing 54-standard database
+- [ ] Performance: Full database query in <2 seconds
+
+**Related Files:**
+- `data/fda_standards_database.json` (needs major expansion)
+- `agents/standards-ai-analyzer.md` (update to use full database)
+- `scripts/fda_api_client.py` (add FDA standards API methods)
+
+**Dependencies:**
+- None (can proceed immediately)
+
+**Technical Approach:**
+```python
+# New API method in fda_api_client.py
+def get_fda_recognized_standards():
+    """Download full FDA Recognized Consensus Standards database."""
+    url = "https://catalog.data.gov/api/3/action/datastore_search"
+    params = {
+        "resource_id": "fda-recognized-standards-id",
+        "limit": 2000
+    }
+    # Fetch, parse, update local database
+```
+
+**Value:**
+- Eliminates #1 critical flaw identified by all 5 experts
+- Provides complete standards coverage (not just 3.5%)
+- Reduces risk of missing critical device-specific standards
+- Keeps tool current with FDA's quarterly database updates
+
+---
+
+### TICKET-019: Add Predicate Analysis Integration
+**Status:** Not Started
+**Priority:** HIGH
+**Effort:** 60-80 hours
+**Assignee:** TBD
+**Due Date:** Q3 2026
+
+**Description:**
+Expert panel consensus: "Tool shows theoretical standards, but users need to know what ACTUALLY CLEARS for this product code." Integrate with 510(k) database to show predicate-based standards patterns.
+
+**Expert Panel Findings:**
+- RA Manager: "In 510(k), you test to match the predicate. Tool doesn't know what predicates tested to."
+- Pre-Sub Specialist: "Shift from 'theoretical standards' to 'proven clearance path.'"
+- Consultant: "Need device-specific data, not aggregates. Show me what 83% of DQY devices cite."
+
+**Requirements:**
+
+**1. 510(k) Summary PDF Scraping (30 hours)**
+- For a given product code, identify recent cleared predicates (last 3-5 years)
+- Download 510(k) summary PDFs from FDA database
+- Extract Section 17 (Standards Compliance) from PDFs
+- Parse standards citations:
+  - Standard number (e.g., "ISO 10993-1:2018")
+  - Whether tested or literature-based
+  - Testing lab used (if mentioned)
+
+**2. Standards Frequency Analysis (20 hours)**
+- Aggregate standards across 50-100 predicates per product code
+- Calculate:
+  - "ISO 10993-1 cited in 46/47 DQY clearances (98%)"
+  - "ASTM F2394 cited in 38/47 DQY clearances (81%)"
+  - "ISO 10993-4 cited in 12/47 DQY clearances (26%)" - flag as optional
+- Identify patterns:
+  - Universal standards (used by 95%+ of predicates)
+  - Common standards (used by 50-95%)
+  - Rare standards (used by <50%) - likely device-specific
+
+**3. Gap Analysis (15 hours)**
+- Compare tool's AI determination to predicate patterns
+- Flag discrepancies:
+  - "AI recommends ISO 10993-11, but only 12% of predicates cite it. VERIFY applicability."
+  - "AI didn't include ASTM F2394, but 81% of predicates use it. MISSING STANDARD."
+- Generate verification checklist for user
+
+**4. Predicate Comparison Report (15 hours)**
+- Generate markdown report:
+  ```markdown
+  ## Standards Analysis: Product Code DQY
+
+  ### Tool Recommendations vs. Predicate Reality
+
+  | Standard | AI Confidence | Predicate Frequency | Match? | Action |
+  |----------|---------------|---------------------|--------|--------|
+  | ISO 10993-1 | HIGH | 98% (46/47) | ✅ MATCH | Use |
+  | ISO 10993-11 | HIGH | 26% (12/47) | ⚠️ DISCREPANCY | VERIFY device has systemic exposure |
+  | ASTM F2394 | Not recommended | 81% (38/47) | ❌ MISSING | ADD to test plan |
+
+  ### Recommended Predicates to Review
+  - K240123 (most recent, 2024)
+  - K233456 (comprehensive test battery)
+  - K232789 (similar device design)
+  ```
+
+**Acceptance Criteria:**
+- [ ] Scrapes ≥50 predicate 510(k) summaries per product code
+- [ ] Extracts standards from Section 17 with ≥90% accuracy
+- [ ] Calculates frequency statistics across predicates
+- [ ] Generates gap analysis report (AI vs. reality)
+- [ ] Identifies 3-5 most relevant predicates for manual review
+- [ ] Integrates with existing generate-standards workflow
+
+**Related Files:**
+- `commands/generate-standards.md` (add predicate analysis step)
+- `scripts/build_structured_cache.py` (extract Section 17 from PDFs)
+- New file: `scripts/predicate_standards_analyzer.py`
+
+**Dependencies:**
+- TICKET-014 (Standards Generation) - builds on existing workflow
+- Optional: TICKET-018 (Full FDA database) for complete coverage
+
+**Technical Challenges:**
+- Section 17 format varies across 510(k) summaries (2000-2024)
+- Some predicates use non-consensus methods (hard to parse)
+- Older predicates may cite superseded standard versions
+
+**Value:**
+- Shifts from "theoretical" to "proven clearance path"
+- Reduces over-testing (don't include standards 95% of predicates skip)
+- Reduces under-testing (flag when tool misses common predicate standards)
+- Provides verification framework (user sees AI vs. reality comparison)
+
+---
+
+### TICKET-020: Implement Verification Framework
+**Status:** Not Started
+**Priority:** URGENT (QMS compliance requirement)
+**Effort:** 30-40 hours
+**Assignee:** TBD
+**Due Date:** Q2 2026
+
+**Description:**
+Expert panel unanimous: "Tool must REQUIRE user verification to meet 21 CFR 820.30 design control requirements. AI output alone is not objective evidence."
+
+**Expert Panel Findings:**
+- QA Director: "During FDA audit, I can't say 'An AI told me.' Need TRACEABLE RATIONALE with design-specific justification."
+- RA Manager: "Verification erases time savings, but it's MANDATORY for regulatory use."
+- All experts: "Tool should be suggestion engine with mandatory human verification, not decision-maker."
+
+**Requirements:**
+
+**1. Verification Workflow (15 hours)**
+- Tool generates DRAFT standards list (as currently implemented)
+- User MUST verify each standard against:
+  - Current FDA Recognition Database (auto-check: is standard still recognized?)
+  - 3-5 predicate 510(k) summaries (manual step: what did predicates use?)
+  - Device-specific risk assessment (manual step: does OUR device have this risk?)
+  - SME consultation (manual step: biocompatibility expert, electrical safety expert)
+- User documents verification in Design History File (DHF)
+
+**2. Verification Checklist Generator (10 hours)**
+- For each standard in AI output, generate verification questions:
+  ```markdown
+  ## ISO 10993-11 Verification Checklist
+
+  ☐ FDA Recognition: ISO 10993-11:2017 is FDA-recognized (List 63, effective 2024-12-22) ✅
+  ☐ Predicate Precedent: 46/47 DQY predicates cite this standard (98% frequency) ✅
+  ☐ Device Risk Assessment: Our device has:
+      ☐ Blood contact? [YES/NO]
+      ☐ Contact duration >24 hours? [YES/NO]
+      ☐ Systemic exposure pathway? [YES/NO]
+      → If ALL YES: ISO 10993-11 is APPLICABLE
+  ☐ SME Review: Biocompatibility expert sign-off [NAME/DATE]
+  ☐ Rationale Documented: DHF Section 4.2 includes ISO 10993-11 justification [LINK]
+
+  **Verification Status:** ☐ PENDING  ☐ VERIFIED  ☐ NOT APPLICABLE
+  ```
+
+**3. Verification Tracking (8 hours)**
+- Add verification status field to standards JSON:
+  ```json
+  {
+    "number": "ISO 10993-11:2017",
+    "ai_confidence": "HIGH",
+    "verification_status": "pending",  // pending | verified | not_applicable
+    "verified_by": null,
+    "verified_date": null,
+    "verification_rationale": null
+  }
+  ```
+- Prevent export/use until verification complete
+- Generate verification report for DHF inclusion
+
+**4. Objective Evidence Template (7 hours)**
+- Generate 21 CFR 820.30-compliant documentation:
+  ```markdown
+  ## Design Input: ISO 10993-11 Systemic Toxicity Testing
+
+  **Device Characteristics:**
+  - Blood contact: Yes (intravascular catheter)
+  - Contact duration: <24 hours (short-term use)
+  - Material: Medical-grade silicone + polyurethane
+
+  **Risk Assessment (ISO 14971):**
+  - Hazard: Leachable chemicals from polymer → systemic toxicity
+  - Risk: Medium (P2 × S3 = Risk 6)
+  - Mitigation: Systemic toxicity testing per ISO 10993-11
+
+  **Regulatory Basis:**
+  - FDA Recognition: ISO 10993-11:2017 (List 63, effective 2024-12-22)
+  - Predicate Precedent: 46/47 DQY predicates (K240123, K233456...) cite ISO 10993-11
+  - Guidance: FDA 2016 Biocompatibility Guidance, Section 5.3
+
+  **Determination:** ISO 10993-11 is APPLICABLE and REQUIRED for this device.
+
+  **Approved By:** [RA Manager Name], [Date]
+  **SME Review:** [Biocompatibility Expert Name], [Date]
+  ```
+
+**Acceptance Criteria:**
+- [ ] Verification workflow blocks use of unverified standards lists
+- [ ] Checklist generator creates device-specific verification questions
+- [ ] Verification status tracked in JSON metadata
+- [ ] Objective evidence template meets 21 CFR 820.30 requirements
+- [ ] Verification report integrates into Design History File
+- [ ] User cannot export/submit without completing verification
+
+**Related Files:**
+- `commands/generate-standards.md` (add verification workflow)
+- `agents/standards-ai-analyzer.md` (output includes verification checklist)
+- New file: `templates/verification_checklist.md`
+- New file: `templates/objective_evidence.md`
+
+**Dependencies:**
+- TICKET-014 (Standards Generation) - builds on existing implementation
+- TICKET-019 (Predicate Analysis) - provides predicate frequency for verification
+
+**Compliance Impact:**
+- **Without this ticket:** Tool violates 21 CFR 820.30(c) (no traceability)
+- **With this ticket:** Tool provides audit-ready objective evidence
+
+**Value:**
+- Meets QMS requirements for design control documentation
+- Provides FDA audit trail (not just "AI said so")
+- Forces user review (catches AI errors before submission)
+- Generates DHF-ready documentation
+
+---
+
+### TICKET-021: Add Test Protocol Context
+**Status:** Not Started
+**Priority:** HIGH
+**Effort:** 40-50 hours
+**Assignee:** TBD
+**Due Date:** Q3 2026
+
+**Description:**
+Expert panel (especially Testing Engineer): "Tool provides standard numbers without actionable context. We need sample sizes, lead times, cost estimates, lab recommendations."
+
+**Expert Panel Findings:**
+- Testing Engineer: "I need to know which SECTIONS of ISO 10993-1, sample sizes, lead times, accredited labs. Tool provides NONE of this."
+- RA Manager: "The LIST is trivial. The PROTOCOL is the value."
+- Consultant: "If it generated draft test protocols, I'd pay $5,000/year instead of $1,000."
+
+**Requirements:**
+
+**1. Standard Section Mapping (15 hours)**
+- For each standard, identify applicable sections/parts:
+  ```json
+  {
+    "number": "ISO 10993-1:2018",
+    "applicable_sections": [
+      {
+        "section": "5.1",
+        "title": "Cytotoxicity",
+        "applicability": "ALL devices with patient contact",
+        "required_samples": 3,
+        "typical_duration": "2-3 weeks"
+      },
+      {
+        "section": "5.2",
+        "title": "Sensitization",
+        "applicability": "Skin contact devices",
+        "required_samples": 10,
+        "typical_duration": "4-6 weeks"
+      }
+    ]
+  }
+  ```
+
+**2. Sample Size Requirements (8 hours)**
+- Add typical sample requirements per standard:
+  - ISO 10993-1: 3-6 samples per endpoint
+  - ASTM F1717: 6 specimens (static) + 6 specimens (dynamic)
+  - IEC 60601-1: 3 production-equivalent units
+- Include variability: "3-6 samples (3 for single material, 6 for multi-material)"
+
+**3. Cost Estimation Database (10 hours)**
+- Partner with 3-5 testing labs to get cost ranges:
+  - ISO 10993-5 (Cytotoxicity): $8K-$12K
+  - ISO 10993-11 (Systemic Toxicity): $20K-$35K (long-term study)
+  - IEC 60601-1 (Electrical Safety): $25K-$40K (full suite)
+  - ASTM F1717 (Spinal Fatigue): $30K-$50K (custom fixtures)
+- Display as ranges: "$8K-$12K (low-complexity), $12K-$18K (high-complexity)"
+
+**4. Lead Time Database (5 hours)**
+- Typical testing timelines:
+  - Cytotoxicity: 2-3 weeks
+  - Biocompatibility full panel: 8-12 weeks
+  - Electrical safety: 4-6 weeks
+  - Mechanical testing: 6-10 weeks (includes fixture design)
+  - Sterilization validation: 12-16 weeks (shelf life component)
+- Critical path analysis: Identify long-lead tests
+
+**5. Accredited Lab Directory (12 hours)**
+- Build database of ISO 17025-accredited testing labs:
+  - Biocompatibility: Nelson Labs, WuXi AppTec, Toxikon
+  - Electrical safety: TÜV SÜD, UL, Intertek
+  - Mechanical testing: Element, SGS, Exponent
+- Include: Capabilities, turnaround time, cost tier ($/$$/$$$)
+
+**6. Test Protocol Template Generator (15 hours)**
+- Generate draft test protocol for each standard:
+  ```markdown
+  ## ISO 10993-5 Cytotoxicity Test Protocol
+
+  **Standard:** ISO 10993-5:2009 (In vitro cytotoxicity)
+
+  **Sample Requirements:**
+  - 3 production-equivalent samples (worst-case material combination)
+  - Surface area: 6 cm² per sample
+  - Extraction vehicle: DMEM with 10% FBS
+  - Extraction conditions: 37°C for 24 hours
+
+  **Test Method:**
+  - Direct contact method (for non-leaching materials)
+  - Extract method (for materials with leachables)
+  - MTT assay (cell viability endpoint)
+
+  **Acceptance Criteria:**
+  - Cell viability ≥70% (Grade 0-1: non-cytotoxic)
+  - Controls: Negative (HDPE), Positive (latex with zinc)
+
+  **Recommended Labs:**
+  - Nelson Labs (Costa Mesa, CA) - $8K-$10K, 2-week turnaround
+  - WuXi AppTec (Suzhou, China) - $6K-$8K, 3-week turnaround
+
+  **Integration with Test Plan:**
+  - Critical path dependency: Must complete before ISO 10993-10 (sensitization)
+  - Sample sharing: Can use same extracts for ISO 10993-5, -10, -11
+  ```
+
+**Acceptance Criteria:**
+- [ ] ≥80% of standards have section-level detail (not just standard number)
+- [ ] Sample size requirements documented for 50+ common standards
+- [ ] Cost estimates (ranges) for 50+ common standards
+- [ ] Lead time estimates for 50+ common standards
+- [ ] Accredited lab directory with ≥20 testing labs across categories
+- [ ] Test protocol templates for top 20 most common standards
+- [ ] Integrated into generate-standards workflow
+
+**Related Files:**
+- `data/fda_standards_database.json` (expand with protocol details)
+- New file: `data/testing_labs_directory.json`
+- New file: `templates/test_protocol_templates/`
+- `commands/generate-standards.md` (add protocol generation option)
+
+**Dependencies:**
+- TICKET-014 (Standards Generation) - builds on existing implementation
+- Optional: TICKET-018 (Full FDA database) for complete coverage
+
+**Value:**
+- Saves 3-5 hours per device on test protocol development
+- Provides actionable test planning (not just standard numbers)
+- Reduces testing costs (shows cost ranges, enables lab comparison)
+- Enables timeline planning (critical path identification)
+- Addresses Testing Engineer's #1 complaint
+
+---
+
+### TICKET-022: Remove Misleading Claims & Add Disclaimers
+**Status:** Not Started
+**Priority:** URGENT (compliance and ethics requirement)
+**Effort:** 8-12 hours
+**Assignee:** TBD
+**Due Date:** Immediately (Q1 2026)
+
+**Description:**
+Expert panel unanimous: "Marketing claims ('AI-Powered,' '95% accuracy,' 'ensure complete testing coverage') are misleading and create liability. Must fix IMMEDIATELY."
+
+**Expert Panel Findings:**
+- Testing Engineer: "Spec says 'AI-Powered' but implementation is keyword matching. This is either incompetence or fraud."
+- QA Director: "Claiming 'ensures complete testing coverage' when 96% of standards are missing is regulatory malpractice."
+- All 5 experts: "False confidence" created by unsubstantiated claims is dangerous
+
+**Requirements:**
+
+**1. Specification Corrections (3 hours)**
+- Change: "AI-Powered FDA Standards Generation"
+- To: "Knowledge-Based FDA Standards Recommendation Engine"
+- Remove: "95% accuracy" (until TICKET-017 validates actual accuracy)
+- Remove: "Ensure complete testing coverage" (96% gap makes this false)
+- Remove: "Multi-agent validation" (agents never run in current implementation)
+- Add: "PRELIMINARY RESEARCH TOOL - REQUIRES EXPERT VERIFICATION"
+
+**2. Command Description Updates (2 hours)**
+- Update `commands/generate-standards.md` frontmatter:
+  ```yaml
+  description: Generate preliminary FDA standards recommendations (REQUIRES EXPERT VERIFICATION)
+  ```
+- Add warning at top of command:
+  ```markdown
+  ⚠️ **RESEARCH USE ONLY**
+  This tool provides preliminary standards recommendations based on device classification
+  and keyword analysis. ALL recommendations MUST be independently verified by a qualified
+  regulatory professional before use in FDA submissions.
+
+  **Limitations:**
+  - Database coverage: 54 core standards (FDA recognizes ~1,900 total)
+  - Accuracy: Not validated (see TICKET-017 for validation status)
+  - Device-specific applicability: Cannot account for unique design features
+  ```
+
+**3. README.md Disclaimer (2 hours)**
+- Add prominent disclaimer before generate-standards documentation:
+  ```markdown
+  ### ⚠️ IMPORTANT: Research Use Only
+
+  The `/fda-tools:generate-standards` command is a RESEARCH TOOL for preliminary
+  standards identification. It is NOT a substitute for:
+  - Regulatory professional judgment
+  - Device-specific risk assessment
+  - Predicate 510(k) analysis
+  - FDA guidance interpretation
+  - Test lab consultation
+
+  **DO NOT use this tool as the sole basis for:**
+  - Design History File standards justification
+  - Test protocol selection
+  - FDA submission standards claims
+  - Pre-Submission meeting preparation
+
+  **Always verify ALL recommendations with:**
+  - Current FDA Recognized Consensus Standards database
+  - Recent cleared predicate devices (3-5 predicates)
+  - Device-specific risk assessment (ISO 14971)
+  - Subject matter expert review (biocompatibility, electrical, mechanical)
+  - Testing lab consultation
+  ```
+
+**4. UI/Output Disclaimers (3 hours)**
+- Add disclaimer to every generated JSON file:
+  ```json
+  {
+    "disclaimer": "RESEARCH USE ONLY. This standards determination is preliminary and MUST be independently verified by a qualified regulatory professional. Not validated for FDA submissions. See TICKET-017 for validation status.",
+    "limitations": [
+      "Database contains 54 core standards (FDA recognizes ~1,900 total)",
+      "Product code-level analysis only (cannot account for device-specific design)",
+      "Keyword-based determination (not AI-powered as of v5.26.0)",
+      "No accuracy validation performed"
+    ],
+    "required_verification": [
+      "Check current FDA Recognized Consensus Standards database",
+      "Review 3-5 recent predicate 510(k) summaries",
+      "Perform device-specific risk assessment",
+      "Obtain subject matter expert review",
+      "Consult accredited testing laboratory"
+    ]
+  }
+  ```
+
+**5. CHANGELOG.md Correction (2 hours)**
+- Add "IMPORTANT CORRECTION" section for v5.26.0:
+  ```markdown
+  ### IMPORTANT CORRECTION (2026-02-15)
+
+  Following independent expert panel review, we have identified the following
+  inaccuracies in the original v5.26.0 release announcement:
+
+  **CORRECTED CLAIMS:**
+  - ❌ "AI-Powered" → ✅ "Knowledge-Based" (keyword matching, not AI as of v5.26.0)
+  - ❌ "95% accuracy" → ✅ "Accuracy not validated" (see TICKET-017)
+  - ❌ "Ensure complete testing coverage" → ✅ "Preliminary recommendations only"
+  - ❌ "Multi-agent validation" → ✅ "Validation framework implemented but not yet executed"
+
+  **CURRENT STATUS:**
+  - Tool is RESEARCH USE ONLY until validation complete (TICKET-017)
+  - Database contains 54 core standards (3.5% of FDA's ~1,900 recognized standards)
+  - All recommendations MUST be independently verified
+  - Not approved for FDA submission use without expert review
+
+  **UPCOMING FIXES:**
+  - TICKET-017: Independent accuracy validation study
+  - TICKET-018: Connect to full FDA database (1,900+ standards)
+  - TICKET-020: Implement verification framework for QMS compliance
+
+  We apologize for any confusion and are committed to transparency and accuracy.
+  ```
+
+**Acceptance Criteria:**
+- [ ] All "AI-Powered" claims replaced with "Knowledge-Based"
+- [ ] All "95% accuracy" claims removed or marked "not validated"
+- [ ] All "ensure complete coverage" claims removed
+- [ ] Prominent disclaimers added to README, command docs, and output files
+- [ ] CHANGELOG includes correction notice
+- [ ] User-facing documentation emphasizes "RESEARCH USE ONLY"
+- [ ] Limitations clearly stated (54 vs. 1,900 standards, no validation)
+
+**Related Files:**
+- `GENERATE-STANDARDS-SPEC.md` (major corrections needed)
+- `README.md` (add disclaimer section)
+- `CHANGELOG.md` (add correction notice)
+- `commands/generate-standards.md` (add warning)
+- `agents/standards-ai-analyzer.md` (update description)
+
+**Dependencies:**
+- None (can proceed immediately - URGENT)
+
+**Compliance Impact:**
+- **Without this fix:** Misleading marketing creates legal/ethical liability
+- **With this fix:** Honest representation of tool capabilities and limitations
+
+**Value:**
+- Protects users from making uninformed regulatory decisions
+- Protects developer from liability claims ("you said it was 95% accurate!")
+- Sets realistic expectations (research tool, not production solution)
+- Maintains professional credibility
+
+---
+
 ## 🎯 Success Metrics
 
 ### Phase 0 (Validation)

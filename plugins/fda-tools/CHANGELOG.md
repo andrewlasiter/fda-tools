@@ -4,16 +4,18 @@ All notable changes to the FDA Tools plugin will be documented in this file.
 
 ## [Unreleased]
 
-### Added - AI-Powered Standards Generation (TICKET-014)
+### Added - Knowledge-Based Standards Generation (TICKET-014) - RESEARCH USE ONLY
 
-**Purpose:** Comprehensive AI-powered FDA Recognized Consensus Standards generation for all medical device product codes with automated validation.
+**Purpose:** Knowledge-based FDA Recognized Consensus Standards identification for medical device product codes using rule-based analysis. **RESEARCH USE ONLY** - requires independent verification before regulatory use.
 
 **New Command:** `/fda-tools:generate-standards`
 
+**⚠️ IMPORTANT:** This tool uses keyword matching and rule-based logic, not AI/ML. Accuracy has not been independently validated. Database contains 54 standards (3.5% of ~1,900 FDA-recognized standards). Output must be verified against cleared predicates before regulatory use.
+
 **Core Capabilities:**
-- **AI-Powered Analysis:** Uses `standards-ai-analyzer` agent with embedded knowledge of 50+ FDA-recognized standards across 12+ categories
-- **100% Coverage:** Can process all ~7000 FDA product codes (not just 250 hard-coded categories)
-- **Dynamic Standards Determination:** AI analyzes device characteristics (contact type, power source, software, sterilization) and determines applicable standards with reasoning
+- **Knowledge-Based Analysis:** Uses `standards-ai-analyzer` agent with embedded knowledge of 54 FDA-recognized standards across 10 regulatory categories
+- **Product Code Processing:** Can process all ~7000 FDA product codes using classification data
+- **Rule-Based Determination:** System analyzes device characteristics (contact type, power source, software, sterilization) and identifies potentially applicable standards with reasoning
 - **Checkpoint/Resume:** Automatic checkpointing every 10 codes with `--resume` and `--force-restart` flags
 - **Retry with Exponential Backoff:** Robust error handling for API failures (2s, 4s, 8s delays, max 3 attempts)
 - **Progress Tracking:** Real-time ETA calculation, percentage complete, category breakdown, success rate
@@ -74,12 +76,19 @@ Categories processed:
 ```
 
 **Key Advantages:**
-- ✅ No hard-coding - AI determines standards dynamically based on device characteristics
-- ✅ 100% coverage - All ~7000 FDA product codes supported (vs. 250 hard-coded categories)
-- ✅ Expert validation - Multi-agent coverage audit and quality review
+- ✅ Rule-based approach - Uses embedded pattern matching and regulatory knowledge
+- ✅ Broad processing - Can process all ~7000 FDA product codes using classification data
+- ✅ Multi-agent framework - Internal validation agents for consistency checking
 - ✅ Full reasoning - Every standard selection justified in JSON output
 - ✅ User customization - Proprietary standards and applicability rule overrides supported
 - ✅ Versioned database - Standards database can be updated independently of agent code
+
+**Limitations:**
+- ⚠️ Database gap: 54 standards (3.5% of ~1,900 FDA-recognized standards)
+- ⚠️ Accuracy not validated: No independent verification study exists
+- ⚠️ Rule-based only: Uses keyword matching, not machine learning
+- ⚠️ No predicate analysis: Does not check actual cleared 510(k) standards
+- ⚠️ Verification required: All output must be reviewed by RA professionals
 
 **Standards Database Structure:**
 - 54 FDA-recognized consensus standards
@@ -87,10 +96,10 @@ Categories processed:
 - User override support for proprietary standards and custom applicability rules
 - Version tracking (1.0.0) for regeneration with updated standards
 
-**Validation Criteria:**
-- Coverage Audit: ≥99.5% weighted coverage (by submission volume) = GREEN
-- Quality Review: ≥95% appropriateness (stratified sample of 90 devices) = GREEN
-- Multi-expert consensus synthesis for final validation sign-off
+**Internal Quality Framework:**
+- Coverage Audit: Internal agent checks for completeness within embedded database
+- Quality Review: Internal agent reviews standards determinations for consistency
+- Note: These are internal framework checks, NOT independent regulatory validation
 
 **Estimated Time:**
 - Specific codes (3-5): 1-2 minutes
@@ -576,11 +585,13 @@ Generated XML includes:
 
 ## [5.23.0] - 2026-02-14
 
-### Added - AI-Powered Standards Generation (Agent-Based)
-- **NEW Command**: `/fda-tools:generate-standards` - Generate FDA Recognized Consensus Standards for product codes
-- **NEW Agent**: `standards-ai-analyzer` - AI-powered analysis determining applicable standards based on device characteristics
-- **NEW Agent**: `standards-coverage-auditor` - Validates 100% product code coverage (weighted by submission volume)
-- **NEW Agent**: `standards-quality-reviewer` - Validates standards appropriateness through stratified sampling
+### Added - Knowledge-Based Standards Generation (Agent-Based) - DEPRECATED
+**Note:** This implementation has been deprecated. See v5.26.0 and TICKET-022 for updated approach with proper disclaimers.
+
+- **NEW Command**: `/fda-tools:generate-standards` - Identify potentially applicable FDA Recognized Consensus Standards
+- **NEW Agent**: `standards-ai-analyzer` - Knowledge-based analysis using rule matching to determine potentially applicable standards
+- **NEW Agent**: `standards-coverage-auditor` - Internal consistency check for standards coverage within embedded database
+- **NEW Agent**: `standards-quality-reviewer` - Internal review of standards determinations for consistency
 - **Agent-Based Architecture**: Uses installing user's Claude Code access (no API keys required)
 - **100% Coverage Target**: Processes ALL FDA product codes (~2000) via enhanced FDA API client
 - **Enhanced FDA API**: Added `get_all_product_codes()` and `get_device_characteristics()` methods
@@ -601,9 +612,9 @@ Generated XML includes:
 - Multi-agent orchestration via `lib/expert_validator.py`
 
 ### Improvements Over v5.22.0 Knowledge-Based Approach
-- **Coverage**: 267 codes (98%) → ALL ~2000 codes (100%)
-- **Method**: Hard-coded categories → AI-powered dynamic analysis
-- **Scalability**: Manual updates → Automatic adaptation to new devices
+- **Coverage**: 267 codes (98%) → Can process ALL ~7000 codes (classification-based)
+- **Method**: Hard-coded categories → Rule-based pattern matching with device classification
+- **Scalability**: Manual updates → Rule-based system adaptable to classification changes
 - **User Requirements**: None → Uses installing user's Claude Code access
 
 ### Documentation

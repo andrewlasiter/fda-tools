@@ -1,6 +1,6 @@
 # FDA Predicate Assistant
 
-Your AI-powered regulatory assistant for FDA 510(k) submissions -- predicate research, substantial equivalence analysis, and submission drafting.
+Your regulatory assistant for FDA 510(k) submissions -- predicate research, substantial equivalence analysis, and submission drafting.
 
 > **CONFIDENTIAL DATA WARNING**
 >
@@ -126,16 +126,24 @@ Complete FDA Pre-Submission workflow with eSTAR-ready XML export for FDA Form 50
 - `/status` -- Check available data, scripts, and record counts
 - `/configure` -- Set up API keys, data directories, and preferences
 
-#### NEW: AI-Powered Standards Generation (v5.26.0)
-- `/fda-tools:generate-standards` -- Generate FDA Recognized Consensus Standards for any device using AI analysis
+#### NEW: Knowledge-Based Standards Generation (v5.26.0) - RESEARCH USE ONLY
+- `/fda-tools:generate-standards` -- Identify potentially applicable FDA Recognized Consensus Standards using knowledge-based analysis
+
+  **⚠️ DISCLAIMER:** This tool is for research and regulatory planning only. Output must be independently verified by qualified regulatory affairs professionals before use in FDA submissions. Accuracy has not been independently validated.
 
   **Key Features:**
-  - **AI-Powered Analysis**: Autonomous agent analyzes device characteristics and determines applicable standards
+  - **Knowledge-Based Analysis**: Autonomous agent uses rule-based logic to identify potentially applicable standards
   - **Flexible Scope**: Process specific codes, top N by clearance volume, or all ~7000 FDA product codes
   - **Resilient Processing**: Automatic checkpoint/resume, exponential backoff retry, progress tracking with ETA
-  - **Multi-Agent Validation**: Coverage auditor (≥99.5% threshold) + quality reviewer (≥95% appropriateness)
+  - **Multi-Agent Validation**: Internal quality framework for consistency checking
   - **Multiple Output Formats**: Individual JSON files + consolidated HTML reports + validation summaries
   - **No API Keys Required**: Uses your Claude Code access (agent-based, no external API dependencies)
+
+  **Important Limitations:**
+  - Database contains 54 standards (3.5% of ~1,900 FDA-recognized standards)
+  - Uses keyword matching and rules, not machine learning
+  - Does not analyze actual cleared predicate standards
+  - Requires verification against cleared 510(k) summaries
 
   **Usage Examples:**
   ```bash
@@ -228,10 +236,11 @@ Complete FDA Pre-Submission workflow with eSTAR-ready XML export for FDA Form 50
 ### Agents
 
 15 autonomous agents for multi-step workflows, including:
-- **Standards Generation** (v5.26.0):
-  - `standards-ai-analyzer` - Analyzes device characteristics and determines applicable FDA Recognized Consensus Standards
-  - `standards-coverage-auditor` - Validates standards coverage against regulatory requirements (≥99.5% weighted threshold)
-  - `standards-quality-reviewer` - Reviews standards appropriateness and regulatory justification (≥95% quality threshold)
+- **Standards Generation** (v5.26.0) - RESEARCH USE ONLY:
+  - `standards-ai-analyzer` - Uses rule-based logic to identify potentially applicable FDA Recognized Consensus Standards
+  - `standards-coverage-auditor` - Internal consistency check for standards coverage within embedded database
+  - `standards-quality-reviewer` - Internal review of standards determinations for consistency
+  - **Note:** These agents provide internal quality checks only, NOT independent regulatory validation
 - **Core Workflows**: Extraction analysis, submission writing, pre-sub planning, FDA review simulation
 - **Intelligence**: Research intelligence, data pipeline management, submission assembly
 - **Validation**: Multi-agent consensus framework for quality assurance
@@ -269,11 +278,12 @@ The plugin does NOT send your files to any server other than Anthropic's API. op
 - **Phase 5 (Workflows):** 19/19 tests passing ✓
 
 ### New in v5.26.0
-- **AI-Powered Standards Generation:** Comprehensive testing pending
-  - Agent validation framework implemented (coverage + quality + consensus)
+- **Knowledge-Based Standards Generation (RESEARCH USE ONLY):** Comprehensive validation pending
+  - Agent-based framework implemented (internal quality checks for consistency)
   - Checkpoint/resume functionality verified
-  - External standards database (54 standards, 10 categories)
+  - External standards database (54 standards, 10 categories - 3.5% of FDA-recognized standards)
   - HTML report generation validated
+  - **Important:** Accuracy not independently validated; requires verification before regulatory use
 
 ### Compliance Status
 - **Status:** CONDITIONAL APPROVAL - Research use only

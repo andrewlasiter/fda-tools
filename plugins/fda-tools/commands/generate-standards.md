@@ -1,12 +1,23 @@
 ---
-description: Generate FDA Recognized Consensus Standards for product codes using AI analysis
+description: Identify potentially applicable FDA Recognized Consensus Standards using knowledge-based analysis (RESEARCH USE ONLY - requires verification)
 argument-hint: "[PRODUCT_CODES...] or --all or --top N [--resume] [--force-restart]"
 allowed-tools: [Read, Write, Bash, Glob, Task]
 ---
 
 # Generate FDA Standards Command
 
-Generate FDA Recognized Consensus Standards files for medical device product codes using AI-powered analysis.
+Identify potentially applicable FDA Recognized Consensus Standards for medical device product codes using knowledge-based rule matching.
+
+**⚠️ RESEARCH USE ONLY - NOT PRODUCTION-READY**
+
+This tool is approved for **research and regulatory planning only**. It is **NOT approved for direct FDA submission use** without independent verification by qualified regulatory affairs professionals.
+
+**Key Limitations:**
+- Uses keyword matching and rule-based logic, not AI/ML
+- Accuracy has NOT been independently validated
+- Database contains 54 standards (3.5% of ~1,900 FDA-recognized standards)
+- Does NOT analyze actual 510(k) predicate clearance patterns
+- All output must be verified against cleared predicates and current FDA guidance
 
 **This command uses your MAX plan's built-in Claude access** - no separate API key needed.
 
@@ -34,10 +45,12 @@ Generate FDA Recognized Consensus Standards files for medical device product cod
 This command:
 1. Enumerates product codes (from arguments, --top N, or --all)
 2. For each product code, invokes the `standards-ai-analyzer` agent via Task tool
-3. Agent analyzes device characteristics and determines applicable standards
-4. Saves JSON file to `data/standards/`
+3. Agent applies rule-based logic to identify potentially applicable standards based on device classification
+4. Saves JSON file to `data/standards/` with reasoning for each determination
 5. Tracks progress with checkpoint every 10 codes for resume capability
-6. Auto-validates at completion with coverage and quality review agents
+6. Runs internal quality framework checks at completion (NOT independent validation)
+
+**Important:** All standards determinations must be verified against actual cleared 510(k) summaries in the same product code before use in regulatory submissions.
 
 ## Implementation
 
