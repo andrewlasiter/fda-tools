@@ -17,10 +17,19 @@ import sys
 import json
 import re
 import argparse
+import time
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Tuple, Optional
 from collections import Counter
+
+# Import FDA API client for metadata enrichment
+try:
+    from fda_api_client import FDAClient
+except ImportError:
+    # Fallback if not in same directory
+    sys.path.insert(0, str(Path(__file__).parent))
+    from fda_api_client import FDAClient
 
 # Section detection patterns (Tier 1: Regex)
 # Expanded with Priority 3 enhancements (15 new section types)
@@ -397,6 +406,53 @@ def detect_sections(text: str, apply_ocr_correction: bool = True) -> Tuple[Dict[
     return sections, metadata
 
 
+def enrich_metadata_from_openfda(k_number: str, client: FDAClient) -> Dict:
+    """
+    Enrich metadata by querying openFDA API for K-number.
+
+    Args:
+        k_number: The K-number to look up (e.g., 'K231152')
+        client: FDAClient instance for API queries
+
+    Returns:
+        Dictionary with product_code, device_class, regulation_number, review_panel
+        Returns empty dict if K-number not found or API error
+    """
+    try:
+        result = client.get_510k(k_number)
+
+        # Check for API errors or degraded mode
+        if result.get('error') or result.get('degraded'):
+            return {}
+
+        # Check if results exist
+        results = result.get('results', [])
+        if not results:
+            return {}
+
+        # Extract metadata from first result
+        device = results[0]
+        metadata = {}
+
+        # Product code (REQUIRED for filtering)
+        if device.get('product_code'):
+            metadata['product_code'] = device['product_code']
+
+        # Review advisory committee (available in 510k response)
+        if device.get('review_advisory_committee'):
+            metadata['review_panel'] = device['review_advisory_committee']
+
+        # Device class and regulation number would require a second API call
+        # to the classification endpoint - not included to avoid doubling API calls
+        # Users can enhance metadata manually if needed for specific use cases
+
+        return metadata
+
+    except Exception:
+        # Silently fail - metadata enrichment is optional
+        return {}
+
+
 def build_structured_cache(source_path: Path, output_dir: Path, source_type: str = 'per-device'):
     """
     Build structured cache from source PDF text data.
@@ -407,6 +463,16 @@ def build_structured_cache(source_path: Path, output_dir: Path, source_type: str
         source_type: 'per-device' or 'legacy'
     """
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Initialize FDA API client for metadata enrichment (legacy cache only)
+    fda_client = None
+    if source_type == 'legacy':
+        try:
+            fda_client = FDAClient()
+            print("✓ FDA API client initialized for metadata enrichment")
+        except Exception as e:
+            print(f"⚠ Could not initialize FDA API client: {e}")
+            print("  Continuing without metadata enrichment...")
 
     # Load source data
     if source_type == 'per-device':
@@ -481,6 +547,14 @@ def build_structured_cache(source_path: Path, output_dir: Path, source_type: str
             # Detect sections with OCR correction and quality assessment
             sections, detection_metadata = detect_sections(text)
 
+            # Enrich metadata from openFDA API
+            metadata = {}
+            if fda_client:
+                metadata = enrich_metadata_from_openfda(k_number, fda_client)
+                # Rate limiting: 500ms delay between API calls (2 req/sec)
+                if metadata:
+                    time.sleep(0.5)
+
             # Build structured output
             structured = {
                 'k_number': k_number,
@@ -497,7 +571,7 @@ def build_structured_cache(source_path: Path, output_dir: Path, source_type: str
                 'tier1_sections': detection_metadata['tier1_sections'],
                 'tier2_sections': detection_metadata['tier2_sections'],
                 'tier2_corrections': detection_metadata.get('tier2_corrections'),
-                'metadata': {}
+                'metadata': metadata
             }
 
             # Write structured file
@@ -505,7 +579,11 @@ def build_structured_cache(source_path: Path, output_dir: Path, source_type: str
             with open(output_file, 'w') as f:
                 json.dump(structured, f, indent=2)
 
-            print(f"  ✓ {k_number}: {len(text)} chars, {len(sections)} sections")
+            # Enhanced output showing metadata enrichment
+            metadata_info = ""
+            if metadata.get('product_code'):
+                metadata_info = f" [{metadata['product_code']}]"
+            print(f"  ✓ {k_number}: {len(text)} chars, {len(sections)} sections{metadata_info}")
 
     else:
         raise ValueError(f"Unknown source_type: {source_type}")

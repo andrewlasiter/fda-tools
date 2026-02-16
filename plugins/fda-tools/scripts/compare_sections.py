@@ -113,7 +113,8 @@ def filter_by_product_code(structured_cache: Dict, product_code: str) -> Dict:
     """
     filtered = {}
     for k_number, data in structured_cache.items():
-        device_product_code = data.get("product_code", "")
+        # Product code is stored in metadata dict
+        device_product_code = data.get("metadata", {}).get("product_code", "")
         if device_product_code.upper() == product_code.upper():
             filtered[k_number] = data
 

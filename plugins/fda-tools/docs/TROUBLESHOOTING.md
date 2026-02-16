@@ -10,6 +10,13 @@ Solutions to common problems and error messages.
 4. [Performance Issues](#performance-issues)
 5. [Common Error Messages](#common-error-messages)
 6. [Command-Specific Issues](#command-specific-issues)
+   - [/fda-tools:research](#fda-toolsresearch-not-finding-predicates)
+   - [/fda-tools:batchfetch](#fda-toolsbatchfetch-enrichment-incomplete)
+   - [/fda-tools:draft](#fda-toolsdraft-generating-todo-placeholders)
+   - [/fda-tools:pre-check](#fda-toolspre-check-low-sri-score)
+   - [/fda-tools:update-data (v5.26.0)](#fda-toolsupdate-data-issues-v5260)
+   - [/fda-tools:compare-sections (v5.26.0)](#fda-toolscompare-sections-issues-v5260)
+7. [Diagnostic Commands](#diagnostic-commands)
 
 ---
 
@@ -489,6 +496,351 @@ See [MIGRATION_NOTICE.md](../MIGRATION_NOTICE.md) for full migration guide.
    ```bash
    /fda-tools:pre-check
    ```
+
+### `/fda-tools:update-data` Issues (v5.26.0)
+
+#### No Projects Found
+
+**Problem:** `--scan-all` reports "0 projects with data_manifest.json"
+
+**Cause:** Projects don't have data_manifest.json (may use older structure)
+
+**Solutions:**
+
+1. **Check project structure:**
+   ```bash
+   ls ~/fda-510k-data/projects/*/data_manifest.json
+   ```
+
+2. **Verify projects exist:**
+   ```bash
+   /fda-tools:portfolio
+   ```
+
+3. **Create projects properly:**
+   ```bash
+   /fda-tools:research --product-code DQY --years 2024 --project my_device
+   ```
+   This creates data_manifest.json automatically
+
+**Note:** Batch test projects may use different structure - this is expected
+
+#### No Stale Data Found
+
+**Problem:** `--scan-all` shows "0 stale queries" but data looks old
+
+**Cause:** Data is within TTL window (7 days for stable, 24 hours for safety)
+
+**Solutions:**
+
+1. **Check actual freshness:**
+   ```bash
+   /fda-tools:cache --show
+   ```
+
+2. **Force update regardless of TTL:**
+   ```bash
+   python3 ~/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/scripts/update_manager.py \
+     --project my_device --update
+   ```
+   (Note: Command respects TTL; use script directly to override)
+
+3. **Verify TTL configuration:**
+   - Classification: 7 days (168 hours)
+   - Recalls/Events: 24 hours
+   - See scripts/fda_data_store.py for full list
+
+#### Update Failures
+
+**Problem:** "❌ FAILED: Unknown query type" or API errors during update
+
+**Solutions:**
+
+1. **For "Unknown query type" errors:**
+   - This indicates corrupted data_manifest.json
+   - **Fix:** Remove invalid entries manually:
+     ```bash
+     # Edit manifest and remove lines with invalid query types
+     nano ~/fda-510k-data/projects/my_device/data_manifest.json
+     ```
+   - Valid types: `classification`, `clearances`, `recalls`, `events`, `enforcement`
+
+2. **For API errors:**
+   - Check API connectivity:
+     ```bash
+     curl -I https://api.fda.gov/device/510k.json?limit=1
+     ```
+   - Verify API key (if used):
+     ```bash
+     echo $OPENFDA_API_KEY
+     ```
+   - Retry with `--update` (automatic retry with backoff)
+
+3. **For rate limiting errors:**
+   - Update implements 500ms delay automatically
+   - If still hitting limits, wait 5 minutes and retry
+   - Consider adding API key for higher limits
+
+4. **For partial failures:**
+   - Tool continues after errors (partial success mode)
+   - Failed queries remain stale (timestamps not updated)
+   - Review output: "✅ Update complete: X updated, Y failed"
+   - Re-run to retry failed queries
+
+#### Slow Performance
+
+**Problem:** Updates taking too long (>5 min for 50 queries)
+
+**Cause:** Rate limiting (500ms per query) and API response time
+
+**Expected Performance:**
+- 20 queries: ~20 seconds
+- 50 queries: ~50 seconds
+- 100 queries: ~100 seconds (1.7 minutes)
+
+**Solutions:**
+
+1. **This is normal behavior:**
+   - 500ms delay between requests = 2 req/sec (API compliance)
+   - Target: <10 min for 100+ queries ✓
+
+2. **To speed up (if many projects):**
+   - Update one project at a time:
+     ```bash
+     /fda-tools:update-data --project my_device
+     ```
+   - Or use `--dry-run` to preview without executing
+
+3. **Background processing:**
+   - Run in background to continue working:
+     ```bash
+     /fda-tools:update-data --update-all &
+     ```
+   - Check progress: `jobs` and `fg` to bring to foreground
+
+#### Dry-Run Shows Different Results
+
+**Problem:** `--dry-run` shows stale data, but `--update` finds nothing
+
+**Cause:** Another process updated data between dry-run and update
+
+**Solutions:**
+
+1. **Normal behavior:**
+   - TTL checked at execution time
+   - Data may have been updated by another command
+   - Timestamps refreshed automatically
+
+2. **Verify freshness:**
+   ```bash
+   /fda-tools:cache --show
+   ```
+
+---
+
+### `/fda-tools:compare-sections` Issues (v5.26.0)
+
+#### No Devices Found for Product Code
+
+**Problem:** `❌ Error: No devices found for product code OVE`
+
+**Cause:** Structured cache missing or lacks metadata enrichment
+
+**Solutions:**
+
+1. **Build structured cache first:**
+   ```bash
+   # Using per-device cache (preferred)
+   python3 ~/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/scripts/build_structured_cache.py \
+     --cache-dir ~/fda-510k-data/extraction/cache
+
+   # Using legacy pdf_data.json
+   python3 ~/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/scripts/build_structured_cache.py \
+     --legacy ~/fda-510k-data/projects/my_project/pdf_data.json
+   ```
+
+2. **Verify structured cache exists:**
+   ```bash
+   ls ~/fda-510k-data/extraction/structured_text_cache/*.json | wc -l
+   ```
+   Should show files for each device
+
+3. **Check metadata enrichment:**
+   ```bash
+   python3 -c "
+   import json
+   from pathlib import Path
+   files = list(Path('~/fda-510k-data/extraction/structured_text_cache').expanduser().glob('K*.json'))
+   if files:
+       with open(files[0]) as f:
+           data = json.load(f)
+       print('Sample metadata:', data.get('metadata', {}))
+   "
+   ```
+   Should show `product_code` field
+
+4. **Rebuild with metadata enrichment:**
+   - v5.26.0+ automatically enriches metadata via openFDA API
+   - Rebuilding legacy cache adds product_code to all devices
+   - Takes ~2 min for 200 devices (includes API calls)
+
+#### Structured Cache Not Found
+
+**Problem:** `📂 Loading structured cache... ❌ Error: Cache directory not found`
+
+**Cause:** Structured cache never built
+
+**Solutions:**
+
+1. **Create structured cache:**
+   - Option A: From per-device cache (if you've run `/extract`):
+     ```bash
+     python3 ~/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/scripts/build_structured_cache.py \
+       --cache-dir ~/fda-510k-data/extraction/cache
+     ```
+
+   - Option B: From legacy pdf_data.json:
+     ```bash
+     python3 ~/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/scripts/build_structured_cache.py \
+       --legacy ~/fda-510k-data/projects/my_project/pdf_data.json
+     ```
+
+2. **Verify output directory:**
+   ```bash
+   ls -la ~/fda-510k-data/extraction/structured_text_cache/
+   ```
+
+3. **Check permissions:**
+   ```bash
+   chmod -R u+w ~/fda-510k-data/extraction/
+   ```
+
+#### Few Sections Detected
+
+**Problem:** Coverage matrix shows 0% for all sections
+
+**Cause:** PDF text quality issues or section patterns not matching
+
+**Solutions:**
+
+1. **Check structured cache quality:**
+   ```bash
+   cat ~/fda-510k-data/extraction/structured_text_cache/manifest.json
+   ```
+   Look for OCR quality metrics:
+   - HIGH (clean text): Best
+   - MEDIUM (minor errors): OK
+   - LOW (OCR issues): May need manual review
+
+2. **Review extraction quality:**
+   - `section_count` should be 7+ for HIGH quality
+   - `tier2_sections` indicates OCR corrections applied
+   - Devices with 0-3 sections may have corrupt PDFs
+
+3. **Verify PDF quality:**
+   ```bash
+   file ~/fda-510k-data/downloads/DQY/K240001.pdf
+   ```
+   Should show "PDF document"
+
+4. **Re-download if needed:**
+   ```bash
+   /fda-tools:data-pipeline --product-codes DQY --years 2024
+   ```
+
+#### No Standards Detected
+
+**Problem:** Standards frequency analysis shows 0 standards
+
+**Cause:** Section text doesn't contain standard references, or standards are informal
+
+**Solutions:**
+
+1. **This may be normal:**
+   - Some product codes have low standards citation rates
+   - Older clearances may not cite standards explicitly
+   - Standards may be referenced informally (e.g., "biocompatibility testing per ISO guidance")
+
+2. **Check specific sections:**
+   - Try different sections: `performance`, `biocompatibility`, `electrical`
+   - Standards more common in testing sections
+
+3. **Review raw text:**
+   ```bash
+   python3 -c "
+   import json
+   with open('~/fda-510k-data/extraction/structured_text_cache/K240001.json'.replace('~', '/home/linux')) as f:
+       data = json.load(f)
+   print(data['sections'].get('biocompatibility', {}).get('text', 'N/A')[:500])
+   "
+   ```
+
+4. **Expected patterns:**
+   - ISO 10993 (biocompatibility)
+   - IEC 60601 (electrical safety)
+   - ISO 11135/11137 (sterilization)
+   - Standards detected via regex: `ISO|IEC|ASTM|ANSI`
+
+#### Outlier Detection Not Working
+
+**Problem:** "Outliers detected: 0" even though devices vary widely
+
+**Cause:** Insufficient sample size or low variance
+
+**Solutions:**
+
+1. **Increase sample size:**
+   ```bash
+   /fda-tools:compare-sections --product-code DQY --sections clinical --limit 50
+   ```
+   Need 10+ devices for meaningful statistics
+
+2. **Try different sections:**
+   - Some sections have low variance (e.g., indications often similar)
+   - Try: `performance`, `clinical`, `biocompatibility`
+
+3. **Check Z-score threshold:**
+   - Outliers defined as |Z-score| > 2 (95th percentile)
+   - Only extreme outliers flagged
+   - Review raw data in CSV for variance
+
+4. **Verify section presence:**
+   - If section missing from most devices, no outliers possible
+   - Check coverage matrix first
+
+#### Metadata Enrichment Slow
+
+**Problem:** Building structured cache takes >10 minutes
+
+**Cause:** openFDA API enrichment for metadata (product_code, review_panel)
+
+**Expected Performance:**
+- 200 devices: ~2 minutes (includes 500ms API delay per device)
+- Enrichment adds ~1 minute vs. no enrichment
+
+**Solutions:**
+
+1. **This is normal:**
+   - API rate limiting: 500ms per device (API compliance)
+   - Alternative: ~1 second per device without API calls
+
+2. **Skip enrichment (NOT recommended):**
+   - Edit build_structured_cache.py to skip API calls
+   - **WARNING:** Product code filtering won't work without enrichment
+
+3. **Use cache:**
+   - Enrichment only happens on rebuild
+   - Subsequent `/compare-sections` uses cached metadata
+   - No re-enrichment needed
+
+4. **Progress tracking:**
+   ```
+   Processing 209 PDFs from legacy cache...
+     ✓ K231152: 17918 chars, 19 sections [KGN]
+     ✓ K140306: 7888 chars, 11 sections [FTM]
+     ...
+   ```
+   Product codes in brackets indicate enrichment working
 
 ---
 
