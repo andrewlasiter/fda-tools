@@ -1,7 +1,7 @@
 ---
 description: Compare 510(k) sections across devices for regulatory intelligence
 allowed-tools: [Bash, Read, AskUserQuestion]
-argument-hint: "--product-code CODE --sections TYPES [--years RANGE] [--limit N] [--csv]"
+argument-hint: "--product-code CODE --sections TYPES [--product-codes CODES] [--similarity] [--trends] [--years RANGE] [--limit N] [--csv]"
 ---
 
 # FDA 510(k) Section Comparison Tool
@@ -14,21 +14,28 @@ You are helping the user analyze and compare specific sections (clinical data, b
 
 **Integration:** Uses `compare_sections.py` which processes structured cache data from `build_structured_cache.py` extraction pipeline.
 
-**Output:** Markdown report + optional CSV export with coverage matrix, standards analysis, and outlier detection.
+**Output:** Markdown report + optional CSV export with coverage matrix, standards analysis, outlier detection, text similarity, temporal trends, and cross-product comparison.
 
 ## Arguments
 
 Parse user arguments to determine the comparison parameters:
 
-- `--product-code CODE`: **(Required)** FDA product code (e.g., DQY, OVE, GEI)
+- `--product-code CODE`: FDA product code (e.g., DQY, OVE, GEI). Required unless `--product-codes` is used.
+- `--product-codes CODES`: Multiple product codes for cross-comparison (e.g., `DQY,OVE,GEI`). Enables cross-product comparison mode. The first code is used as the primary for single-code analysis.
 - `--sections TYPES`: **(Required)** Comma-separated section types or "all"
   - Examples: `clinical,biocompatibility`, `performance,sterilization`, `all`
+- `--similarity`: Compute pairwise text similarity for each section type. Adds Section 5 to the report.
+- `--similarity-method METHOD`: Similarity computation method. Options: `sequence` (difflib), `jaccard` (word sets), `cosine` (TF vectors). Default: `cosine`.
+- `--similarity-sample N`: Max devices for similarity matrix (default: 30). Limits pairwise computation for performance.
+- `--trends`: Analyze year-over-year temporal trends. Adds Section 6 to the report.
 - `--years RANGE`: Filter by decision year (e.g., `2024`, `2020-2025`)
 - `--limit N`: Limit analysis to N most recent devices
 - `--csv`: Generate CSV export in addition to markdown report
 - `--output FILE`: Custom output path (default: auto-generated timestamp)
 
 **Default behavior** (no optional args): Analyze all devices for product code across all years.
+
+**Auto-build behavior:** If no structured cache exists but extraction cache files are available, the tool will automatically run `build_structured_cache.py` before proceeding.
 
 ## Section Types Reference
 
@@ -282,6 +289,9 @@ If user selects "View full report", read and display complete report.
 3. **Section 2: Standards Frequency** - Most cited standards (overall + by section)
 4. **Section 3: Key Findings** - Low coverage sections, ubiquitous standards
 5. **Section 4: Outliers** - Devices with unusual section lengths (Z-score > 2)
+6. **Section 5: Text Similarity** - (if `--similarity` flag used) Pairwise similarity statistics, most/least similar pairs, interpretation
+7. **Section 6: Temporal Trends** - (if `--trends` flag used) Year-over-year coverage and section length trends with direction
+8. **Section 7: Cross-Product Comparison** - (if `--product-codes` with multiple codes) Side-by-side comparison of coverage, section lengths, and top standards across product codes
 
 ### CSV Export Contents
 
@@ -383,6 +393,99 @@ Your workflow:
 
 **Regulatory insight:** User learns which sections are mandatory vs optional.
 
+### Use Case 5: Cross-Product Code Comparison
+
+User wants to compare how cardiovascular catheters (DQY) differ from orthopedic implants (OVE) in their section structure:
+
+```
+User: /fda-tools:compare-sections --product-codes DQY,OVE --sections clinical,biocompat,performance,sterilization
+
+Your workflow:
+1. Load full structured cache
+2. Run cross-product comparison for both codes
+3. Present side-by-side table:
+   "Cross-Product Comparison:
+
+    Section           | DQY (147 devices)  | OVE (89 devices)
+    clinical_testing  | 98.6% coverage     | 45.2% coverage
+    biocompatibility  | 100.0% coverage    | 98.9% coverage
+    performance       | 67.3% coverage     | 92.1% coverage
+    sterilization     | 95.2% coverage     | 82.0% coverage
+
+    Key insight: Clinical data is nearly universal for catheters
+    but much less common for orthopedic implants."
+```
+
+**Regulatory insight:** User understands how submission expectations differ by device type.
+
+### Use Case 6: Text Similarity Analysis
+
+User wants to know if biocompatibility sections are formulaic or highly variable:
+
+```
+User: /fda-tools:compare-sections --product-code DQY --sections biocompatibility --similarity
+
+Your workflow:
+1. Run similarity analysis with cosine method
+2. Present statistics:
+   "Biocompatibility Section Similarity (DQY):
+    - Method: cosine
+    - Pairs computed: 10,731 (from 147 devices)
+    - Mean similarity: 0.823 (HIGH)
+    - Std deviation: 0.098
+    - Most similar: K241001 & K241002 (0.97)
+    - Least similar: K190034 & K241099 (0.41)
+
+    Interpretation: HIGH similarity -- sections follow consistent
+    structure. Your submission should align with the established pattern."
+```
+
+**Regulatory insight:** High similarity means there is a clear template/expectation.
+
+### Use Case 7: Temporal Trend Analysis
+
+User preparing a 2026 submission wants to see if clinical data requirements are increasing:
+
+```
+User: /fda-tools:compare-sections --product-code DQY --sections clinical --trends --years 2018-2025
+
+Your workflow:
+1. Run temporal trend analysis
+2. Present year-by-year data:
+   "Clinical Testing Trends for DQY (2018-2025):
+
+    Year | Devices | Coverage | Avg Words | Standards
+    2018 | 12      | 83.3%    | 320       | 4
+    2019 | 15      | 86.7%    | 355       | 5
+    2020 | 18      | 88.9%    | 410       | 6
+    2021 | 20      | 95.0%    | 490       | 7
+    2022 | 22      | 95.5%    | 550       | 8
+    2023 | 25      | 96.0%    | 610       | 9
+    2024 | 28      | 100.0%   | 680       | 10
+    2025 | 10      | 100.0%   | 720       | 11
+
+    Coverage trend: INCREASING (R2=0.92, slope=2.1%/year)
+    Section length trend: INCREASING (R2=0.98, slope=55 words/year)
+
+    Interpretation: FDA expectations for clinical data are clearly
+    growing. Plan for more comprehensive clinical sections."
+```
+
+**Regulatory insight:** User can see that clinical data sections are getting longer and more common over time, informing their submission strategy.
+
+### Use Case 8: Combined Advanced Analysis
+
+User wants the complete picture for a competitive analysis:
+
+```
+User: /fda-tools:compare-sections --product-codes DQY,OVE,GEI --sections all --similarity --trends --years 2020-2025 --csv
+
+Your workflow:
+1. Run full analysis with all advanced features enabled
+2. Generate comprehensive report with all 7+ sections
+3. Present executive summary covering coverage, similarity, trends, and cross-product insights
+```
+
 ## Error Handling
 
 ### Scenario: No Structured Cache
@@ -456,11 +559,20 @@ Recommendation:
 - Loading structured cache (one-time per command)
 - Standards extraction (regex matching across all text)
 - Z-score outlier calculation (statistical analysis)
+- Similarity matrix (O(n^2) pairwise comparisons -- use `--similarity-sample` for large datasets)
+
+**Similarity Performance:**
+- 30 devices (default sample): ~5 seconds (435 pairs)
+- 50 devices: ~15 seconds (1,225 pairs)
+- 100 devices: ~60 seconds (4,950 pairs)
+- Use `--similarity-sample 30` to cap computation time
 
 **Optimization Tips:**
 - Use `--limit` for exploratory analysis (e.g., `--limit 50`)
 - Use `--years` filter for recent submissions
+- Use `--similarity-sample 20` for quick similarity checks
 - Cache is pre-structured, so multiple section comparisons are fast
+- Auto-build runs automatically if structured cache is missing but extraction cache exists
 
 ## Integration Notes
 
@@ -469,7 +581,9 @@ Recommendation:
 **Dependencies:**
 - Reads from: `~/fda-510k-data/extraction/structured_text_cache/*.json`
 - Imports: `build_structured_cache.py` (for `SECTION_PATTERNS`)
+- Imports: `section_analytics.py` (for `compute_similarity`, `pairwise_similarity_matrix`, `analyze_temporal_trends`, `cross_product_compare`)
 - Writes to: `~/fda-510k-data/projects/section_comparison_<CODE>_<TIMESTAMP>/`
+- Auto-invokes: `build_structured_cache.py` if structured cache is empty (subprocess)
 
 **Structured Cache Format:**
 ```json

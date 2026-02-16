@@ -1,8 +1,8 @@
 # FDA Tools Plugin - Implementation TODO
 
 **Last Updated:** 2026-02-16
-**Status:** TICKET-003 Phase 0-5 COMPLETE (v5.29.0-v5.35.0). PMA Intelligence Module COMPLETE.
-**Current Version:** 5.35.0
+**Status:** TICKET-003 Phase 0-5 COMPLETE (v5.29.0-v5.35.0). PMA Intelligence Module COMPLETE. Smart Auto-Update and Section Analytics COMPLETE (v5.36.0).
+**Current Version:** 5.36.0
 
 ---
 
@@ -373,7 +373,7 @@
 ### TICKET-006: PMA Annual Report Generator
 **Priority:** MEDIUM (depends on TICKET-003)
 **Effort:** 40-60 hours
-**Status:** BLOCKED by TICKET-003
+**Status:** UNBLOCKED (TICKET-003 COMPLETE v5.35.0). Partially addressed by annual_report_tracker.py in Phase 3.
 **Owner:** Unassigned
 
 **Deliverables:**
@@ -401,7 +401,7 @@
 ### TICKET-007: PMA Supplement Support
 **Priority:** MEDIUM (depends on TICKET-003)
 **Effort:** 80-120 hours
-**Status:** BLOCKED by TICKET-003
+**Status:** UNBLOCKED (TICKET-003 COMPLETE v5.35.0). Partially addressed by supplement_tracker.py in Phase 3.
 **Owner:** Unassigned
 
 **Supplement Types:**
@@ -434,7 +434,7 @@
 ### TICKET-008: Post-Approval Study Monitoring
 **Priority:** MEDIUM (depends on TICKET-003)
 **Effort:** 60-80 hours
-**Status:** BLOCKED by TICKET-003
+**Status:** UNBLOCKED (TICKET-003 COMPLETE v5.35.0). Partially addressed by pas_monitor.py in Phase 3.
 **Owner:** Unassigned
 
 **Deliverables:**
@@ -968,24 +968,26 @@ TICKET-004 (Pre-Sub Multi-Pathway) -- COMPLETE (v5.28.0)
 ---
 
 ### TICKET-016: Auto-Update Data Manager & Section Comparison Tool
-**Completed:** 2026-02-16 (v5.26.0 released)
-**Total Effort:** 31.5 hours (13h Feature 1 + 15h Feature 2 + 3.5h fix & docs)
+**Completed:** 2026-02-16 (v5.26.0 released, v5.36.0 enhancements)
+**Total Effort:** 31.5 hours (13h Feature 1 + 15h Feature 2 + 3.5h fix & docs) + v5.36.0 enhancements
 **Test Results:** 14/14 tests passed (100%)
 
 #### Feature 1: Auto-Update Data Manager
-**Completed:** 2026-02-15
+**Completed:** 2026-02-15 (core), 2026-02-16 (smart update enhancement)
 **Status:** PRODUCTION READY
 
 **Deliverables:**
-- `/fda-tools:update-data` command
-- `scripts/update_manager.py` (584 lines)
-- `commands/update-data.md` (372 lines)
+- `/fda-tools:update-data` command (extended with `--smart` flag in v5.36.0)
+- `scripts/update_manager.py` (584+76 lines)
+- `scripts/change_detector.py` (654 lines) -- NEW in v5.36.0
+- `commands/update-data.md` (372+ lines, enhanced with smart mode)
 - Batch freshness checking across all projects
 - TTL-based staleness detection (7-day/24-hour tiers)
 - Rate-limited batch updates (500ms = 2 req/sec)
 - Dry-run mode
 - System cache cleanup
 - Multi-project update support
+- **Smart change detection** (v5.36.0): Fingerprint-based comparison against live FDA API to detect new clearances and recalls without full re-fetch
 
 **Testing:**
 - [x] Single project scan and update
@@ -996,26 +998,32 @@ TICKET-004 (Pre-Sub Multi-Pathway) -- COMPLETE (v5.28.0)
 - [x] Performance benchmarking (20 queries in 20.237s)
 - [x] Multi-project orchestration (3 projects)
 - [x] Error recovery (partial success 2/3)
-- **Test Results:** 10/10 tests passed (100%)
+- [x] Smart change detection specification verification (v5.36.0, 100% pass)
+- **Test Results:** 10/10 core tests passed + specification verification 100%
 
 **Impact:** 80-90% time reduction for data freshness management
 
 ---
 
 #### Feature 2: Section Comparison Tool
-**Completed:** 2026-02-16 (metadata gap fix)
+**Completed:** 2026-02-16 (metadata gap fix), 2026-02-16 (analytics enhancement)
 **Status:** PRODUCTION READY
 
 **Deliverables:**
-- `/fda-tools:compare-sections` command
-- `scripts/compare_sections.py` (1000+ lines)
-- `commands/compare-sections.md` (500+ lines)
+- `/fda-tools:compare-sections` command (extended with `--product-codes`, `--similarity`, `--trends` in v5.36.0)
+- `scripts/compare_sections.py` (1000+308 lines)
+- `scripts/section_analytics.py` (702 lines) -- NEW in v5.36.0
+- `commands/compare-sections.md` (500+ lines, enhanced with analytics modes)
 - Coverage matrix analysis (% devices with each section)
 - FDA standards frequency detection (ISO/IEC/ASTM)
 - Statistical outlier detection (Z-score analysis)
 - OpenFDA metadata enrichment (100% coverage)
 - Markdown + CSV export
 - 40+ section type support
+- **Text similarity scoring** (v5.36.0): SequenceMatcher, Jaccard, Cosine algorithms
+- **Temporal trend analysis** (v5.36.0): Year-over-year coverage and length trends
+- **Cross-product comparison** (v5.36.0): Multi-product-code benchmarking
+- **Auto-build cache** (v5.36.0): Automatic cache building with actionable error messages
 
 **Critical Fix (2026-02-16):**
 - Enhanced `build_structured_cache.py` with openFDA API integration (+60 lines)
@@ -1033,35 +1041,202 @@ TICKET-004 (Pre-Sub Multi-Pathway) -- COMPLETE (v5.28.0)
 - [x] Edge cases (sparse data, missing sections)
 - [x] Product code filtering (141 KGN devices)
 - [x] Metadata enrichment (209 devices, 100% coverage)
-- **Test Results:** 4/4 tests passed (100%)
+- [x] Section analytics specification verification (v5.36.0, 100% pass)
+- **Test Results:** 4/4 core tests passed + specification verification 100%
 
 **Impact:** ~95% time reduction for competitive intelligence analysis
 
 ---
 
-#### Documentation (v5.26.0)
+#### v5.36.0 Enhancement: Smart Auto-Update System
+**Completed:** 2026-02-16
+**Status:** COMPLETE (specification verified, 100% pass rate)
+
+**New Module:** `scripts/change_detector.py` (654 lines)
+- Fingerprint-based FDA change detection (not just TTL-based)
+- Detects new 510(k) clearances by comparing known K-number sets
+- Recall count monitoring with delta detection
+- Pipeline trigger for automated batchfetch + extraction
+- Reusable `_run_subprocess()` helper with user-friendly timeout diagnostics
+- CLI: `--project`, `--product-code`, `--max-fetch`, `--dry-run`, `--trigger`, `--json`
+
+**Modified Module:** `scripts/update_manager.py` (+76 lines)
+- `--smart` mode integration invoking change_detector module
+- Enhanced command documentation with smart detection workflow
+
+---
+
+#### v5.36.0 Enhancement: Advanced Section Comparison Analytics
+**Completed:** 2026-02-16
+**Status:** COMPLETE (specification verified, 100% pass rate)
+
+**New Module:** `scripts/section_analytics.py` (702 lines)
+- `compute_similarity()` with 3 methods: sequence (SequenceMatcher), jaccard, cosine
+- `pairwise_similarity_matrix()` with statistical summaries (mean, median, stdev, min, max)
+- `analyze_temporal_trends()` with linear regression trend detection
+- `cross_product_compare()` for multi-product-code benchmarking
+- CLI demo mode with `--similarity-demo`
+
+**Modified Module:** `scripts/compare_sections.py` (+308 lines)
+- `--product-codes` multi-code mode
+- `--similarity` / `--similarity-method` / `--similarity-sample` flags
+- `--trends` temporal analysis flag
+- Auto-build cache with actionable error messages
+
+---
+
+#### Documentation (v5.26.0 + v5.36.0)
 - [x] README.md: Feature spotlight with usage examples
 - [x] TROUBLESHOOTING.md: Comprehensive troubleshooting guide
-- [x] CHANGELOG.md: Complete v5.26.0 documentation
+- [x] CHANGELOG.md: Complete v5.26.0 and v5.36.0 documentation
 - [x] TICKET-016 reports: 5 comprehensive testing/fix documents (10,000+ lines)
+- [x] TESTING_SPEC.md: Formal test specification with 34 test cases (v5.36.0)
+- [x] TEST_IMPLEMENTATION_CHECKLIST.md: Implementation status and quick wins (v5.36.0)
 
 **Combined Impact:** ~20-25 hours saved per regulatory submission project
+
+---
+
+## FUTURE ENHANCEMENTS (New Items from v5.36.0 Quality Review)
+
+### High Priority (Blocking Key Workflows)
+
+#### FE-001: Mock-Based Test Suite for change_detector.py
+**Priority:** HIGH
+**Effort:** 4-6 hours
+**Rationale:** change_detector.py currently has specification verification but no automated pytest suite with mocks. Critical path for CI/CD.
+**Scope:**
+- [ ] Create `tests/test_change_detector.py` with mock FDAClient
+- [ ] Cover fingerprint CRUD (create, read, update, delete)
+- [ ] Cover new clearance detection logic
+- [ ] Cover recall monitoring logic
+- [ ] Cover pipeline trigger with dry-run
+- [ ] Cover error handling (API errors, timeouts, missing projects)
+- [ ] Target: 15+ test cases, 90%+ code coverage
+
+#### FE-002: Mock-Based Test Suite for section_analytics.py
+**Priority:** HIGH
+**Effort:** 4-6 hours
+**Rationale:** section_analytics.py has 702 lines of analytical logic with no automated tests. Similarity scoring accuracy is critical for regulatory intelligence.
+**Scope:**
+- [ ] Create `tests/test_section_analytics.py` with fixture data
+- [ ] Cover all 3 similarity methods (sequence, jaccard, cosine)
+- [ ] Cover pairwise similarity matrix computation
+- [ ] Cover temporal trend analysis with linear regression
+- [ ] Cover cross-product comparison
+- [ ] Cover edge cases (empty strings, single device, identical texts)
+- [ ] Target: 15+ test cases, 90%+ code coverage
+
+#### FE-003: Cross-Module `_run_subprocess()` Reuse
+**Priority:** HIGH
+**Effort:** 2-3 hours
+**Rationale:** `_run_subprocess()` in change_detector.py is a well-designed helper that could benefit update_manager.py and other modules that invoke subprocesses.
+**Scope:**
+- [ ] Extract `_run_subprocess()` to a shared utility module (e.g., `scripts/subprocess_utils.py`)
+- [ ] Update change_detector.py to import from shared module
+- [ ] Update update_manager.py subprocess calls to use shared helper
+- [ ] Update any other modules with subprocess patterns
+- [ ] Ensure backward compatibility (no behavioral changes)
+
+---
+
+### Medium Priority (Quality of Life Improvements)
+
+#### FE-004: Fingerprint Diff Reporting
+**Priority:** MEDIUM
+**Effort:** 4-6 hours
+**Rationale:** change_detector.py detects new clearances but does not report changes to existing devices (e.g., decision date corrections, applicant name updates).
+**Scope:**
+- [ ] Add field-level diff for existing K-numbers in fingerprint comparison
+- [ ] Report changed fields with before/after values
+- [ ] Add `--diff-report` flag to CLI
+- [ ] Generate markdown diff report
+- [ ] Include in smart update summary output
+
+#### FE-005: Similarity Score Caching
+**Priority:** MEDIUM
+**Effort:** 3-4 hours
+**Rationale:** Pairwise similarity computation is O(n^2) and can be slow for large datasets (100+ devices). Caching computed scores would improve repeat analysis performance.
+**Scope:**
+- [ ] Add disk-based cache for computed similarity matrices
+- [ ] Cache key: section_type + method + device set hash
+- [ ] TTL: 7 days (matches structured cache TTL)
+- [ ] Add `--no-cache` flag to force recomputation
+- [ ] Estimate: 30x speedup for cached queries
+
+#### FE-006: Progress Callbacks for Long-Running Computations
+**Priority:** MEDIUM
+**Effort:** 2-3 hours
+**Rationale:** `pairwise_similarity_matrix()` and `cross_product_compare()` can take minutes for large datasets with no progress indication.
+**Scope:**
+- [ ] Add optional `progress_callback` parameter to analytics functions
+- [ ] Implement simple progress bar for CLI usage
+- [ ] Report pairs_computed/total_pairs and ETA
+- [ ] Works with both interactive and programmatic usage
+
+#### FE-007: Enhanced Trend Visualization
+**Priority:** MEDIUM
+**Effort:** 3-5 hours
+**Rationale:** Temporal trend data is returned as JSON but has no visual representation. Simple ASCII or HTML charts would improve usability.
+**Scope:**
+- [ ] Add ASCII trend charts to markdown reports
+- [ ] Optional HTML chart generation (inline SVG, no external dependencies)
+- [ ] Show coverage and length trends side-by-side
+- [ ] Highlight significant trend changes (slope > 5%)
+
+---
+
+### Low Priority (Nice-to-Have Enhancements)
+
+#### FE-008: SQLite Fingerprint Storage Migration
+**Priority:** LOW
+**Effort:** 4-6 hours
+**Rationale:** Current JSON-based fingerprint storage in data_manifest.json works for ~50 product codes per project but would benefit from SQLite for larger scale.
+**Scope:**
+- [ ] Create `fingerprints.db` alongside data_manifest.json
+- [ ] Implement key-value table (product_code TEXT PK, data JSON)
+- [ ] Add automatic migration from JSON to SQLite
+- [ ] Keep data_manifest.json as authoritative for non-fingerprint data
+- [ ] Only pursue if usage exceeds 100+ product codes per project
+
+#### FE-009: Similarity Method Auto-Selection
+**Priority:** LOW
+**Effort:** 2-3 hours
+**Rationale:** Users must choose between sequence/jaccard/cosine methods. An auto-selection based on text characteristics would simplify usage.
+**Scope:**
+- [ ] Analyze text length and vocabulary diversity
+- [ ] Short texts (<100 words): recommend jaccard
+- [ ] Long structured texts: recommend sequence
+- [ ] Mixed-length comparison: recommend cosine
+- [ ] Add `--method auto` option
+
+#### FE-010: Batch Smart Detection Across All Projects
+**Priority:** LOW
+**Effort:** 3-4 hours
+**Rationale:** Smart detection currently operates per-project. A batch mode scanning all projects would help users managing 10+ projects.
+**Scope:**
+- [ ] Add `--smart --all-projects` mode to update_manager.py
+- [ ] Aggregate changes across all projects
+- [ ] Generate consolidated change summary report
+- [ ] Rate-limit across projects (not per-project)
 
 ---
 
 ## NOTES
 
 ### Version Management
-- Current version: **5.28.0** (Pre-Sub Multi-Pathway - TICKET-004 COMPLETE)
-- Previous version: **5.27.0** (Pre-Sub eSTAR/PreSTAR XML complete - TICKET-001)
-- Next version: **6.0.0** (if TICKET-003 PMA Intelligence Module completes - major feature)
-- PMA version: **6.0.0** (TICKET-003 Phase 0-3, 220-300 hours)
+- Current version: **5.36.0** (Smart Auto-Update + Section Analytics, v5.36.0)
+- Previous version: **5.35.0** (TICKET-003 Phase 5 - Real-time Data Pipelines, v5.35.0)
+- PMA Module: **COMPLETE** (v5.29.0-v5.35.0, Phases 0-5)
+- Pre-Sub: **COMPLETE** (v5.25.0-v5.28.0, TICKET-001 + TICKET-004)
+- Next version: TBD (future enhancements FE-001 through FE-010)
 
 ### Testing Requirements
-- Unit tests: ≥90% coverage for new code
+- Unit tests: >=90% coverage for new code
 - Integration tests: End-to-end workflows
 - Compliance tests: FDA schema validation for XML outputs
 - User acceptance: Beta testing with RA professionals
+- Formal test specifications: TESTING_SPEC.md for new features
 
 ### Documentation Requirements
 - User guides for each new command
@@ -1069,10 +1244,11 @@ TICKET-004 (Pre-Sub Multi-Pathway) -- COMPLETE (v5.28.0)
 - Compliance disclaimers
 - Example workflows
 - Troubleshooting guides
+- Test specifications for all new modules
 
 ---
 
 **Total Project Scope:** 850-1,150 hours across all pathways
-**Critical Path:** TICKET-001 (COMPLETE) | TICKET-004 (COMPLETE, v5.28.0) | TICKET-003 (READY)
-**Next Action:** TICKET-003 Phase 0 (PMA Intelligence Module, 220-300 hours, 10 weeks)
-**PMA Path:** TICKET-003 Phase 0 ready to start (unblocked by TICKET-002 CONDITIONAL GO)
+**Critical Path:** TICKET-001 (COMPLETE) | TICKET-004 (COMPLETE, v5.28.0) | TICKET-003 (COMPLETE, v5.29.0-v5.35.0) | Smart Auto-Update + Section Analytics (COMPLETE, v5.36.0)
+**Next Action:** FE-001 and FE-002 (Automated test suites for change_detector.py and section_analytics.py, 8-12 hours combined)
+**Future Enhancements:** FE-001 through FE-010 (30-45 hours total, see FUTURE ENHANCEMENTS section above)

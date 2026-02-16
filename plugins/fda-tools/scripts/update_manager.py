@@ -11,6 +11,8 @@ Usage:
     python3 update_manager.py --update-all                  # Update all stale data across projects
     python3 update_manager.py --clean-cache                 # Remove expired API cache files
     python3 update_manager.py --dry-run --update-all        # Preview updates without executing
+    python3 update_manager.py --smart --project NAME        # Smart detection: find new clearances
+    python3 update_manager.py --smart --project NAME --dry-run  # Preview smart detection changes
 
 Features:
     - Batch freshness checking across multiple projects
@@ -18,6 +20,7 @@ Features:
     - Dry-run mode for preview without execution
     - Integration with existing is_expired() and TTL_TIERS
     - System cache cleanup for expired API responses
+    - Smart change detection: compare live API against fingerprints
 """
 
 import argparse
@@ -40,6 +43,7 @@ from fda_data_store import (
     _extract_summary,
 )
 from fda_api_client import FDAClient
+from change_detector import detect_changes, trigger_pipeline
 
 
 # Rate limiting configuration
@@ -543,6 +547,8 @@ def main():
                         help="Update stale data across all projects")
     parser.add_argument("--clean-cache", action="store_true", dest="clean_cache",
                         help="Remove expired files from system API cache")
+    parser.add_argument("--smart", action="store_true",
+                        help="Smart change detection: compare live API against fingerprints")
     parser.add_argument("--dry-run", action="store_true", dest="dry_run",
                         help="Preview updates without executing")
     parser.add_argument("--quiet", action="store_true",
@@ -573,6 +579,77 @@ def main():
         results = clean_system_cache(verbose=verbose)
         if not verbose:
             print(json.dumps(results, indent=2))
+
+    elif args.smart:
+        # Smart change detection mode
+        if not args.project:
+            # Smart mode on all projects
+            projects = find_all_projects()
+            if not projects:
+                if verbose:
+                    print("No projects found. Create a project first with /fda-tools:extract.")
+                sys.exit(0)
+
+            all_results = {}
+            total_new = 0
+            client = FDAClient()
+
+            for project_name, project_dir, manifest_path in projects:
+                result = detect_changes(project_name, client=client, verbose=verbose)
+                all_results[project_name] = result
+                total_new += result.get("total_new_clearances", 0)
+
+            if verbose:
+                print()
+                print("=" * 60)
+                print(f"Smart Detection Summary: {total_new} new clearance(s) across {len(projects)} project(s)")
+                print("=" * 60)
+
+                if total_new > 0 and not args.dry_run:
+                    print()
+                    print("To trigger pipeline for new clearances, re-run with --smart --project NAME")
+                    print("or use change_detector.py --project NAME --trigger")
+            else:
+                print(json.dumps(all_results, indent=2))
+        else:
+            # Smart mode on a specific project
+            client = FDAClient()
+            result = detect_changes(args.project, client=client, verbose=verbose)
+
+            if not verbose:
+                print(json.dumps(result, indent=2))
+            else:
+                changes = result.get("changes", [])
+                total_new = result.get("total_new_clearances", 0)
+
+                print()
+                print("=" * 60)
+                print(f"Smart Detection: {args.project}")
+                print("=" * 60)
+                print(f"Product codes checked: {result.get('product_codes_checked', 0)}")
+                print(f"New clearances: {total_new}")
+                print(f"New recalls: {result.get('total_new_recalls', 0)}")
+
+                if total_new > 0:
+                    print()
+                    # Show change details
+                    for change in changes:
+                        if change.get("change_type") == "new_clearances":
+                            pc = change.get("product_code", "")
+                            print(f"  {pc}: {change.get('count', 0)} new clearance(s)")
+                            for item in change.get("new_items", [])[:5]:
+                                k = item.get("k_number", "")
+                                name = item.get("device_name", "")[:50]
+                                print(f"    - {k}: {name}")
+                            if len(change.get("new_items", [])) > 5:
+                                print(f"    ... and {len(change['new_items']) - 5} more")
+
+                    if not args.dry_run:
+                        print()
+                        print("Trigger pipeline for new clearances? (Use --smart --project NAME in change_detector.py --trigger)")
+                    else:
+                        print()
+                        print("DRY RUN: No pipeline triggered. Remove --dry-run to execute.")
 
     else:
         parser.print_help()

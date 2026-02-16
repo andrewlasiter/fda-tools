@@ -1,7 +1,7 @@
 ---
 description: Scan and update stale FDA data across projects
 allowed-tools: [Bash, Read, AskUserQuestion]
-argument-hint: "[--project NAME | --all-projects | --system-cache | --dry-run | --force]"
+argument-hint: "[--project NAME | --all-projects | --system-cache | --smart | --dry-run | --force]"
 ---
 
 # FDA Data Update Manager
@@ -23,6 +23,7 @@ Parse user arguments to determine the operation mode:
 - `--project NAME`: Operate on a specific project only
 - `--all-projects`: Operate on all projects with stale data
 - `--system-cache`: Clean expired files from the system API cache (~/.fda-510k-data/api_cache/)
+- `--smart`: Smart change detection mode -- compare live API against stored fingerprints to find new clearances and recalls (see Mode E)
 - `--dry-run`: Preview updates without executing (show what would be updated)
 - `--force`: Skip confirmation prompts (use with caution)
 
@@ -172,6 +173,120 @@ args = parse_arguments(user_input)
    ✅ Removed 47 expired files (125.43 MB freed)
    ```
 
+#### Mode E: Smart Change Detection
+
+Smart detection goes beyond TTL-based staleness checking. Instead of simply refreshing expired queries, it compares live FDA data against stored "fingerprints" to detect genuinely new data -- new 510(k) clearances, new recalls, and count changes.
+
+**Concept: Fingerprints**
+
+A fingerprint is a compact snapshot of what was known at the last check. It is stored in `data_manifest.json` under the `"fingerprints"` key:
+
+```json
+{
+  "fingerprints": {
+    "DQY": {
+      "last_checked": "2026-02-16T10:00:00+00:00",
+      "clearance_count": 147,
+      "latest_k_number": "K251234",
+      "latest_decision_date": "20260115",
+      "recall_count": 3,
+      "known_k_numbers": ["K251234", "K250987", "..."]
+    }
+  }
+}
+```
+
+When `--smart` runs, it queries the live FDA API and compares against the fingerprint to identify new K-numbers and recalls that were not previously known.
+
+**Workflow:**
+
+1. If `--smart` specified (optionally with `--project NAME`):
+   - Query live FDA API for each tracked product code
+   - Compare current clearances/recalls against stored fingerprints
+   - Report new items found
+
+2. Command sequence:
+   ```bash
+   # Smart detection for a specific project
+   python3 plugins/fda-tools/scripts/update_manager.py --smart --project NAME
+
+   # Smart detection for all projects
+   python3 plugins/fda-tools/scripts/update_manager.py --smart
+
+   # Dry-run: preview what would be detected
+   python3 plugins/fda-tools/scripts/update_manager.py --smart --project NAME --dry-run
+   ```
+
+3. Show results:
+   ```
+   Checking 2 product code(s) for project 'DQY_catheter_analysis'...
+     [1/2] Checking DQY... 3 new clearance(s) found
+     [2/2] Checking OVE... no changes
+
+   ============================================================
+   Smart Detection: DQY_catheter_analysis
+   ============================================================
+   Product codes checked: 2
+   New clearances: 3
+   New recalls: 0
+
+     DQY: 3 new clearance(s)
+       - K261001: Acme Vascular Catheter (20260210)
+       - K261002: Beta Flow Catheter (20260205)
+       - K261003: Gamma Access Catheter (20260201)
+   ```
+
+4. After detection, ask user if they want to trigger the pipeline:
+   ```json
+   {
+     "questions": [
+       {
+         "question": "3 new clearances found for DQY. What would you like to do?",
+         "header": "Smart Detection Results",
+         "multiSelect": false,
+         "options": [
+           {
+             "label": "Trigger pipeline (download + extract)",
+             "description": "Run batchfetch and build_structured_cache for new K-numbers"
+           },
+           {
+             "label": "View details only",
+             "description": "Show full details of new clearances without processing"
+           },
+           {
+             "label": "Done",
+             "description": "Fingerprints updated, no further action"
+           }
+         ]
+       }
+     ]
+   }
+   ```
+
+5. If user selects "Trigger pipeline", run:
+   ```bash
+   python3 plugins/fda-tools/scripts/change_detector.py --project NAME --trigger
+   ```
+
+**First-Time Usage:**
+
+On the first `--smart` run for a project, the system creates a baseline fingerprint from the current API state. No changes will be detected because there is no previous state to compare against. The message will indicate "baseline created."
+
+On subsequent runs, the system will detect any new clearances or recalls that appeared since the last check.
+
+**Integration with change_detector.py:**
+
+The `--smart` flag in `update_manager.py` calls `change_detector.detect_changes()` which handles:
+- Loading/saving fingerprints from `data_manifest.json`
+- Querying the FDA API for current clearance and recall counts
+- Comparing against stored known K-numbers
+- Updating fingerprints after each check
+
+For pipeline triggering (downloading new PDFs and building structured cache), use `change_detector.trigger_pipeline()` or the standalone CLI:
+```bash
+python3 plugins/fda-tools/scripts/change_detector.py --project NAME --trigger
+```
+
 ## User Interaction Patterns
 
 ### Pattern 1: First-Time User (No Arguments)
@@ -212,6 +327,27 @@ User types: `/fda-tools:update-data --all-projects --force`
 1. Run update immediately without confirmation
 2. Show progress and results
 3. Report final status
+
+### Pattern 5: Smart Detection (New Clearances)
+
+User types: `/fda-tools:update-data --smart --project DQY_catheter_analysis`
+
+**Your response:**
+1. Run smart change detection for the project
+2. Show summary of new clearances and recalls detected
+3. If new items found, ask via AskUserQuestion whether to trigger pipeline
+4. If user confirms, trigger batchfetch + structured cache build
+5. Report final status including newly processed K-numbers
+
+### Pattern 6: Smart Detection (All Projects)
+
+User types: `/fda-tools:update-data --smart`
+
+**Your response:**
+1. Run smart change detection across all projects
+2. Show per-project summary of changes
+3. Show overall totals
+4. For projects with changes, suggest running `--smart --project NAME` for pipeline trigger
 
 ## Error Handling
 
@@ -360,9 +496,10 @@ If user selects "Update specific project", follow up with another question listi
 **Dependencies:**
 - Imports `fda_data_store.py` for `is_expired()`, `TTL_TIERS`, `load_manifest()`, `save_manifest()`
 - Imports `fda_api_client.py` for `FDAClient` and API retry logic
+- Imports `change_detector.py` for `detect_changes()`, `trigger_pipeline()` (smart mode)
 - Uses existing cache in `~/fda-510k-data/api_cache/`
 
-**Manifest Updates:** The script updates `data_manifest.json` files directly using the same logic as `fda_data_store.py`.
+**Manifest Updates:** The script updates `data_manifest.json` files directly using the same logic as `fda_data_store.py`. Smart mode also writes fingerprints to `data_manifest.json` under the `"fingerprints"` key.
 
 ## Example User Sessions
 

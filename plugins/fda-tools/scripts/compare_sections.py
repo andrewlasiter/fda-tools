@@ -10,6 +10,7 @@ Usage:
     python3 compare_sections.py --product-code DQY --sections clinical,biocompatibility
     python3 compare_sections.py --product-code OVE --sections all --years 2020-2025
     python3 compare_sections.py --product-code DQY --sections performance --limit 30 --output report.md
+    python3 compare_sections.py --product-codes DQY,OVE --sections clinical --similarity --trends
 
 Features:
     - Multi-device section extraction from structured cache
@@ -17,6 +18,9 @@ Features:
     - FDA standards frequency analysis (ISO/IEC/ASTM citations)
     - Statistical outlier detection (Z-score analysis)
     - Markdown report + CSV export for regulatory review
+    - Cross-product-code comparison (--product-codes with multiple codes)
+    - Text similarity analysis (--similarity)
+    - Temporal trend analysis (--trends)
 """
 
 import argparse
@@ -24,6 +28,7 @@ import json
 import os
 import re
 import statistics
+import subprocess
 import sys
 from collections import Counter, defaultdict
 from datetime import datetime
@@ -33,6 +38,12 @@ from typing import Dict, List, Optional
 # Import section patterns from build_structured_cache
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build_structured_cache import SECTION_PATTERNS
+from section_analytics import (
+    compute_similarity,
+    pairwise_similarity_matrix,
+    analyze_temporal_trends,
+    cross_product_compare,
+)
 
 
 # Section type mapping for user-friendly names
@@ -557,6 +568,179 @@ def generate_markdown_report(product_code: str, section_types: List[str],
         f.write("**Note:** This analysis is for regulatory intelligence only. Always verify standards applicability with current FDA guidance.\n")
 
 
+def append_similarity_section(output_path: str, similarity_results: Dict):
+    """Append similarity analysis section to the markdown report.
+
+    Args:
+        output_path: Path to existing markdown report.
+        similarity_results: Output from pairwise_similarity_matrix().
+    """
+    with open(output_path, 'a') as f:
+        f.write("\n---\n\n")
+        f.write("## 5. Text Similarity Analysis\n\n")
+
+        section_type = similarity_results.get("section_type", "")
+        method = similarity_results.get("method", "")
+        stats = similarity_results.get("statistics", {})
+        n_devices = similarity_results.get("devices_compared", 0)
+        n_pairs = similarity_results.get("pairs_computed", 0)
+
+        f.write(f"**Section:** {section_type}\n\n")
+        f.write(f"**Method:** {method}\n\n")
+        f.write(f"**Devices compared:** {n_devices} ({n_pairs} pairs)\n\n")
+
+        if n_pairs > 0:
+            f.write("### Similarity Statistics\n\n")
+            f.write("| Metric | Value |\n")
+            f.write("|--------|-------|\n")
+            f.write(f"| Mean | {stats.get('mean', 0):.4f} |\n")
+            f.write(f"| Median | {stats.get('median', 0):.4f} |\n")
+            f.write(f"| Min | {stats.get('min', 0):.4f} |\n")
+            f.write(f"| Max | {stats.get('max', 0):.4f} |\n")
+            f.write(f"| Std Dev | {stats.get('stdev', 0):.4f} |\n")
+            f.write("\n")
+
+            most = similarity_results.get("most_similar_pair")
+            least = similarity_results.get("least_similar_pair")
+
+            if most:
+                f.write(f"**Most similar pair:** {most['devices'][0]} & {most['devices'][1]} ")
+                f.write(f"(score: {most['score']:.4f})\n\n")
+            if least:
+                f.write(f"**Least similar pair:** {least['devices'][0]} & {least['devices'][1]} ")
+                f.write(f"(score: {least['score']:.4f})\n\n")
+
+            # Interpret results
+            mean_val = stats.get("mean", 0)
+            f.write("### Interpretation\n\n")
+            if mean_val > 0.8:
+                f.write("- **High similarity** across devices. Sections follow a consistent structure.\n")
+                f.write("- Strategy: Follow established patterns closely.\n")
+            elif mean_val > 0.5:
+                f.write("- **Moderate similarity** across devices. Some variation in approach.\n")
+                f.write("- Strategy: Align with common patterns while differentiating where appropriate.\n")
+            else:
+                f.write("- **Low similarity** across devices. High variation in section content.\n")
+                f.write("- Strategy: Review multiple approaches and choose the most thorough.\n")
+            f.write("\n")
+        else:
+            f.write("*Insufficient data for similarity analysis (need at least 2 devices)*\n\n")
+
+
+def append_trends_section(output_path: str, trends_results: Dict):
+    """Append temporal trends section to the markdown report.
+
+    Args:
+        output_path: Path to existing markdown report.
+        trends_results: Output from analyze_temporal_trends().
+    """
+    with open(output_path, 'a') as f:
+        f.write("\n---\n\n")
+        f.write("## 6. Temporal Trend Analysis\n\n")
+
+        year_range = trends_results.get("year_range", {})
+        f.write(f"**Year range:** {year_range.get('start', '?')} - {year_range.get('end', '?')}\n\n")
+        f.write(f"**Total devices:** {trends_results.get('total_devices', 0)}\n\n")
+
+        trends = trends_results.get("trends", {})
+        if not trends:
+            f.write("*No temporal data available*\n\n")
+            return
+
+        for section_type, section_trends in trends.items():
+            f.write(f"### {section_type}\n\n")
+
+            # Coverage trend
+            coverage = section_trends.get("coverage_trend", {})
+            direction = coverage.get("direction", "unknown")
+            r_sq = coverage.get("r_squared", 0)
+            f.write(f"**Coverage trend:** {direction}")
+            if direction not in ("insufficient_data",):
+                f.write(f" (R2={r_sq:.3f}, slope={coverage.get('slope', 0):.2f})")
+            f.write("\n\n")
+
+            # Length trend
+            length = section_trends.get("length_trend", {})
+            l_direction = length.get("direction", "unknown")
+            f.write(f"**Section length trend:** {l_direction}")
+            if l_direction not in ("insufficient_data",):
+                f.write(f" (R2={length.get('r_squared', 0):.3f})")
+            f.write("\n\n")
+
+            # Year-by-year table
+            by_year = section_trends.get("by_year", {})
+            if by_year:
+                f.write("| Year | Devices | Coverage % | Avg Words | Standards |\n")
+                f.write("|------|---------|------------|-----------|----------|\n")
+                for year in sorted(by_year.keys()):
+                    yd = by_year[year]
+                    f.write(
+                        f"| {year} | {yd.get('device_count', 0)} "
+                        f"| {yd.get('coverage_pct', 0):.1f}% "
+                        f"| {yd.get('avg_word_count', 0):.0f} "
+                        f"| {yd.get('standards_count', 0)} |\n"
+                    )
+                f.write("\n")
+
+
+def append_cross_product_section(output_path: str, cross_results: Dict):
+    """Append cross-product comparison section to the markdown report.
+
+    Args:
+        output_path: Path to existing markdown report.
+        cross_results: Output from cross_product_compare().
+    """
+    with open(output_path, 'a') as f:
+        f.write("\n---\n\n")
+        f.write("## 7. Cross-Product Code Comparison\n\n")
+
+        product_codes = cross_results.get("product_codes", [])
+        f.write(f"**Product codes compared:** {', '.join(product_codes)}\n\n")
+
+        comparison = cross_results.get("comparison", {})
+        if not comparison:
+            f.write("*No cross-product comparison data available*\n\n")
+            return
+
+        for section_type, by_code in comparison.items():
+            f.write(f"### {section_type}\n\n")
+            f.write("| Product Code | Devices | Coverage % | Avg Words | Top Standard |\n")
+            f.write("|-------------|---------|------------|-----------|-------------|\n")
+
+            for pc, data in sorted(by_code.items()):
+                top_std = ""
+                top_stds = data.get("top_standards", [])
+                if top_stds:
+                    top_std = f"{top_stds[0][0]} ({top_stds[0][1]})"
+
+                f.write(
+                    f"| {pc} "
+                    f"| {data.get('device_count', 0)} "
+                    f"| {data.get('coverage_pct', 0):.1f}% "
+                    f"| {data.get('avg_word_count', 0):.0f} "
+                    f"| {top_std} |\n"
+                )
+            f.write("\n")
+
+        # Summary
+        summary = cross_results.get("summary", {})
+        highest = summary.get("highest_coverage", {})
+        longest = summary.get("longest_sections", {})
+
+        if highest:
+            f.write("### Summary\n\n")
+            f.write("**Highest coverage by section:**\n\n")
+            for section_type, pc in highest.items():
+                f.write(f"- {section_type}: **{pc}**\n")
+            f.write("\n")
+
+        if longest:
+            f.write("**Longest sections by section:**\n\n")
+            for section_type, pc in longest.items():
+                f.write(f"- {section_type}: **{pc}**\n")
+            f.write("\n")
+
+
 def generate_csv_export(_product_code: str, section_types: List[str],
                        section_data: Dict, output_path: str):
     """Generate CSV export for structured data analysis.
@@ -625,8 +809,10 @@ def main():
     parser = argparse.ArgumentParser(
         description="FDA 510(k) Section Comparison Tool"
     )
-    parser.add_argument("--product-code", required=True,
+    parser.add_argument("--product-code",
                         help="FDA product code (e.g., DQY, OVE)")
+    parser.add_argument("--product-codes", dest="product_codes",
+                        help="Multiple product codes for cross-comparison (e.g., DQY,OVE,GEI)")
     parser.add_argument("--sections", required=True,
                         help="Comma-separated section types or 'all' (e.g., clinical,biocompat,performance)")
     parser.add_argument("--years",
@@ -637,11 +823,25 @@ def main():
                         help="Output file path (defaults to product_code_comparison_TIMESTAMP.md)")
     parser.add_argument("--csv", action="store_true",
                         help="Also generate CSV export")
+    parser.add_argument("--similarity", action="store_true",
+                        help="Compute pairwise text similarity for each section type")
+    parser.add_argument("--similarity-method", dest="similarity_method",
+                        default="cosine", choices=["sequence", "jaccard", "cosine"],
+                        help="Similarity method (default: cosine)")
+    parser.add_argument("--similarity-sample", dest="similarity_sample", type=int,
+                        default=30,
+                        help="Max devices for similarity matrix (default: 30, for performance)")
+    parser.add_argument("--trends", action="store_true",
+                        help="Analyze year-over-year temporal trends")
     parser.add_argument("--quiet", action="store_true",
                         help="Minimal output (for scripting)")
 
     args = parser.parse_args()
     verbose = not args.quiet
+
+    # Validate: need at least one of --product-code or --product-codes
+    if not args.product_code and not args.product_codes:
+        parser.error("--product-code or --product-codes is required")
 
     # Parse sections
     if args.sections.lower() == 'all':
@@ -674,22 +874,57 @@ def main():
             print(f"❌ Error: Invalid year format '{args.years}'. Use YYYY or YYYY-YYYY")
             sys.exit(1)
 
-    # Load structured cache
+    # Determine product codes to process
+    multi_code_mode = bool(args.product_codes)
+    if multi_code_mode:
+        all_product_codes = [pc.strip().upper() for pc in args.product_codes.split(",") if pc.strip()]
+        primary_product_code = all_product_codes[0]  # Use first for single-code operations
+    else:
+        primary_product_code = args.product_code.upper()
+        all_product_codes = [primary_product_code]
+
+    # Load structured cache (with auto-build if empty)
     if verbose:
-        print("📂 Loading structured cache...")
+        print("Loading structured cache...")
 
     cache = load_structured_cache()
     if not cache:
-        print("❌ Error: No structured cache found. Run build_structured_cache.py first.")
-        sys.exit(1)
+        # Attempt auto-build
+        build_script = Path(__file__).resolve().parent / "build_structured_cache.py"
+        cache_dir = Path(os.path.expanduser("~/fda-510k-data/extraction/cache"))
+        if build_script.exists() and cache_dir.exists():
+            if verbose:
+                print("No structured cache found. Auto-building from extraction cache...")
+            try:
+                subprocess.run(
+                    [sys.executable, str(build_script), "--cache-dir", str(cache_dir)],
+                    capture_output=True, text=True, timeout=300,
+                    cwd=str(build_script.parent),
+                )
+                cache = load_structured_cache()
+            except subprocess.TimeoutExpired:
+                if verbose:
+                    print("Auto-build timed out after 300 seconds.")
+                    print("  Suggestion: Check that extraction cache files exist in "
+                          f"{cache_dir} and try running build_structured_cache.py manually.")
+            except OSError as e:
+                if verbose:
+                    print(f"Auto-build failed: {e}")
 
-    # Filter by product code
+        if not cache:
+            print("Error: No structured cache found. Run build_structured_cache.py first.")
+            sys.exit(1)
+
+    # Store full cache for cross-product comparison if needed
+    full_cache = cache if multi_code_mode else None
+
+    # Filter by product code (use primary for single-code analysis)
     if verbose:
-        print(f"🔍 Filtering by product code: {args.product_code}")
+        print(f"Filtering by product code: {primary_product_code}")
 
-    cache = filter_by_product_code(cache, args.product_code)
+    cache = filter_by_product_code(cache, primary_product_code)
     if not cache:
-        print(f"❌ Error: No devices found for product code {args.product_code}")
+        print(f"Error: No devices found for product code {primary_product_code}")
         sys.exit(1)
 
     # Filter by year range
@@ -732,21 +967,22 @@ def main():
     outliers = detect_outliers(section_data, section_types)
 
     # Generate output path
+    code_label = ",".join(all_product_codes) if multi_code_mode else primary_product_code
     if not args.output:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_dir = Path(os.path.expanduser(f"~/fda-510k-data/projects/section_comparison_{args.product_code}_{timestamp}"))
+        output_dir = Path(os.path.expanduser(f"~/fda-510k-data/projects/section_comparison_{primary_product_code}_{timestamp}"))
         output_dir.mkdir(parents=True, exist_ok=True)
-        output_path = output_dir / f"{args.product_code}_comparison.md"
+        output_path = output_dir / f"{primary_product_code}_comparison.md"
     else:
         output_path = Path(args.output)
         output_dir = output_path.parent
         output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Generate markdown report
+    # Generate markdown report (base report)
     if verbose:
-        print(f"📄 Writing markdown report to {output_path}...")
+        print(f"Writing markdown report to {output_path}...")
     generate_markdown_report(
-        args.product_code,
+        primary_product_code,
         section_types,
         section_data,
         coverage,
@@ -755,23 +991,85 @@ def main():
         str(output_path)
     )
 
+    # --- Extended analytics ---
+
+    # Similarity analysis
+    similarity_results = {}
+    if args.similarity:
+        if verbose:
+            print(f"Computing text similarity (method: {args.similarity_method}, "
+                  f"sample: {args.similarity_sample})...")
+        for section_type in section_types:
+            sim_result = pairwise_similarity_matrix(
+                section_data,
+                section_type,
+                method=args.similarity_method,
+                sample_size=args.similarity_sample,
+            )
+            similarity_results[section_type] = sim_result
+
+            if sim_result.get("pairs_computed", 0) > 0:
+                append_similarity_section(str(output_path), sim_result)
+                if verbose:
+                    stats = sim_result.get("statistics", {})
+                    print(f"  {section_type}: mean={stats.get('mean', 0):.3f}, "
+                          f"stdev={stats.get('stdev', 0):.3f}, "
+                          f"pairs={sim_result.get('pairs_computed', 0)}")
+
+    # Temporal trends
+    trends_results = {}
+    if args.trends:
+        if verbose:
+            print("Analyzing temporal trends...")
+        trends_results = analyze_temporal_trends(section_data, section_types)
+        append_trends_section(str(output_path), trends_results)
+
+        if verbose:
+            for section_type, st in trends_results.get("trends", {}).items():
+                cov = st.get("coverage_trend", {})
+                print(f"  {section_type}: coverage {cov.get('direction', '?')} "
+                      f"(R2={cov.get('r_squared', 0):.3f})")
+
+    # Cross-product comparison
+    cross_results = {}
+    if multi_code_mode and full_cache:
+        if verbose:
+            print(f"Running cross-product comparison: {', '.join(all_product_codes)}...")
+        cross_results = cross_product_compare(
+            all_product_codes, section_types, full_cache
+        )
+        append_cross_product_section(str(output_path), cross_results)
+
+        if verbose:
+            for section_type, by_code in cross_results.get("comparison", {}).items():
+                parts = []
+                for pc, data in by_code.items():
+                    parts.append(f"{pc}={data.get('coverage_pct', 0):.0f}%")
+                print(f"  {section_type}: {', '.join(parts)}")
+
     # Generate CSV if requested
     csv_path = None
     if args.csv:
         csv_path = output_path.with_suffix('.csv')
         if verbose:
-            print(f"💾 Writing CSV export to {csv_path}...")
-        generate_csv_export(args.product_code, section_types, section_data, str(csv_path))
+            print(f"Writing CSV export to {csv_path}...")
+        generate_csv_export(primary_product_code, section_types, section_data, str(csv_path))
 
     # Print summary
     if verbose:
         print("\n" + "=" * 60)
-        print("✅ Analysis Complete!")
+        print("Analysis Complete!")
         print("=" * 60)
         print(f"Devices analyzed: {len(section_data)}")
         print(f"Sections analyzed: {len(section_types)}")
         print(f"Standards identified: {len(standards_analysis['overall_standards'])}")
         print(f"Outliers detected: {len(outliers)}")
+        if args.similarity:
+            print(f"Similarity computed: {sum(r.get('pairs_computed', 0) for r in similarity_results.values())} pairs")
+        if args.trends:
+            print(f"Trend analysis: {len(trends_results.get('trends', {}))} section(s)")
+        if multi_code_mode:
+            print(f"Cross-product codes: {', '.join(all_product_codes)}")
         print(f"\nReport: {output_path}")
         if csv_path:
             print(f"CSV: {csv_path}")
@@ -786,6 +1084,22 @@ def main():
         }
         if csv_path:
             result['csv_path'] = str(csv_path)
+        if args.similarity:
+            result['similarity'] = {
+                st: {
+                    'mean': r.get('statistics', {}).get('mean', 0),
+                    'stdev': r.get('statistics', {}).get('stdev', 0),
+                    'pairs': r.get('pairs_computed', 0),
+                }
+                for st, r in similarity_results.items()
+            }
+        if args.trends:
+            result['trends'] = {
+                st: t.get('coverage_trend', {}).get('direction', 'unknown')
+                for st, t in trends_results.get('trends', {}).items()
+            }
+        if multi_code_mode:
+            result['cross_product_codes'] = all_product_codes
         print(json.dumps(result, indent=2))
 
 

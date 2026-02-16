@@ -1,0 +1,115 @@
+{
+  "K241001": {
+    "decision_date": "20240315",
+    "sections": {
+      "clinical_testing": {
+        "text": "Clinical testing per ISO 10993-5 cytotoxicity was performed on the device materials. The testing included in vitro cytotoxicity assays, sensitization studies per ISO 10993-10, and irritation evaluations. All results demonstrated biocompatibility within acceptable limits as defined by the referenced standards. The device components were tested in direct and indirect contact configurations to evaluate potential cytotoxic effects on cell cultures.",
+        "word_count": 250,
+        "standards": ["ISO 10993-5", "ISO 10993-10"]
+      },
+      "biocompatibility": {
+        "text": "Biocompatibility was evaluated per ISO 10993-1 risk assessment framework. A biological evaluation plan was developed to identify potential hazards associated with the device materials. Testing included cytotoxicity, sensitization, and irritation endpoints based on the nature and duration of body contact.",
+        "word_count": 180,
+        "standards": ["ISO 10993-1"]
+      }
+    },
+    "metadata": {"product_code": "DQY"}
+  },
+  "K241002": {
+    "decision_date": "20240601",
+    "sections": {
+      "clinical_testing": {
+        "text": "Clinical evaluation included ISO 10993-5 cytotoxicity and ISO 10993-10 sensitization testing. Additional genotoxicity testing was performed per ISO 10993-3 to assess mutagenic potential. The comprehensive testing battery demonstrated that the device materials do not elicit adverse biological responses when used as intended. Supplementary implantation testing per ISO 10993-6 confirmed tissue compatibility for long-term implantation applications.",
+        "word_count": 300,
+        "standards": ["ISO 10993-5", "ISO 10993-10", "ISO 10993-3", "ISO 10993-6"]
+      }
+    },
+    "metadata": {"product_code": "DQY"}
+  },
+  "K241003": {
+    "decision_date": "20240815",
+    "sections": {
+      "clinical_testing": {
+        "text": "Performance testing showed device meets specifications for burst pressure, tensile strength, and torque response. The catheter tip profile was evaluated using dimensional analysis and compared to predicate device specifications. Simulated use testing in anatomical models demonstrated successful navigation through tortuous vasculature.",
+        "word_count": 200,
+        "standards": []
+      },
+      "biocompatibility": {
+        "text": "The device materials are identical to those used in the predicate device and have a well-established history of safe use in cardiovascular applications. A biocompatibility assessment was performed per ISO 10993-1 using the biological evaluation risk-based approach.",
+        "word_count": 150,
+        "standards": ["ISO 10993-1"]
+      }
+    },
+    "metadata": {"product_code": "DQY"}
+  },
+  "K241004": {
+    "decision_date": "20241001",
+    "sections": {
+      "clinical_testing": {
+        "text": "Clinical testing per ISO 10993-5 and ISO 10993-10 was conducted on all patient-contacting materials. Testing included extractable and leachable analysis per ISO 10993-18 to characterize the chemical composition of device extracts. The results confirmed that all materials meet the acceptance criteria for cytotoxicity, sensitization, and chemical characterization.",
+        "word_count": 280,
+        "standards": ["ISO 10993-5", "ISO 10993-10", "ISO 10993-18"]
+      }
+    },
+    "metadata": {"product_code": "DQY"}
+  },
+  "K241005": {
+    "decision_date": "20241115",
+    "sections": {
+      "clinical_testing": {
+        "text": "The device underwent comprehensive biocompatibility testing in accordance with ISO 10993-1 and relevant parts. Cytotoxicity testing per ISO 10993-5 using L929 mouse fibroblast cells demonstrated no cytotoxic response. Sensitization testing per ISO 10993-10 using the Guinea Pig Maximization Test showed no evidence of delayed-type hypersensitivity.",
+        "word_count": 270,
+        "standards": ["ISO 10993-1", "ISO 10993-5", "ISO 10993-10"]
+      },
+      "biocompatibility": {
+        "text": "A comprehensive biological evaluation was conducted per the ISO 10993-1 framework. The evaluation considered the device category (surface device, limited contact), material composition, and manufacturing processes. Based on the risk assessment, cytotoxicity, sensitization, and irritation endpoints were identified as necessary.",
+        "word_count": 200,
+        "standards": ["ISO 10993-1"]
+      }
+    },
+    "metadata": {"product_code": "DQY"}
+  },
+  "K240501": {
+    "decision_date": "20240301",
+    "sections": {
+      "clinical_testing": {
+        "text": "Mechanical testing of the spinal implant system was performed in accordance with ASTM F1717 for spinal implant constructs and ASTM F2077 for intervertebral body fusion devices. Static and dynamic testing demonstrated that the device meets or exceeds the performance requirements. Fatigue testing to 10 million cycles showed no evidence of failure.",
+        "word_count": 400,
+        "standards": ["ASTM F1717", "ASTM F2077"]
+      },
+      "biocompatibility": {
+        "text": "The PEEK and titanium alloy materials used in the implant have well-documented biocompatibility per ISO 10993-1. Additional testing per ISO 10993-5, ISO 10993-10, and ISO 10993-11 confirmed biological safety. Implantation testing per ISO 10993-6 demonstrated favorable tissue response at 12 weeks.",
+        "word_count": 350,
+        "standards": ["ISO 10993-1", "ISO 10993-5", "ISO 10993-10", "ISO 10993-11", "ISO 10993-6"]
+      }
+    },
+    "metadata": {"product_code": "OVE"}
+  },
+  "K240502": {
+    "decision_date": "20240515",
+    "sections": {
+      "clinical_testing": {
+        "text": "The cervical plate system was tested per ASTM F1717 static and fatigue test methods. Compression, tension, and torsion testing confirmed structural integrity. Additionally, testing per ASTM F543 for metallic medical bone screws verified pull-out strength and insertion torque performance.",
+        "word_count": 380,
+        "standards": ["ASTM F1717", "ASTM F543"]
+      }
+    },
+    "metadata": {"product_code": "OVE"}
+  },
+  "K240503": {
+    "decision_date": "20240720",
+    "sections": {
+      "clinical_testing": {
+        "text": "Performance verification testing included static compression per ASTM F2077, dynamic fatigue per ASTM F1717, and subsidence resistance evaluation. MRI safety testing was performed per ASTM F2052 (magnetically induced displacement), ASTM F2213 (magnetically induced torque), and ASTM F2182 (RF heating). The device was determined to be MR Conditional.",
+        "word_count": 420,
+        "standards": ["ASTM F2077", "ASTM F1717", "ASTM F2052", "ASTM F2213", "ASTM F2182"]
+      },
+      "biocompatibility": {
+        "text": "Biocompatibility assessment per ISO 10993-1 confirmed the titanium alloy and PEEK polymer materials are suitable for permanent implant applications. Chemical characterization per ISO 10993-18 was performed to identify extractables.",
+        "word_count": 300,
+        "standards": ["ISO 10993-1", "ISO 10993-18"]
+      }
+    },
+    "metadata": {"product_code": "OVE"}
+  }
+}

@@ -1,0 +1,164 @@
+{
+  "clearances_dqy_5_items": {
+    "meta": {"results": {"total": 149}},
+    "results": [
+      {
+        "k_number": "K261001",
+        "device_name": "Percutaneous Transluminal Coronary Catheter",
+        "applicant": "MedTech Corp",
+        "decision_date": "20260201",
+        "decision_code": "SESE",
+        "clearance_type": "Traditional",
+        "product_code": "DQY"
+      },
+      {
+        "k_number": "K261002",
+        "device_name": "Coronary Catheter System",
+        "applicant": "CardioDevices Inc",
+        "decision_date": "20260115",
+        "decision_code": "SESE",
+        "clearance_type": "Traditional",
+        "product_code": "DQY"
+      },
+      {
+        "k_number": "K241001",
+        "device_name": "Cardiac Catheter Device",
+        "applicant": "HeartTech LLC",
+        "decision_date": "20240315",
+        "decision_code": "SESE",
+        "clearance_type": "Traditional",
+        "product_code": "DQY"
+      },
+      {
+        "k_number": "K241002",
+        "device_name": "PTA Balloon Catheter",
+        "applicant": "VascularMed Inc",
+        "decision_date": "20240601",
+        "decision_code": "SESE",
+        "clearance_type": "Traditional",
+        "product_code": "DQY"
+      },
+      {
+        "k_number": "K241003",
+        "device_name": "Coronary Guidewire Catheter",
+        "applicant": "InterventionPro",
+        "decision_date": "20240815",
+        "decision_code": "SESE",
+        "clearance_type": "Traditional",
+        "product_code": "DQY"
+      }
+    ]
+  },
+  "clearances_stable_2_items": {
+    "meta": {"results": {"total": 2}},
+    "results": [
+      {
+        "k_number": "K241001",
+        "device_name": "Cardiac Catheter Device",
+        "applicant": "HeartTech LLC",
+        "decision_date": "20240315",
+        "decision_code": "SESE",
+        "clearance_type": "Traditional",
+        "product_code": "DQY"
+      },
+      {
+        "k_number": "K241002",
+        "device_name": "PTA Balloon Catheter",
+        "applicant": "VascularMed Inc",
+        "decision_date": "20240601",
+        "decision_code": "SESE",
+        "clearance_type": "Traditional",
+        "product_code": "DQY"
+      }
+    ]
+  },
+  "clearances_3_new_items": {
+    "meta": {"results": {"total": 3}},
+    "results": [
+      {
+        "k_number": "K261001",
+        "device_name": "New Catheter A",
+        "applicant": "NewCo A",
+        "decision_date": "20260201",
+        "decision_code": "SESE",
+        "clearance_type": "Traditional",
+        "product_code": "DQY"
+      },
+      {
+        "k_number": "K261002",
+        "device_name": "New Catheter B",
+        "applicant": "NewCo B",
+        "decision_date": "20260210",
+        "decision_code": "SESE",
+        "clearance_type": "Traditional",
+        "product_code": "DQY"
+      },
+      {
+        "k_number": "K261003",
+        "device_name": "New Catheter C",
+        "applicant": "NewCo C",
+        "decision_date": "20260215",
+        "decision_code": "SESE",
+        "clearance_type": "Traditional",
+        "product_code": "DQY"
+      }
+    ]
+  },
+  "recalls_2_total": {
+    "meta": {"results": {"total": 2}},
+    "results": [
+      {"recall_number": "Z-1234-2024", "reason_for_recall": "Labeling error"},
+      {"recall_number": "Z-1235-2024", "reason_for_recall": "Mechanical failure"}
+    ]
+  },
+  "recalls_1_total": {
+    "meta": {"results": {"total": 1}},
+    "results": [
+      {"recall_number": "Z-1234-2024", "reason_for_recall": "Labeling error"}
+    ]
+  },
+  "recalls_4_total": {
+    "meta": {"results": {"total": 4}},
+    "results": []
+  },
+  "api_error": {
+    "error": "API unavailable",
+    "degraded": true
+  },
+  "clearances_ove": {
+    "meta": {"results": {"total": 89}},
+    "results": [
+      {
+        "k_number": "K240501",
+        "device_name": "Cervical Fusion Cage",
+        "applicant": "SpineTech Inc",
+        "decision_date": "20240301",
+        "decision_code": "SESE",
+        "clearance_type": "Traditional",
+        "product_code": "OVE"
+      }
+    ]
+  },
+  "recalls_ove": {
+    "meta": {"results": {"total": 1}},
+    "results": []
+  },
+  "clearances_gei": {
+    "meta": {"results": {"total": 52}},
+    "results": [
+      {
+        "k_number": "K240801",
+        "device_name": "Electrosurgical Unit",
+        "applicant": "SurgTech Corp",
+        "decision_date": "20240501",
+        "decision_code": "SESE",
+        "clearance_type": "Traditional",
+        "product_code": "GEI"
+      }
+    ]
+  },
+  "recalls_gei": {
+    "meta": {"results": {"total": 0}},
+    "results": []
+  }
+}

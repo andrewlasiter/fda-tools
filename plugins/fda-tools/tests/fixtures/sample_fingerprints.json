@@ -1,0 +1,39 @@
+{
+  "DQY": {
+    "last_checked": "2026-02-15T10:00:00+00:00",
+    "clearance_count": 147,
+    "latest_k_number": "K251234",
+    "latest_decision_date": "20260115",
+    "recall_count": 3,
+    "known_k_numbers": [
+      "K241001",
+      "K241002",
+      "K241003",
+      "K241004",
+      "K241005"
+    ]
+  },
+  "OVE": {
+    "last_checked": "2026-02-14T08:30:00+00:00",
+    "clearance_count": 89,
+    "latest_k_number": "K250456",
+    "latest_decision_date": "20260110",
+    "recall_count": 1,
+    "known_k_numbers": [
+      "K240501",
+      "K240502",
+      "K240503"
+    ]
+  },
+  "GEI": {
+    "last_checked": "2026-02-13T14:00:00+00:00",
+    "clearance_count": 52,
+    "latest_k_number": "K250789",
+    "latest_decision_date": "20260105",
+    "recall_count": 0,
+    "known_k_numbers": [
+      "K240801",
+      "K240802"
+    ]
+  }
+}
