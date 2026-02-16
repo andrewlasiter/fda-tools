@@ -81,7 +81,7 @@ Generates:
 
 For more workflows, see [QUICK_START.md](docs/QUICK_START.md).
 
-**Search and analyze PMA approvals (NEW in v5.29.0):**
+**Search and analyze PMA approvals (NEW in v5.29.0, enhanced in v5.30.0):**
 ```bash
 # Look up a specific PMA
 /fda-tools:pma-search --pma P170019
@@ -92,6 +92,15 @@ For more workflows, see [QUICK_START.md](docs/QUICK_START.md).
 # Full pipeline: search, download SSED, extract sections
 /fda-tools:pma-search --product-code NMH --download-ssed --extract-sections
 
+# Search with comparison (NEW in v5.30.0)
+/fda-tools:pma-search --product-code NMH --year 2024 --compare
+
+# Search with intelligence report (NEW in v5.30.0)
+/fda-tools:pma-search --pma P170019 --intelligence
+
+# Find related PMAs (NEW in v5.30.0)
+/fda-tools:pma-search --pma P170019 --related
+
 # Search by company
 /fda-tools:pma-search --applicant "Edwards Lifesciences" --year 2023
 
@@ -99,9 +108,90 @@ For more workflows, see [QUICK_START.md](docs/QUICK_START.md).
 /fda-tools:pma-search --show-manifest
 ```
 
+**Compare PMAs (NEW in v5.30.0):**
+```bash
+# Compare two PMAs across all dimensions
+/fda-tools:pma-compare --primary P170019 --comparators P160035
+
+# Multiple comparators with clinical focus
+/fda-tools:pma-compare --primary P170019 --comparators P160035,P200024 --focus clinical_data
+
+# Competitive analysis for a product code
+/fda-tools:pma-compare --product-code NMH --competitive
+```
+
+**Generate PMA intelligence reports (NEW in v5.30.0):**
+```bash
+# Full intelligence report (clinical + supplements + predicates)
+/fda-tools:pma-intelligence --pma P170019
+
+# Clinical data extraction only
+/fda-tools:pma-intelligence --pma P170019 --focus clinical
+
+# Assess PMA as predicate for a product code
+/fda-tools:pma-intelligence --pma P170019 --assess-predicate NMH
+```
+
 ## Feature Spotlight
 
-### NEW in v5.29.0: PMA Intelligence Module (TICKET-003 Phase 0)
+### NEW in v5.30.0: PMA Comparison & Clinical Intelligence (TICKET-003 Phase 1)
+
+Compare PMAs and extract clinical intelligence from SSED documents.
+
+**PMA Comparison Engine (`/fda-tools:pma-compare`):**
+```bash
+# Compare two PMAs across 5 dimensions
+/fda-tools:pma-compare --primary P170019 --comparators P160035
+
+# Focus on clinical data comparison only
+/fda-tools:pma-compare --primary P170019 --comparators P160035 --focus clinical_data
+
+# Competitive landscape for a product code
+/fda-tools:pma-compare --product-code NMH --competitive
+```
+
+**Comparison Dimensions (weighted):**
+| Dimension | Weight | Method |
+|-----------|--------|--------|
+| Indications for Use | 30% | Cosine + Jaccard + key terms |
+| Clinical Data | 25% | Study design + endpoints + enrollment |
+| Device Specifications | 20% | Description similarity + product code |
+| Safety Profile | 15% | AE text + safety key terms |
+| Regulatory History | 10% | Product code + committee + date proximity |
+
+**Clinical Intelligence (`/fda-tools:pma-intelligence`):**
+```bash
+# Full intelligence report
+/fda-tools:pma-intelligence --pma P170019
+
+# Clinical data focus
+/fda-tools:pma-intelligence --pma P170019 --focus clinical
+
+# Supplement tracking
+/fda-tools:pma-intelligence --pma P170019 --focus supplements
+
+# Find related 510(k) clearances
+/fda-tools:pma-intelligence --pma P170019 --find-citing-510ks
+
+# Assess PMA as predicate reference
+/fda-tools:pma-intelligence --pma P170019 --assess-predicate NMH
+```
+
+**Clinical Data Extracted:**
+- 14 study design types (RCT, single-arm, registry, bayesian, sham-controlled, etc.)
+- Enrollment data (sample size, sites, demographics)
+- Primary, secondary, and safety endpoints
+- Efficacy results (success rates, p-values, sensitivity/specificity, PPA/NPA)
+- Adverse event rates and specific event types
+- Follow-up duration
+- All with per-extraction confidence scoring
+
+**Supplement Intelligence:**
+- 6-category classification (labeling, design change, indication expansion, PAS, manufacturing, panel track)
+- Chronological timeline and frequency analysis
+- Labeling change tracking and post-approval study identification
+
+### v5.29.0: PMA Intelligence Module (TICKET-003 Phase 0)
 
 Search, download, and analyze PMA approval data with SSED document intelligence.
 
@@ -441,6 +531,11 @@ Complete FDA Pre-Submission workflow with eSTAR-ready XML export for FDA Form 50
 - `/compare-se` -- Generate substantial equivalence comparison tables
 - `/compare-sections` -- **NEW in v5.26.0**: Batch section comparison for regulatory intelligence - product code filtering, coverage matrix, FDA standards frequency analysis, statistical outlier detection (Z-score), professional markdown reports
 
+#### PMA Intelligence (NEW in v5.29.0-v5.30.0)
+- `/pma-search` -- **NEW in v5.29.0**: Search and analyze PMA approvals - single PMA lookup, product code/device/applicant search, SSED download, 15-section extraction, with comparison and intelligence triggers (v5.30.0)
+- `/pma-compare` -- **NEW in v5.30.0**: Compare PMAs across 5 weighted dimensions (indications, clinical data, device specs, safety, regulatory history) with similarity scoring and competitive analysis
+- `/pma-intelligence` -- **NEW in v5.30.0**: Generate PMA intelligence reports - clinical data extraction (14 study types, enrollment, endpoints, efficacy), supplement tracking (6 categories), predicate suitability assessment
+
 #### Submission preparation
 - `/draft` -- Write regulatory prose for 18 submission sections with citations
 - `/submission-outline` -- Generate a 510(k) submission outline with section checklists
@@ -509,14 +604,16 @@ The plugin does NOT send your files to any server other than Anthropic's API. op
 
 ## Testing & Compliance Status
 
-### Test Results (v5.22.0)
-- **Overall Pass Rate:** 96.6% (28/29 tests)
-- **Phase 1 (Data Integrity):** 22/22 tests passing ✓
-- **Phase 2 (Intelligence):** 4/4 devices verified ✓
-- **Phase 3 (Intelligence Suite):** 31/31 tests passing ✓
-- **Phase 4A (Gap Analysis):** 9/9 tests passing ✓
-- **Phase 4B (Smart Predicates):** 10/10 tests passing ✓
-- **Phase 5 (Workflows):** 19/19 tests passing ✓
+### Test Results (v5.30.0)
+- **Overall Pass Rate:** 96.6% (28/29 core tests)
+- **Phase 1 (Data Integrity):** 22/22 tests passing
+- **Phase 2 (Intelligence):** 4/4 devices verified
+- **Phase 3 (Intelligence Suite):** 31/31 tests passing
+- **Phase 4A (Gap Analysis):** 9/9 tests passing
+- **Phase 4B (Smart Predicates):** 10/10 tests passing
+- **Phase 5 (Workflows):** 19/19 tests passing
+- **PMA Phase 0 (TICKET-003):** 95/95 tests passing
+- **PMA Phase 1 (TICKET-003):** 80+ tests (comparison, clinical intelligence, supplement tracking)
 
 ### New in v5.26.0
 - **Knowledge-Based Standards Generation (RESEARCH USE ONLY):** Comprehensive validation pending

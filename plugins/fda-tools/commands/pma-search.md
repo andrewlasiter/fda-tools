@@ -34,6 +34,9 @@ Parse the user's arguments to determine the search mode:
 | `--refresh` | Force refresh from API | (flag) |
 | `--show-manifest` | Show PMA cache summary | (flag) |
 | `--stats` | Show cache statistics | (flag) |
+| `--compare` | Trigger comparison after search | (flag) |
+| `--intelligence` | Generate intelligence report after search | (flag) |
+| `--related` | Find comparable PMAs | (flag) |
 
 ## Step 1: Determine Search Mode
 
@@ -230,6 +233,42 @@ When analyzing multiple PMAs (product code or applicant search), generate insigh
 - Software Validation: present in 10/12 (83%)
 ```
 
+## Step 8: Comparison Trigger (if --compare)
+
+If the `--compare` flag is present after a multi-PMA search:
+
+1. Take the first PMA as primary and the rest as comparators
+2. Run the comparison engine:
+```bash
+SCRIPT_DIR="$(dirname "$(find /home -path '*/fda-tools/scripts/pma_comparison.py' -type f 2>/dev/null | head -1)")"
+python3 "$SCRIPT_DIR/pma_comparison.py" --primary P170019 --comparators P160035,P200024
+```
+3. Display the comparison report inline
+
+For single PMA lookup with `--compare`, ask the user which PMAs to compare against.
+
+## Step 9: Intelligence Trigger (if --intelligence)
+
+If the `--intelligence` flag is present:
+
+```bash
+SCRIPT_DIR="$(dirname "$(find /home -path '*/fda-tools/scripts/pma_intelligence.py' -type f 2>/dev/null | head -1)")"
+python3 "$SCRIPT_DIR/pma_intelligence.py" --pma P170019 --focus all
+```
+
+Display the intelligence report inline after the search results.
+
+## Step 10: Related PMAs Trigger (if --related)
+
+If the `--related` flag is present:
+
+```bash
+SCRIPT_DIR="$(dirname "$(find /home -path '*/fda-tools/scripts/pma_intelligence.py' -type f 2>/dev/null | head -1)")"
+python3 "$SCRIPT_DIR/pma_intelligence.py" --pma P170019 --focus predicates --json
+```
+
+Display comparable PMAs and related 510(k) clearances.
+
 ## Error Handling
 
 - **API errors**: Display error message with suggestion to retry with `--refresh`
@@ -257,6 +296,15 @@ When analyzing multiple PMAs (product code or applicant search), generate insigh
 
 # Force refresh
 /fda-tools:pma-search --pma P170019 --refresh --download-ssed --extract-sections
+
+# Search with comparison
+/fda-tools:pma-search --product-code NMH --year 2024 --compare
+
+# Search with intelligence report
+/fda-tools:pma-search --pma P170019 --intelligence
+
+# Find related PMAs
+/fda-tools:pma-search --pma P170019 --related
 ```
 
 ## Rate Limiting
