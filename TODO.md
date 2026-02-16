@@ -1,8 +1,8 @@
 # FDA Tools Plugin - Implementation TODO
 
 **Last Updated:** 2026-02-16
-**Status:** TICKET-003 Phase 0-1 COMPLETE (v5.29.0-v5.30.0). Next: TICKET-003 Phase 1.5 (integration).
-**Current Version:** 5.30.0
+**Status:** TICKET-003 Phase 0-1.5 COMPLETE (v5.29.0-v5.31.0). Next: TICKET-003 Phase 2 (optional).
+**Current Version:** 5.31.0
 
 ---
 
@@ -124,6 +124,7 @@
 **Implementation Versions:**
 - Phase 0: v5.29.0 (2026-02-16) - Data infrastructure foundation
 - Phase 1: v5.30.0 (2026-02-16) - Comparison and intelligence features
+- Phase 1.5: v5.31.0 (2026-02-16) - Unified 510(k)/PMA integration
 
 **Files Created (Phase 0):**
 - `scripts/pma_data_store.py` (480 lines) - TTL-based caching with 3 tiers
@@ -138,12 +139,22 @@
 - `commands/pma-intelligence.md` (349 lines) - Intelligence command interface
 - `tests/test_pma_phase1.py` (1206 lines, 108 tests)
 
-**Phase 1.5 (Integration): 8-10 hours - NOT STARTED**
-- [ ] Enhance presub-planner.md to leverage PMA predicates
-- [ ] Create unified predicate interface (510(k) and PMA)
-- [ ] Enable mixed 510(k)/PMA comparisons in compare-se.md
-- [ ] Add PMA intelligence to research command
-- [ ] Integration tests for 510(k)-PMA workflows
+**Files Created (Phase 1.5):**
+- `scripts/unified_predicate.py` (1278 lines) - Cross-pathway predicate interface
+- `tests/test_510k_pma_integration.py` (666 lines, 57 tests)
+
+**Files Modified (Phase 1.5):**
+- `commands/presub.md` - PMA predicate support in Pre-Sub packages
+- `commands/compare-se.md` - Mixed K/P predicate SE tables
+- `commands/research.md` - PMA intelligence in competitive analysis
+- `pytest.ini` - Added integration test marker
+
+**Phase 1.5 (Integration): 8-10 hours - COMPLETE (v5.31.0)**
+- [x] Enhance presub-planner.md to leverage PMA predicates - presub.md Step 4.2 updated
+- [x] Create unified predicate interface (510(k) and PMA) - unified_predicate.py (1278 lines)
+- [x] Enable mixed 510(k)/PMA comparisons in compare-se.md - Step 0.5 classification added
+- [x] Add PMA intelligence to research command - research.md --include-pma enhanced
+- [x] Integration tests for 510(k)-PMA workflows - test_510k_pma_integration.py (57/57 passing)
 
 **Phase 2 (Weeks 6-8): 60-80 hours - NOT STARTED**
 - [ ] Clinical trial requirements mapper
@@ -157,12 +168,13 @@
 - [ ] Post-approval study monitoring
 - [ ] Integration testing and documentation
 
-**Acceptance Criteria (Phase 0-1):**
+**Acceptance Criteria (Phase 0-1.5):**
 - [x] SSED download success ≥80% (achieved 82.4% for 2000+ PMAs)
 - [x] Extract ≥12/15 sections from SSED PDFs (15 section patterns with quality scoring)
 - [x] PMA comparison returns similarity scores (5-dimensional scoring implemented)
 - [x] Clinical intelligence extraction functional (14 study designs, 6 supplement types)
-- [x] Comprehensive test coverage (≥85%) - 203/203 tests passing (100%)
+- [x] Cross-pathway integration complete (unified predicate interface, mixed comparisons)
+- [x] Comprehensive test coverage (≥85%) - 260/260 tests passing (100%)
 
 **Dependencies:** TICKET-002 (GO decision)
 **Blocks:** TICKET-006, TICKET-007, TICKET-008
