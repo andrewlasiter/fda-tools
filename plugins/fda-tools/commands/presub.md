@@ -994,16 +994,67 @@ Sincerely,
 **Flag:** `--deep-predicate-analysis` controls this section (default: ON when predicates available, OFF when no predicates). Use `--no-deep-predicate-analysis` to revert to the simple table.
 
 {If no predicates available:}
-[TODO: Company-specific — Proposed predicate device(s) with K-numbers and justification. Run `/fda:propose --predicates K123456 --project NAME` to declare predicates.]
+[TODO: Company-specific — Proposed predicate device(s) with K-numbers or P-numbers and justification. Run `/fda:propose --predicates K123456 --project NAME` to declare predicates.]
 
 {If predicates available from review.json — proceed with all 7 subsections below:}
 
+**PMA Predicate Detection (TICKET-003 Phase 1.5):**
+
+Before building the predicate table, classify all predicate device numbers using the unified predicate interface. This enables mixed K-number and P-number predicates in a single Pre-Sub package.
+
+```bash
+python3 << 'PYEOF'
+import sys, os, json
+sys.path.insert(0, os.path.join(os.environ.get("FDA_PLUGIN_ROOT", ""), "scripts"))
+from unified_predicate import UnifiedPredicateAnalyzer
+
+analyzer = UnifiedPredicateAnalyzer()
+
+# Parse predicate numbers from review.json or command args
+predicate_numbers = os.environ.get("PREDICATE_NUMBERS", "").split(",")
+predicate_numbers = [p.strip() for p in predicate_numbers if p.strip()]
+
+if not predicate_numbers:
+    print("NO_PREDICATES")
+    sys.exit(0)
+
+# Classify device numbers by type
+classified = analyzer.classify_device_list(predicate_numbers)
+k_numbers = classified.get("510k", [])
+p_numbers = classified.get("pma", [])
+
+print(f"TOTAL_PREDICATES:{len(predicate_numbers)}")
+print(f"K_NUMBERS:{len(k_numbers)}")
+print(f"P_NUMBERS:{len(p_numbers)}")
+
+# Analyze each predicate using unified interface
+for num in predicate_numbers:
+    data = analyzer.analyze_predicate(num)
+    if data.get("valid"):
+        print(f"PRED:{data['device_number']}|{data['device_type']}|{data.get('device_name','')}|{data.get('applicant','')}|{data.get('product_code','')}|{data.get('decision_date','')}")
+        # For PMA predicates, include supplement count and clinical data status
+        if data['device_type'] == 'pma':
+            print(f"PMA_EXTRA:{data['device_number']}|supps={data.get('supplement_count',0)}|clinical={'yes' if data.get('has_clinical_data') else 'no'}|ssed={'yes' if data.get('has_ssed_sections') else 'no'}")
+    else:
+        print(f"PRED_ERROR:{num}|{data.get('error','unknown')}")
+PYEOF
+```
+
 #### 4.2.1 Predicate Summary Table
+
+{For 510(k) predicates (K-numbers):}
 
 | # | K-Number | Device Name | Applicant | Cleared | Score | Flags | Mode |
 |---|----------|-------------|-----------|---------|-------|-------|------|
 | 1 | {K-number} | {name} | {company} | {date} | {score}/100 | {flags} | {manual/extracted} |
-| 2 | {K-number} | {name} | {company} | {date} | {score}/100 | {flags} | {manual/extracted} |
+
+{For PMA predicates (P-numbers):}
+
+| # | P-Number | Device Name | Applicant | Approved | Score | Supplements | Clinical Data |
+|---|----------|-------------|-----------|----------|-------|-------------|---------------|
+| 1 | {P-number} | {name} | {company} | {date} | {score}/100 | {supp_count} | {yes/no} |
+
+**Note on PMA Predicates:** PMA-approved devices can serve as predicates or reference devices for 510(k) submissions. PMA predicates provide richer clinical evidence through SSED documents but may have different regulatory requirements. Consult with regulatory affairs professionals when using PMA devices as predicates for a 510(k) submission.
 
 {If `review_mode == "manual"` in review.json:}
 **Note:** These predicates were manually proposed via `/fda:propose`, not extracted from PDF analysis. Confidence scores reflect manual proposal scoring (see `references/predicate-analysis-framework.md`).
@@ -1020,9 +1071,34 @@ Sincerely,
 
 For each accepted predicate, compare IFU against the subject device.
 
-**Data source:** Extract IFU from predicate PDF text using the **3-tier section detection system from `references/section-patterns.md`**. EU-origin predicates may use "Intended Purpose" instead of "Indications for Use" — Tier 3 semantic mapping handles this automatically. If `--intended-use` was provided to propose or presub, use that as the subject IFU.
+**Data source for 510(k) predicates:** Extract IFU from predicate PDF text using the **3-tier section detection system from `references/section-patterns.md`**. EU-origin predicates may use "Intended Purpose" instead of "Indications for Use" -- Tier 3 semantic mapping handles this automatically. If `--intended-use` was provided to propose or presub, use that as the subject IFU.
 
-{Fetch predicate PDF text using the same download approach as `compare-se.md` Step 2. Extract IFU section.}
+**Data source for PMA predicates:** Extract IFU from SSED "Indications for Use" section via the unified predicate interface. PMA indications are typically more detailed than 510(k) IFU statements because SSED documents contain the full approved labeling.
+
+```bash
+# For PMA predicates, use unified_predicate to get indication text
+python3 << 'PYEOF'
+import sys, os
+sys.path.insert(0, os.path.join(os.environ.get("FDA_PLUGIN_ROOT", ""), "scripts"))
+from unified_predicate import UnifiedPredicateAnalyzer
+
+analyzer = UnifiedPredicateAnalyzer()
+device_number = "DEVICE_NUMBER"  # Replace per predicate (K or P number)
+data = analyzer.analyze_predicate(device_number)
+if data.get("valid"):
+    ifu = data.get("intended_use", "")
+    if ifu:
+        print(f"IFU_TEXT:{ifu[:2000]}")
+    else:
+        print("IFU_TEXT:NOT_AVAILABLE")
+    print(f"IFU_SOURCE:{data.get('clinical_data_source', 'unknown')}")
+else:
+    print(f"IFU_ERROR:{data.get('error','unknown')}")
+PYEOF
+```
+
+{For 510(k) predicates: Fetch predicate PDF text using the same download approach as `compare-se.md` Step 2. Extract IFU section.}
+{For PMA predicates: Use the IFU text from the unified predicate analysis above.}
 
 ```markdown
 | Aspect | Subject Device | Predicate: {K-number} | Predicate: {K-number} |

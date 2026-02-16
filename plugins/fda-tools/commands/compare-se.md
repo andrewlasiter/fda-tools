@@ -39,31 +39,71 @@ If `$FDA_PLUGIN_ROOT` is empty, report an error: "Could not locate the FDA Predi
 
 From the arguments, extract:
 
-- `--predicates K123456[,K234567]` (required) — One or more predicate K-numbers, comma-separated
-- `--references K345678[,K456789]` (optional) — Reference devices (not predicates, but cited for specific features)
-- `--product-code CODE` (optional) — 3-letter FDA product code. If omitted, detect from first predicate
-- `--device-description TEXT` (optional) — Brief description of the subject device
-- `--intended-use TEXT` (optional) — Subject device intended use / IFU
-- `--output FILE` (optional) — Write table to a file (markdown or CSV)
+- `--predicates K123456[,K234567,P170019]` (required) -- One or more predicate device numbers (K-numbers or P-numbers), comma-separated
+- `--references K345678[,K456789,P200024]` (optional) -- Reference devices (not predicates, but cited for specific features). Supports both K-numbers and P-numbers.
+- `--product-code CODE` (optional) -- 3-letter FDA product code. If omitted, detect from first predicate
+- `--device-description TEXT` (optional) -- Brief description of the subject device
+- `--intended-use TEXT` (optional) -- Subject device intended use / IFU
+- `--output FILE` (optional) -- Write table to a file (markdown or CSV)
 - `--depth quick|standard|deep` (optional, default: standard)
-- `--infer` — Auto-detect predicates from project data instead of requiring explicit input
+- `--infer` -- Auto-detect predicates from project data instead of requiring explicit input
+
+**PMA Predicate Support (TICKET-003 Phase 1.5):** The `--predicates` and `--references` arguments now accept P-numbers (PMA approvals) in addition to K-numbers. When a P-number is detected, the command uses the unified predicate interface to retrieve PMA data from SSED sections and map it to SE table rows. Mixed K-number and P-number comparisons are fully supported.
 
 If no `--predicates` provided:
 - If `--infer` AND `--project NAME` specified, use this fallback chain (try each in order, stop at first success):
-  1. Check `$PROJECTS_DIR/$PROJECT_NAME/review.json` for accepted predicates → use top 3 by score
-     - **Also check for `reference_devices` key** in review.json. If present, auto-populate the `--references` argument with those K-numbers. This ensures reference devices declared via `/fda:propose` carry through to SE comparison.
-  2. Check `$PROJECTS_DIR/$PROJECT_NAME/output.csv` → find most-cited predicates (top 3 by citation count across all source documents)
-  3. Check `$PROJECTS_DIR/$PROJECT_NAME/pdf_data.json` or extraction cache → grep for any K-numbers found in SE sections
-  4. If all three fail: **ERROR**: "Could not infer predicates from project data. No accepted predicates in review.json, no citations in output.csv, and no K-numbers in extraction cache. Provide --predicates K123456 explicitly."
+  1. Check `$PROJECTS_DIR/$PROJECT_NAME/review.json` for accepted predicates -- use top 3 by score
+     - **Also check for `reference_devices` key** in review.json. If present, auto-populate the `--references` argument with those device numbers. This ensures reference devices declared via `/fda:propose` carry through to SE comparison.
+  2. Check `$PROJECTS_DIR/$PROJECT_NAME/output.csv` -- find most-cited predicates (top 3 by citation count across all source documents)
+  3. Check `$PROJECTS_DIR/$PROJECT_NAME/pdf_data.json` or extraction cache -- grep for any K-numbers or P-numbers found in SE sections
+  4. If all three fail: **ERROR**: "Could not infer predicates from project data. No accepted predicates in review.json, no citations in output.csv, and no device numbers in extraction cache. Provide --predicates K123456 or --predicates P170019 explicitly."
   **NEVER fall back to asking the user when `--infer` is set.** The `--infer` flag means "figure it out from data or fail."
 - If no `--infer` and no `--predicates` and NOT `--full-auto`: ask the user. If they're unsure, suggest running `/fda:research` first.
 - If no `--infer` and no `--predicates` and `--full-auto`: **ERROR**: "In --full-auto mode, predicates must be provided via --predicates or inferred via --infer. Cannot prompt for predicates."
 
+## Step 0.5: Classify Device Numbers (TICKET-003 Phase 1.5)
+
+Before processing predicates, classify each device number to determine the data retrieval strategy:
+
+```bash
+python3 << 'PYEOF'
+import sys, os, json
+sys.path.insert(0, os.path.join(os.environ.get("FDA_PLUGIN_ROOT", ""), "scripts"))
+from unified_predicate import UnifiedPredicateAnalyzer
+
+analyzer = UnifiedPredicateAnalyzer()
+
+# All predicate and reference device numbers
+all_devices = os.environ.get("ALL_DEVICE_NUMBERS", "").split(",")
+all_devices = [d.strip() for d in all_devices if d.strip()]
+
+classified = analyzer.classify_device_list(all_devices)
+k_numbers = classified.get("510k", [])
+p_numbers = classified.get("pma", [])
+
+print(f"CLASSIFIED_K:{','.join(k_numbers)}")
+print(f"CLASSIFIED_P:{','.join(p_numbers)}")
+print(f"TOTAL_DEVICES:{len(all_devices)}")
+print(f"HAS_PMA:{'yes' if p_numbers else 'no'}")
+
+# For PMA devices, retrieve SE-compatible data
+for pma_num in p_numbers:
+    se_data = analyzer.get_pma_se_table_data(pma_num)
+    if "error" not in se_data:
+        print(f"PMA_SE_DATA:{pma_num}|{json.dumps(se_data)}")
+    else:
+        print(f"PMA_SE_ERROR:{pma_num}|{se_data.get('error','unknown')}")
+PYEOF
+```
+
+Use K-numbers with the standard 510(k) PDF fetch approach. Use P-numbers with the unified predicate PMA data (SSED sections mapped to SE table fields).
+
 ## Step 1: Identify Product Code & Select Template
 
 ### Detect product code
-If `--product-code` not provided, look up the first predicate:
+If `--product-code` not provided, look up the first predicate. For K-numbers, use the local flat file. For P-numbers, use the unified predicate interface:
 ```bash
+# For K-numbers:
 grep "KNUMBER" ~/fda-510k-data/extraction/pmn96cur.txt 2>/dev/null | head -1
 ```
 Extract the product code field.
@@ -385,7 +425,55 @@ PREDICATE_QUALITY:{K-number}|{UNAVAILABLE|STUB|SPARSE|ADEQUATE}|{char_count}
 
 ## Step 2: Load Predicate & Reference Device Data
 
-### Check PDF text cache
+### PMA Device Data Retrieval (TICKET-003 Phase 1.5)
+
+For any P-numbers identified in Step 0.5, retrieve SE-compatible data from the PMA SSED sections using the unified predicate interface. This data will be used to populate the predicate columns in the SE table.
+
+```bash
+python3 << 'PYEOF'
+import sys, os, json
+sys.path.insert(0, os.path.join(os.environ.get("FDA_PLUGIN_ROOT", ""), "scripts"))
+from unified_predicate import UnifiedPredicateAnalyzer
+
+analyzer = UnifiedPredicateAnalyzer()
+
+# Process each PMA predicate
+p_numbers = os.environ.get("PMA_PREDICATES", "").split(",")
+p_numbers = [p.strip() for p in p_numbers if p.strip()]
+
+for pma_num in p_numbers:
+    se_data = analyzer.get_pma_se_table_data(pma_num)
+    if "error" not in se_data:
+        # Extract key fields for SE table population
+        print(f"PMA_DEVICE_NAME:{pma_num}|{se_data.get('device_name', '')}")
+        print(f"PMA_APPLICANT:{pma_num}|{se_data.get('applicant', '')}")
+        print(f"PMA_PRODUCT_CODE:{pma_num}|{se_data.get('product_code', '')}")
+        print(f"PMA_DECISION_DATE:{pma_num}|{se_data.get('decision_date', '')}")
+        print(f"PMA_INTENDED_USE:{pma_num}|{se_data.get('intended_use', '')[:500]}")
+        print(f"PMA_DEVICE_DESC:{pma_num}|{se_data.get('device_description', '')[:500]}")
+        print(f"PMA_CLINICAL:{pma_num}|{se_data.get('clinical_data', '')[:500]}")
+        print(f"PMA_BIOCOMPAT:{pma_num}|{se_data.get('biocompatibility', '')[:200]}")
+        print(f"PMA_STERILIZATION:{pma_num}|{se_data.get('sterilization', '')[:200]}")
+        print(f"PMA_SAFETY:{pma_num}|{se_data.get('safety_profile', '')[:300]}")
+        print(f"PMA_DATA_SOURCE:{pma_num}|{se_data.get('data_source', 'unknown')}")
+        print(f"PMA_QUALITY:{pma_num}|{se_data.get('section_quality', 0)}")
+        print(f"PMA_STATUS:{pma_num}|{se_data.get('regulatory_status', '')}")
+    else:
+        print(f"PMA_ERROR:{pma_num}|{se_data.get('error', 'unknown')}")
+PYEOF
+```
+
+**PMA data for SE table:** When a PMA device is used as a predicate in an SE table, populate the predicate column using the SSED-extracted data above. Map SSED sections to SE table rows:
+- SSED "Indications for Use" -> SE "Intended Use / Indications for Use" row
+- SSED "Device Description" -> SE "Device Description / Materials" rows
+- SSED "Clinical Studies" -> SE "Clinical Data" row
+- SSED "Nonclinical Testing" -> SE "Performance Testing" rows
+- SSED "Biocompatibility" -> SE "Biocompatibility" row
+- SSED "Manufacturing" -> SE "Sterilization" row
+
+If SSED sections are unavailable (data_source == "api_metadata"), note in the table: "[PMA data limited to API metadata -- SSED not extracted. Run `/fda-tools:pma-intelligence --pma {P-number} --download-ssed --extract-sections` for full data.]"
+
+### Check PDF text cache (for K-numbers)
 
 For each predicate and reference K-number, check if text is available:
 

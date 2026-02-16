@@ -2,6 +2,60 @@
 
 All notable changes to the FDA Tools plugin will be documented in this file.
 
+## [5.31.0] - 2026-02-16
+
+### Added - TICKET-003 Phase 1.5: 510(k)-PMA Integration -- Unified Predicate Interface
+
+Unified predicate analysis interface that makes 510(k) and PMA predicates interchangeable from the user's perspective. Bridges existing 510(k) pipeline with PMA Intelligence infrastructure, enabling cross-pathway comparisons, mixed predicate lists, and PMA data in SE comparison tables.
+
+**New Module:**
+
+1. **`scripts/unified_predicate.py`** (570 lines) -- Unified Predicate Analyzer
+   - `UnifiedPredicateAnalyzer` class with auto-detection of K/P/DEN device number formats
+   - `analyze_predicate(device_number)` -- normalized data retrieval for any device type
+   - `compare_devices(device1, device2)` -- cross-pathway comparison with 5-dimension scoring
+   - `assess_suitability(candidate, subject_device)` -- unified 100-point predicate scoring
+   - `classify_device_list(numbers)` -- batch classification of mixed K/P/DEN numbers
+   - `get_pma_se_table_data(pma_number)` -- maps SSED sections to SE table rows
+   - `get_pma_intelligence_summary(pma_number)` -- lightweight PMA summary for research reports
+   - Standalone text similarity utilities (cosine, Jaccard) for cross-pathway indication comparison
+   - CLI interface with `--device`, `--compare`, `--assess`, `--batch` modes
+
+**Enhanced Commands:**
+
+2. **`commands/presub.md`** -- PMA Predicate Detection in Pre-Sub Planning
+   - Step 4.2 now detects P-numbers in predicate lists and routes through unified predicate interface
+   - PMA predicate summary table with supplement count and clinical data status columns
+   - IFU comparison uses SSED "Indications for Use" section for PMA predicates
+   - Pathway-specific notes for PMA predicates in Pre-Sub packages
+
+3. **`commands/compare-se.md`** -- Mixed 510(k)/PMA SE Comparison Tables
+   - Step 0.5 classifies all device numbers (K/P/DEN) before data retrieval
+   - P-numbers in `--predicates` argument trigger PMA SSED data retrieval
+   - SSED-to-SE section mapping: indications, device description, clinical studies, nonclinical testing, biocompatibility, manufacturing
+   - Data quality indicators when SSED sections unavailable (falls back to API metadata)
+   - PMA predicate columns marked with regulatory status "PMA Approved"
+
+4. **`commands/research.md`** -- Enhanced PMA Intelligence in Research Reports
+   - `--include-pma` section now uses unified predicate for enriched intelligence summaries
+   - Per-PMA supplement categorization (labeling, new indication, design change)
+   - Clinical data and SSED availability status per PMA
+   - Competitive landscape comparison (510(k) vs PMA clearance/approval counts)
+
+**New Test Suite:**
+
+5. **`tests/test_510k_pma_integration.py`** (500 lines) -- 25+ integration tests
+   - `TestDeviceTypeDetection` -- K/P/DEN/N format detection (11 tests)
+   - `TestUnifiedAnalysis` -- analyze_predicate() for all device types (7 tests)
+   - `TestCrossPathwayComparison` -- cross-pathway comparison scoring (9 tests)
+   - `TestSuitabilityAssessment` -- predicate suitability with mixed types (8 tests)
+   - `TestBatchOperations` -- batch analysis and pairwise comparison (2 tests)
+   - `TestSETableIntegration` -- PMA data for SE tables (4 tests)
+   - `TestPMAIntelligenceSummary` -- lightweight PMA summaries (2 tests)
+   - `TestTextSimilarity` -- cosine and Jaccard similarity (6 tests)
+   - `TestEdgeCases` -- whitespace, case handling, empty inputs (7 tests)
+   - All tests run offline using mocks (no network access)
+
 ## [5.30.0] - 2026-02-16
 
 ### Added - TICKET-003 Phase 1: PMA Intelligence Module -- Comparison & Clinical Intelligence

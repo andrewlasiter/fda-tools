@@ -1338,20 +1338,24 @@ When `--include-pma` flag is set, add a PMA analysis section to the research rep
 - Product codes that have both 510(k) and PMA history
 - Understanding if a PMA pathway has been used for similar devices
 - Identifying PMA supplements that indicate post-approval modifications
+- Competitive analysis across both 510(k) and PMA landscapes
 
-### PMA Data Collection
+### PMA Data Collection (Enhanced -- TICKET-003 Phase 1.5)
 
-PMA intelligence uses inline API queries since PMA lookups are not yet part of the data store (Phase 3 migration). The `fda_api_client.py` HTTP-level cache still applies.
+PMA intelligence now uses both the FDAClient for API queries AND the unified predicate interface for enriched intelligence data. The unified predicate interface provides supplement categorization and clinical data availability status.
 
 ```bash
 python3 << 'PYEOF'
-import sys, os
+import sys, os, json
 sys.path.insert(0, os.path.join(os.environ.get("FDA_PLUGIN_ROOT", ""), "scripts"))
 from fda_api_client import FDAClient
+from unified_predicate import UnifiedPredicateAnalyzer
 
 product_code = "PRODUCTCODE"  # Replace
 client = FDAClient()
+analyzer = UnifiedPredicateAnalyzer(client=client)
 
+# Get all PMAs for product code
 pma_result = client.get_pma_by_product_code(product_code, limit=100)
 total = pma_result.get("meta", {}).get("results", {}).get("total", 0)
 returned = len(pma_result.get("results", []))
@@ -1359,10 +1363,34 @@ print(f"PMA_TOTAL:{total}")
 print(f"SHOWING:{returned}_OF:{total}")
 
 if pma_result.get("results"):
-    for r in pma_result["results"][:10]:
+    # Extract unique base PMA numbers (exclude supplements)
+    base_pmas = {}
+    for r in pma_result["results"]:
+        pma_num = r.get("pma_number", "")
         supp = r.get("supplement_number", "")
+        if not supp and pma_num and pma_num not in base_pmas:
+            base_pmas[pma_num] = r
+
+    # For each base PMA, get intelligence summary
+    for pma_num, r in list(base_pmas.items())[:5]:
         supp_type = r.get("supplement_type", "")
-        print(f"PMA:{r.get('pma_number','?')}|{supp}|{supp_type}|{r.get('applicant','?')}|{r.get('trade_name','?')}|{r.get('decision_date','?')}|{r.get('decision_code','?')}")
+        print(f"PMA:{pma_num}||{supp_type}|{r.get('applicant','?')}|{r.get('trade_name','?')}|{r.get('decision_date','?')}|{r.get('decision_code','?')}")
+
+        # Get enriched intelligence from unified predicate
+        summary = analyzer.get_pma_intelligence_summary(pma_num)
+        if "error" not in summary:
+            print(f"PMA_INTEL:{pma_num}|supps={summary.get('supplement_count',0)}|clinical={'yes' if summary.get('has_clinical_data') else 'no'}|ssed={'yes' if summary.get('has_ssed_sections') else 'no'}")
+            supp_types = summary.get('supplement_types', {})
+            if supp_types:
+                types_str = ", ".join(f"{k}:{v}" for k, v in supp_types.items())
+                print(f"PMA_SUPP_TYPES:{pma_num}|{types_str}")
+
+    # Also report all supplements
+    for r in pma_result["results"]:
+        supp = r.get("supplement_number", "")
+        if supp:
+            supp_type = r.get("supplement_type", "")
+            print(f"PMA_SUPP:{r.get('pma_number','?')}|{supp}|{supp_type}|{r.get('decision_date','?')}")
 PYEOF
 ```
 
@@ -1373,17 +1401,33 @@ PMA INTELLIGENCE
 ────────────────────────────────────────
 
   Total PMA Approvals: {count} for product code {CODE}
-  Recent PMA Approvals:
-    P{number} — {trade_name} by {applicant} ({date})
-    P{number} — {trade_name} by {applicant} ({date})
 
-  Supplement History: {total} supplements across all PMAs
-  Most Active PMA: P{number} ({supplement_count} supplements)
+  PMA Approvals:
+    P{number} -- {trade_name} by {applicant} ({date})
+      Supplements: {supp_count} | Clinical Data: {yes/no} | SSED: {yes/no}
+      Supplement Types: {types breakdown}
+    P{number} -- {trade_name} by {applicant} ({date})
+      Supplements: {supp_count} | Clinical Data: {yes/no} | SSED: {yes/no}
+
+  Supplement Trends:
+    Total supplements across all PMAs: {total}
+    Most Active PMA: P{number} ({supplement_count} supplements)
+    Supplement Categories: {labeling: N, new indication: N, design change: N, ...}
+
+  Competitive Landscape (510(k) vs PMA):
+    510(k) clearances: {k_count} | PMA approvals: {pma_count}
+    510(k) pathway dominance: {percentage}%
+    Most recent PMA: P{number} ({date})
+    Most recent 510(k): K{number} ({date})
 
   Pathway Implications:
-  - PMA history exists for this product code — indicates Class III pathway
+  - PMA history exists for this product code -- indicates Class III pathway
     has been used, though 510(k) may still be appropriate depending on
     your device's risk profile and predicate availability.
+  - PMA devices with SSED data available can serve as reference devices
+    in SE comparison tables via the unified predicate interface.
+  - Consider using `/fda-tools:pma-intelligence --pma P{number}` for
+    detailed clinical and supplement analysis of specific PMAs.
 ```
 
 ## Interactive Browse Mode (--browse)

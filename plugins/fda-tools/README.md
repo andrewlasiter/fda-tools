@@ -132,9 +132,42 @@ For more workflows, see [QUICK_START.md](docs/QUICK_START.md).
 /fda-tools:pma-intelligence --pma P170019 --assess-predicate NMH
 ```
 
+**Mixed 510(k)/PMA predicate analysis (NEW in v5.31.0):**
+```bash
+# Analyze any device number (K or P)
+python3 scripts/unified_predicate.py --device P170019
+python3 scripts/unified_predicate.py --device K241335
+
+# Compare devices across pathways (510(k) vs PMA)
+python3 scripts/unified_predicate.py --compare K241335 P170019
+
+# Assess a PMA as predicate for your 510(k)
+python3 scripts/unified_predicate.py --assess P170019 --product-code NMH
+
+# SE comparison table with PMA predicate
+/fda-tools:compare-se --predicates K241335,P170019 --product-code NIQ
+
+# Pre-Sub with PMA predicate reference
+/fda-tools:presub NIQ --project my_device --predicates K241335,P170019
+
+# Research with PMA competitive intelligence
+/fda-tools:research --product-code NMH --include-pma
+```
+
 ## Feature Spotlight
 
-### NEW in v5.30.0: PMA Comparison & Clinical Intelligence (TICKET-003 Phase 1)
+### NEW in v5.31.0: Unified Predicate Interface (TICKET-003 Phase 1.5)
+
+Seamlessly mix 510(k) K-numbers and PMA P-numbers in all predicate workflows. The unified predicate interface auto-detects device number format and retrieves normalized data from the appropriate source.
+
+**Key capabilities:**
+- Auto-detect K/P/DEN device number formats
+- Cross-pathway comparison (510(k) vs PMA, PMA vs PMA, mixed)
+- PMA data mapped to SE table rows via SSED section extraction
+- PMA predicates in Pre-Sub packages with supplement and clinical data status
+- Enhanced PMA intelligence in research reports
+
+### v5.30.0: PMA Comparison & Clinical Intelligence (TICKET-003 Phase 1)
 
 Compare PMAs and extract clinical intelligence from SSED documents.
 
