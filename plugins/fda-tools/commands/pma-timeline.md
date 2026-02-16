@@ -137,6 +137,56 @@ HISTORICAL CONTEXT
 ------------------------------------------------------------
 ```
 
+## Post-Approval Milestones (Phase 3 Integration)
+
+For approved PMAs, the timeline includes post-approval obligations:
+
+### Post-Approval Timeline
+```
+  POST-APPROVAL MILESTONES
+  ------------------------------------------------------------
+    Day {N} ({date}): Annual Report #1 Due (21 CFR 814.84)
+    Day {N} ({date}): Annual Report #1 Grace Deadline (+60 days)
+    Day {N} ({date}): PAS Protocol Submission (if required)
+    Day {N} ({date}): PAS Enrollment Initiation
+    Day {N} ({date}): PAS First Interim Report
+    Day {N} ({date}): Annual Report #2 Due
+    Day {N} ({date}): PAS 50% Enrollment Milestone
+    Day {N} ({date}): Annual Report #3 Due
+    Day {N} ({date}): PAS Enrollment Completion
+    Day {N} ({date}): PAS Final Report Submission
+```
+
+### Generating Post-Approval Milestones
+
+If the PMA has approval data, include post-approval milestones from Phase 3 modules:
+
+```bash
+# Get annual report due dates
+cd "$FDA_PLUGIN_ROOT" && python3 scripts/annual_report_tracker.py \
+  --pma "$PMA_NUMBER" --calendar --json
+
+# Get PAS milestones (if PAS detected)
+cd "$FDA_PLUGIN_ROOT" && python3 scripts/pas_monitor.py \
+  --pma "$PMA_NUMBER" --milestones --json
+```
+
+Merge these into the main timeline view, sorted chronologically.
+
+### Cross-Reference Commands
+
+For detailed post-approval tracking, see:
+```bash
+# Full annual report compliance calendar
+/fda-tools:annual-reports --pma P170019
+
+# Post-approval study milestone tracking
+/fda-tools:pas-monitor --pma P170019 --milestones
+
+# Supplement lifecycle tracking
+/fda-tools:pma-supplements --pma P170019
+```
+
 ## Error Handling
 
 - **No historical data**: Report limited prediction confidence and use empirical FDA baseline estimates

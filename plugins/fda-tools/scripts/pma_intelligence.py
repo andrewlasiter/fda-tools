@@ -251,12 +251,12 @@ class PMAIntelligenceEngine:
             return {
                 "pma_number": pma_key,
                 "error": api_data.get("error", "Data unavailable"),
-                "intelligence_version": "1.0.0",
+                "intelligence_version": "2.0.0",
             }
 
         report = {
             "pma_number": pma_key,
-            "intelligence_version": "1.0.0",
+            "intelligence_version": "2.0.0",
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "device_summary": self._build_device_summary(api_data),
         }
@@ -277,6 +277,12 @@ class PMAIntelligenceEngine:
         if focus in (None, "all", "predicates"):
             report["predicate_intelligence"] = self.analyze_predicate_relationships(
                 pma_key, api_data
+            )
+
+        # Post-approval monitoring (Phase 3 integration)
+        if focus in (None, "all", "supplements"):
+            report["post_approval_monitoring"] = self.get_post_approval_summary(
+                pma_key, api_data, refresh=refresh
             )
 
         # Generate executive summary
@@ -1321,6 +1327,101 @@ class PMAIntelligenceEngine:
         }
 
     # ------------------------------------------------------------------
+    # Phase 3 Integration: Post-Approval Monitoring
+    # ------------------------------------------------------------------
+
+    def get_post_approval_summary(
+        self,
+        pma_number: str,
+        api_data: Optional[Dict] = None,
+        refresh: bool = False,
+    ) -> Dict:
+        """Generate post-approval monitoring summary using Phase 3 modules.
+
+        Integrates data from supplement_tracker, annual_report_tracker,
+        and pas_monitor to provide a unified post-approval view.
+
+        Args:
+            pma_number: PMA number.
+            api_data: Pre-loaded API data (or will be loaded).
+            refresh: Force refresh from API.
+
+        Returns:
+            Post-approval monitoring summary dict.
+        """
+        pma_key = pma_number.upper()
+
+        if api_data is None:
+            api_data = self.store.get_pma_data(pma_key, refresh=refresh)
+
+        summary: Dict[str, Any] = {
+            "has_post_approval_data": False,
+            "supplement_lifecycle": None,
+            "annual_report_compliance": None,
+            "pas_monitoring": None,
+        }
+
+        # Try supplement lifecycle analysis
+        try:
+            from supplement_tracker import SupplementTracker
+            tracker = SupplementTracker(store=self.store)
+            supp_report = tracker.generate_supplement_report(pma_key, refresh=refresh)
+
+            if supp_report and not supp_report.get("error"):
+                summary["has_post_approval_data"] = True
+                summary["supplement_lifecycle"] = {
+                    "total_supplements": supp_report.get("total_supplements", 0),
+                    "regulatory_type_distribution": supp_report.get("regulatory_type_distribution", {}),
+                    "change_impact": supp_report.get("change_impact", {}),
+                    "risk_flags": supp_report.get("risk_flags", []),
+                    "frequency": supp_report.get("frequency_analysis", {}),
+                }
+        except (ImportError, Exception):
+            summary["supplement_lifecycle"] = {
+                "note": "Supplement tracker module not available."
+            }
+
+        # Try annual report compliance
+        try:
+            from annual_report_tracker import AnnualReportTracker
+            ar_tracker = AnnualReportTracker(store=self.store)
+            ar_report = ar_tracker.generate_compliance_calendar(pma_key, refresh=refresh)
+
+            if ar_report and not ar_report.get("error"):
+                summary["has_post_approval_data"] = True
+                summary["annual_report_compliance"] = {
+                    "next_due_date": ar_report.get("next_due_date", {}),
+                    "total_expected_reports": ar_report.get("total_expected_reports", 0),
+                    "compliance_risks": ar_report.get("compliance_risks", []),
+                }
+        except (ImportError, Exception):
+            summary["annual_report_compliance"] = {
+                "note": "Annual report tracker module not available."
+            }
+
+        # Try PAS monitoring
+        try:
+            from pas_monitor import PASMonitor
+            monitor = PASMonitor(store=self.store)
+            pas_report = monitor.generate_pas_report(pma_key, refresh=refresh)
+
+            if pas_report and not pas_report.get("error"):
+                summary["has_post_approval_data"] = True
+                summary["pas_monitoring"] = {
+                    "pas_required": pas_report.get("pas_required", False),
+                    "pas_requirements": pas_report.get("pas_requirements", []),
+                    "pas_status": pas_report.get("pas_status", {}),
+                    "compliance": pas_report.get("compliance", {}),
+                    "alerts": pas_report.get("alerts", []),
+                }
+        except (ImportError, Exception):
+            summary["pas_monitoring"] = {
+                "note": "PAS monitor module not available."
+            }
+
+        return summary
+
+    # ------------------------------------------------------------------
     # Helper methods
     # ------------------------------------------------------------------
 
@@ -1437,6 +1538,33 @@ class PMAIntelligenceEngine:
         if citing:
             summary_points.append(f"{len(citing)} related 510(k) clearances found")
 
+        # Post-approval monitoring highlights
+        post_approval = report.get("post_approval_monitoring", {})
+        if post_approval.get("has_post_approval_data"):
+            supp_lifecycle = post_approval.get("supplement_lifecycle", {})
+            risk_flags = supp_lifecycle.get("risk_flags", [])
+            if risk_flags:
+                flag_count = len(risk_flags) if isinstance(risk_flags, list) else 0
+                summary_points.append(f"{flag_count} supplement risk flag(s) detected")
+                if flag_count >= 3:
+                    risk_level = "HIGH"
+                elif flag_count >= 1:
+                    risk_level = max(risk_level, "MEDIUM")
+
+            pas = post_approval.get("pas_monitoring", {})
+            if pas and pas.get("pas_required"):
+                pas_status = pas.get("pas_status", {})
+                overall = pas_status.get("overall_status", "unknown")
+                summary_points.append(f"Post-approval study: {overall}")
+
+            ar = post_approval.get("annual_report_compliance", {})
+            ar_risks = ar.get("compliance_risks", []) if ar else []
+            if ar_risks:
+                high_risks = [r for r in ar_risks if isinstance(r, dict) and r.get("severity") == "HIGH"]
+                if high_risks:
+                    summary_points.append(f"{len(high_risks)} high-severity annual report compliance risk(s)")
+                    risk_level = "HIGH"
+
         # Overall confidence
         clinical_conf = clinical.get("confidence", 0.0) if clinical.get("has_clinical_data") else 0.0
 
@@ -1447,6 +1575,7 @@ class PMAIntelligenceEngine:
             "total_supplements": total_supps,
             "comparable_pmas_count": len(comparable),
             "risk_level": risk_level,
+            "post_approval_monitoring_available": post_approval.get("has_post_approval_data", False),
         }
 
     def _save_intelligence_report(self, pma_number: str, report: Dict) -> None:
@@ -1598,6 +1727,61 @@ def _format_intelligence_report(report: Dict) -> str:
                 f"  {c['k_number']}: {c.get('device_name', 'N/A')[:40]} "
                 f"({c.get('applicant', 'N/A')[:25]}) - {c.get('decision_date', 'N/A')}"
             )
+        lines.append("")
+
+    # Post-Approval Monitoring (Phase 3)
+    post_approval = report.get("post_approval_monitoring", {})
+    if post_approval.get("has_post_approval_data"):
+        lines.append("--- Post-Approval Monitoring ---")
+
+        # Supplement Lifecycle
+        supp_lc = post_approval.get("supplement_lifecycle", {})
+        if supp_lc and not supp_lc.get("note"):
+            impact = supp_lc.get("change_impact", {})
+            if impact:
+                lines.append(f"  Impact Level: {impact.get('impact_level', 'N/A')}")
+                lines.append(f"  Burden Score: {impact.get('cumulative_burden_score', 0)}")
+
+            risk_flags = supp_lc.get("risk_flags", [])
+            if risk_flags:
+                lines.append(f"  Risk Flags ({len(risk_flags)}):")
+                for flag in risk_flags[:5]:
+                    if isinstance(flag, dict):
+                        lines.append(f"    [{flag.get('severity', 'INFO')}] {flag.get('description', 'N/A')}")
+                    else:
+                        lines.append(f"    - {flag}")
+
+        # Annual Report Compliance
+        ar = post_approval.get("annual_report_compliance", {})
+        if ar and not ar.get("note"):
+            next_due = ar.get("next_due_date", {})
+            if next_due:
+                lines.append(f"  Next Annual Report: #{next_due.get('report_number', 'N/A')}")
+                lines.append(f"    Due: {next_due.get('anniversary_date', 'N/A')}")
+                lines.append(f"    Grace Deadline: {next_due.get('grace_deadline', 'N/A')}")
+            ar_risks = ar.get("compliance_risks", [])
+            if ar_risks:
+                lines.append(f"  Compliance Risks: {len(ar_risks)}")
+
+        # PAS Monitoring
+        pas = post_approval.get("pas_monitoring", {})
+        if pas and not pas.get("note"):
+            lines.append(f"  PAS Required: {'YES' if pas.get('pas_required') else 'NO'}")
+            if pas.get("pas_required"):
+                pas_status = pas.get("pas_status", {})
+                lines.append(f"  PAS Status: {pas_status.get('overall_status', 'unknown')}")
+                compliance = pas.get("compliance", {})
+                if compliance:
+                    lines.append(f"  Compliance: {compliance.get('status', 'N/A')}")
+                alerts = pas.get("alerts", [])
+                if alerts:
+                    lines.append(f"  Alerts ({len(alerts)}):")
+                    for alert in alerts[:3]:
+                        if isinstance(alert, dict):
+                            lines.append(f"    [{alert.get('level', 'INFO')}] {alert.get('message', 'N/A')}")
+                        else:
+                            lines.append(f"    - {alert}")
+
         lines.append("")
 
     lines.append("=" * 70)

@@ -132,6 +132,24 @@ For more workflows, see [QUICK_START.md](docs/QUICK_START.md).
 /fda-tools:pma-intelligence --pma P170019 --assess-predicate NMH
 ```
 
+**PMA Post-Approval Monitoring (NEW in v5.33.0):**
+```bash
+# Supplement lifecycle tracking with regulatory type classification
+/fda-tools:pma-supplements --pma P170019
+/fda-tools:pma-supplements --pma P170019 --impact
+/fda-tools:pma-supplements --pma P170019 --risk-flags
+
+# Annual report compliance calendar per 21 CFR 814.84
+/fda-tools:annual-reports --pma P170019
+/fda-tools:annual-reports --batch P170019,P200024,P160035
+/fda-tools:annual-reports --pma P170019 --compliance-status
+
+# Post-approval study monitoring per 21 CFR 814.82
+/fda-tools:pas-monitor --pma P170019
+/fda-tools:pas-monitor --pma P170019 --compliance
+/fda-tools:pas-monitor --pma P170019 --milestones
+```
+
 **PMA Advanced Analytics (NEW in v5.32.0):**
 ```bash
 # Map clinical trial requirements from PMA precedent
@@ -176,6 +194,67 @@ python3 scripts/unified_predicate.py --assess P170019 --product-code NMH
 ```
 
 ## Feature Spotlight
+
+### NEW in v5.33.0: PMA Post-Approval Monitoring (TICKET-003 Phase 3)
+
+Complete post-approval lifecycle management for PMA devices covering supplement tracking, annual report compliance, and post-approval study monitoring.
+
+**Supplement Lifecycle Tracker (`/fda-tools:pma-supplements`):**
+```bash
+# Full supplement lifecycle report with regulatory type classification
+/fda-tools:pma-supplements --pma P170019
+
+# Change impact analysis
+/fda-tools:pma-supplements --pma P170019 --impact
+
+# Risk flags (high-frequency changes, denied supplements, etc.)
+/fda-tools:pma-supplements --pma P170019 --risk-flags
+```
+
+**Supplement Analysis Output:**
+- 7 regulatory types per 21 CFR 814.39 (180-day, real-time, 30-day notice, panel-track, PAS-related, manufacturing, other)
+- Change impact scoring with burden analysis
+- Frequency analysis with trend detection (accelerating/stable/decelerating)
+- 7 risk flags for compliance monitoring
+- Supplement dependency detection and lifecycle phase tracking
+
+**Annual Report Compliance Calendar (`/fda-tools:annual-reports`):**
+```bash
+# Full compliance calendar
+/fda-tools:annual-reports --pma P170019
+
+# Batch calendar for multiple PMAs
+/fda-tools:annual-reports --batch P170019,P200024,P160035
+
+# Project 5 years forward
+/fda-tools:annual-reports --pma P170019 --years-forward 5
+```
+
+**Annual Report Features:**
+- Due date calculation from approval anniversary + 60-day grace period (21 CFR 814.84)
+- 8 required report sections mapped to CFR subsections
+- Device characteristic detection (sterile, implantable, software)
+- Compliance risk identification and historical assessment
+- Batch calendar generation for portfolio management
+
+**Post-Approval Study Monitor (`/fda-tools:pas-monitor`):**
+```bash
+# Full PAS report
+/fda-tools:pas-monitor --pma P170019
+
+# Compliance assessment with alerts
+/fda-tools:pas-monitor --pma P170019 --compliance
+
+# Milestone timeline
+/fda-tools:pas-monitor --pma P170019 --milestones
+```
+
+**PAS Monitoring Features:**
+- 4 PAS types: continued approval, pediatric, Section 522, voluntary
+- PAS requirement detection from approval order, supplement history, and SSED
+- 10 milestone timeline with status tracking
+- Compliance assessment (COMPLIANT/ON_TRACK/AT_RISK/NON_COMPLIANT)
+- Alert generation for overdue milestones
 
 ### NEW in v5.32.0: PMA Advanced Analytics (TICKET-003 Phase 2)
 

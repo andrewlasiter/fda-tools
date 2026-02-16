@@ -346,3 +346,40 @@ Each extraction includes a confidence score (0-100%):
 - **>80%**: High confidence -- clear pattern match
 - **60-80%**: Moderate confidence -- likely correct but verify
 - **<60%**: Low confidence -- manual verification recommended
+
+## Post-Approval Monitoring (Phase 3 Integration)
+
+For deeper post-approval analysis, use the dedicated Phase 3 commands:
+
+### Enhanced Supplement Tracking
+```bash
+# Full supplement lifecycle report with regulatory type classification
+/fda-tools:pma-supplements --pma P170019
+
+# Change impact analysis
+/fda-tools:pma-supplements --pma P170019 --impact
+
+# Risk flags (high-frequency changes, denied supplements, etc.)
+/fda-tools:pma-supplements --pma P170019 --risk-flags
+```
+
+### Annual Report Compliance
+```bash
+# Compliance calendar with due dates per 21 CFR 814.84
+/fda-tools:annual-reports --pma P170019
+
+# Batch calendar for multiple PMAs
+/fda-tools:annual-reports --batch P170019,P200024,P160035
+```
+
+### Post-Approval Study Monitoring
+```bash
+# PAS requirement detection and milestone tracking per 21 CFR 814.82
+/fda-tools:pas-monitor --pma P170019
+
+# Compliance assessment with overdue milestone alerts
+/fda-tools:pas-monitor --pma P170019 --compliance
+```
+
+These commands build on the supplement intelligence in this report and provide
+actionable compliance tracking for post-approval obligations.
