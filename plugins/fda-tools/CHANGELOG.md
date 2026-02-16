@@ -2,6 +2,143 @@
 
 All notable changes to the FDA Tools plugin will be documented in this file.
 
+## [5.29.0] - 2026-02-16
+
+### Added - TICKET-003 Phase 0: PMA Intelligence Module Foundation
+
+PMA Intelligence Module foundation with structured cache, SSED batch download, 15-section extraction engine, and search command. This release builds the infrastructure for advanced PMA analysis in Phase 1.
+
+**New Command:** `/fda-tools:pma-search`
+
+Search, download, and analyze PMA (Premarket Approval) data from the FDA. Supports single PMA lookup, product code search, device name search, applicant search, SSED PDF download, and 15-section extraction.
+
+**Core Modules (5 new/enhanced):**
+
+1. **`scripts/pma_data_store.py`** (480 lines) - Structured cache and manifest system
+   - `PMADataStore` class with TTL-based caching for API data, SSEDs, and sections
+   - Manifest tracking with atomic writes for data integrity
+   - TTL tiers: approval data (7 days), supplements (24 hours), SSEDs (permanent), sections (permanent)
+   - PMA directory management (`~/fda-510k-data/pma_cache/{PMA_NUMBER}/`)
+   - Search result caching with 24-hour TTL
+   - Cache maintenance: clear, clear-all, clear-expired-searches
+   - CLI interface for direct cache operations
+
+2. **`scripts/pma_ssed_cache.py`** (380 lines) - SSED batch downloader
+   - TICKET-002 validated URL patterns (single-digit folders for 2000s PMAs)
+   - Case-variation fallback (uppercase B, lowercase b, all lowercase)
+   - User-Agent header for FDA server access
+   - Rate limiting: 500ms between requests (2 req/sec)
+   - Automatic retry with exponential backoff (3 attempts)
+   - Resume capability (skip already downloaded)
+   - PDF validation (%PDF magic bytes, minimum size)
+   - Batch download with progress tracking, ETA, download rate
+   - CLI interface for single/batch/product-code downloads
+
+3. **`scripts/pma_section_extractor.py`** (600 lines) - 15-section extraction engine
+   - 15 PMA SSED section types with 3-7 regex patterns each
+   - Supports Roman numeral (I., II., III.), numbered (1., 2., 3.), and text-based headers
+   - Boundary detection with confidence scoring (0.0-1.0)
+   - Quality scoring (0-100) based on section count, key sections, content density, confidence
+   - Quality levels: HIGH (75+), MEDIUM (50-74), LOW (0-49)
+   - Key sections: General Info, Indications, Device Description, Clinical Studies, Conclusions, Benefit-Risk
+   - PDF text extraction via pdfplumber (preferred) or PyPDF2 (fallback)
+   - Batch extraction with progress tracking
+   - CLI interface for PDF/PMA extraction and section listing
+
+4. **`scripts/fda_api_client.py`** (+55 lines) - Enhanced PMA API methods
+   - `search_pma()`: Multi-filter PMA search (product code, applicant, device name, advisory committee, year range, sort)
+   - `batch_pma()`: Look up multiple PMA numbers in single API call with OR query
+   - Extends existing `get_pma()`, `get_pma_supplements()`, `get_pma_by_product_code()`
+
+5. **`commands/pma-search.md`** (280 lines) - PMA search command
+   - 6 search modes: single PMA, product code, device name, applicant, manifest, stats
+   - SSED download integration with `--download-ssed` flag
+   - Section extraction with `--extract-sections` flag
+   - Progress tracking, confirmation for large batches
+   - Intelligence report generation for multi-PMA results
+   - Error handling guidance
+
+**15 PMA SSED Sections Supported:**
+1. General Information
+2. Indications for Use
+3. Device Description
+4. Alternative Practices and Procedures
+5. Marketing History
+6. Potential Risks and Adverse Effects
+7. Summary of Preclinical Studies
+8. Summary of Clinical Studies
+9. Statistical Analysis
+10. Benefit-Risk Analysis
+11. Overall Conclusions
+12. Panel Recommendation
+13. Summary of Nonclinical Testing
+14. Manufacturing and Sterilization
+15. Labeling
+
+**Testing:**
+- `tests/test_pma_phase0.py` (1100 lines, 95 tests across 17 test classes)
+- TestPMAAPIClient: 11 tests -- API method verification
+- TestPMADataStoreManifest: 9 tests -- manifest CRUD
+- TestPMADataStoreTTL: 8 tests -- TTL expiration logic
+- TestPMADataStoreAPI: 6 tests -- API data caching
+- TestPMADataStoreSections: 3 tests -- section save/load
+- TestPMADataStoreSearchCache: 3 tests -- search caching
+- TestPMADataStoreMaintenance: 6 tests -- cache maintenance
+- TestSSEDURLConstruction: 10 tests -- TICKET-002 URL patterns
+- TestPDFValidation: 4 tests -- PDF content validation
+- TestSSEDDownloader: 5 tests -- download orchestration
+- TestSectionPatterns: 4 tests -- section definitions
+- TestSectionExtraction: 15 tests -- text extraction
+- TestQualityScoring: 2 tests -- quality scoring
+- TestPMADataStoreCLI: 4 tests -- CLI interface
+- TestSSEDDownloaderCLI: 1 test -- downloader CLI
+- TestSectionExtractorCLI: 1 test -- extractor CLI
+- TestEndToEnd: 2 tests -- integration pipeline
+- Target: 90% code coverage (all offline, no network)
+
+**Architecture:**
+- Follows existing patterns from `fda_data_store.py` and `fda_api_client.py`
+- Clean separation of concerns: API -> storage -> download -> extraction -> command
+- Atomic file writes with temp + rename pattern
+- Graceful degradation on API errors (stale cache fallback)
+- Rate limiting respects FDA server limits (2 req/sec)
+- All data cached in `~/fda-510k-data/pma_cache/` with manifest tracking
+
+**Data Flow:**
+```
+openFDA PMA API -> PMADataStore -> API data cached
+FDA SSED server -> SSEDDownloader -> PDFs cached
+Cached PDFs -> PMAExtractor -> 15 sections extracted
+pma-search command -> orchestrates all components
+```
+
+**Files Created:**
+- `scripts/pma_data_store.py` (480 lines)
+- `scripts/pma_ssed_cache.py` (380 lines)
+- `scripts/pma_section_extractor.py` (600 lines)
+- `commands/pma-search.md` (280 lines)
+- `tests/test_pma_phase0.py` (1100 lines, 95 tests)
+
+**Files Modified:**
+- `scripts/fda_api_client.py` (+55 lines: search_pma, batch_pma methods)
+- `.claude-plugin/plugin.json` (version 5.29.0, updated description)
+- `CHANGELOG.md` (this entry)
+- `pytest.ini` (added pma marker)
+
+**Impact:**
+- Unblocks TICKET-003 Phase 1 (PMA comparison, analysis, intelligence)
+- Foundation for 100+ PMA batch processing
+- SSED download success rate: 82.4% (TICKET-002 validated)
+- 15-section extraction covers standard SSED format
+- Ready for Phase 1: clinical data extraction, competitive intelligence, approval timeline analysis
+
+**Backward Compatibility:**
+- 100% backward compatible -- no changes to existing 510(k) commands
+- New PMA cache is independent of existing API cache
+- New command `/fda-tools:pma-search` does not conflict with existing commands
+
+---
+
 ## [5.28.0] - 2026-02-16
 
 ### Added - TICKET-004: Pre-Sub Multi-Pathway Package Generator

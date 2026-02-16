@@ -6,20 +6,20 @@
     "email": "andrewlasiter@users.noreply.github.com"
   },
   "metadata": {
-    "description": "FDA regulatory tools for medical device analysis, predicate extraction, and submission preparation. v5.28.0 adds TICKET-004: Multi-pathway Pre-Sub support (510k, PMA, IDE, De Novo) with pathway-specific templates, 55+ question bank, and auto-detection. v5.27.0 completes TICKET-001: Pre-Sub eSTAR/PreSTAR XML. v5.26.0 adds automated data updates and section comparison.",
-    "version": "5.28.0"
+    "description": "FDA regulatory tools for medical device analysis, predicate extraction, and submission preparation. v5.29.0 adds TICKET-003 Phase 0: PMA Intelligence Module with SSED download, 15-section extraction, and structured cache. v5.28.0 adds TICKET-004: Multi-pathway Pre-Sub support. v5.27.0 completes TICKET-001: Pre-Sub eSTAR/PreSTAR XML.",
+    "version": "5.29.0"
   },
   "plugins": [
     {
       "name": "fda-tools",
       "source": "./plugins/fda-tools",
-      "description": "AI-powered FDA regulatory assistant with 51 commands, 12 agents — NEW v5.28.0: TICKET-004 Multi-Pathway Pre-Sub (510k, PMA, IDE, De Novo) with pathway-specific templates, 55+ question bank v2.0, auto-detection, and pathway-aware PreSTAR XML | v5.27.0: Pre-Sub eSTAR/PreSTAR XML complete (15/15 tests) | v5.26.0: Automated data updates and section comparison | v5.25.0: PreSTAR XML with 6 meeting types | v5.23.0: AI-powered standards generation | Core features: predicate extraction, substantial equivalence analysis, submission drafting, FDA review simulation, safety surveillance, guidance lookup, standards generation, and full eSTAR/PreSTAR export | Agent-based architecture uses installing user's Claude Code access",
-      "version": "5.28.0",
+      "description": "AI-powered FDA regulatory assistant with 52 commands, 12 agents — NEW v5.29.0: TICKET-003 Phase 0 PMA Intelligence Module with SSED batch download, 15-section extraction engine, PMA data store with manifest caching, and /fda-tools:pma-search command | v5.28.0: TICKET-004 Multi-Pathway Pre-Sub | v5.27.0: Pre-Sub eSTAR/PreSTAR XML | Core features: predicate extraction, substantial equivalence analysis, submission drafting, PMA intelligence, FDA review simulation, safety surveillance, guidance lookup, standards generation, and full eSTAR/PreSTAR export | Agent-based architecture uses installing user's Claude Code access",
+      "version": "5.29.0",
       "author": {
         "name": "PredicateExtraction"
       },
       "license": "MIT",
-      "keywords": ["fda", "510k", "pma", "ide", "de-novo", "medical-device", "predicate", "regulatory", "extraction", "pre-submission"],
+      "keywords": ["fda", "510k", "pma", "ide", "de-novo", "medical-device", "predicate", "regulatory", "extraction", "pre-submission", "ssed"],
       "category": "productivity"
     }
   ]

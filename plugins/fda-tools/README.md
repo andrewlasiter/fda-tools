@@ -81,7 +81,39 @@ Generates:
 
 For more workflows, see [QUICK_START.md](docs/QUICK_START.md).
 
+**Search and analyze PMA approvals (NEW in v5.29.0):**
+```bash
+# Look up a specific PMA
+/fda-tools:pma-search --pma P170019
+
+# Search by product code and year
+/fda-tools:pma-search --product-code NMH --year 2024
+
+# Full pipeline: search, download SSED, extract sections
+/fda-tools:pma-search --product-code NMH --download-ssed --extract-sections
+
+# Search by company
+/fda-tools:pma-search --applicant "Edwards Lifesciences" --year 2023
+
+# View cached PMA data
+/fda-tools:pma-search --show-manifest
+```
+
 ## Feature Spotlight
+
+### NEW in v5.29.0: PMA Intelligence Module (TICKET-003 Phase 0)
+
+Search, download, and analyze PMA approval data with SSED document intelligence.
+
+**Capabilities:**
+- Search PMAs by number, product code, device name, applicant, or year
+- Download SSED PDFs with rate limiting and resume capability
+- Extract 15 structured sections from SSED documents
+- Cache all data with TTL-based freshness management
+- Generate intelligence reports from multi-PMA analysis
+
+**15 SSED Sections Extracted:**
+General Information, Indications for Use, Device Description, Alternative Practices, Marketing History, Potential Risks, Preclinical Studies, Clinical Studies, Statistical Analysis, Benefit-Risk Analysis, Overall Conclusions, Panel Recommendation, Nonclinical Testing, Manufacturing, Labeling
 
 ### NEW in v5.28.0: Multi-Pathway Pre-Submission Support (TICKET-004)
 

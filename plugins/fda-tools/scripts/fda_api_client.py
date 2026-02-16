@@ -254,6 +254,63 @@ class FDAClient:
             "pma", {"search": f'product_code:"{product_code}"', "limit": str(limit)}
         )
 
+    def search_pma(self, product_code=None, applicant=None, device_name=None,
+                   advisory_committee=None, year_start=None, year_end=None,
+                   limit=50, sort=None):
+        """Search PMA database with combined filters.
+
+        Args:
+            product_code: Filter by product code
+            applicant: Filter by applicant name
+            device_name: Free-text search against trade_name
+            advisory_committee: Filter by advisory committee code
+            year_start: Start year (YYYY) for decision_date range
+            year_end: End year (YYYY) for decision_date range
+            limit: Max results (default 50)
+            sort: Sort field and direction (e.g., 'decision_date:desc')
+
+        Returns:
+            API response dict with results list and meta
+        """
+        parts = []
+        if product_code:
+            parts.append(f'product_code:"{product_code}"')
+        if applicant:
+            parts.append(f'applicant:"{applicant}"')
+        if device_name:
+            parts.append(f'trade_name:"{device_name}"')
+        if advisory_committee:
+            parts.append(f'advisory_committee:"{advisory_committee}"')
+        if year_start or year_end:
+            start = f"{year_start}0101" if year_start else "19760101"
+            end = f"{year_end}1231" if year_end else "29991231"
+            parts.append(f"decision_date:[{start}+TO+{end}]")
+        if not parts:
+            return {"error": "Provide at least one search filter", "degraded": True}
+        search = "+AND+".join(parts)
+        params = {"search": search, "limit": str(limit)}
+        if sort:
+            params["sort"] = sort
+        return self._request("pma", params)
+
+    def batch_pma(self, pma_numbers, limit=None):
+        """Look up multiple PMA numbers in a single API call using OR query.
+
+        Args:
+            pma_numbers: List of PMA numbers (e.g., ['P170019', 'P200024'])
+            limit: Max results (defaults to len of pma_numbers)
+
+        Returns:
+            API response dict with results list
+        """
+        if not pma_numbers:
+            return {"results": [], "meta": {"results": {"total": 0}}}
+        search = "+OR+".join(f'pma_number:"{p}"' for p in pma_numbers)
+        return self._request("pma", {
+            "search": search,
+            "limit": str(limit or len(pma_numbers))
+        })
+
     def get_udi(self, product_code=None, company_name=None, di=None, limit=10):
         """Look up UDI/GUDID records by product code, company, or device identifier."""
         if di:
