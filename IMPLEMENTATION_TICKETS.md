@@ -813,6 +813,7 @@ End-to-end testing and polish for v5.26.0 features (automated data updates and m
 **Effort:** 40-60 hours
 **Assignee:** TBD + Independent RA Consultant
 **Due Date:** Q2 2026
+**Verification Spec:** `plugins/fda-tools/TICKET-017-VERIFICATION-SPEC.md` (80 pages, expert-created by Senior RA Testing Engineer)
 
 **Description:**
 Expert panel review identified unverified accuracy claims (spec claims 95%, actual testing found 50% error rate). Must validate tool accuracy before production regulatory use.
@@ -888,6 +889,7 @@ Expert panel review identified unverified accuracy claims (spec claims 95%, actu
 **Effort:** 50-70 hours
 **Assignee:** TBD
 **Due Date:** Q2 2026
+**Verification Spec:** `plugins/fda-tools/TICKET-018-VERIFICATION-SPEC.md` (2,214 lines, expert-created by Senior RA Database Architect)
 
 **Description:**
 Expert panel unanimously identified 96.5% database coverage gap as "regulatory malpractice." Current tool has 54 standards; FDA recognizes ~1,900 standards.
@@ -983,6 +985,7 @@ def get_fda_recognized_standards():
 **Effort:** 60-80 hours
 **Assignee:** TBD
 **Due Date:** Q3 2026
+**Verification Spec:** `plugins/fda-tools/TICKET-019-VERIFICATION-SPEC.md` (2,468 lines, expert-created by Senior RA Intelligence Analyst)
 
 **Description:**
 Expert panel consensus: "Tool shows theoretical standards, but users need to know what ACTUALLY CLEARS for this product code." Integrate with 510(k) database to show predicate-based standards patterns.
@@ -1076,6 +1079,7 @@ Expert panel consensus: "Tool shows theoretical standards, but users need to kno
 **Effort:** 30-40 hours
 **Assignee:** TBD
 **Due Date:** Q2 2026
+**Verification Spec:** `plugins/fda-tools/TICKET-020-VERIFICATION-SPEC.md` (82 pages, expert-created by Senior QMS Auditor)
 
 **Description:**
 Expert panel unanimous: "Tool must REQUIRE user verification to meet 21 CFR 820.30 design control requirements. AI output alone is not objective evidence."
@@ -1191,6 +1195,7 @@ Expert panel unanimous: "Tool must REQUIRE user verification to meet 21 CFR 820.
 **Effort:** 40-50 hours
 **Assignee:** TBD
 **Due Date:** Q3 2026
+**Verification Spec:** `plugins/fda-tools/TICKET-021-VERIFICATION-SPEC.md` (1,915 lines, expert-created by Senior Testing Laboratory Manager)
 
 **Description:**
 Expert panel (especially Testing Engineer): "Tool provides standard numbers without actionable context. We need sample sizes, lead times, cost estimates, lab recommendations."
