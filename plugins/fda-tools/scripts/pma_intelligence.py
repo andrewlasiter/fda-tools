@@ -1422,6 +1422,102 @@ class PMAIntelligenceEngine:
         return summary
 
     # ------------------------------------------------------------------
+    # Phase 4 Integration: Advanced Analytics & ML
+    # ------------------------------------------------------------------
+
+    def get_advanced_analytics_summary(
+        self,
+        pma_number: str,
+        api_data: Optional[Dict] = None,
+        refresh: bool = False,
+    ) -> Dict:
+        """Generate advanced analytics summary using Phase 4 modules.
+
+        Integrates review time prediction, approval probability scoring,
+        MAUDE peer comparison, and competitive intelligence.
+
+        Args:
+            pma_number: PMA number.
+            api_data: Pre-loaded API data (or will be loaded).
+            refresh: Force refresh from API.
+
+        Returns:
+            Advanced analytics summary dict.
+        """
+        pma_key = pma_number.upper()
+
+        if api_data is None:
+            api_data = self.store.get_pma_data(pma_key, refresh=refresh)
+
+        summary: Dict[str, Any] = {
+            "has_analytics_data": False,
+            "review_time_prediction": None,
+            "approval_probability": None,
+            "maude_comparison": None,
+        }
+
+        # Try review time prediction
+        try:
+            from review_time_predictor import ReviewTimePredictionEngine
+            predictor = ReviewTimePredictionEngine(store=self.store)
+            prediction = predictor.predict_review_time(pma_key, refresh=refresh)
+
+            if prediction and not prediction.get("error"):
+                summary["has_analytics_data"] = True
+                pred = prediction.get("prediction", {})
+                summary["review_time_prediction"] = {
+                    "expected_days": pred.get("expected_days"),
+                    "expected_months": pred.get("expected_months"),
+                    "model_confidence": pred.get("model_confidence"),
+                    "risk_factor_count": len(pred.get("risk_factors", [])),
+                }
+        except (ImportError, Exception):
+            summary["review_time_prediction"] = {
+                "note": "Review time predictor module not available."
+            }
+
+        # Try approval probability
+        try:
+            from approval_probability import ApprovalProbabilityScorer
+            scorer = ApprovalProbabilityScorer(store=self.store)
+            scores = scorer.score_approval_probability(pma_key, refresh=refresh)
+
+            if scores and not scores.get("error"):
+                summary["has_analytics_data"] = True
+                agg = scores.get("aggregate_analysis", {})
+                summary["approval_probability"] = {
+                    "avg_probability": agg.get("avg_approval_probability"),
+                    "classification_accuracy": agg.get("classification_accuracy"),
+                    "total_scored": agg.get("total_scored", 0),
+                }
+        except (ImportError, Exception):
+            summary["approval_probability"] = {
+                "note": "Approval probability scorer module not available."
+            }
+
+        # Try MAUDE comparison
+        try:
+            from maude_comparison import MAUDEComparisonEngine
+            engine = MAUDEComparisonEngine(store=self.store)
+            profile = engine.build_adverse_event_profile(pma_key, refresh=refresh)
+
+            if profile and profile.get("total_events", 0) > 0:
+                summary["has_analytics_data"] = True
+                summary["maude_comparison"] = {
+                    "total_events": profile.get("total_events", 0),
+                    "death_count": profile.get("death_count", 0),
+                    "injury_count": profile.get("injury_count", 0),
+                    "malfunction_count": profile.get("malfunction_count", 0),
+                    "has_death_reports": profile.get("has_death_reports", False),
+                }
+        except (ImportError, Exception):
+            summary["maude_comparison"] = {
+                "note": "MAUDE comparison engine not available."
+            }
+
+        return summary
+
+    # ------------------------------------------------------------------
     # Helper methods
     # ------------------------------------------------------------------
 
