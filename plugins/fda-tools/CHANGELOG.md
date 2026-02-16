@@ -2,6 +2,85 @@
 
 All notable changes to the FDA Tools plugin will be documented in this file.
 
+## [5.28.0] - 2026-02-16
+
+### Added - TICKET-004: Pre-Sub Multi-Pathway Package Generator
+
+Multi-pathway Pre-Submission support for 510(k), PMA, IDE, and De Novo regulatory pathways.
+This release expands the Pre-Sub system from 510(k)-only to all four major FDA regulatory pathways,
+with pathway-specific templates, questions, and auto-detection.
+
+**Core Features:**
+- Pathway auto-detection from device class and description characteristics
+- `--pathway 510k|pma|ide|de_novo` argument for explicit pathway selection
+- Pathway-specific question bank expansion (35 -> 55+ questions, v2.0)
+- 3 new pathway-specific Pre-Sub templates (PMA, IDE, De Novo)
+- Pathway-aware question selection merging pathway_defaults with meeting_type_defaults
+- Pathway filtering for questions (applicable_pathways field)
+- Expanded question limit (7 -> 10 for PMA/IDE/De Novo pathways)
+- PreSTAR XML includes regulatory pathway in SubmissionCharacteristics
+
+**New Templates:**
+- `data/templates/presub_meetings/pma_presub.md`: PMA Pre-Sub with clinical study design, benefit-risk assessment, comparable PMAs, post-approval considerations
+- `data/templates/presub_meetings/ide_presub.md`: IDE Pre-Sub with SR/NSR determination (21 CFR 812.3(m)), clinical investigation design, safety monitoring, informed consent
+- `data/templates/presub_meetings/de_novo_presub.md`: De Novo Pre-Sub with no-predicate justification, proposed special controls, risk assessment, labeling strategy
+
+**Question Bank v2.0 (55+ questions across 26 categories):**
+- 6 new PMA questions: PMA-CLINICAL-001/002/003, PMA-RISK-001, PMA-NONCLIN-001, PMA-PANEL-001
+- 5 new IDE questions: IDE-SR-NSR-001, IDE-PROTOCOL-001, IDE-CONSENT-001, IDE-MONITOR-001, IDE-FEASIBILITY-001
+- 6 new De Novo questions: DENOVO-RISK-001, DENOVO-CONTROLS-001, DENOVO-PREDICATE-001, DENOVO-CLASSIFICATION-001, DENOVO-CLINICAL-001, DENOVO-LABELING-001
+- All existing questions tagged with `applicable_pathways` field
+- New `pathway_defaults` section for pathway-specific default question sets
+- New pathway auto-triggers: pma_pathway, ide_pathway, de_novo_pathway, early_feasibility
+
+**Schema v2.0:**
+- Added `regulatory_pathway` field (enum: 510k, pma, ide, de_novo)
+- Added `pathway_detection_method` field (enum: auto, user-specified, device-profile)
+- Added `pathway_rationale` field
+- Added `device_class` field
+- Added `question_bank_version` and `pathway_specific_questions` to metadata
+- Expanded question limit from 7 to 10
+- Backward compatible with v1.0 schema
+
+**Pathway Auto-Detection Logic:**
+- Class III devices -> PMA (unless clinical study keywords detected -> IDE)
+- Novel device / no predicate keywords -> De Novo
+- Clinical investigation keywords -> IDE
+- Class I/II with predicates -> 510(k) (default)
+
+**Files Modified:**
+- `commands/presub.md`: Added --pathway argument, pathway detection (Step 3.25), pathway-aware question selection, pathway-aware template routing, v2.0 metadata
+- `scripts/estar_xml.py`: Added pathway info to PreSTAR SubmissionCharacteristics
+- `agents/presub-planner.md`: Added pathway detection table and pathway-specific package generation
+- `data/question_banks/presub_questions.json`: Expanded to 55+ questions, v2.0 with pathway support
+- `data/schemas/presub_metadata_schema.json`: v2.0 with pathway fields
+
+**Files Created:**
+- `data/templates/presub_meetings/pma_presub.md` (371 lines)
+- `data/templates/presub_meetings/ide_presub.md` (390 lines)
+- `data/templates/presub_meetings/de_novo_presub.md` (351 lines)
+- `tests/test_presub_multipathway.py` (20 integration tests, all passing)
+
+**Diagnostic Fixes:**
+- `scripts/compare_sections.py`: Renamed unused parameters `section_data` -> `_section_data` in `generate_markdown_report()` and `product_code` -> `_product_code` in `generate_csv_export()` (suppresses Pyright unused variable warnings)
+- `scripts/estar_xml.py`: Confirmed `_template_type` already correctly prefixed (informational only)
+
+**Test Results (20/20 passing):**
+- 4 pathway detection tests (Class III -> PMA, novel -> De Novo, clinical -> IDE, override)
+- 4 question selection tests (PMA/IDE/De Novo defaults, pathway filtering)
+- 4 template routing tests (PMA/IDE/De Novo templates, 510k meeting types)
+- 4 metadata generation tests (v2.0 schema, pathway fields, rationale, device class)
+- 4 end-to-end tests (complete package generation for each pathway)
+
+**Impact:**
+- Enables Pre-Sub packages for all 4 major FDA regulatory pathways
+- Pathway-specific questions improve FDA meeting preparation quality
+- Auto-detection reduces manual pathway determination effort
+- Backward compatible: existing 510(k) workflows unchanged
+- 20 comprehensive integration tests ensure multi-pathway reliability
+
+---
+
 ## [5.27.0] - 2026-02-16
 
 ### Added - TICKET-001: Pre-Sub eSTAR/PreSTAR XML Generation -- COMPLETE

@@ -1,11 +1,11 @@
 {
   "name": "fda-tools",
-  "version": "5.27.0",
-  "description": "AI-powered FDA 510(k) regulatory assistant with 47 commands — predicate search, substantial equivalence analysis, submission drafting, Pre-Sub eSTAR/PreSTAR XML generation, automated data updates, section comparison, and regulatory intelligence",
+  "version": "5.28.0",
+  "description": "AI-powered FDA regulatory assistant with 47 commands — predicate search, substantial equivalence analysis, submission drafting, Pre-Sub eSTAR/PreSTAR XML generation with multi-pathway support (510k, PMA, IDE, De Novo), automated data updates, section comparison, and regulatory intelligence",
   "author": {
     "name": "PredicateExtraction"
   },
   "repository": "https://github.com/andrewlasiter/fda-predicate-assistant",
   "license": "MIT",
-  "keywords": ["fda", "510k", "medical-device", "predicate", "regulatory", "extraction", "data-management", "section-comparison"]
+  "keywords": ["fda", "510k", "pma", "ide", "de-novo", "medical-device", "predicate", "regulatory", "extraction", "data-management", "section-comparison", "pre-submission"]
 }

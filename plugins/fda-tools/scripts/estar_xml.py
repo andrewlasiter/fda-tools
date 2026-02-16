@@ -870,8 +870,8 @@ def _collect_project_values(project_data):
             try:
                 with open(question_bank_path) as f:
                     question_bank = json.load(f)
-            except:
-                pass
+            except (json.JSONDecodeError, OSError, IOError) as e:
+                print(f"WARNING: Failed to load question bank: {e}", file=sys.stderr)
 
         # Format questions for QPTextField110
         questions_generated = presub_metadata.get("questions_generated", [])
@@ -907,6 +907,17 @@ def _collect_project_values(project_data):
             "info-only": "Informational Submission (No Meeting)"
         }.get(meeting_type, meeting_type)
 
+        # Regulatory pathway (NEW - TICKET-004)
+        regulatory_pathway = presub_metadata.get("regulatory_pathway", "510k")
+        pathway_display = {
+            "510k": "510(k) Premarket Notification",
+            "pma": "Premarket Approval (PMA)",
+            "ide": "Investigational Device Exemption (IDE)",
+            "de_novo": "De Novo Classification Request"
+        }.get(regulatory_pathway, regulatory_pathway)
+        pathway_rationale_presub = presub_metadata.get("pathway_rationale", "")
+        pathway_detection = presub_metadata.get("pathway_detection_method", "auto")
+
         device_desc = presub_metadata.get("device_description", "")
         intended_use_presub = presub_metadata.get("intended_use", "")
         question_count = presub_metadata.get("question_count", 0)
@@ -914,6 +925,11 @@ def _collect_project_values(project_data):
 
         characteristics_parts = []
         characteristics_parts.append(f"Meeting Type: {meeting_type_display}")
+        characteristics_parts.append(f"Regulatory Pathway: {pathway_display}")
+        if pathway_rationale_presub:
+            characteristics_parts.append(f"Pathway Rationale: {pathway_rationale_presub}")
+        if pathway_detection != "auto":
+            characteristics_parts.append(f"Pathway Detection: {pathway_detection}")
         if detection_rationale:
             characteristics_parts.append(f"Selection Rationale: {detection_rationale}")
         characteristics_parts.append(f"Number of Questions: {question_count}")

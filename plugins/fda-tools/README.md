@@ -55,20 +55,48 @@ New to the plugin? Follow these steps:
 /fda-tools:pipeline --product-code DQY --years 2024
 ```
 
-**Generate Pre-Submission package with FDA eSTAR XML:**
+**Generate Pre-Submission package with FDA eSTAR XML (supports 510k, PMA, IDE, De Novo):**
 ```bash
+# 510(k) Pre-Sub (default)
 /fda-tools:presub DQY --project my_device \
   --device-description "Catheter for vascular access" \
   --intended-use "To provide vascular access for medication delivery"
+
+# PMA Pre-Sub (auto-detected for Class III, or specify explicitly)
+/fda-tools:presub QAS --pathway pma --project my_pma_device \
+  --device-description "Class III cardiac implant"
+
+# IDE Pre-Sub (auto-detected when clinical study keywords present)
+/fda-tools:presub OVE --pathway ide --project my_ide_study \
+  --device-description "Novel cervical fusion device for clinical investigation"
+
+# De Novo Pre-Sub (auto-detected for novel devices without predicate)
+/fda-tools:presub NEW --pathway de_novo --project my_novel_device \
+  --device-description "Novel digital therapeutic with no legally marketed predicate"
 ```
 Generates:
-- `presub_plan.md` - Human-readable Pre-Sub plan (auto-selects 5-7 questions)
-- `presub_metadata.json` - Structured meeting data
+- `presub_plan.md` - Human-readable Pre-Sub plan (pathway-specific, 5-10 questions)
+- `presub_metadata.json` - Structured meeting data (v2.0 schema with pathway info)
 - `presub_prestar.xml` - FDA Form 5064 XML (import into Adobe Acrobat)
 
 For more workflows, see [QUICK_START.md](docs/QUICK_START.md).
 
 ## Feature Spotlight
+
+### NEW in v5.28.0: Multi-Pathway Pre-Submission Support (TICKET-004)
+
+Pre-Sub packages now support all four major FDA regulatory pathways with pathway-specific
+templates, questions, and auto-detection.
+
+**Supported Pathways:**
+| Pathway | Template | Auto-Detection |
+|---------|----------|----------------|
+| 510(k) | 6 meeting-type templates | Class I/II with predicates |
+| PMA | pma_presub.md | Class III devices |
+| IDE | ide_presub.md | Clinical study keywords |
+| De Novo | de_novo_presub.md | Novel device / no predicate |
+
+**Question Bank v2.0:** 55+ questions across 26 categories with pathway-specific filtering.
 
 ### NEW in v5.26.0: Automated Data Management & Regulatory Intelligence
 

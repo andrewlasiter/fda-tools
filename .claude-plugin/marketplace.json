@@ -6,20 +6,20 @@
     "email": "andrewlasiter@users.noreply.github.com"
   },
   "metadata": {
-    "description": "FDA regulatory tools for medical device 510(k) analysis, predicate extraction, and submission preparation. v5.27.0 completes TICKET-001: Pre-Sub eSTAR/PreSTAR XML with all pipeline fixes (meeting type filtering, deduplication, placeholder tracking). v5.26.0 adds automated data updates and multi-device section comparison. v5.25.1 fixes critical security and compliance issues. v5.23.0 adds AI-powered standards generation.",
-    "version": "5.27.0"
+    "description": "FDA regulatory tools for medical device analysis, predicate extraction, and submission preparation. v5.28.0 adds TICKET-004: Multi-pathway Pre-Sub support (510k, PMA, IDE, De Novo) with pathway-specific templates, 55+ question bank, and auto-detection. v5.27.0 completes TICKET-001: Pre-Sub eSTAR/PreSTAR XML. v5.26.0 adds automated data updates and section comparison.",
+    "version": "5.28.0"
   },
   "plugins": [
     {
       "name": "fda-tools",
       "source": "./plugins/fda-tools",
-      "description": "AI-powered FDA 510(k) regulatory assistant with 51 commands, 12 agents — NEW v5.27.0: TICKET-001 COMPLETE - Pre-Sub eSTAR/PreSTAR XML with pipeline fixes (meeting type filtering, deduplication, placeholder tracking, 15/15 tests passing) | v5.26.0: Automated data updates and multi-device section comparison | v5.25.1: Critical security and compliance fixes | v5.25.0: PreSTAR XML generation with 6 meeting types, 35-question bank | v5.23.0: AI-powered standards generation | Phase 5: workflow orchestration, streaming processor, semantic search | Phase 4: ML-powered predicate recommendations, automated gap analysis | Phase 3: MAUDE peer comparison, competitive intelligence | Phase 1-2: data provenance, quality validation, CFR citations | Core features: predicate extraction, substantial equivalence analysis, submission drafting, FDA review simulation, safety surveillance, guidance lookup, standards generation, and full eSTAR/PreSTAR export | Agent-based architecture uses installing user's Claude Code access",
-      "version": "5.27.0",
+      "description": "AI-powered FDA regulatory assistant with 51 commands, 12 agents — NEW v5.28.0: TICKET-004 Multi-Pathway Pre-Sub (510k, PMA, IDE, De Novo) with pathway-specific templates, 55+ question bank v2.0, auto-detection, and pathway-aware PreSTAR XML | v5.27.0: Pre-Sub eSTAR/PreSTAR XML complete (15/15 tests) | v5.26.0: Automated data updates and section comparison | v5.25.0: PreSTAR XML with 6 meeting types | v5.23.0: AI-powered standards generation | Core features: predicate extraction, substantial equivalence analysis, submission drafting, FDA review simulation, safety surveillance, guidance lookup, standards generation, and full eSTAR/PreSTAR export | Agent-based architecture uses installing user's Claude Code access",
+      "version": "5.28.0",
       "author": {
         "name": "PredicateExtraction"
       },
       "license": "MIT",
-      "keywords": ["fda", "510k", "medical-device", "predicate", "regulatory", "extraction"],
+      "keywords": ["fda", "510k", "pma", "ide", "de-novo", "medical-device", "predicate", "regulatory", "extraction", "pre-submission"],
       "category": "productivity"
     }
   ]

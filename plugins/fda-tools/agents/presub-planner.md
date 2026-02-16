@@ -1,6 +1,6 @@
 ---
 name: presub-planner
-description: Autonomous Pre-Submission preparation agent. Researches regulatory landscape, analyzes guidance, gathers safety intelligence, reviews literature, and generates a complete Pre-Sub package with FDA questions. Use when starting Pre-Sub preparation for a new device.
+description: Autonomous Pre-Submission preparation agent. Researches regulatory landscape, analyzes guidance, gathers safety intelligence, reviews literature, and generates a complete Pre-Sub package with FDA questions. Supports 510(k), PMA, IDE, and De Novo pathways with pathway-specific templates and questions. Use when starting Pre-Sub preparation for a new device.
 tools:
   - Read
   - Glob
@@ -145,7 +145,27 @@ This agent combines the work of these individual commands into one autonomous wo
 
 ### Phase 5: Pre-Sub Generation
 
-9.5. **Determine Q-Sub type** — Based on gathered data, recommend the appropriate Pre-Submission type:
+9.5. **Determine Regulatory Pathway and Q-Sub Type** — Based on gathered data:
+
+   **Regulatory Pathway Detection (NEW - TICKET-004):**
+
+   | Pathway | Detection Criteria | Template Used |
+   |---------|-------------------|---------------|
+   | **510(k)** | Class I/II with identified predicates | Meeting-type template (formal, written, etc.) |
+   | **PMA** | Class III device requiring clinical evidence | pma_presub.md |
+   | **IDE** | Clinical investigation planned (any class) | ide_presub.md |
+   | **De Novo** | Novel device type, no legally marketed predicate | de_novo_presub.md |
+
+   **Pathway Decision Logic:**
+   - If Class III → PMA (unless IDE for clinical study planning)
+   - If novel technology AND no predicate identified → De Novo
+   - If clinical study planned (keywords: "clinical study", "investigational", "IDE") → IDE
+   - If Class I/II with predicates → 510(k)
+   - Default: 510(k)
+
+   **Pass the detected pathway via `--pathway` argument to `/fda:presub`.**
+
+   **Q-Sub Type Decision (within pathway):**
 
    | Q-Sub Type | When to Recommend | Key Characteristics |
    |------------|-------------------|---------------------|
@@ -160,13 +180,16 @@ This agent combines the work of these individual commands into one autonomous wo
    - If no questions, just data update → Q-Sub (Information)
    - If clinical study planned → Pre-IDE
 
-10. **Generate Pre-Sub package** — Using all gathered data:
-   - Cover letter addressed to appropriate CDRH division
-   - Q-Sub type recommendation with rationale
+10. **Generate Pre-Sub package** — Using all gathered data and detected pathway:
+   - Cover letter addressed to appropriate CDRH division (pathway-specific)
+   - Regulatory pathway and Q-Sub type recommendation with rationale
    - Device description section
-   - Regulatory strategy (pathway recommendation)
-   - Predicate justification with top 2-3 candidates
-   - FDA questions (5-7, auto-generated from gaps and concerns)
+   - Regulatory strategy (pathway-specific sections):
+     - **510(k)**: Predicate justification with top 2-3 candidates, SE comparison
+     - **PMA**: Clinical study design, benefit-risk assessment, comparable PMAs
+     - **IDE**: SR/NSR determination, study protocol design, safety monitoring
+     - **De Novo**: No-predicate justification, risk assessment, proposed special controls
+   - FDA questions (5-10, pathway-specific auto-generated from question bank v2.0)
    - Testing strategy based on guidance requirements
    - Safety intelligence summary (including inspection/enforcement data from Steps 8.5-8.6)
    - Clinical trial landscape (from Step 8.7)

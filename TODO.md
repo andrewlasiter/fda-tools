@@ -1,8 +1,8 @@
 # FDA Tools Plugin - Implementation TODO
 
 **Last Updated:** 2026-02-16
-**Status:** Multi-pathway expansion planning (PMA, IDE, Pre-Sub)
-**Current Version:** 5.27.0
+**Status:** TICKET-004 COMPLETE (v5.28.0). Next: TICKET-003 PMA Intelligence Module.
+**Current Version:** 5.28.0
 
 ---
 
@@ -147,19 +147,21 @@
 
 ### TICKET-004: Pre-Sub Multi-Pathway Package Generator
 **Priority:** HIGH
-**Effort:** 60-80 hours
-**Status:** READY (unblocked by TICKET-001 COMPLETE)
-**Owner:** Unassigned
+**Effort:** 60-80 hours (estimated) / ~25 hours (actual)
+**Status:** COMPLETE (2026-02-16, v5.28.0)
+**Owner:** Completed
 
 **Deliverables:**
-- [ ] 510(k) Pre-Sub package template
-- [ ] PMA Pre-Sub package template (clinical data focus)
-- [ ] IDE Pre-Sub package template (SR/NSR determination support)
-- [ ] De Novo Pre-Sub package template (risk assessment)
-- [ ] Pathway detection from device characteristics
-- [ ] Question recommendation engine (30+ templates)
-- [ ] Meeting type selector (6 types)
-- [ ] Administrative info collector (contact details, dates, meeting preferences)
+- [x] 510(k) Pre-Sub package template (6 meeting type templates, from TICKET-001)
+- [x] PMA Pre-Sub package template (clinical data focus) -- pma_presub.md
+- [x] IDE Pre-Sub package template (SR/NSR determination support) -- ide_presub.md
+- [x] De Novo Pre-Sub package template (risk assessment) -- de_novo_presub.md
+- [x] Pathway detection from device characteristics -- Step 3.25 in presub.md
+- [x] Question recommendation engine (55+ templates, v2.0 question bank)
+- [x] Meeting type selector (6 types, from TICKET-001)
+- [x] Administrative info collector -- implemented via template placeholders with TODO markers
+- [x] Integration tests -- 20/20 passing (test_presub_multipathway.py)
+- [x] Diagnostic cleanup -- unused variable fixes in compare_sections.py
 
 **Package Components (Pathway-Specific):**
 - **510(k):**
@@ -184,15 +186,25 @@
   - Predicate search documentation
 
 **Acceptance Criteria:**
-- [ ] Generates pathway-appropriate packages
-- [ ] Auto-detects correct pathway from device profile
-- [ ] Question templates populate from device characteristics
-- [ ] Meeting type selection based on submission stage
-- [ ] All 6 meeting types supported
-- [ ] Integration with existing project data (device_profile.json, review.json)
+- [x] Generates pathway-appropriate packages (510k, PMA, IDE, De Novo templates)
+- [x] Auto-detects correct pathway from device profile (class + keywords)
+- [x] Question templates populate from device characteristics (55+ questions, pathway filtering)
+- [x] Meeting type selection based on submission stage (6 types)
+- [x] All 6 meeting types supported (from TICKET-001)
+- [x] Integration with existing project data (device_profile.json, review.json)
+- [x] Integration tests for multi-pathway scenarios (20/20 passing)
+- [x] End-to-end validation with sample PMA/IDE/De Novo devices (4 E2E tests)
 
-**Dependencies:** TICKET-001 (Pre-Sub eSTAR XML)
+**Dependencies:** TICKET-001 (Pre-Sub eSTAR XML) -- COMPLETE
 **Blocks:** None
+**Implementation Version:** v5.28.0
+
+**Test Results (20/20 passing):**
+- 4 pathway detection tests (Class III -> PMA, novel -> De Novo, clinical -> IDE, override)
+- 4 question selection tests (PMA/IDE/De Novo defaults, pathway filtering)
+- 4 template routing tests (PMA/IDE/De Novo templates, 510k meeting types)
+- 4 metadata generation tests (v2.0 schema, pathway fields, rationale)
+- 4 end-to-end tests (complete package for each pathway)
 
 ---
 
@@ -762,7 +774,7 @@ TICKET-006 (Annual Reports) + TICKET-007 (Supplements) + TICKET-008 (Post-Approv
 ```
 TICKET-001 (Pre-Sub eSTAR XML) -- COMPLETE (v5.27.0)
     ↓ [UNBLOCKED]
-TICKET-004 (Pre-Sub Multi-Pathway) -- READY
+TICKET-004 (Pre-Sub Multi-Pathway) -- COMPLETE (v5.28.0)
 ```
 
 ### Independent Tickets (Can Start Anytime)
@@ -771,7 +783,25 @@ TICKET-004 (Pre-Sub Multi-Pathway) -- READY
 
 ---
 
-## COMPLETED FEATURES (v5.27.0)
+## COMPLETED FEATURES (v5.28.0)
+
+### TICKET-004: Pre-Sub Multi-Pathway Package Generator
+**Completed:** 2026-02-16 (v5.28.0)
+**Decision:** COMPLETE - Multi-pathway Pre-Sub for 510(k), PMA, IDE, De Novo
+**Status:** COMPLETE
+
+**Key Deliverables:**
+- Pathway auto-detection from device class + keywords (Step 3.25 in presub.md)
+- 3 new pathway-specific templates (pma_presub.md, ide_presub.md, de_novo_presub.md)
+- Question bank v2.0: 55+ questions across 26 categories with pathway filtering
+- Metadata schema v2.0 with regulatory_pathway, pathway_detection_method, pathway_rationale
+- Expanded question limit (7 -> 10) for PMA/IDE/De Novo pathways
+- 20 integration tests (test_presub_multipathway.py, 20/20 passing)
+- Diagnostic cleanup (unused variable fixes in compare_sections.py)
+
+**Impact:** Enables Pre-Sub packages for all 4 FDA regulatory pathways, reducing preparation time and improving FDA meeting preparation quality.
+
+---
 
 ### TICKET-001: Pre-Sub eSTAR/PreSTAR XML Generation
 **Completed:** 2026-02-16 (v5.25.0 core, v5.25.1 security fixes, v5.27.0 pipeline fixes)
@@ -900,9 +930,10 @@ TICKET-004 (Pre-Sub Multi-Pathway) -- READY
 ## NOTES
 
 ### Version Management
-- Current version: **5.27.0** (Pre-Sub eSTAR/PreSTAR XML complete - TICKET-001)
-- Next version: **5.28.0** (TICKET-004 Pre-Sub multi-pathway) or **6.0.0** (if TICKET-003 completes)
-- PMA version: **6.0.0** (if TICKET-003 completes - major feature)
+- Current version: **5.28.0** (Pre-Sub Multi-Pathway - TICKET-004 COMPLETE)
+- Previous version: **5.27.0** (Pre-Sub eSTAR/PreSTAR XML complete - TICKET-001)
+- Next version: **6.0.0** (if TICKET-003 PMA Intelligence Module completes - major feature)
+- PMA version: **6.0.0** (TICKET-003 Phase 0-3, 220-300 hours)
 
 ### Testing Requirements
 - Unit tests: ≥90% coverage for new code
@@ -920,6 +951,6 @@ TICKET-004 (Pre-Sub Multi-Pathway) -- READY
 ---
 
 **Total Project Scope:** 850-1,150 hours across all pathways
-**Critical Path:** TICKET-001 (COMPLETE) | TICKET-003 (READY, unblocked by TICKET-002 GO)
-**Next Action:** TICKET-003 Phase 0 (PMA Intelligence Module, 220-300 hours) or TICKET-004 (Pre-Sub Multi-Pathway, 60-80 hours)
-**PMA Path:** TICKET-003 Phase 0 ready to start (220-300 hours, 10 weeks)
+**Critical Path:** TICKET-001 (COMPLETE) | TICKET-004 (COMPLETE, v5.28.0) | TICKET-003 (READY)
+**Next Action:** TICKET-003 Phase 0 (PMA Intelligence Module, 220-300 hours, 10 weeks)
+**PMA Path:** TICKET-003 Phase 0 ready to start (unblocked by TICKET-002 CONDITIONAL GO)

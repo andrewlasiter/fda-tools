@@ -1,7 +1,7 @@
 ---
-description: Plan a Pre-Submission meeting with FDA — generate cover letter template, meeting request, and discussion topics based on device and predicate analysis
+description: Plan a Pre-Submission meeting with FDA — generate cover letter template, meeting request, and discussion topics based on device and predicate analysis. Supports 510(k), PMA, IDE, and De Novo pathways.
 allowed-tools: Bash, Read, Glob, Grep, Write, WebSearch
-argument-hint: "<product-code> [--project NAME] [--device-description TEXT] [--intended-use TEXT] [--infer]"
+argument-hint: "<product-code> [--pathway 510k|pma|ide|de_novo] [--project NAME] [--device-description TEXT] [--intended-use TEXT] [--infer]"
 ---
 
 # FDA Pre-Submission Meeting Planner
@@ -44,6 +44,7 @@ You are helping the user plan a Pre-Submission (Pre-Sub) meeting with FDA. Gener
 From `$ARGUMENTS`, extract:
 
 - **Product code** (required) — 3-letter FDA product code
+- `--pathway 510k|pma|ide|de_novo` — Regulatory pathway (default: auto-detect from device class and characteristics)
 - `--project NAME` — Use data from a specific project folder (review.json, guidance_cache, output.csv)
 - `--device-description TEXT` — Description of the user's device
 - `--intended-use TEXT` — Proposed indications for use
@@ -266,6 +267,99 @@ echo "Rationale: $DETECTION_RATIONALE"
 
 Report the recommendation: "Recommended meeting type: {meeting_type} — {rationale}"
 
+## Step 3.25: Determine Regulatory Pathway (NEW - TICKET-004)
+
+If `--pathway` is explicitly provided, use that value. Otherwise, auto-detect from device classification and characteristics.
+
+```bash
+PATHWAY_RESULT=$(python3 << 'PYEOF'
+import os, sys
+
+# Check if user explicitly specified a pathway
+user_pathway = os.environ.get("USER_PATHWAY", "").lower().strip()
+valid_pathways = ["510k", "pma", "ide", "de_novo"]
+
+if user_pathway and user_pathway in valid_pathways:
+    print(f"{user_pathway}|user-specified|User specified --pathway {user_pathway}")
+    sys.exit(0)
+
+# Auto-detect pathway from device characteristics
+device_class = os.environ.get("DEVICE_CLASS", "").strip()
+device_description = os.environ.get("DEVICE_DESCRIPTION", "").lower()
+has_predicates = os.environ.get("HAS_PREDICATES", "false").lower() == "true"
+
+def detect_pathway():
+    # Class III devices -> PMA (unless IDE for clinical study)
+    if device_class == "3":
+        # Check if clinical study is planned (IDE)
+        ide_keywords = ["clinical study", "clinical investigation", "clinical trial",
+                        "investigational", "ide", "feasibility study", "pivotal study",
+                        "first-in-human", "first in human"]
+        for kw in ide_keywords:
+            if kw in device_description:
+                return ("ide", f"Class III device with clinical study planned -> IDE pathway")
+
+        return ("pma", f"Class III device -> Premarket Approval (PMA) pathway")
+
+    # Explicit De Novo indicators
+    de_novo_keywords = ["no predicate", "novel device", "no legally marketed",
+                        "de novo", "first-of-kind", "new device type",
+                        "no substantially equivalent", "novel technology"]
+    for kw in de_novo_keywords:
+        if kw in device_description:
+            return ("de_novo", f"Novel device type ('{kw}' detected) -> De Novo classification")
+
+    # IDE indicators (any class)
+    ide_keywords = ["clinical study", "clinical investigation", "clinical trial",
+                    "investigational device", "ide", "feasibility study", "pivotal study",
+                    "first-in-human", "first in human", "significant risk study",
+                    "nonsignificant risk study"]
+    for kw in ide_keywords:
+        if kw in device_description:
+            return ("ide", f"Clinical investigation planned ('{kw}' detected) -> IDE pathway")
+
+    # Class I or II with predicates -> 510(k)
+    if device_class in ("1", "2") and has_predicates:
+        return ("510k", f"Class {device_class} device with predicates identified -> 510(k) pathway")
+
+    # Class I or II without predicates -> could be 510(k) or De Novo
+    if device_class in ("1", "2") and not has_predicates:
+        # Default to 510(k), but note De Novo possibility
+        return ("510k", f"Class {device_class} device, no predicates yet -> 510(k) (consider De Novo if no predicate found)")
+
+    # Default to 510(k)
+    return ("510k", "Default pathway -> 510(k) Premarket Notification")
+
+pathway, rationale = detect_pathway()
+print(f"{pathway}|auto|{rationale}")
+PYEOF
+)
+
+# Parse result
+REGULATORY_PATHWAY=$(echo "$PATHWAY_RESULT" | cut -d'|' -f1)
+PATHWAY_DETECTION_METHOD=$(echo "$PATHWAY_RESULT" | cut -d'|' -f2)
+PATHWAY_RATIONALE=$(echo "$PATHWAY_RESULT" | cut -d'|' -f3-)
+
+# Export for downstream use
+export REGULATORY_PATHWAY
+export PATHWAY_DETECTION_METHOD
+export PATHWAY_RATIONALE
+
+echo "Regulatory Pathway: $REGULATORY_PATHWAY"
+echo "Detection: $PATHWAY_DETECTION_METHOD"
+echo "Rationale: $PATHWAY_RATIONALE"
+```
+
+**Pathway Descriptions:**
+- **510k** — 510(k) Premarket Notification (Class I/II with predicate)
+- **pma** — Premarket Approval (Class III, requires clinical evidence)
+- **ide** — Investigational Device Exemption (clinical study planned)
+- **de_novo** — De Novo Classification Request (novel device, no predicate)
+
+**Override:** User can force specific pathway with `--pathway 510k|pma|ide|de_novo`
+
+Report the recommendation: "Regulatory pathway: {pathway} — {rationale}"
+
 ## Step 3.5: Select Questions from Question Bank (NEW - TICKET-001)
 
 Using the meeting type determined above, select appropriate questions from presub_questions.json based on meeting_type_defaults and auto_triggers.
@@ -302,19 +396,24 @@ if missing_keys:
     sys.exit(1)
 
 # Validate version compatibility
-supported_versions = ["1.0"]
+supported_versions = ["1.0", "2.0"]
 bank_version = question_bank.get("version", "unknown")
 if bank_version not in supported_versions:
     print(f"WARNING: Question bank version {bank_version} may be incompatible. Supported: {', '.join(supported_versions)}", file=sys.stderr)
 
-# Get meeting type and device characteristics
+# Get meeting type, pathway, and device characteristics
 meeting_type = os.environ.get("MEETING_TYPE", "formal")
 device_description = os.environ.get("DEVICE_DESCRIPTION", "").lower()
 has_predicates = os.environ.get("HAS_PREDICATES", "false").lower() == "true"
+regulatory_pathway = os.environ.get("REGULATORY_PATHWAY", "510k")
 
 # Get default questions for meeting type
 default_question_ids = question_bank.get("meeting_type_defaults", {}).get(meeting_type, [])
 selected_ids = set(default_question_ids)
+
+# Merge pathway-specific defaults (NEW - TICKET-004)
+pathway_defaults = question_bank.get("pathway_defaults", {}).get(regulatory_pathway, [])
+selected_ids.update(pathway_defaults)
 
 # Check auto-triggers with enhanced keyword matching (CRITICAL-3 fix)
 auto_triggers = question_bank.get("auto_triggers", {})
@@ -356,6 +455,21 @@ device_keywords = {
     "novel_technology": [
         "novel", "first of kind", "unprecedented", "no predicate",
         "first in class", "new technology", "innovative", "breakthrough"
+    ],
+    "pma_pathway": [
+        "pma", "premarket approval", "class iii", "class 3"
+    ],
+    "ide_pathway": [
+        "investigational", "ide", "clinical study", "clinical investigation",
+        "clinical trial", "feasibility study", "pivotal study", "first in human"
+    ],
+    "de_novo_pathway": [
+        "de novo", "novel device", "no predicate", "no legally marketed",
+        "new device type", "first of kind"
+    ],
+    "early_feasibility": [
+        "early feasibility", "first in human", "first in man",
+        "efs", "early feasibility study"
     ]
 }
 
@@ -385,6 +499,19 @@ for q in selected_questions:
     filtered_questions.append(q)
 selected_questions = filtered_questions
 
+# Filter by applicable_pathways (NEW - TICKET-004)
+# Questions may specify which regulatory pathways they apply to; skip questions
+# that are not applicable to the current pathway
+pathway_filtered = []
+for q in selected_questions:
+    applicable_pathways = q.get("applicable_pathways", [])
+    if isinstance(applicable_pathways, list) and len(applicable_pathways) > 0:
+        if regulatory_pathway not in applicable_pathways and "all" not in applicable_pathways:
+            print(f"NOTE: Skipping {q.get('id', '')} - not applicable to {regulatory_pathway} pathway", file=sys.stderr)
+            continue
+    pathway_filtered.append(q)
+selected_questions = pathway_filtered
+
 # Deduplicate question IDs (EDGE-3 fix)
 # If auto-trigger logic or defaults select the same question twice, remove duplicates
 seen_ids = set()
@@ -401,8 +528,10 @@ selected_questions = unique_questions
 # Sort by priority (descending)
 selected_questions.sort(key=lambda q: q.get("priority", 0), reverse=True)
 
-# Limit to 7 questions max (Pre-Sub best practice)
-selected_questions = selected_questions[:7]
+# Limit to 10 questions max (expanded for multi-pathway support - TICKET-004)
+# 510(k) typically needs 5-7; PMA/IDE/De Novo may need up to 10
+max_questions = 10 if regulatory_pathway in ("pma", "ide", "de_novo") else 7
+selected_questions = selected_questions[:max_questions]
 
 # Format output
 question_count = len(selected_questions)
@@ -440,48 +569,64 @@ export SELECTED_QUESTIONS=$(echo "$QUESTION_SELECTION_RESULT" | grep "^Q[0-9]")
 echo "Selected $QUESTION_COUNT questions for $MEETING_TYPE meeting"
 ```
 
-## Step 3.6: Load Template File (NEW - TICKET-001)
+## Step 3.6: Load Template File (UPDATED - TICKET-004)
 
-Based on the meeting type, load the appropriate template file from data/templates/presub_meetings/.
+Based on the regulatory pathway AND meeting type, load the appropriate template file from data/templates/presub_meetings/.
+
+**Template Selection Logic (TICKET-004):**
+- For PMA, IDE, or De Novo pathways: use pathway-specific templates (pma_presub.md, ide_presub.md, de_novo_presub.md)
+- For 510(k) pathway: use meeting-type-specific templates (formal_meeting.md, written_response.md, etc.)
+- Pathway-specific templates take priority over meeting-type templates when pathway is not 510(k)
 
 ```bash
-# Map meeting type to template file
-case "$MEETING_TYPE" in
-    formal)
-        TEMPLATE_FILE="formal_meeting.md"
-        ;;
-    written)
-        TEMPLATE_FILE="written_response.md"
-        ;;
-    info)
-        TEMPLATE_FILE="info_meeting.md"
-        ;;
-    pre-ide)
-        TEMPLATE_FILE="pre_ide.md"
-        ;;
-    administrative)
-        TEMPLATE_FILE="administrative_meeting.md"
-        ;;
-    info-only)
-        TEMPLATE_FILE="info_only.md"
-        ;;
-    *)
-        TEMPLATE_FILE="formal_meeting.md"  # Default fallback
-        ;;
-esac
+# Determine template based on pathway first, then meeting type (TICKET-004)
+if [ "$REGULATORY_PATHWAY" = "pma" ]; then
+    TEMPLATE_FILE="pma_presub.md"
+elif [ "$REGULATORY_PATHWAY" = "ide" ]; then
+    TEMPLATE_FILE="ide_presub.md"
+elif [ "$REGULATORY_PATHWAY" = "de_novo" ]; then
+    TEMPLATE_FILE="de_novo_presub.md"
+else
+    # 510(k) pathway: use meeting-type-specific templates
+    case "$MEETING_TYPE" in
+        formal)
+            TEMPLATE_FILE="formal_meeting.md"
+            ;;
+        written)
+            TEMPLATE_FILE="written_response.md"
+            ;;
+        info)
+            TEMPLATE_FILE="info_meeting.md"
+            ;;
+        pre-ide)
+            TEMPLATE_FILE="pre_ide.md"
+            ;;
+        administrative)
+            TEMPLATE_FILE="administrative_meeting.md"
+            ;;
+        info-only)
+            TEMPLATE_FILE="info_only.md"
+            ;;
+        *)
+            TEMPLATE_FILE="formal_meeting.md"  # Default fallback
+            ;;
+    esac
+fi
 
 TEMPLATE_PATH="$FDA_PLUGIN_ROOT/data/templates/presub_meetings/$TEMPLATE_FILE"
 
 if [ ! -f "$TEMPLATE_PATH" ]; then
     echo "ERROR: Template file not found: $TEMPLATE_PATH"
-    exit 1
+    echo "Falling back to formal_meeting.md"
+    TEMPLATE_FILE="formal_meeting.md"
+    TEMPLATE_PATH="$FDA_PLUGIN_ROOT/data/templates/presub_meetings/$TEMPLATE_FILE"
 fi
 
 export TEMPLATE_FILE
 export TEMPLATE_PATH
 export TEMPLATE_USED="$TEMPLATE_FILE"
 
-echo "Using template: $TEMPLATE_FILE"
+echo "Using template: $TEMPLATE_FILE (pathway: $REGULATORY_PATHWAY, meeting: $MEETING_TYPE)"
 ```
 
 ## Step 4: Generate Pre-Sub Package
@@ -688,9 +833,14 @@ placeholders = {
     # Project metadata
     'project_name': os.environ.get("PROJECT_NAME", "[TODO: Project Name]"),
 
-    # Pathway
-    'proposed_pathway': "Traditional",
-    'pathway_rationale': "[TODO: Company-specific — Pathway selection rationale]",
+    # Pathway (UPDATED - TICKET-004)
+    'proposed_pathway': {
+        "510k": "Traditional 510(k)",
+        "pma": "Premarket Approval (PMA)",
+        "ide": "Investigational Device Exemption (IDE)",
+        "de_novo": "De Novo Classification Request"
+    }.get(os.environ.get("REGULATORY_PATHWAY", "510k"), "Traditional 510(k)"),
+    'pathway_rationale': os.environ.get("PATHWAY_RATIONALE", "[TODO: Company-specific — Pathway selection rationale]"),
 
     # Additional meeting-type specific placeholders
     'development_status': "[TODO: Current development stage]",
@@ -1503,14 +1653,18 @@ if not project_dir or not os.path.exists(project_dir):
     print("METADATA_SKIPPED:no_project_directory")
     exit(0)
 
-# Build metadata dict
+# Build metadata dict (UPDATED - TICKET-004: added pathway fields)
 metadata = {
-    "version": "1.0",
+    "version": "2.0",
     "generated_at": datetime.now(timezone.utc).isoformat(),
     "meeting_type": os.environ.get("MEETING_TYPE", "formal"),
+    "regulatory_pathway": os.environ.get("REGULATORY_PATHWAY", "510k"),
+    "pathway_detection_method": os.environ.get("PATHWAY_DETECTION_METHOD", "auto"),
+    "pathway_rationale": os.environ.get("PATHWAY_RATIONALE", ""),
     "detection_method": os.environ.get("DETECTION_METHOD", "auto"),
     "detection_rationale": os.environ.get("DETECTION_RATIONALE", ""),
     "product_code": os.environ.get("PRODUCT_CODE", ""),
+    "device_class": os.environ.get("DEVICE_CLASS", ""),
     "device_description": os.environ.get("DEVICE_DESCRIPTION", ""),
     "intended_use": os.environ.get("INTENDED_USE", ""),
     "questions_generated": json.loads(os.environ.get("QUESTION_IDS", "[]")),
@@ -1522,7 +1676,9 @@ metadata = {
     "data_sources_used": ["classification", "review.json", "guidance_cache"],
     "metadata": {
         "placeholder_count": int(os.environ.get("PLACEHOLDER_COUNT", "0")),
-        "auto_filled_fields": os.environ.get("AUTO_FILLED_FIELDS", "").split(",") if os.environ.get("AUTO_FILLED_FIELDS") else []
+        "auto_filled_fields": os.environ.get("AUTO_FILLED_FIELDS", "").split(",") if os.environ.get("AUTO_FILLED_FIELDS") else [],
+        "question_bank_version": "2.0",
+        "pathway_specific_questions": len([q for q in json.loads(os.environ.get("QUESTION_IDS", "[]")) if q.startswith(("PMA-", "IDE-", "DENOVO-"))])
     }
 }
 
@@ -1542,7 +1698,7 @@ if not isinstance(metadata["question_count"], int):
     sys.exit(1)
 
 # Validate version
-if metadata["version"] not in ["1.0"]:
+if metadata["version"] not in ["1.0", "2.0"]:
     print(f"WARNING: Metadata version {metadata['version']} may be incompatible", file=sys.stderr)
 
 # Write metadata file atomically (RISK-1 fix)
@@ -1572,10 +1728,12 @@ PYEOF
 Report metadata generation:
 ```
 Pre-Sub metadata generated: {metadata_path}
+  Regulatory Pathway: {regulatory_pathway} ({pathway_detection_method})
   Meeting Type: {meeting_type} ({detection_method})
   Questions: {question_count} generated
   Template: {template_used}
   FDA Form: FDA-5064 (PreSTAR)
+  Schema Version: 2.0
 ```
 
 ## Step 7: Generate PreSTAR XML (NEW - TICKET-001)
@@ -1611,22 +1769,27 @@ else
 fi
 ```
 
-Update final report to include XML status:
+Update final report to include XML status and pathway:
 ```
 Pre-Submission plan written to: {output_path}
 
+Regulatory Pathway: {regulatory_pathway} ({pathway_detection_method})
+
 The plan includes:
-  • Cover letter template
+  • Cover letter template ({pathway}-specific)
   • Device description section {auto-populated / template}
   • Proposed regulatory strategy: {pathway}
-  • Predicate justification: {count} predicates {with scores / template}
-  • {N} FDA questions auto-generated
+  {510k: • Predicate justification: {count} predicates {with scores / template}}
+  {pma: • Clinical study design and benefit-risk assessment}
+  {ide: • SR/NSR risk determination and study protocol}
+  {de_novo: • Special controls proposal and risk assessment}
+  • {N} FDA questions auto-generated ({pathway}-specific)
   • Testing strategy: {from guidance / template}
-  • PreSTAR XML: Ready for FDA eSTAR import  ← NEW
+  • PreSTAR XML: Ready for FDA eSTAR import
 
 Files generated:
   1. presub_plan.md — Markdown for human review
-  2. presub_metadata.json — Structured meeting data
+  2. presub_metadata.json — Structured meeting data (v2.0 schema)
   3. presub_prestar.xml — FDA eSTAR import-ready XML
 
 Next steps:
