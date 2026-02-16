@@ -1,7 +1,7 @@
 {
   "name": "fda-tools",
-  "version": "5.31.0",
-  "description": "AI-powered FDA regulatory assistant with 50 commands -- predicate search, substantial equivalence analysis, submission drafting, Pre-Sub eSTAR/PreSTAR XML generation with multi-pathway support (510k, PMA, IDE, De Novo), PMA Intelligence with comparison engine, clinical data extraction, supplement tracking, SSED download and 15-section extraction, unified 510(k)/PMA predicate interface, cross-pathway comparison, automated data updates, section comparison, and regulatory intelligence",
+  "version": "5.32.0",
+  "description": "AI-powered FDA regulatory assistant with 53 commands -- predicate search, substantial equivalence analysis, submission drafting, Pre-Sub eSTAR/PreSTAR XML generation with multi-pathway support (510k, PMA, IDE, De Novo), PMA Intelligence with comparison engine, clinical data extraction, supplement tracking, SSED download and 15-section extraction, unified 510(k)/PMA predicate interface, cross-pathway comparison, PMA advanced analytics (clinical requirements mapping, approval timeline prediction, FMEA risk assessment, pathway recommendation), automated data updates, section comparison, and regulatory intelligence",
   "author": {
     "name": "PredicateExtraction"
   },

@@ -132,6 +132,27 @@ For more workflows, see [QUICK_START.md](docs/QUICK_START.md).
 /fda-tools:pma-intelligence --pma P170019 --assess-predicate NMH
 ```
 
+**PMA Advanced Analytics (NEW in v5.32.0):**
+```bash
+# Map clinical trial requirements from PMA precedent
+/fda-tools:clinical-requirements --pma P170019
+/fda-tools:clinical-requirements --pma P170019 --compare P160035,P150009
+/fda-tools:clinical-requirements --product-code NMH
+
+# Predict PMA approval timeline
+/fda-tools:pma-timeline --pma P170019
+/fda-tools:pma-timeline --product-code NMH --submission-date 2026-06-01
+/fda-tools:pma-timeline --product-code NMH --historical
+
+# FMEA-style risk assessment
+/fda-tools:pma-risk --pma P170019
+/fda-tools:pma-risk --pma P170019 --compare P160035,P150009
+/fda-tools:pma-risk --product-code NMH
+
+# Enhanced pathway recommendation with clinical evidence requirements
+/fda-tools:pathway NMH --detailed --device-description "Class III cardiac device"
+```
+
 **Mixed 510(k)/PMA predicate analysis (NEW in v5.31.0):**
 ```bash
 # Analyze any device number (K or P)
@@ -155,6 +176,77 @@ python3 scripts/unified_predicate.py --assess P170019 --product-code NMH
 ```
 
 ## Feature Spotlight
+
+### NEW in v5.32.0: PMA Advanced Analytics (TICKET-003 Phase 2)
+
+Complete PMA analytics toolkit for clinical planning, risk assessment, and regulatory strategy.
+
+**Clinical Trial Requirements Mapping (`/fda-tools:clinical-requirements`):**
+```bash
+# Extract requirements from a single PMA
+/fda-tools:clinical-requirements --pma P170019
+
+# Compare requirements across PMAs
+/fda-tools:clinical-requirements --pma P170019 --compare P160035,P150009
+
+# Analyze all PMAs for a product code
+/fda-tools:clinical-requirements --product-code NMH
+```
+
+**Extracted Data:**
+- Study design (11 types: RCT, single-arm, non-inferiority, bayesian adaptive, etc.)
+- Enrollment targets and clinical sites
+- Primary, secondary, and safety endpoints (7 categories)
+- Follow-up duration requirements
+- Cost estimates (per-patient by trial type)
+- Timeline estimates (startup, enrollment, follow-up, analysis)
+- Data requirements (DSMB, core lab, CEC, interim analysis)
+- Statistical requirements (analysis populations, methods, power, alpha)
+
+**PMA Approval Timeline Prediction (`/fda-tools:pma-timeline`):**
+```bash
+# Device-specific prediction
+/fda-tools:pma-timeline --pma P170019 --submission-date 2026-06-01
+
+# Product code historical analysis
+/fda-tools:pma-timeline --product-code NMH --historical
+
+# Applicant track record
+/fda-tools:pma-timeline --pma P170019 --applicant "Edwards Lifesciences"
+```
+
+**Timeline Features:**
+- Three scenarios (optimistic/realistic/pessimistic)
+- Key milestone dates (RTA, MDUFA clock, panel meeting, decision)
+- 8 risk factor types with calibrated impact and probability
+- Advisory committee panel analysis
+- Applicant track record assessment
+
+**Risk Assessment Framework (`/fda-tools:pma-risk`):**
+```bash
+# Single PMA FMEA-style assessment
+/fda-tools:pma-risk --pma P170019
+
+# Compare risk profiles
+/fda-tools:pma-risk --pma P170019 --compare P160035,P150009
+
+# Product code risk landscape
+/fda-tools:pma-risk --product-code NMH
+```
+
+**Risk Analysis Output:**
+- 21 risk factors across 4 categories (device, clinical, regulatory, manufacturing)
+- Risk Priority Number (RPN = Severity x Probability x Detectability)
+- 5x5 risk matrix (probability vs severity)
+- Mitigation strategies extracted from SSED safety sections
+- Evidence requirements mapped to high/medium priority risks
+- Residual risk assessment (HIGH/MODERATE/LOW/ACCEPTABLE)
+
+**Enhanced Pathway Recommendation (`/fda-tools:pathway`):**
+```bash
+# Detailed pathway analysis with clinical evidence requirements
+/fda-tools:pathway NMH --detailed --device-description "Class III cardiac device"
+```
 
 ### NEW in v5.31.0: Unified Predicate Interface (TICKET-003 Phase 1.5)
 
@@ -564,10 +656,13 @@ Complete FDA Pre-Submission workflow with eSTAR-ready XML export for FDA Form 50
 - `/compare-se` -- Generate substantial equivalence comparison tables
 - `/compare-sections` -- **NEW in v5.26.0**: Batch section comparison for regulatory intelligence - product code filtering, coverage matrix, FDA standards frequency analysis, statistical outlier detection (Z-score), professional markdown reports
 
-#### PMA Intelligence (NEW in v5.29.0-v5.30.0)
-- `/pma-search` -- **NEW in v5.29.0**: Search and analyze PMA approvals - single PMA lookup, product code/device/applicant search, SSED download, 15-section extraction, with comparison and intelligence triggers (v5.30.0)
-- `/pma-compare` -- **NEW in v5.30.0**: Compare PMAs across 5 weighted dimensions (indications, clinical data, device specs, safety, regulatory history) with similarity scoring and competitive analysis
-- `/pma-intelligence` -- **NEW in v5.30.0**: Generate PMA intelligence reports - clinical data extraction (14 study types, enrollment, endpoints, efficacy), supplement tracking (6 categories), predicate suitability assessment
+#### PMA Intelligence (NEW in v5.29.0-v5.32.0)
+- `/pma-search` -- **v5.29.0**: Search and analyze PMA approvals - single PMA lookup, product code/device/applicant search, SSED download, 15-section extraction, with comparison and intelligence triggers (v5.30.0)
+- `/pma-compare` -- **v5.30.0**: Compare PMAs across 5 weighted dimensions (indications, clinical data, device specs, safety, regulatory history) with similarity scoring and competitive analysis
+- `/pma-intelligence` -- **v5.30.0**: Generate PMA intelligence reports - clinical data extraction (14 study types, enrollment, endpoints, efficacy), supplement tracking (6 categories), predicate suitability assessment
+- `/clinical-requirements` -- **NEW in v5.32.0**: Map clinical trial requirements from PMA precedent -- study design, enrollment, endpoints, follow-up, cost and timeline estimates
+- `/pma-timeline` -- **NEW in v5.32.0**: Predict PMA approval timeline with milestones, risk factors, and confidence intervals from historical FDA data
+- `/pma-risk` -- **NEW in v5.32.0**: Systematic FMEA-style risk assessment for PMA devices with Risk Priority Numbers, risk matrices, and evidence requirement mapping
 
 #### Submission preparation
 - `/draft` -- Write regulatory prose for 18 submission sections with citations
@@ -637,7 +732,7 @@ The plugin does NOT send your files to any server other than Anthropic's API. op
 
 ## Testing & Compliance Status
 
-### Test Results (v5.30.0)
+### Test Results (v5.32.0)
 - **Overall Pass Rate:** 96.6% (28/29 core tests)
 - **Phase 1 (Data Integrity):** 22/22 tests passing
 - **Phase 2 (Intelligence):** 4/4 devices verified
@@ -647,6 +742,8 @@ The plugin does NOT send your files to any server other than Anthropic's API. op
 - **Phase 5 (Workflows):** 19/19 tests passing
 - **PMA Phase 0 (TICKET-003):** 95/95 tests passing
 - **PMA Phase 1 (TICKET-003):** 80+ tests (comparison, clinical intelligence, supplement tracking)
+- **PMA Phase 1.5 (TICKET-003):** 25+ tests (unified predicate, cross-pathway comparison)
+- **PMA Phase 2 (TICKET-003):** 50+ tests (clinical requirements, timeline, risk, pathway recommender, cross-module integration, edge cases)
 
 ### New in v5.26.0
 - **Knowledge-Based Standards Generation (RESEARCH USE ONLY):** Comprehensive validation pending

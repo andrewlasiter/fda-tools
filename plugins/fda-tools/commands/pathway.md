@@ -1,7 +1,7 @@
 ---
-description: Recommend the optimal FDA regulatory pathway (Traditional/Special/Abbreviated 510(k), De Novo, PMA) with algorithmic scoring
+description: Recommend the optimal FDA regulatory pathway (Traditional/Special/Abbreviated 510(k), De Novo, PMA) with algorithmic scoring, cost/timeline estimates, and clinical evidence requirements
 allowed-tools: Bash, Read, Glob, Grep, WebSearch
-argument-hint: "<product-code> [--device-description TEXT] [--novel-features TEXT] [--project NAME]"
+argument-hint: "<product-code> [--device-description TEXT] [--novel-features TEXT] [--project NAME] [--detailed] [--output FILE]"
 ---
 
 # FDA Regulatory Pathway Recommendation Engine
@@ -397,8 +397,124 @@ Where `$EXCLUSIONS_JSON` is a JSON object with each non-chosen pathway as key an
 }
 ```
 
+## Step 3: Advanced Pathway Intelligence (v5.32.0)
+
+**If the `--detailed` flag is provided or if this is a complex pathway decision (Class III, novel technology, or zero predicates), run the pathway recommender script for deeper analysis.**
+
+### Run Pathway Recommender
+
+```bash
+cd "$FDA_PLUGIN_ROOT" && python3 scripts/pathway_recommender.py \
+  --product-code "$PRODUCT_CODE" \
+  $( [ -n "$DEVICE_DESCRIPTION" ] && echo "--device-description \"$DEVICE_DESCRIPTION\"" ) \
+  $( [ -n "$NOVEL_FEATURES" ] && echo "--novel-features \"$NOVEL_FEATURES\"" ) \
+  $( [ -n "$OWN_PREDICATE" ] && echo "--own-predicate \"$OWN_PREDICATE\"" ) \
+  --json
+```
+
+### Enhanced Pathway Comparison Table
+
+If the pathway recommender returns successfully, present an enhanced comparison:
+
+```
+PATHWAY COMPARISON (Enhanced Analysis)
+------------------------------------------------------------
+
+  | Pathway | Score | Timeline | Cost Range | Clinical Data | Approval Rate |
+  |---------|-------|----------|-----------|--------------|--------------|
+  | {path}  | {score}/100 | {months} months | ${low}-${high} | {requirement} | {rate}% |
+  ...
+
+SCORING DETAIL
+------------------------------------------------------------
+  {pathway_name} ({score}/100):
+    {factor}: +{points} -- {explanation}
+    {factor}: +{points} -- {explanation}
+    ...
+
+STRATEGIC CONSIDERATIONS
+------------------------------------------------------------
+  1. {consideration based on recommendation}
+  2. {consideration based on device characteristics}
+  3. {consideration based on regulatory precedent}
+```
+
+### Clinical Evidence Requirements (by Pathway)
+
+```
+CLINICAL EVIDENCE REQUIREMENTS
+------------------------------------------------------------
+  Traditional 510(k):
+    - Clinical data typically not required for well-established predicates
+    - Performance testing may substitute for clinical data
+    - Estimated cost: $50K-$150K (testing only)
+
+  Special 510(k):
+    - Design control documentation required
+    - Clinical data not required if predicate unchanged
+    - Estimated cost: $50K-$200K
+
+  PMA:
+    - Pivotal clinical trial typically required
+    - Randomized controlled trial preferred
+    - Enrollment: {estimated based on product code}
+    - Estimated cost: $750K-$5M+
+    - Timeline: 12-36 months (clinical) + 6-18 months (review)
+
+  De Novo:
+    - Clinical data may or may not be required
+    - Special controls documentation critical
+    - Performance and bench data emphasized
+    - Estimated cost: $200K-$1.5M
+```
+
+### Risk-Based Recommendation
+
+If the pathway recommender identifies risk factors, present them:
+
+```
+RISK FACTORS FOR RECOMMENDED PATHWAY
+------------------------------------------------------------
+  [{severity}] {risk_factor}
+    Impact: {description}
+    Mitigation: {recommended_action}
+```
+
+### Cross-Reference with PMA Risk Assessment
+
+**If product code has PMA history and PMA pathway is recommended or scored high**, suggest running the PMA risk assessment for deeper analysis:
+
+```
+SUGGESTED FOLLOW-UP ANALYSIS
+------------------------------------------------------------
+  1. /fda-tools:pma-risk --product-code {CODE}
+     Run FMEA-style risk assessment for PMA pathway planning
+
+  2. /fda-tools:clinical-requirements --product-code {CODE}
+     Map clinical trial requirements from PMA precedent
+
+  3. /fda-tools:pma-timeline --product-code {CODE}
+     Predict PMA approval timeline with confidence intervals
+```
+
+## Step 4: Save Output (if --output)
+
+If `--output` was provided, save the complete pathway analysis to file:
+
+```bash
+cd "$FDA_PLUGIN_ROOT" && python3 scripts/pathway_recommender.py \
+  --product-code "$PRODUCT_CODE" \
+  $( [ -n "$DEVICE_DESCRIPTION" ] && echo "--device-description \"$DEVICE_DESCRIPTION\"" ) \
+  $( [ -n "$NOVEL_FEATURES" ] && echo "--novel-features \"$NOVEL_FEATURES\"" ) \
+  $( [ -n "$OWN_PREDICATE" ] && echo "--own-predicate \"$OWN_PREDICATE\"" ) \
+  --json \
+  --output "$OUTPUT_FILE"
+```
+
 ## Error Handling
 
 - **No product code**: Ask the user, or use --infer logic
 - **API unavailable**: Score based on classification data from flat files (reduced accuracy)
 - **Novel device with no clearances**: Strongly recommend De Novo, suggest Pre-Sub meeting
+- **Pathway recommender script unavailable**: Fall back to Step 2 scoring (basic algorithm)
+- **PMA data unavailable**: Skip PMA-specific intelligence, note limited PMA analysis
