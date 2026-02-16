@@ -372,6 +372,32 @@ for trigger_name, keywords in device_keywords.items():
 questions = question_bank.get("questions", [])
 selected_questions = [q for q in questions if q.get("id") in selected_ids]
 
+# Filter by applicable_meeting_types (EDGE-1 fix)
+# Questions may specify which meeting types they apply to; skip questions
+# that are not applicable to the current meeting type
+filtered_questions = []
+for q in selected_questions:
+    applicable = q.get("applicable_meeting_types", [])
+    if isinstance(applicable, list) and len(applicable) > 0:
+        if meeting_type not in applicable and "all" not in applicable:
+            print(f"NOTE: Skipping {q.get('id', '')} - not applicable to {meeting_type} meeting type", file=sys.stderr)
+            continue
+    filtered_questions.append(q)
+selected_questions = filtered_questions
+
+# Deduplicate question IDs (EDGE-3 fix)
+# If auto-trigger logic or defaults select the same question twice, remove duplicates
+seen_ids = set()
+unique_questions = []
+for q in selected_questions:
+    qid = q.get("id", "")
+    if qid and qid not in seen_ids:
+        seen_ids.add(qid)
+        unique_questions.append(q)
+    elif qid:
+        print(f"WARNING: Duplicate question ID {qid} skipped", file=sys.stderr)
+selected_questions = unique_questions
+
 # Sort by priority (descending)
 selected_questions.sort(key=lambda q: q.get("priority", 0), reverse=True)
 
@@ -386,6 +412,17 @@ for i, q in enumerate(selected_questions, 1):
 
 # Export for presub_metadata.json
 question_ids_json = json.dumps([q['id'] for q in selected_questions])
+
+# Validate question selection result (BREAK-1 fix)
+# Warn if no questions were selected - this may result in incomplete submission
+if question_count == 0:
+    print("WARNING: No questions were selected for this Pre-Sub package!", file=sys.stderr)
+    print("This may result in an incomplete submission.", file=sys.stderr)
+    print("Consider:", file=sys.stderr)
+    print("  1. Providing --device-description with more detail", file=sys.stderr)
+    print("  2. Manually editing presub_metadata.json to add question IDs", file=sys.stderr)
+    print("  3. Using --meeting-type to select appropriate meeting type", file=sys.stderr)
+    print("  4. Checking that question bank is not empty", file=sys.stderr)
 
 print(f"QUESTION_COUNT:{question_count}")
 print(f"QUESTION_IDS:{question_ids_json}")
@@ -678,6 +715,28 @@ populated_content = template_content
 for key, value in placeholders.items():
     placeholder_pattern = '{' + key + '}'
     populated_content = populated_content.replace(placeholder_pattern, str(value))
+
+# Detect unfilled placeholders (BREAK-2 fix)
+# After template population, scan for any remaining {PLACEHOLDER} patterns
+# that were not replaced by actual data
+unfilled = re.findall(r'\{[A-Za-z_]+\}', populated_content)
+# Filter out common false positives (markdown code blocks, JSON examples)
+unfilled_real = [p for p in unfilled if not p.startswith('{#') and p not in ('{', '}')]
+if unfilled_real:
+    unique_unfilled = sorted(set(unfilled_real))
+    print(f"WARNING: {len(unique_unfilled)} placeholder(s) remain unfilled in template:", file=sys.stderr)
+    for placeholder in unique_unfilled[:10]:
+        print(f"  {placeholder}", file=sys.stderr)
+    if len(unique_unfilled) > 10:
+        print(f"  ... and {len(unique_unfilled) - 10} more", file=sys.stderr)
+    print("", file=sys.stderr)
+    print("Review presub_plan.md and fill in these sections before submission.", file=sys.stderr)
+
+# Also detect [TODO: ...] markers and report count
+todo_markers = re.findall(r'\[TODO:[^\]]*\]', populated_content)
+if todo_markers:
+    unique_todos = sorted(set(todo_markers))
+    print(f"INFO: {len(unique_todos)} [TODO:] sections require company-specific input", file=sys.stderr)
 
 # Write populated template to output file
 project_name = os.environ.get("PROJECT_NAME", "")

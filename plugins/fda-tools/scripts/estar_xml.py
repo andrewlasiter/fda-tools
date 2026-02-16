@@ -875,6 +875,14 @@ def _collect_project_values(project_data):
 
         # Format questions for QPTextField110
         questions_generated = presub_metadata.get("questions_generated", [])
+
+        # Type checking for questions_generated (EDGE-2 fix)
+        # Handle case where questions_generated is a string instead of list
+        if not isinstance(questions_generated, list):
+            print(f"Warning: questions_generated should be a list, got {type(questions_generated).__name__}",
+                  file=sys.stderr)
+            questions_generated = [questions_generated] if questions_generated else []
+
         if questions_generated and question_bank:
             questions_list = question_bank.get("questions", [])
             question_texts = []
@@ -1370,8 +1378,13 @@ def _build_prestar_xml(project_data):
     return "\n".join(lines)
 
 
-def _build_legacy_xml(project_data, template_type):
-    """Build legacy-format XFA XML (form1.* paths) for backward compatibility."""
+def _build_legacy_xml(project_data, _template_type):
+    """Build legacy-format XFA XML (form1.* paths) for backward compatibility.
+
+    Args:
+        project_data: Project data dictionary
+        _template_type: Template type (unused - legacy format is template-agnostic)
+    """
     lines = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<xfa:datasets xmlns:xfa="http://www.xfa.org/schema/xfa-data/1.0/">',
@@ -1594,6 +1607,10 @@ def list_fields(pdf_path):
     """
     xml_string = extract_xfa_from_pdf(pdf_path)
     if xml_string is None:
+        return
+
+    if BeautifulSoup is None:
+        print("Error: BeautifulSoup not installed. Install with: pip install beautifulsoup4 lxml")
         return
 
     template_type = detect_template_type(xml_string)
