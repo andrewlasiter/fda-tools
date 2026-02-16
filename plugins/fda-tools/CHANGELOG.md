@@ -4,6 +4,38 @@ All notable changes to the FDA Tools plugin will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed - PMA SSED URL Pattern (TICKET-002) - CONDITIONAL GO
+
+**Purpose:** Research and validate correct URL pattern for PMA Summary of Safety and Effectiveness Data (SSED) PDF documents from FDA servers.
+
+**Status:** COMPLETE (2026-02-16) - CONDITIONAL GO decision
+
+**Root Cause:** 2000s PMAs (P0X####) use single-digit folder names on FDA servers (e.g., `pdf7` not `pdf07`). This was the sole cause of the original 100% download failure rate.
+
+**Changes to `scripts/pma_prototype.py`:**
+1. **Fixed `construct_ssed_url()`**: Now returns list of candidate URLs with single-digit folder logic for 2000s PMAs
+2. **Added User-Agent header**: FDA servers block requests without proper browser User-Agent
+3. **Added 500ms rate limiting**: Prevents abuse detection (2 req/sec maximum)
+4. **Added filename case variation fallback**: Tries uppercase B, lowercase b, all lowercase
+5. **Added PDF validation**: Verifies response content starts with `%PDF` magic bytes
+6. **Updated test dataset**: Removed pre-2000 PMAs (not digitized), 17 PMAs from 2000 onwards
+7. **Added `time` import and `HTTP_HEADERS`/`RATE_LIMIT_SECONDS` constants**
+
+**Validation Results:**
+- 82.4% success rate for 2000+ PMAs (exceeds 80% GO threshold)
+- 2020s: 75%, 2010s: 87.5%, 2000s: 100%
+- Pre-2000 PMAs excluded (not digitized, <5% of relevant devices)
+
+**Decision:** CONDITIONAL GO - Proceed with TICKET-003 (PMA Intelligence Module) scoped to PMAs from 2000 onwards
+
+**Files Added:**
+- `TICKET-002-COMPLETION-REPORT.md`: Comprehensive research findings and URL pattern specification
+- `test_pma_urls.py`: Quick URL pattern validation test script
+
+**Impact:** Unblocks TICKET-003 (PMA Intelligence Module, 220-300 hours)
+
+---
+
 ### Added - Knowledge-Based Standards Generation (TICKET-014) - RESEARCH USE ONLY
 
 **Purpose:** Knowledge-based FDA Recognized Consensus Standards identification for medical device product codes using rule-based analysis. **RESEARCH USE ONLY** - requires independent verification before regulatory use.
