@@ -1,0 +1,60 @@
+# Pre-commit hooks for FDA Tools plugin
+# Install: pip install pre-commit && pre-commit install
+
+repos:
+  # Version consistency check
+  - repo: local
+    hooks:
+      - id: check-version-consistency
+        name: Check version consistency
+        entry: python3 scripts/check_version.py
+        language: system
+        pass_filenames: false
+        files: ^(scripts/version\.py|\.claude-plugin/plugin\.json|CHANGELOG\.md)$
+        verbose: true
+
+  # Python code formatting
+  - repo: https://github.com/psf/black
+    rev: 24.2.0
+    hooks:
+      - id: black
+        language_version: python3
+        files: ^(scripts|tests)/.*\.py$
+
+  # Import sorting
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: ["--profile", "black"]
+        files: ^(scripts|tests)/.*\.py$
+
+  # Linting
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.0.0
+    hooks:
+      - id: flake8
+        args: ["--max-line-length=100", "--extend-ignore=E203,W503"]
+        files: ^(scripts|tests)/.*\.py$
+
+  # Security checks
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.7
+    hooks:
+      - id: bandit
+        args: ["-c", "pyproject.toml"]
+        files: ^scripts/.*\.py$
+        exclude: ^tests/
+
+  # JSON validation
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: check-json
+        files: \.json$
+      - id: check-yaml
+        files: \.ya?ml$
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
