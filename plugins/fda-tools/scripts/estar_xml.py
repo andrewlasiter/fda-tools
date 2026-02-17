@@ -20,12 +20,15 @@ References:
 """
 
 import argparse
+import html
 import json
+import logging
 import os
 import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Dict, List, Tuple, Any, Optional
 
 try:
     import pikepdf
@@ -38,9 +41,16 @@ except ImportError:
     BeautifulSoup = None
 
 try:
-    from lxml import etree
+    from lxml import etree  # type: ignore
 except ImportError:
-    etree = None
+    etree = None  # type: ignore
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 
 # --- Real eSTAR Field Mappings (from actual FDA templates) ---
@@ -214,6 +224,31 @@ KNUMBER_PATTERN = re.compile(
     r"\b(K\d{6}(?:/S\d{3})?|P\d{6}(?:/S\d{3})?|DEN\d{6,7}|N\d{4,5})\b"
 )
 
+# Maximum field lengths to prevent buffer overflow or DoS attacks
+MAX_FIELD_LENGTHS = {
+    "applicant_name": 500,
+    "device_trade_name": 500,
+    "device_description_text": 50000,
+    "indications_for_use": 10000,
+    "performance_summary": 50000,
+    "default": 10000,
+}
+
+
+# ============================================================================
+# Validation and Security Functions
+# ============================================================================
+
+
+class ValidationError(Exception):
+    """Raised when XML validation fails."""
+    pass
+
+
+class SecurityError(Exception):
+    """Raised when security validation fails."""
+    pass
+
 # Section detection for narrative text extraction
 SECTION_PATTERNS = {
     "device_description": re.compile(
@@ -250,6 +285,518 @@ SECTION_PATTERNS = {
         r"(?i)(?:electromagnetic\s+compatib|EMC\b|electrical\s+safety)"
     ),
 }
+
+
+# ============================================================================
+# Validation and Security Functions
+# ============================================================================
+
+
+def _sanitize_field_value(value: Any, field_name: str = "") -> str:
+    """Sanitize a field value for safe XML inclusion.
+
+    Implements OWASP XML Security guidelines:
+    - Escapes XML special characters (< > & " ')
+    - Removes control characters (except tab, newline, CR)
+    - Truncates to reasonable length
+    - Logs warnings for suspicious content
+
+    Args:
+        value: The field value to sanitize
+        field_name: Optional field name for logging context
+
+    Returns:
+        Sanitized string value safe for XML inclusion
+
+    Security:
+        Per 21 CFR 11.10(a), ensures data integrity and prevents
+        XML injection attacks in electronic records.
+    """
+    if value is None:
+        return ""
+
+    # Convert to string
+    text = str(value)
+
+    # Check for potentially malicious patterns
+    suspicious_patterns = [
+        (r'<script', 'script tag'),
+        (r'javascript:', 'javascript protocol'),
+        (r'<!ENTITY', 'XML entity declaration'),
+        (r'<!DOCTYPE', 'DOCTYPE declaration'),
+        (r'<!\[CDATA\[', 'CDATA section'),
+    ]
+
+    for pattern, description in suspicious_patterns:
+        if re.search(pattern, text, re.IGNORECASE):
+            logger.warning(
+                f"Suspicious content detected in field '{field_name}': {description}. "
+                f"Content will be escaped."
+            )
+
+    # Remove control characters (except tab, newline, CR)
+    # U+0000-U+001F except U+0009 (tab), U+000A (newline), U+000D (CR)
+    filtered_chars = []
+    for char in text:
+        code = ord(char)
+        if code < 0x20 and code not in (0x09, 0x0A, 0x0D):
+            # Skip control characters
+            continue
+        # Also filter out U+007F (DEL) and other problematic characters
+        if code == 0x7F:
+            continue
+        filtered_chars.append(char)
+
+    text = ''.join(filtered_chars)
+
+    # Check field length
+    max_length = MAX_FIELD_LENGTHS.get(field_name, MAX_FIELD_LENGTHS["default"])
+    if len(text) > max_length:
+        logger.warning(
+            f"Field '{field_name}' exceeds maximum length ({len(text)} > {max_length}). "
+            f"Content will be truncated."
+        )
+        text = text[:max_length]
+
+    # Escape XML special characters using html.escape
+    # This handles: & < > " '
+    escaped = html.escape(text, quote=True)
+
+    # Additional XML-specific escaping for single quotes
+    escaped = escaped.replace("'", "&apos;")
+
+    return escaped
+
+
+def _validate_required_fields(data: Dict[str, Any], template_type: str) -> List[str]:
+    """Validate that all FDA-required fields are present and valid.
+
+    Validates required fields per FDA eSTAR template specifications:
+    - nIVD/IVD (510(k)): applicant, device name, product code, regulation,
+                         indications, predicate (SE pathway)
+    - PreSTAR: applicant, device name, product code, indications
+
+    Args:
+        data: Project data dictionary (from _collect_project_values)
+        template_type: "nIVD", "IVD", or "PreSTAR"
+
+    Returns:
+        List of validation error messages (empty if all validations pass)
+
+    Compliance:
+        Per 21 CFR 807.87 and 21 CFR 814.20, ensures required submission
+        elements are present before XML generation.
+    """
+    errors = []
+
+    # Common required fields for all templates
+    required_common = [
+        ("applicant_name", "Applicant company name"),
+        ("device_trade_name", "Device trade name"),
+        ("product_code", "Product code"),
+        ("indications_for_use", "Indications for use"),
+    ]
+
+    # Additional required fields for 510(k) submissions
+    if template_type in ["nIVD", "IVD"]:
+        required_common.extend([
+            ("regulation_number", "Regulation number (21 CFR citation)"),
+        ])
+
+        # Predicate is required for traditional SE pathway
+        # Note: May be optional for de novo or special 510(k) types
+        if not data.get("predicate_k_number") and not data.get("predicates"):
+            errors.append(
+                "WARNING: No predicate device specified. Required for traditional SE 510(k) pathway. "
+                "De Novo or Special 510(k) may not require predicates."
+            )
+
+    # Validate each required field
+    for field_key, field_label in required_common:
+        value = data.get(field_key)
+
+        # Check if field exists and is not empty
+        if not value or (isinstance(value, str) and not value.strip()):
+            errors.append(f"Missing or empty required field: {field_label} ({field_key})")
+            continue
+
+        # Additional validation for specific fields
+        if field_key == "product_code":
+            # Product codes are 3 uppercase letters
+            if isinstance(value, str) and not re.match(r'^[A-Z]{3}$', value):
+                errors.append(
+                    f"Invalid product code format: '{value}'. Expected 3 uppercase letters (e.g., DQY, ODE)."
+                )
+
+        elif field_key == "regulation_number":
+            # Regulation numbers follow 21 CFR xxx.xxxx format
+            if isinstance(value, str) and not re.match(r'^\d{3}\.\d{2,4}$', value):
+                errors.append(
+                    f"Invalid regulation number format: '{value}'. Expected format: xxx.xxxx (e.g., 870.1210)."
+                )
+
+    # Validate indications for use content
+    ifu = data.get("indications_for_use", "")
+    if ifu:
+        # Check minimum length (IFU should be substantial)
+        if len(ifu.strip()) < 50:
+            errors.append(
+                "WARNING: Indications for use appears too brief (<50 characters). "
+                "FDA expects detailed description of intended use."
+            )
+
+        # Check for placeholder text
+        placeholder_patterns = [
+            (r'\[TODO[:\]]', 'TODO placeholder'),
+            (r'\[INSERT[:\]]', 'INSERT placeholder'),
+            (r'PLACEHOLDER', 'PLACEHOLDER text'),
+            (r'XXX', 'XXX placeholder'),
+            (r'PENDING', 'PENDING text'),
+        ]
+        for pattern, description in placeholder_patterns:
+            if re.search(pattern, ifu, re.IGNORECASE):
+                errors.append(
+                    f"WARNING: Indications for use contains placeholder text ({description}). "
+                    "Replace with actual content before FDA submission."
+                )
+                break  # Only report first placeholder found
+
+    return errors
+
+
+def _validate_xml_structure(xml_string: str, template_type: str) -> Tuple[bool, List[str]]:
+    """Validate XML well-formedness and basic structure.
+
+    Performs validation checks:
+    1. XML syntax and well-formedness
+    2. Required root element structure
+    3. XFA namespace declaration
+    4. Basic template-specific sections
+
+    Note: Full XSD validation requires FDA eSTAR schema files which are
+    not publicly distributed. This function provides structural validation
+    that can be performed without the schemas.
+
+    Args:
+        xml_string: The generated XML to validate
+        template_type: "nIVD", "IVD", or "PreSTAR"
+
+    Returns:
+        Tuple of (is_valid: bool, error_messages: List[str])
+
+    Compliance:
+        Supports 21 CFR 11 validation requirements for electronic records.
+    """
+    errors = []
+
+    try:
+        # Parse XML to check well-formedness
+        doc = etree.fromstring(xml_string.encode('utf-8'))  # type: ignore
+
+        # Validate XFA structure
+        if doc.tag != "{http://www.xfa.org/schema/xfa-data/1.0/}datasets":
+            errors.append(
+                f"Invalid root element: expected '{{http://www.xfa.org/schema/xfa-data/1.0/}}datasets', "
+                f"got '{doc.tag}'"
+            )
+
+        # Find the data root
+        data_elem = doc.find(".//{http://www.xfa.org/schema/xfa-data/1.0/}data")
+        if data_elem is None:
+            errors.append("Missing required <xfa:data> element")
+            return (False, errors)
+
+        # Find the form root
+        root_elem = data_elem.find(".//root")
+        if root_elem is None:
+            errors.append("Missing required <root> element in <xfa:data>")
+            return (False, errors)
+
+        # Validate template-specific required sections
+        required_sections = {
+            "nIVD": [
+                "AdministrativeInformation",
+                "DeviceDescription",
+                "IndicationsForUse",
+                "Classification",
+            ],
+            "IVD": [
+                "AdministrativeInformation",
+                "DeviceDescription",
+                "IndicationsForUse",
+                "Classification",
+            ],
+            "PreSTAR": [
+                "AdministrativeInformation",
+                "DeviceDescription",
+                "IndicationsForUse",
+                "Classification",
+            ],
+        }
+
+        expected_sections = required_sections.get(template_type, [])
+        for section_name in expected_sections:
+            section = root_elem.find(f".//{section_name}")
+            if section is None:
+                errors.append(f"Missing required section: {section_name}")
+
+        # Check for proper character encoding
+        if '<?xml' in xml_string and 'encoding' not in xml_string.split('\n')[0]:
+            errors.append("WARNING: XML declaration missing encoding attribute")
+
+    except etree.XMLSyntaxError as e:  # type: ignore
+        errors.append(f"XML syntax error: {e}")
+        return (False, errors)
+    except Exception as e:
+        errors.append(f"Validation error: {e}")
+        return (False, errors)
+
+    return (len(errors) == 0, errors)
+
+
+def _validate_xml_against_xsd(xml_string: str, template_type: str) -> Tuple[Optional[bool], List[str]]:
+    """Validate generated XML against FDA eSTAR XSD schema.
+
+    FDA eSTAR XSD schemas are distributed separately and are NOT included
+    in this open-source tool. This function provides a framework for XSD
+    validation when schemas are obtained from FDA.
+
+    To use XSD validation:
+    1. Obtain official eSTAR XSD schemas from FDA
+    2. Place schemas in: scripts/schemas/
+       - estar_nivd_v6.1.xsd (for nIVD, FDA 4062)
+       - estar_ivd_v6.1.xsd (for IVD, FDA 4078)
+       - estar_prestar_v2.1.xsd (for PreSTAR, FDA 5064)
+    3. This function will automatically detect and use them
+
+    Args:
+        xml_string: The generated XML to validate
+        template_type: "nIVD", "IVD", or "PreSTAR"
+
+    Returns:
+        Tuple of (is_valid: bool or None, error_messages: List[str])
+        Returns (None, []) if schema not available
+
+    Compliance:
+        Per 21 CFR 11.10(a), software validation should include testing
+        against official FDA schemas when available.
+    """
+    errors = []
+
+    # Map template types to schema filenames
+    schema_files = {
+        "nIVD": "estar_nivd_v6.1.xsd",
+        "IVD": "estar_ivd_v6.1.xsd",
+        "PreSTAR": "estar_prestar_v2.1.xsd",
+    }
+
+    schema_filename = schema_files.get(template_type)
+    if not schema_filename:
+        errors.append(f"Unknown template type: {template_type}")
+        return (False, errors)
+
+    # Look for schema file
+    schema_dir = Path(__file__).parent / "schemas"
+    schema_path = schema_dir / schema_filename
+
+    if not schema_path.exists():
+        # Schema not available - this is expected for open-source distribution
+        logger.info(
+            f"FDA eSTAR XSD schema not found: {schema_path}. "
+            "XSD validation skipped. Obtain schemas from FDA for full validation."
+        )
+        return (None, [])
+
+    try:
+        # Parse XML document
+        doc = etree.fromstring(xml_string.encode('utf-8'))  # type: ignore
+
+        # Load and parse XSD schema
+        with open(schema_path, 'rb') as f:
+            schema_doc = etree.parse(f)  # type: ignore
+            schema = etree.XMLSchema(schema_doc)  # type: ignore
+
+        # Validate against schema
+        if not schema.validate(doc):
+            for error in schema.error_log:
+                errors.append(
+                    f"XSD validation error (line {error.line}): {error.message}"
+                )
+            return (False, errors)
+
+        logger.info(f"XSD validation passed against {schema_filename}")
+        return (True, [])
+
+    except etree.XMLSyntaxError as e:  # type: ignore
+        errors.append(f"XML syntax error during XSD validation: {e}")
+        return (False, errors)
+    except Exception as e:
+        errors.append(f"XSD validation error: {e}")
+        return (False, errors)
+
+
+def validate_xml_for_submission(
+    project_name: str,
+    project_dir: Path,
+    template_type: str = "nIVD"
+) -> Dict[str, Any]:
+    """Run comprehensive pre-submission validation on eSTAR XML.
+
+    Performs multi-level validation:
+    1. Required field completeness
+    2. Data sanitization and security checks
+    3. XML well-formedness
+    4. XML schema validation (if XSD available)
+
+    Args:
+        project_name: Project identifier
+        project_dir: Path to project directory
+        template_type: "nIVD", "IVD", or "PreSTAR"
+
+    Returns:
+        Validation report dictionary with:
+        - project: project name
+        - template_type: template type
+        - timestamp: ISO timestamp
+        - required_fields: list of missing/invalid required fields
+        - xml_well_formed: bool
+        - xml_schema_valid: bool or None (if XSD not available)
+        - security_issues: list of security concerns
+        - warnings: list of non-blocking warnings
+        - overall_status: "PASS" | "FAIL" | "WARNING"
+
+    Compliance:
+        Implements validation requirements per 21 CFR 11.10(a) for
+        electronic record systems used in FDA submissions.
+    """
+    report = {
+        "project": project_name,
+        "template_type": template_type,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "required_fields": [],
+        "xml_well_formed": True,
+        "xml_schema_valid": None,
+        "security_issues": [],
+        "warnings": [],
+        "overall_status": "PASS",
+    }
+
+    try:
+        # Collect project data
+        project_data = _load_project_data(project_dir)
+        values = _collect_project_values(project_data)
+
+        # 1. Validate required fields
+        field_errors = _validate_required_fields(values, template_type)
+        report["required_fields"] = field_errors
+
+        # Separate errors and warnings
+        critical_field_errors = [e for e in field_errors if not e.startswith("WARNING:")]
+        field_warnings = [e for e in field_errors if e.startswith("WARNING:")]
+        report["warnings"].extend(field_warnings)
+
+        if critical_field_errors:
+            report["overall_status"] = "FAIL"
+
+        # 2. Generate XML with sanitization
+        xml_string = _build_estar_xml(project_data, template_type)
+
+        # 3. Validate XML well-formedness and structure
+        is_well_formed, structure_errors = _validate_xml_structure(xml_string, template_type)
+        report["xml_well_formed"] = is_well_formed
+
+        if not is_well_formed:
+            report["required_fields"].extend(structure_errors)
+            report["overall_status"] = "FAIL"
+
+        # 4. XSD validation (if schema available)
+        is_schema_valid, schema_errors = _validate_xml_against_xsd(xml_string, template_type)
+        report["xml_schema_valid"] = is_schema_valid
+
+        if is_schema_valid is False:  # Explicitly False (not None)
+            report["required_fields"].extend(schema_errors)
+            report["overall_status"] = "FAIL"
+        elif is_schema_valid is None:
+            report["warnings"].append(
+                "XSD schema validation skipped - FDA eSTAR schema files not available. "
+                "Obtain from FDA for complete validation."
+            )
+
+        # 5. Security checks
+        # Check for suspicious content in key fields
+        security_checks = [
+            ("applicant_name", values.get("applicant_name", "")),
+            ("device_trade_name", values.get("device_trade_name", "")),
+            ("device_description_text", values.get("device_description_text", "")),
+        ]
+
+        for field_name, field_value in security_checks:
+            if field_value:
+                # Check for excessively long fields (potential DoS)
+                max_len = MAX_FIELD_LENGTHS.get(field_name, MAX_FIELD_LENGTHS["default"])
+                if len(str(field_value)) > max_len * 2:  # 2x normal max
+                    report["security_issues"].append(
+                        f"Field '{field_name}' is excessively long ({len(str(field_value))} chars). "
+                        f"May indicate malformed data."
+                    )
+
+        # Check for overall status
+        if report["security_issues"]:
+            report["warnings"].extend([
+                f"SECURITY: {issue}" for issue in report["security_issues"]
+            ])
+
+        if report["warnings"] and report["overall_status"] == "PASS":
+            report["overall_status"] = "WARNING"
+
+    except Exception as e:
+        logger.exception("Validation failed with exception")
+        report["required_fields"].append(f"CRITICAL: Validation exception: {e}")
+        report["overall_status"] = "FAIL"
+
+    return report
+
+
+def _load_project_data(project_dir: Path) -> Dict[str, Any]:
+    """Load project data files for validation.
+
+    Args:
+        project_dir: Path to project directory
+
+    Returns:
+        Dictionary with loaded project data
+    """
+    project_data = {}
+
+    # Read JSON files
+    json_files = {
+        "query": "query.json",
+        "review": "review.json",
+        "profile": "device_profile.json",
+        "import": "import_data.json",
+        "presub_metadata": "presub_metadata.json",
+    }
+
+    for key, filename in json_files.items():
+        file_path = project_dir / filename
+        if file_path.exists():
+            try:
+                with open(file_path) as f:
+                    project_data[key] = json.load(f)
+            except (json.JSONDecodeError, IOError) as e:
+                logger.warning(f"Failed to load {filename}: {e}")
+
+    # Read draft markdown files
+    drafts = {}
+    for draft_file in project_dir.glob("draft_*.md"):
+        section_name = draft_file.stem.replace("draft_", "")
+        try:
+            drafts[section_name] = draft_file.read_text(encoding="utf-8", errors="replace")
+        except IOError as e:
+            logger.warning(f"Failed to load {draft_file.name}: {e}")
+    project_data["drafts"] = drafts
+
+    return project_data
 
 
 def check_dependencies():
@@ -307,7 +854,7 @@ def extract_xfa_from_pdf(pdf_path):
     check_dependencies()
 
     try:
-        pdf = pikepdf.open(pdf_path)
+        pdf = pikepdf.open(pdf_path)  # type: ignore
     except Exception as e:
         print(f"ERROR: Cannot open PDF: {e}")
         return None
@@ -325,7 +872,7 @@ def extract_xfa_from_pdf(pdf_path):
             return None
 
         # XFA can be a stream or an array of name/stream pairs
-        if isinstance(xfa, pikepdf.Array):
+        if isinstance(xfa, pikepdf.Array):  # type: ignore
             # Array format: [name1, stream1, name2, stream2, ...]
             datasets_xml = None
             for i in range(0, len(xfa), 2):
@@ -372,7 +919,7 @@ def parse_xml_data(xml_string):
     check_dependencies()
 
     template_type = detect_template_type(xml_string)
-    soup = BeautifulSoup(xml_string, "lxml-xml")
+    soup = BeautifulSoup(xml_string, "lxml-xml")  # type: ignore
     result = {
         "metadata": {
             "extracted_at": datetime.now(tz=timezone.utc).isoformat(),
@@ -707,11 +1254,45 @@ def generate_xml(project_dir, template_type="nIVD", output_file=None, fmt="real"
         template_type = _detect_template_from_data(project_data)
         print(f"Auto-detected template type: {template_type}")
 
+    # Validate required fields before XML generation
+    logger.info("Validating required fields...")
+    values = _collect_project_values(project_data)
+    field_errors = _validate_required_fields(values, template_type)
+
+    # Show validation warnings
+    if field_errors:
+        print("\n=== VALIDATION WARNINGS ===")
+        for error in field_errors:
+            if error.startswith("WARNING:"):
+                print(f"  {error}")
+                logger.warning(error)
+            else:
+                print(f"  ERROR: {error}")
+                logger.error(error)
+
+        # Count critical errors
+        critical_errors = [e for e in field_errors if not e.startswith("WARNING:")]
+        if critical_errors:
+            print(f"\n{len(critical_errors)} critical validation error(s) found.")
+            print("XML will be generated but may be incomplete for FDA submission.")
+            print("Run 'python3 estar_xml.py validate --project PROJECT_NAME' for detailed report.\n")
+
     # Build XML
+    logger.info(f"Building {template_type} eSTAR XML...")
     if fmt == "legacy":
         xml = _build_legacy_xml(project_data, template_type)
     else:
         xml = _build_estar_xml(project_data, template_type)
+
+    # Validate XML structure
+    logger.info("Validating XML structure...")
+    is_valid, structure_errors = _validate_xml_structure(xml, template_type)
+    if not is_valid:
+        print("\n=== XML STRUCTURE ERRORS ===")
+        for error in structure_errors:
+            print(f"  ERROR: {error}")
+            logger.error(error)
+        print("\nGenerated XML may not be compatible with FDA eSTAR template.\n")
 
     # Write output
     if output_file:
@@ -1586,34 +2167,26 @@ def _build_legacy_xml(project_data, _template_type):
     return "\n".join(lines)
 
 
-def _xml_escape(text):
+def _xml_escape(text, field_name=""):
     """Escape special XML characters and filter control characters.
 
     Filters control characters (U+0000-U+001F except tab/newline/carriage return)
     to prevent XML injection and ensure FDA eSTAR compatibility.
+
+    This function now delegates to _sanitize_field_value for enhanced security.
+
+    Args:
+        text: Text to escape
+        field_name: Optional field name for enhanced validation
+
+    Returns:
+        Escaped and sanitized text safe for XML inclusion
+
+    Security:
+        Per 21 CFR 11.10(a), prevents XML injection and ensures data integrity.
     """
-    if not text:
-        return ""
-    text = str(text)
-
-    # Filter control characters (except tab, newline, carriage return)
-    # U+0000-U+001F except U+0009 (tab), U+000A (newline), U+000D (carriage return)
-    filtered_text = []
-    for char in text:
-        code = ord(char)
-        if code < 0x20 and code not in (0x09, 0x0A, 0x0D):
-            # Skip control characters
-            continue
-        filtered_text.append(char)
-    text = ''.join(filtered_text)
-
-    # Escape XML special characters
-    text = text.replace("&", "&amp;")
-    text = text.replace("<", "&lt;")
-    text = text.replace(">", "&gt;")
-    text = text.replace('"', "&quot;")
-    text = text.replace("'", "&apos;")
-    return text
+    # Delegate to the more comprehensive sanitization function
+    return _sanitize_field_value(text, field_name)
 
 
 def list_fields(pdf_path):
@@ -1630,7 +2203,7 @@ def list_fields(pdf_path):
         return
 
     template_type = detect_template_type(xml_string)
-    soup = BeautifulSoup(xml_string, "lxml-xml")
+    soup = BeautifulSoup(xml_string, "lxml-xml")  # type: ignore
 
     fields = []
     current_section = None
@@ -1720,6 +2293,20 @@ def main():
     )
     fields_parser.add_argument("file", help="Path to eSTAR PDF")
 
+    # Validate command (NEW - FDA-23)
+    validate_parser = subparsers.add_parser(
+        "validate", help="Validate eSTAR XML for FDA submission"
+    )
+    validate_parser.add_argument("--project", "-p", required=True, help="Project name")
+    validate_parser.add_argument(
+        "--template", "-t", default="nIVD",
+        choices=["nIVD", "IVD", "PreSTAR"],
+        help="eSTAR template type (default: nIVD)"
+    )
+    validate_parser.add_argument(
+        "--output", "-o", help="Output JSON report file path"
+    )
+
     args = parser.parse_args()
 
     if args.command == "extract":
@@ -1733,6 +2320,80 @@ def main():
         projects_dir = get_settings()
         project_dir = os.path.join(projects_dir, args.project)
         generate_xml(project_dir, args.template, args.output, args.format)
+
+    elif args.command == "validate":
+        projects_dir = get_settings()
+        project_dir = Path(projects_dir) / args.project
+
+        if not project_dir.exists():
+            print(f"ERROR: Project directory not found: {project_dir}")
+            sys.exit(1)
+
+        print(f"Validating eSTAR XML for project: {args.project}")
+        print(f"Template type: {args.template}\n")
+
+        # Run validation
+        report = validate_xml_for_submission(args.project, project_dir, args.template)
+
+        # Print report
+        print("=== VALIDATION REPORT ===")
+        print(f"Project: {report['project']}")
+        print(f"Template: {report['template_type']}")
+        print(f"Timestamp: {report['timestamp']}")
+        print(f"Overall Status: {report['overall_status']}")
+        print()
+
+        # Required fields
+        if report['required_fields']:
+            print(f"Required Field Issues ({len(report['required_fields'])}):")
+            for error in report['required_fields']:
+                print(f"  - {error}")
+            print()
+
+        # XML validation
+        print(f"XML Well-Formed: {'YES' if report['xml_well_formed'] else 'NO'}")
+        if report['xml_schema_valid'] is not None:
+            print(f"XSD Schema Valid: {'YES' if report['xml_schema_valid'] else 'NO'}")
+        else:
+            print(f"XSD Schema Valid: N/A (schema not available)")
+        print()
+
+        # Warnings
+        if report['warnings']:
+            print(f"Warnings ({len(report['warnings'])}):")
+            for warning in report['warnings']:
+                print(f"  - {warning}")
+            print()
+
+        # Security issues
+        if report['security_issues']:
+            print(f"Security Issues ({len(report['security_issues'])}):")
+            for issue in report['security_issues']:
+                print(f"  - {issue}")
+            print()
+
+        # Save JSON report
+        if args.output:
+            output_path = Path(args.output)
+        else:
+            output_path = project_dir / "validation_report.json"
+
+        with open(output_path, 'w') as f:
+            json.dump(report, f, indent=2)
+
+        print(f"Detailed report saved to: {output_path}")
+        print()
+
+        # Exit with appropriate code
+        if report['overall_status'] == "FAIL":
+            print("VALIDATION FAILED - Critical errors must be resolved before FDA submission.")
+            sys.exit(1)
+        elif report['overall_status'] == "WARNING":
+            print("VALIDATION PASSED WITH WARNINGS - Review warnings before FDA submission.")
+            sys.exit(0)
+        else:
+            print("VALIDATION PASSED - Ready for FDA submission review.")
+            sys.exit(0)
 
     elif args.command == "fields":
         check_dependencies()
