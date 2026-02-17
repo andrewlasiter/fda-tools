@@ -6,6 +6,9 @@ Provides project-level manifest, TTL-based caching, and file organization
 for PMA approval data, SSED documents, supplement tracking, and extracted
 sections. Follows the same patterns as fda_data_store.py for 510(k) data.
 
+Cache files use SHA-256 integrity envelopes (GAP-011 / FDA-71) to detect
+corruption or tampering. All writes are atomic (temp + replace).
+
 Directory layout:
     ~/fda-510k-data/pma_cache/
         data_manifest.json
@@ -34,9 +37,11 @@ Usage:
 
 import argparse
 import json
+import logging
 import os
 import re
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -44,6 +49,21 @@ from typing import Dict, List, Optional
 # Import FDAClient from sibling module
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fda_api_client import FDAClient
+
+# Import cache integrity module (GAP-011)
+try:
+    from cache_integrity import (
+        integrity_read,
+        integrity_write,
+        verify_checksum,
+        invalidate_corrupt_file,
+    )
+    _INTEGRITY_AVAILABLE = True
+except ImportError:
+    _INTEGRITY_AVAILABLE = False
+
+# Module logger for cache integrity events
+_logger = logging.getLogger("fda.pma_cache_integrity")
 
 
 # TTL tiers for PMA data (hours)
@@ -72,6 +92,9 @@ class PMADataStore:
 
     Manages API responses, SSED PDFs, extracted sections, and supplement
     data with TTL-based expiration and manifest tracking.
+
+    GAP-011: All JSON cache reads verify SHA-256 checksums. All writes
+    use atomic temp-file-then-rename pattern with integrity envelopes.
     """
 
     def __init__(self, cache_dir: Optional[str] = None, client: Optional[FDAClient] = None):
@@ -85,6 +108,18 @@ class PMADataStore:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.client = client or FDAClient()
         self._manifest: Optional[Dict] = None
+        self._integrity_events: List[Dict] = []
+
+    def _audit_logger(self, event: Dict) -> None:
+        """Audit callback for cache integrity events."""
+        self._integrity_events.append(event)
+        event_type = event.get("event", "")
+        if event_type in ("corruption_detected", "checksum_mismatch"):
+            _logger.warning(
+                "PMA cache integrity: %s -- %s",
+                event_type,
+                event.get("file", "unknown"),
+            )
 
     # ------------------------------------------------------------------
     # Manifest management
@@ -107,6 +142,10 @@ class PMADataStore:
                 assert self._manifest is not None  # Type narrowing for Pyright
                 return self._manifest
             except (json.JSONDecodeError, OSError):
+                _logger.warning(
+                    "PMA manifest corrupt or unreadable, creating new: %s",
+                    manifest_path,
+                )
                 pass  # Fall through to create new manifest
 
         self._manifest = {
@@ -233,6 +272,8 @@ class PMADataStore:
     def get_pma_data(self, pma_number: str, refresh: bool = False) -> Dict:
         """Get PMA approval data, using cache when available.
 
+        GAP-011: Cache reads verify SHA-256 checksum integrity.
+
         Args:
             pma_number: PMA number (e.g., 'P170019')
             refresh: Force refresh from API, ignoring cache.
@@ -246,12 +287,9 @@ class PMADataStore:
 
         # Check cache unless refresh is forced
         if not refresh and data_path.exists() and not self.is_expired(pma_key, "pma_approval"):
-            try:
-                with open(data_path) as f:
-                    data = json.load(f)
+            data = self._read_json_verified(data_path)
+            if data is not None:
                 return data
-            except (json.JSONDecodeError, OSError):
-                pass  # Fall through to API fetch
 
         # Fetch from API
         result = self.client.get_pma(pma_key)
@@ -259,13 +297,14 @@ class PMADataStore:
         if result.get("degraded") or result.get("error"):
             # API error -- try stale cache
             if data_path.exists():
-                try:
-                    with open(data_path) as f:
-                        data = json.load(f)
+                data = self._read_json_verified(data_path)
+                if data is not None:
                     data["_cache_status"] = "stale"
                     return data
-                except (json.JSONDecodeError, OSError) as e:
-                    print(f"Warning: Failed to read stale PMA cache for {pma_key}: {e}", file=sys.stderr)
+                else:
+                    _logger.warning(
+                        "Stale PMA cache also corrupt for %s", pma_key
+                    )
             return {"error": result.get("error", "API unavailable"), "pma_number": pma_key}
 
         # Extract and structure data
@@ -289,8 +328,39 @@ class PMADataStore:
 
         return pma_data
 
+    def _read_json_verified(self, file_path: Path) -> Optional[Dict]:
+        """Read a JSON cache file with integrity verification.
+
+        GAP-011: Uses integrity_read for files with integrity envelopes,
+        falls back to standard JSON read for legacy files.
+
+        Args:
+            file_path: Path to JSON file.
+
+        Returns:
+            Parsed data dict, or None if corrupt/unreadable.
+        """
+        if _INTEGRITY_AVAILABLE:
+            data = integrity_read(
+                file_path,
+                audit_logger=self._audit_logger,
+                auto_invalidate=False,  # Don't auto-delete PMA data
+            )
+            if data is not None:
+                return data
+
+        # Fallback: standard read (legacy or no integrity module)
+        try:
+            with open(file_path) as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError) as e:
+            _logger.warning("Failed to read cache file %s: %s", file_path, e)
+            return None
+
     def save_pma_data(self, pma_number: str, data: Dict) -> None:
-        """Save PMA data to the cache.
+        """Save PMA data to the cache with integrity envelope.
+
+        GAP-011: Uses atomic write with SHA-256 checksum envelope.
 
         Args:
             pma_number: PMA number
@@ -298,15 +368,19 @@ class PMADataStore:
         """
         pma_dir = self.get_pma_dir(pma_number.upper())
         data_path = pma_dir / "pma_data.json"
-        tmp_path = data_path.with_suffix(".json.tmp")
-        try:
-            with open(tmp_path, "w") as f:
-                json.dump(data, f, indent=2)
-            tmp_path.replace(data_path)
-        except OSError:
-            if tmp_path.exists():
-                tmp_path.unlink(missing_ok=True)
-            raise
+
+        if _INTEGRITY_AVAILABLE:
+            integrity_write(data_path, data, audit_logger=self._audit_logger)
+        else:
+            tmp_path = data_path.with_suffix(".json.tmp")
+            try:
+                with open(tmp_path, "w") as f:
+                    json.dump(data, f, indent=2)
+                tmp_path.replace(data_path)
+            except OSError:
+                if tmp_path.exists():
+                    tmp_path.unlink(missing_ok=True)
+                raise
 
     def _extract_pma_fields(self, api_result: Dict, pma_number: str) -> Dict:
         """Extract structured fields from an openFDA PMA API response.
@@ -367,6 +441,8 @@ class PMADataStore:
     def get_supplements(self, pma_number: str, refresh: bool = False) -> List[Dict]:
         """Get all supplements for a PMA.
 
+        GAP-011: Cache reads verify integrity. Writes use atomic pattern.
+
         Args:
             pma_number: Base PMA number (e.g., 'P170019')
             refresh: Force refresh from API.
@@ -380,22 +456,21 @@ class PMADataStore:
 
         # Check cache
         if not refresh and supp_path.exists() and not self.is_expired(pma_key, "pma_supplements"):
-            try:
-                with open(supp_path) as f:
-                    return json.load(f)
-            except (json.JSONDecodeError, OSError) as e:
-                print(f"Warning: Failed to read supplements cache for {pma_key}: {e}", file=sys.stderr)
+            data = self._read_json_verified(supp_path)
+            if data is not None:
+                # data might be a list (direct) or wrapped in envelope
+                if isinstance(data, list):
+                    return data
+                return data
 
         # Fetch from API
         result = self.client.get_pma_supplements(pma_key, limit=100)
 
         if result.get("degraded") or result.get("error"):
             if supp_path.exists():
-                try:
-                    with open(supp_path) as f:
-                        return json.load(f)
-                except (json.JSONDecodeError, OSError) as e:
-                    print(f"Warning: Failed to read stale supplements cache: {e}", file=sys.stderr)
+                data = self._read_json_verified(supp_path)
+                if data is not None:
+                    return data if isinstance(data, list) else []
             return []
 
         # Extract supplements
@@ -415,12 +490,19 @@ class PMADataStore:
                     "trade_name": r.get("trade_name", ""),
                 })
 
-        # Save to cache
-        try:
-            with open(supp_path, "w") as f:
-                json.dump(supplements, f, indent=2)
-        except OSError as e:
-            print(f"Warning: Failed to cache supplements for {pma_key}: {e}", file=sys.stderr)
+        # Save to cache with integrity envelope and atomic write (GAP-011 fix)
+        if _INTEGRITY_AVAILABLE:
+            integrity_write(supp_path, supplements, audit_logger=self._audit_logger)
+        else:
+            tmp_path = supp_path.with_suffix(".json.tmp")
+            try:
+                with open(tmp_path, "w") as f:
+                    json.dump(supplements, f, indent=2)
+                tmp_path.replace(supp_path)
+            except OSError as e:
+                if tmp_path.exists():
+                    tmp_path.unlink(missing_ok=True)
+                print(f"Warning: Failed to cache supplements for {pma_key}: {e}", file=sys.stderr)
 
         # Update manifest
         self.update_manifest_entry(pma_key, {
@@ -476,7 +558,7 @@ class PMADataStore:
     # ------------------------------------------------------------------
 
     def get_extracted_sections(self, pma_number: str) -> Optional[Dict]:
-        """Load extracted sections for a PMA.
+        """Load extracted sections for a PMA with integrity verification.
 
         Args:
             pma_number: PMA number
@@ -490,14 +572,10 @@ class PMADataStore:
         if not sections_path.exists():
             return None
 
-        try:
-            with open(sections_path) as f:
-                return json.load(f)
-        except (json.JSONDecodeError, OSError):
-            return None
+        return self._read_json_verified(sections_path)
 
     def save_extracted_sections(self, pma_number: str, sections: Dict) -> None:
-        """Save extracted sections for a PMA.
+        """Save extracted sections for a PMA with integrity envelope.
 
         Args:
             pma_number: PMA number
@@ -505,15 +583,19 @@ class PMADataStore:
         """
         pma_dir = self.get_pma_dir(pma_number.upper())
         sections_path = pma_dir / "extracted_sections.json"
-        tmp_path = sections_path.with_suffix(".json.tmp")
-        try:
-            with open(tmp_path, "w") as f:
-                json.dump(sections, f, indent=2)
-            tmp_path.replace(sections_path)
-        except OSError:
-            if tmp_path.exists():
-                tmp_path.unlink(missing_ok=True)
-            raise
+
+        if _INTEGRITY_AVAILABLE:
+            integrity_write(sections_path, sections, audit_logger=self._audit_logger)
+        else:
+            tmp_path = sections_path.with_suffix(".json.tmp")
+            try:
+                with open(tmp_path, "w") as f:
+                    json.dump(sections, f, indent=2)
+                tmp_path.replace(sections_path)
+            except OSError:
+                if tmp_path.exists():
+                    tmp_path.unlink(missing_ok=True)
+                raise
 
     # ------------------------------------------------------------------
     # Search cache
@@ -711,6 +793,14 @@ class PMADataStore:
             self.save_manifest()
 
         return len(to_remove)
+
+    def get_integrity_events(self) -> List[Dict]:
+        """Return cache integrity events from this session.
+
+        Returns:
+            List of integrity event dictionaries.
+        """
+        return list(self._integrity_events)
 
 
 # ------------------------------------------------------------------

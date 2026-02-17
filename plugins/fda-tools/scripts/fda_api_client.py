@@ -5,6 +5,9 @@ Centralized FDA API Client with caching and retry logic.
 Provides LRU caching (7-day TTL), exponential backoff retry, and degraded mode
 on failure for all openFDA Device API endpoints.
 
+Cache files use SHA-256 integrity envelopes (GAP-011 / FDA-71) to detect
+corruption or tampering. All writes are atomic (temp + replace).
+
 Usage:
     from fda_api_client import FDAClient
 
@@ -17,6 +20,7 @@ Usage:
 
 import hashlib
 import json
+import logging
 import os
 import re
 import time
@@ -26,6 +30,21 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+# Import cache integrity module (GAP-011)
+try:
+    from cache_integrity import (
+        integrity_read,
+        integrity_write,
+        verify_checksum,
+        invalidate_corrupt_file,
+    )
+    _INTEGRITY_AVAILABLE = True
+except ImportError:
+    _INTEGRITY_AVAILABLE = False
+
+
+# Cache integrity audit logger
+_cache_logger = logging.getLogger("fda.cache_integrity")
 
 # Cache TTL in seconds (7 days)
 CACHE_TTL = 7 * 24 * 60 * 60
@@ -61,7 +80,18 @@ class FDAClient:
         self.cache_dir = Path(cache_dir or os.path.expanduser("~/fda-510k-data/api_cache"))
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.enabled = self._check_enabled()
-        self._stats = {"hits": 0, "misses": 0, "errors": 0}
+        self._stats = {"hits": 0, "misses": 0, "errors": 0, "corruptions": 0}
+        self._audit_events = []  # In-memory audit log for cache integrity events
+
+    def _audit_logger(self, event):
+        """Audit callback for cache integrity events.
+
+        Captures integrity events for statistics and external logging.
+        """
+        self._audit_events.append(event)
+        event_type = event.get("event", "")
+        if event_type in ("corruption_detected", "checksum_mismatch"):
+            self._stats["corruptions"] += 1
 
     def _load_api_key(self):
         """Load API key from environment or settings file."""
@@ -97,34 +127,65 @@ class FDAClient:
         return hashlib.sha256(raw.encode()).hexdigest()[:16]
 
     def _get_cached(self, cache_key):
-        """Get a cached response if valid."""
+        """Get a cached response if valid, with integrity verification.
+
+        GAP-011: Reads cache file through integrity_read() which verifies
+        the SHA-256 checksum. Corrupt files are auto-invalidated and logged.
+        """
         cache_file = self.cache_dir / f"{cache_key}.json"
         if not cache_file.exists():
             return None
 
-        try:
-            with open(cache_file) as f:
-                cached = json.load(f)
+        if _INTEGRITY_AVAILABLE:
+            # Use integrity-verified read with TTL check
+            data = integrity_read(
+                cache_file,
+                ttl_seconds=CACHE_TTL,
+                audit_logger=self._audit_logger,
+                auto_invalidate=True,
+            )
+            if data is not None:
+                self._stats["hits"] += 1
+            return data
+        else:
+            # Fallback: original behavior if cache_integrity not importable
+            try:
+                with open(cache_file) as f:
+                    cached = json.load(f)
 
-            # Check TTL
-            cached_at = cached.get("_cached_at", 0)
-            if time.time() - cached_at > CACHE_TTL:
-                cache_file.unlink(missing_ok=True)
+                # Check TTL
+                cached_at = cached.get("_cached_at", 0)
+                if time.time() - cached_at > CACHE_TTL:
+                    cache_file.unlink(missing_ok=True)
+                    return None
+
+                self._stats["hits"] += 1
+                return cached.get("data")
+            except (json.JSONDecodeError, OSError):
+                _cache_logger.warning(
+                    "Cache read failed (no integrity module): %s", cache_file
+                )
                 return None
 
-            self._stats["hits"] += 1
-            return cached.get("data")
-        except (json.JSONDecodeError, OSError):
-            return None
-
     def _set_cached(self, cache_key, data):
-        """Cache a response."""
+        """Cache a response with integrity envelope and atomic write.
+
+        GAP-011: Uses integrity_write() for atomic writes with SHA-256
+        checksum envelope. Prevents partial file corruption on crash.
+        """
         cache_file = self.cache_dir / f"{cache_key}.json"
-        try:
-            with open(cache_file, "w") as f:
-                json.dump({"_cached_at": time.time(), "data": data}, f)
-        except OSError:
-            pass  # Cache write failures are non-fatal
+
+        if _INTEGRITY_AVAILABLE:
+            integrity_write(
+                cache_file, data, audit_logger=self._audit_logger
+            )
+        else:
+            # Fallback: original behavior
+            try:
+                with open(cache_file, "w") as f:
+                    json.dump({"_cached_at": time.time(), "data": data}, f)
+            except OSError:
+                pass  # Cache write failures are non-fatal
 
     def _request(self, endpoint, params):
         """Make an API request with retry and exponential backoff.
@@ -168,17 +229,17 @@ class FDAClient:
                     self._set_cached(key, result)
                     return result
                 elif e.code == 429:
-                    # Rate limited — wait longer
+                    # Rate limited -- wait longer
                     wait = BASE_BACKOFF * (2 ** attempt) * 2
                     time.sleep(wait)
                     last_error = e
                 elif e.code >= 500:
-                    # Server error — retry with backoff
+                    # Server error -- retry with backoff
                     wait = BASE_BACKOFF * (2 ** attempt)
                     time.sleep(wait)
                     last_error = e
                 else:
-                    # Client error (400, 403, etc.) — don't retry
+                    # Client error (400, 403, etc.) -- don't retry
                     self._stats["errors"] += 1
                     return {"error": f"HTTP {e.code}: {e.reason}", "degraded": True}
             except Exception as e:
@@ -370,7 +431,7 @@ class FDAClient:
             result = self.get_510k(device_number)
             if result.get("results") or result.get("meta", {}).get("results", {}).get("total", 0) > 0:
                 return result
-            # Not found in 510k — return informative result
+            # Not found in 510k -- return informative result
             return {"results": [], "meta": {"results": {"total": 0}},
                     "note": "DEN number not found in 510k endpoint. openFDA has no dedicated De Novo endpoint."}
         elif num.startswith("N"):
@@ -392,30 +453,40 @@ class FDAClient:
             List of product code strings (e.g., ['DQY', 'MAX', 'OVE', ...])
         """
         cache_file = self.cache_dir / "all_product_codes.json"
+        product_code_ttl = 30 * 24 * 60 * 60  # 30 days
 
         # Try cache first if enabled
         if use_cache and cache_file.exists():
-            try:
-                with open(cache_file) as f:
-                    cached = json.load(f)
-                # Check TTL (use 30 days for product code enumeration since it's relatively stable)
-                if time.time() - cached.get("_cached_at", 0) < (30 * 24 * 60 * 60):
-                    return cached.get("codes", [])
-            except (json.JSONDecodeError, OSError) as e:
-                print(f"Warning: Failed to read product code cache: {e}", file=sys.stderr)
+            if _INTEGRITY_AVAILABLE:
+                data = integrity_read(
+                    cache_file,
+                    ttl_seconds=product_code_ttl,
+                    audit_logger=self._audit_logger,
+                    auto_invalidate=True,
+                )
+                if data is not None:
+                    return data.get("codes", data) if isinstance(data, dict) else data
+            else:
+                try:
+                    with open(cache_file) as f:
+                        cached = json.load(f)
+                    if time.time() - cached.get("_cached_at", 0) < product_code_ttl:
+                        return cached.get("codes", [])
+                except (json.JSONDecodeError, OSError) as e:
+                    print(f"Warning: Failed to read product code cache: {e}", file=sys.stderr)
 
         # Fetch all product codes via pagination
         all_codes = set()
         limit = 1000  # Max per request
         skip = 0
 
-        print("🔄 Enumerating all FDA product codes (this may take a minute)...")
+        print("Enumerating all FDA product codes (this may take a minute)...")
 
         while True:
             result = self._request("classification", {"limit": str(limit), "skip": str(skip)})
 
             if result.get("degraded"):
-                print(f"⚠️  Warning: API degraded during enumeration: {result.get('error')}")
+                print(f"Warning: API degraded during enumeration: {result.get('error')}")
                 break
 
             results = result.get("results", [])
@@ -440,18 +511,22 @@ class FDAClient:
 
         codes_list = sorted(list(all_codes))
 
-        # Cache results
-        try:
-            with open(cache_file, "w") as f:
-                json.dump({
-                    "_cached_at": time.time(),
-                    "codes": codes_list,
-                    "total": len(codes_list)
-                }, f, indent=2)
-            print(f"✅ Found {len(codes_list)} product codes (cached for 30 days)")
-        except OSError as e:
-            print(f"Warning: Failed to cache product codes: {e}", file=sys.stderr)
+        # Cache results with integrity envelope
+        cache_data = {"codes": codes_list, "total": len(codes_list)}
+        if _INTEGRITY_AVAILABLE:
+            integrity_write(cache_file, cache_data, audit_logger=self._audit_logger)
+        else:
+            try:
+                with open(cache_file, "w") as f:
+                    json.dump({
+                        "_cached_at": time.time(),
+                        "codes": codes_list,
+                        "total": len(codes_list)
+                    }, f, indent=2)
+            except OSError as e:
+                print(f"Warning: Failed to cache product codes: {e}", file=sys.stderr)
 
+        print(f"Found {len(codes_list)} product codes (cached for 30 days)")
         return codes_list
 
     def get_device_characteristics(self, product_code):
@@ -514,13 +589,28 @@ class FDAClient:
     # --- Cache Management ---
 
     def cache_stats(self):
-        """Return cache statistics."""
+        """Return cache statistics including integrity metrics."""
         cache_files = list(self.cache_dir.glob("*.json"))
         total_size = sum(f.stat().st_size for f in cache_files)
         expired = 0
         valid = 0
+        integrity_verified = 0
+        legacy_format = 0
+        corrupt = 0
+
         for f in cache_files:
             try:
+                if _INTEGRITY_AVAILABLE:
+                    is_valid, reason = verify_checksum(f)
+                    if reason == "valid":
+                        integrity_verified += 1
+                    elif reason == "legacy_format":
+                        legacy_format += 1
+                    elif not is_valid:
+                        corrupt += 1
+                        expired += 1
+                        continue
+
                 with open(f) as fh:
                     data = json.load(fh)
                 if time.time() - data.get("_cached_at", 0) > CACHE_TTL:
@@ -529,8 +619,9 @@ class FDAClient:
                     valid += 1
             except (json.JSONDecodeError, OSError):
                 expired += 1
+                corrupt += 1
 
-        return {
+        stats = {
             "cache_dir": str(self.cache_dir),
             "total_files": len(cache_files),
             "valid": valid,
@@ -540,7 +631,12 @@ class FDAClient:
             "session_hits": self._stats["hits"],
             "session_misses": self._stats["misses"],
             "session_errors": self._stats["errors"],
+            "session_corruptions": self._stats["corruptions"],
+            "integrity_verified": integrity_verified,
+            "legacy_format": legacy_format,
+            "corrupt_detected": corrupt,
         }
+        return stats
 
     def clear_cache(self, category=None):
         """Clear cached API responses.
@@ -566,6 +662,14 @@ class FDAClient:
                 count += 1
 
         return count
+
+    def get_audit_events(self):
+        """Return cache integrity audit events from this session.
+
+        Returns:
+            List of audit event dictionaries.
+        """
+        return list(self._audit_events)
 
 
 def main():
@@ -606,6 +710,8 @@ def main():
         print(f"Cache directory: {stats['cache_dir']}")
         print(f"Files: {stats['total_files']} ({stats['valid']} valid, {stats['expired']} expired)")
         print(f"Size: {stats['total_size_mb']} MB")
+        print(f"Integrity: {stats['integrity_verified']} verified, "
+              f"{stats['legacy_format']} legacy, {stats['corrupt_detected']} corrupt")
 
     elif args.clear:
         count = client.clear_cache()
