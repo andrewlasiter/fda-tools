@@ -1,4 +1,4 @@
-![Version](https://img.shields.io/badge/version-5.22.0-blue)
+![Version](https://img.shields.io/badge/version-5.36.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Commands](https://img.shields.io/badge/commands-42-orange)
 ![Agents](https://img.shields.io/badge/agents-4-purple)
@@ -51,6 +51,22 @@ Start a new session after installing to load the plugin.
 42 commands, 7 autonomous agents, and 712 tests covering every stage of the 510(k) workflow — from predicate research through CDRH Portal submission. Integrates with all 7 openFDA Device API endpoints and bundles Python scripts for batch PDF processing and data pipeline maintenance.
 
 See the [full documentation](./plugins/fda-tools/README.md) for commands, agents, installation details, and quick start examples.
+
+## Documentation
+
+- **[Quick Start Guide](docs/QUICK_START.md)** - Get started in 5 minutes with essential commands and workflows
+- **[Installation Guide](docs/INSTALLATION.md)** - Complete setup instructions, dependencies, and configuration
+- **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+- **[Changelog](CHANGELOG.md)** - Release history and version updates
+- **[Full Plugin Documentation](./plugins/fda-tools/README.md)** - Detailed command reference and advanced features
+
+## Quick Links
+
+- **Installation**: `claude plugin install fda-tools@fda-tools`
+- **Version**: 5.36.0
+- **Repository**: [GitHub](https://github.com/andrewlasiter/fda-predicate-assistant)
+- **Issues**: [Report a bug](https://github.com/andrewlasiter/fda-predicate-assistant/issues)
+- **License**: MIT
 
 ## License
 
