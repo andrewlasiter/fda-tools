@@ -32,10 +32,7 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 # Ensure scripts directory is on sys.path for imports
-SCRIPTS_DIR = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "..", "scripts"
-)
-sys.path.insert(0, SCRIPTS_DIR)
+# Package imports configured in conftest.py and pytest.ini
 
 from change_detector import (  # type: ignore
     _detect_field_changes,
@@ -47,7 +44,7 @@ from change_detector import (  # type: ignore
     find_new_clearances,
     trigger_pipeline,
 )
-from fda_data_store import load_manifest, save_manifest  # type: ignore
+from scripts.fda_data_store import load_manifest, save_manifest
 
 # Ensure tests directory is on sys.path for mock imports
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))

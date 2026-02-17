@@ -29,10 +29,7 @@ import sys
 import pytest
 
 # Ensure scripts directory is on sys.path for imports
-SCRIPTS_DIR = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "..", "scripts"
-)
-sys.path.insert(0, SCRIPTS_DIR)
+# Package imports configured in conftest.py and pytest.ini
 
 from section_analytics import (
     _cosine_similarity_stdlib,

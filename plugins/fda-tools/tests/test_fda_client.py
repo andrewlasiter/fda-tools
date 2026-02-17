@@ -9,8 +9,8 @@ import sys
 import pytest
 
 # Add scripts directory to path for import
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
-from fda_api_client import FDAClient
+# Package imports configured in conftest.py and pytest.ini
+from scripts.fda_api_client import FDAClient
 
 
 class TestDeviceNumberRouting:

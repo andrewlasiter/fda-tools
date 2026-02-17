@@ -20,7 +20,7 @@ from unittest.mock import patch
 import pytest
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
+# Package imports configured in conftest.py and pytest.ini
 
 # Import after path setup
 from supplement_tracker import (  # type: ignore

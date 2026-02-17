@@ -28,13 +28,8 @@ from unittest.mock import MagicMock, Mock, mock_open, patch
 
 import pytest
 
-# Import the script module
-SCRIPTS_DIR = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "..", "scripts"
-)
-sys.path.insert(0, SCRIPTS_DIR)
-
-from fda_api_client import FDAClient  # type: ignore
+# Use proper package import
+from scripts.fda_api_client import FDAClient
 
 
 # ============================================================================

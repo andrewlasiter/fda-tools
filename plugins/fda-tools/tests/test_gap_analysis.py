@@ -16,11 +16,8 @@ import pytest
 from pathlib import Path
 from datetime import datetime, timedelta
 
-# Add lib directory to path
-lib_path = Path(__file__).parent.parent / 'lib'
-sys.path.insert(0, str(lib_path))
-
-from gap_analyzer import (
+# Use proper package import
+from lib.gap_analyzer import (
     GapAnalyzer,
     calculate_gap_analysis_confidence,
     generate_gap_analysis_report,

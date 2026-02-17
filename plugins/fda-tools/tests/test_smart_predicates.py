@@ -13,10 +13,9 @@ from pathlib import Path
 from datetime import datetime
 
 # Add lib directory to path
-lib_path = Path(__file__).parent.parent / 'lib'
-sys.path.insert(0, str(lib_path))
+# Package imports configured in conftest.py and pytest.ini
 
-from predicate_ranker import (
+from lib.predicate_ranker import (
     PredicateRanker,
     rank_predicates,
     generate_smart_recommendations_report

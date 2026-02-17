@@ -20,10 +20,10 @@ from unittest.mock import patch, MagicMock
 import pytest
 
 # Ensure scripts directory is importable
-SCRIPTS_DIR = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "..", "scripts"
-)
-sys.path.insert(0, SCRIPTS_DIR)
+# Package imports configured in conftest.py and pytest.ini
+
+# Define SCRIPTS_DIR for tests that need to check file contents
+SCRIPTS_DIR = Path(__file__).parent.parent / 'scripts'
 
 
 # ============================================================================

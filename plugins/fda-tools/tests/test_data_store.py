@@ -13,9 +13,8 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-# Add scripts directory to path for import
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
-from fda_data_store import (
+# Use proper package import
+from scripts.fda_data_store import (
     load_manifest,
     save_manifest,
     is_expired,
@@ -929,7 +928,7 @@ class TestCLIParsing:
     def test_main_show_manifest(self, capsys, tmp_path):
         with patch("fda_data_store.get_projects_dir", return_value=str(tmp_path)):
             with patch("sys.argv", ["fda_data_store.py", "--project", "test", "--show-manifest"]):
-                from fda_data_store import main
+                from fda_data_store import main  # type: ignore
                 main()
         output = capsys.readouterr().out
         assert "PROJECT:test" in output
@@ -937,7 +936,7 @@ class TestCLIParsing:
     def test_main_clear(self, capsys, tmp_path):
         with patch("fda_data_store.get_projects_dir", return_value=str(tmp_path)):
             with patch("sys.argv", ["fda_data_store.py", "--project", "test", "--clear"]):
-                from fda_data_store import main
+                from fda_data_store import main  # type: ignore
                 main()
         output = capsys.readouterr().out
         assert "NO_MANIFEST" in output
@@ -955,7 +954,7 @@ class TestCLIParsing:
         (project_dir / "data_manifest.json").write_text(json.dumps(manifest))
         with patch("fda_data_store.get_projects_dir", return_value=str(tmp_path)):
             with patch("sys.argv", ["fda_data_store.py", "--project", "test", "--refresh-all"]):
-                from fda_data_store import main
+                from fda_data_store import main  # type: ignore
                 main()
         output = capsys.readouterr().out
         assert "REFRESHED:1" in output
@@ -963,25 +962,25 @@ class TestCLIParsing:
     def test_main_no_action_raises_error(self):
         with patch("sys.argv", ["fda_data_store.py", "--project", "test"]):
             with pytest.raises(SystemExit):
-                from fda_data_store import main
+                from fda_data_store import main  # type: ignore
                 main()
 
     def test_main_query_missing_product_code(self):
         with patch("sys.argv", ["fda_data_store.py", "--project", "test", "--query", "classification"]):
             with pytest.raises(SystemExit):
-                from fda_data_store import main
+                from fda_data_store import main  # type: ignore
                 main()
 
     def test_main_query_510k_missing_k_number(self):
         with patch("sys.argv", ["fda_data_store.py", "--project", "test", "--query", "510k"]):
             with pytest.raises(SystemExit):
-                from fda_data_store import main
+                from fda_data_store import main  # type: ignore
                 main()
 
     def test_main_query_510k_batch_missing_k_numbers(self):
         with patch("sys.argv", ["fda_data_store.py", "--project", "test", "--query", "510k-batch"]):
             with pytest.raises(SystemExit):
-                from fda_data_store import main
+                from fda_data_store import main  # type: ignore
                 main()
 
 

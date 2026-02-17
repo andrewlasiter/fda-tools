@@ -29,8 +29,8 @@ from unittest.mock import patch, MagicMock
 
 # Import module under test
 import sys
-sys.path.insert(0, str(Path(__file__).parent.parent / 'lib'))
-from predicate_ranker import (  # type: ignore
+# Use proper package import (configured in conftest.py)
+from lib.predicate_ranker import (
     PredicateRanker,
     rank_predicates,
     generate_smart_recommendations_report

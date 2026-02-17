@@ -7,30 +7,28 @@ All fixtures operate offline without network access.
 """
 
 import json
-import os
 import sys
+from pathlib import Path
 
 import pytest
 
-# Ensure scripts directory is importable
-SCRIPTS_DIR = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "..", "scripts"
-)
-sys.path.insert(0, SCRIPTS_DIR)
+# Add parent directory to Python path for proper package imports
+# This enables importing from scripts/, lib/, and tests/ as packages
+PROJECT_ROOT = Path(__file__).parent.parent.resolve()
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
-# Ensure tests directory is importable (for mocks)
-TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, TESTS_DIR)
+# Define directory paths
+TESTS_DIR = Path(__file__).parent.resolve()
+FIXTURES_DIR = TESTS_DIR / "fixtures"
 
-from mocks.mock_fda_client import MockFDAClient
-
-# Path to fixture data files
-FIXTURES_DIR = os.path.join(TESTS_DIR, "fixtures")
+# Import from tests package (using proper package import)
+from tests.mocks.mock_fda_client import MockFDAClient
 
 
 def _load_fixture(filename):
     """Load a JSON fixture file from the fixtures directory."""
-    filepath = os.path.join(FIXTURES_DIR, filename)
+    filepath = FIXTURES_DIR / filename
     with open(filepath) as f:
         return json.load(f)
 
@@ -209,20 +207,6 @@ def mock_fda_client_3_new_items(sample_api_responses):
     client.set_clearances("DQY", meta_total=resp["meta"]["results"]["total"],
                           results=resp["results"])
     client.set_recalls("DQY", meta_total=0)
-    return client
-
-
-@pytest.fixture
-def mock_fda_client_with_recalls(sample_api_responses):
-    """Create a MockFDAClient with increased recall count for DQY.
-
-    Returns recall total of 4 (up from fingerprint baseline of 3).
-    """
-    client = MockFDAClient()
-    resp = sample_api_responses["clearances_stable_2_items"]
-    client.set_clearances("DQY", meta_total=resp["meta"]["results"]["total"],
-                          results=resp["results"])
-    client.set_recalls("DQY", meta_total=4)
     return client
 
 

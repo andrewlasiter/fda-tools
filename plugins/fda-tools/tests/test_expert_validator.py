@@ -29,10 +29,8 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock, call
 from io import StringIO
 
-# Import module under test
-import sys
-sys.path.insert(0, str(Path(__file__).parent.parent / 'lib'))
-from expert_validator import ExpertValidator  # type: ignore
+# Use proper package import
+from lib.expert_validator import ExpertValidator
 
 
 @pytest.fixture
@@ -510,7 +508,7 @@ class TestCLIInterface:
     def test_cli_accepts_standards_dir_argument(self, mock_validator):
         """Test CLI accepts --standards-dir argument."""
         # Import main to test CLI
-        from expert_validator import  # type: ignore main
+        from lib.expert_validator import main
 
         mock_instance = MagicMock()
         mock_validator.return_value = mock_instance
@@ -531,7 +529,7 @@ class TestCLIInterface:
     @patch('expert_validator.ExpertValidator')
     def test_cli_coverage_only_flag(self, mock_validator):
         """Test CLI --coverage-only flag runs only coverage audit."""
-        from expert_validator import  # type: ignore main
+        from lib.expert_validator import main
 
         mock_instance = MagicMock()
         mock_validator.return_value = mock_instance
@@ -551,7 +549,7 @@ class TestCLIInterface:
     @patch('expert_validator.ExpertValidator')
     def test_cli_quality_only_flag(self, mock_validator):
         """Test CLI --quality-only flag runs only quality review."""
-        from expert_validator import  # type: ignore main
+        from lib.expert_validator import main
 
         mock_instance = MagicMock()
         mock_validator.return_value = mock_instance

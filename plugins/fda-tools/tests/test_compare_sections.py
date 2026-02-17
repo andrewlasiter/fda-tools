@@ -28,10 +28,7 @@ from unittest.mock import Mock, patch, MagicMock
 import pytest
 
 # Import the script module
-SCRIPTS_DIR = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "..", "scripts"
-)
-sys.path.insert(0, SCRIPTS_DIR)
+# Package imports configured in conftest.py and pytest.ini
 
 from compare_sections import (  # type: ignore
     filter_by_product_code,

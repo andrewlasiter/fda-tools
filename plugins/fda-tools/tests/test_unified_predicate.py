@@ -27,12 +27,9 @@ from unittest.mock import Mock, MagicMock, patch
 import pytest
 
 # Import the script module
-SCRIPTS_DIR = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "..", "scripts"
-)
-sys.path.insert(0, SCRIPTS_DIR)
+# Package imports configured in conftest.py and pytest.ini
 
-from unified_predicate import (  # type: ignore
+from scripts.unified_predicate import (
     UnifiedPredicateAnalyzer,
     _tokenize,
     _word_overlap,

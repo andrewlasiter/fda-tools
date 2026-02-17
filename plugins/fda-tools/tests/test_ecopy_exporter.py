@@ -29,8 +29,8 @@ from unittest.mock import patch, MagicMock, call
 
 # Import module under test
 import sys
-sys.path.insert(0, str(Path(__file__).parent.parent / 'lib'))
-from ecopy_exporter import (  # type: ignore
+# Use proper package import (configured in conftest.py)
+from lib.ecopy_exporter import (
     eCopyExporter,
     export_ecopy
 )

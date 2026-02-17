@@ -23,7 +23,7 @@ from unittest.mock import MagicMock, patch, PropertyMock
 import pytest
 
 # Add scripts directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
+# Package imports configured in conftest.py and pytest.ini
 
 
 # ============================================================

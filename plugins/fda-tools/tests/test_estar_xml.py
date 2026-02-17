@@ -27,10 +27,7 @@ from unittest.mock import Mock, MagicMock, patch, mock_open
 import pytest
 
 # Import the script module
-SCRIPTS_DIR = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "..", "scripts"
-)
-sys.path.insert(0, SCRIPTS_DIR)
+# Package imports configured in conftest.py and pytest.ini
 
 from estar_xml import (  # type: ignore
     detect_template_type,

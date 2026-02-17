@@ -11,7 +11,7 @@ import sys
 import pytest
 
 # Add scripts directory to path for import
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
+# Package imports configured in conftest.py and pytest.ini
 
 # Paths to plugin files
 PLUGIN_ROOT = os.path.join(os.path.dirname(__file__), "..")

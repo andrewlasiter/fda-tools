@@ -17,10 +17,10 @@ import pytest
 from pathlib import Path
 
 # Add lib directory to path
-sys.path.insert(0, str(Path(__file__).parent.parent / 'lib'))
+# Package imports configured in conftest.py and pytest.ini
 
-from predicate_diversity import PredicateDiversityAnalyzer, analyze_predicate_diversity
-from ecopy_exporter import eCopyExporter
+from lib.predicate_diversity import PredicateDiversityAnalyzer, analyze_predicate_diversity
+from lib.ecopy_exporter import eCopyExporter
 
 
 class TestPredicateDiversity:

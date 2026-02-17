@@ -14,10 +14,7 @@ import sys
 import pytest
 
 # Ensure scripts directory is importable
-SCRIPTS_DIR = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), "..", "scripts"
-)
-sys.path.insert(0, SCRIPTS_DIR)
+# Package imports configured in conftest.py and pytest.ini
 
 from input_validators import (
     validate_product_code,
