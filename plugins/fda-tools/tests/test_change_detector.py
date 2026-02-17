@@ -684,3 +684,553 @@ class TestFindNewClearances:
         new = find_new_clearances("DQY", [], client=client, max_fetch=10)
 
         assert new == []
+
+
+# ===================================================================
+# CRITICAL: New Recall Detection (SMART-007)
+# ===================================================================
+
+
+class TestSMART007NewRecallDetection:
+    """SMART-007: New recall detection reports correct delta.
+
+    Validates that detect_changes correctly identifies when the recall
+    count has increased and reports the delta accurately.
+    """
+
+    def test_new_recalls_detected(
+        self, tmp_project_dir, mock_fda_client_with_recalls
+    ):
+        """2 new recalls detected (4 current - 2 previous = 2 delta)."""
+        project_dir = tmp_project_dir
+        project_name = os.path.basename(project_dir)
+        parent_dir = os.path.dirname(project_dir)
+
+        # Set up fingerprint with recall_count=2
+        manifest = load_manifest(project_dir)
+        manifest["fingerprints"] = {
+            "DQY": {
+                "last_checked": "2026-01-01T00:00:00+00:00",
+                "clearance_count": 2,
+                "latest_k_number": "K241001",
+                "latest_decision_date": "20240315",
+                "recall_count": 2,  # Previous recall count
+                "known_k_numbers": ["K241001", "K241002"],
+            }
+        }
+        save_manifest(project_dir, manifest)
+
+        with patch("change_detector.get_projects_dir", return_value=parent_dir):
+            result = detect_changes(
+                project_name=project_name,
+                client=mock_fda_client_with_recalls,
+                verbose=False,
+            )
+
+        assert result["status"] == "completed"
+        assert result["total_new_recalls"] == 2  # 4 - 2 = 2
+
+        # Find the new_recalls change entry
+        recall_changes = [
+            c for c in result["changes"]
+            if c["change_type"] == "new_recalls"
+        ]
+        assert len(recall_changes) == 1
+
+        change = recall_changes[0]
+        assert change["count"] == 2
+        assert change["product_code"] == "DQY"
+        assert change["details"]["previous_count"] == 2
+        assert change["details"]["current_count"] == 4
+
+    def test_recall_count_updated_in_fingerprint(
+        self, tmp_project_dir, mock_fda_client_with_recalls
+    ):
+        """Fingerprint recall_count is updated after detection."""
+        project_dir = tmp_project_dir
+        project_name = os.path.basename(project_dir)
+        parent_dir = os.path.dirname(project_dir)
+
+        manifest = load_manifest(project_dir)
+        manifest["fingerprints"] = {
+            "DQY": {
+                "last_checked": "2026-01-01T00:00:00+00:00",
+                "clearance_count": 2,
+                "latest_k_number": "K241001",
+                "latest_decision_date": "20240315",
+                "recall_count": 2,
+                "known_k_numbers": ["K241001", "K241002"],
+            }
+        }
+        save_manifest(project_dir, manifest)
+
+        with patch("change_detector.get_projects_dir", return_value=parent_dir):
+            detect_changes(
+                project_name=project_name,
+                client=mock_fda_client_with_recalls,
+                verbose=False,
+            )
+
+        updated_manifest = load_manifest(project_dir)
+        assert updated_manifest["fingerprints"]["DQY"]["recall_count"] == 4
+
+
+# ===================================================================
+# HIGH: Multiple Product Code Fingerprints (SMART-004)
+# ===================================================================
+
+
+class TestSMART004MultipleProductCodes:
+    """SMART-004: Multiple product code fingerprints are saved independently.
+
+    Validates that detect_changes correctly creates and maintains
+    separate fingerprints for each product code in the project.
+    """
+
+    def test_all_product_codes_get_fingerprints(
+        self, tmp_project_dir_multi_codes, sample_api_responses
+    ):
+        """All 3 product codes (DQY, OVE, GEI) receive independent fingerprints."""
+        project_dir = tmp_project_dir_multi_codes
+        project_name = os.path.basename(project_dir)
+        parent_dir = os.path.dirname(project_dir)
+
+        # Create mock client with responses for all 3 codes
+        client = MockFDAClient()
+        client.set_clearances("DQY", meta_total=149, 
+                             results=sample_api_responses["clearances_dqy_5_items"]["results"])
+        client.set_recalls("DQY", meta_total=3)
+        
+        client.set_clearances("OVE", meta_total=89,
+                             results=sample_api_responses["clearances_ove"]["results"])
+        client.set_recalls("OVE", meta_total=1)
+        
+        client.set_clearances("GEI", meta_total=52,
+                             results=sample_api_responses["clearances_gei"]["results"])
+        client.set_recalls("GEI", meta_total=0)
+
+        # Clear existing fingerprints to test creation
+        manifest = load_manifest(project_dir)
+        manifest["fingerprints"] = {}
+        save_manifest(project_dir, manifest)
+
+        with patch("change_detector.get_projects_dir", return_value=parent_dir):
+            with patch("change_detector.time.sleep"):  # Skip rate limiting delay
+                result = detect_changes(
+                    project_name=project_name,
+                    client=client,
+                    verbose=False,
+                )
+
+        assert result["status"] == "completed"
+
+        # Verify all 3 fingerprints were created
+        manifest = load_manifest(project_dir)
+        assert "fingerprints" in manifest
+        assert "DQY" in manifest["fingerprints"]
+        assert "OVE" in manifest["fingerprints"]
+        assert "GEI" in manifest["fingerprints"]
+
+    def test_fingerprints_are_independent(
+        self, tmp_project_dir_multi_codes, sample_api_responses
+    ):
+        """Each fingerprint has independent clearance counts and K-numbers."""
+        project_dir = tmp_project_dir_multi_codes
+        project_name = os.path.basename(project_dir)
+        parent_dir = os.path.dirname(project_dir)
+
+        client = MockFDAClient()
+        client.set_clearances("DQY", meta_total=149,
+                             results=sample_api_responses["clearances_dqy_5_items"]["results"])
+        client.set_recalls("DQY", meta_total=3)
+        
+        client.set_clearances("OVE", meta_total=89,
+                             results=sample_api_responses["clearances_ove"]["results"])
+        client.set_recalls("OVE", meta_total=1)
+        
+        client.set_clearances("GEI", meta_total=52,
+                             results=sample_api_responses["clearances_gei"]["results"])
+        client.set_recalls("GEI", meta_total=0)
+
+        manifest = load_manifest(project_dir)
+        manifest["fingerprints"] = {}
+        save_manifest(project_dir, manifest)
+
+        with patch("change_detector.get_projects_dir", return_value=parent_dir):
+            with patch("change_detector.time.sleep"):
+                detect_changes(
+                    project_name=project_name,
+                    client=client,
+                    verbose=False,
+                )
+
+        manifest = load_manifest(project_dir)
+        fp_dqy = manifest["fingerprints"]["DQY"]
+        fp_ove = manifest["fingerprints"]["OVE"]
+        fp_gei = manifest["fingerprints"]["GEI"]
+
+        # Each should have different clearance counts
+        assert fp_dqy["clearance_count"] == 149
+        assert fp_ove["clearance_count"] == 89
+        assert fp_gei["clearance_count"] == 52
+
+        # Each should have different K-numbers (no cross-contamination)
+        assert "K261001" in fp_dqy["known_k_numbers"]  # DQY K-number
+        assert "K240501" in fp_ove["known_k_numbers"]  # OVE K-number
+        assert "K240801" in fp_gei["known_k_numbers"]  # GEI K-number
+
+        # DQY K-numbers should NOT appear in OVE or GEI
+        assert "K261001" not in fp_ove["known_k_numbers"]
+        assert "K261001" not in fp_gei["known_k_numbers"]
+
+    @patch("change_detector.time.sleep")
+    def test_rate_limiting_between_codes(
+        self, mock_sleep, tmp_project_dir_multi_codes, sample_api_responses
+    ):
+        """Rate limiting delay is observed between product code checks."""
+        project_dir = tmp_project_dir_multi_codes
+        project_name = os.path.basename(project_dir)
+        parent_dir = os.path.dirname(project_dir)
+
+        client = MockFDAClient()
+        for code in ["DQY", "OVE", "GEI"]:
+            client.set_clearances(code, meta_total=10, results=[])
+            client.set_recalls(code, meta_total=0)
+
+        manifest = load_manifest(project_dir)
+        manifest["fingerprints"] = {}
+        save_manifest(project_dir, manifest)
+
+        with patch("change_detector.get_projects_dir", return_value=parent_dir):
+            detect_changes(
+                project_name=project_name,
+                client=client,
+                verbose=False,
+            )
+
+        # Rate limiting should be called between product codes
+        # With 3 codes, expect 2 sleep calls (between code 1-2 and 2-3)
+        assert mock_sleep.call_count >= 2
+
+
+# ===================================================================
+# HIGH: API Error Graceful Degradation (SMART-008)
+# ===================================================================
+
+
+class TestSMART008APIErrorGraceful:
+    """SMART-008: API error graceful degradation.
+
+    Validates that detect_changes handles API errors gracefully without
+    crashing, modifying fingerprints, or reporting false positives.
+    """
+
+    def test_api_error_no_crash(self, tmp_project_dir, mock_fda_client_error):
+        """API error does not raise an unhandled exception."""
+        project_dir = tmp_project_dir
+        project_name = os.path.basename(project_dir)
+        parent_dir = os.path.dirname(project_dir)
+
+        with patch("change_detector.get_projects_dir", return_value=parent_dir):
+            # Should not raise an exception
+            result = detect_changes(
+                project_name=project_name,
+                client=mock_fda_client_error,
+                verbose=False,
+            )
+
+        # Function should return a result (not crash)
+        assert result is not None
+        assert "status" in result
+
+    def test_api_error_completed_status(self, tmp_project_dir, mock_fda_client_error):
+        """API error results in completed status (individual errors are skipped)."""
+        project_dir = tmp_project_dir
+        project_name = os.path.basename(project_dir)
+        parent_dir = os.path.dirname(project_dir)
+
+        with patch("change_detector.get_projects_dir", return_value=parent_dir):
+            result = detect_changes(
+                project_name=project_name,
+                client=mock_fda_client_error,
+                verbose=False,
+            )
+
+        # Status should be completed (product code errors are logged but skipped)
+        assert result["status"] == "completed"
+
+    def test_api_error_no_false_positives(self, tmp_project_dir, mock_fda_client_error):
+        """API error does not produce false positive changes."""
+        project_dir = tmp_project_dir
+        project_name = os.path.basename(project_dir)
+        parent_dir = os.path.dirname(project_dir)
+
+        with patch("change_detector.get_projects_dir", return_value=parent_dir):
+            result = detect_changes(
+                project_name=project_name,
+                client=mock_fda_client_error,
+                verbose=False,
+            )
+
+        # Should not report any changes from error states
+        assert result["changes"] == []
+        assert result["total_new_clearances"] == 0
+        assert result["total_new_recalls"] == 0
+
+    def test_api_error_fingerprint_not_modified(
+        self, tmp_project_dir_with_fingerprint, mock_fda_client_error
+    ):
+        """Existing fingerprint is NOT modified when API returns error."""
+        project_dir = tmp_project_dir_with_fingerprint
+        project_name = os.path.basename(project_dir)
+        parent_dir = os.path.dirname(project_dir)
+
+        # Record original fingerprint state
+        original_manifest = load_manifest(project_dir)
+        original_fp = original_manifest["fingerprints"]["DQY"].copy()
+
+        with patch("change_detector.get_projects_dir", return_value=parent_dir):
+            detect_changes(
+                project_name=project_name,
+                client=mock_fda_client_error,
+                verbose=False,
+            )
+
+        # Fingerprint should be unchanged (except possibly last_checked timestamp)
+        updated_manifest = load_manifest(project_dir)
+        updated_fp = updated_manifest["fingerprints"]["DQY"]
+
+        # Critical fields should not change on error
+        assert updated_fp["clearance_count"] == original_fp["clearance_count"]
+        assert updated_fp["known_k_numbers"] == original_fp["known_k_numbers"]
+        assert updated_fp["recall_count"] == original_fp["recall_count"]
+
+
+# ===================================================================
+# HIGH: Pipeline Trigger Execution (SMART-012)
+# ===================================================================
+
+
+class TestSMART012PipelineTriggerExecution:
+    """SMART-012: Pipeline trigger execution with mocked subprocess.
+
+    Validates that trigger_pipeline correctly invokes both batchfetch
+    and build_structured_cache subprocesses with the right arguments.
+    """
+
+    @patch("change_detector.subprocess.run")
+    def test_both_pipeline_steps_executed(self, mock_subprocess_run):
+        """Both batchfetch and build_cache steps are executed."""
+        mock_subprocess_run.return_value = MagicMock(
+            returncode=0, stdout="Success", stderr=""
+        )
+
+        result = trigger_pipeline(
+            project_name="test_project",
+            new_k_numbers=["K261001"],
+            product_code="DQY",
+            dry_run=False,
+            verbose=False,
+        )
+
+        assert result["status"] == "completed"
+        # Two subprocess calls: batchfetch + build_cache
+        assert mock_subprocess_run.call_count == 2
+
+    @patch("change_detector.subprocess.run")
+    def test_batchfetch_called_with_correct_args(self, mock_subprocess_run):
+        """Batchfetch subprocess is called with correct product code and year."""
+        mock_subprocess_run.return_value = MagicMock(
+            returncode=0, stdout="", stderr=""
+        )
+
+        trigger_pipeline(
+            project_name="test_project",
+            new_k_numbers=["K261001"],
+            product_code="DQY",
+            dry_run=False,
+            verbose=False,
+        )
+
+        # First call should be batchfetch
+        first_call_cmd = mock_subprocess_run.call_args_list[0][0][0]
+        
+        # Verify batchfetch.py is in the command
+        assert any("batchfetch.py" in str(arg) for arg in first_call_cmd), (
+            f"Expected batchfetch.py in command: {first_call_cmd}"
+        )
+        
+        # Verify product code argument
+        assert "DQY" in first_call_cmd, (
+            f"Product code DQY not found in command: {first_call_cmd}"
+        )
+
+    @patch("change_detector.subprocess.run")
+    def test_build_cache_called_second(self, mock_subprocess_run):
+        """build_structured_cache is called after batchfetch."""
+        mock_subprocess_run.return_value = MagicMock(
+            returncode=0, stdout="", stderr=""
+        )
+
+        trigger_pipeline(
+            project_name="test_project",
+            new_k_numbers=["K261001"],
+            product_code="DQY",
+            dry_run=False,
+            verbose=False,
+        )
+
+        # Second call should be build_structured_cache
+        second_call_cmd = mock_subprocess_run.call_args_list[1][0][0]
+        
+        assert any("build_structured_cache.py" in str(arg) for arg in second_call_cmd), (
+            f"Expected build_structured_cache.py in command: {second_call_cmd}"
+        )
+
+    @patch("change_detector.subprocess.run")
+    def test_steps_have_success_status(self, mock_subprocess_run):
+        """Both steps in result have 'success' status."""
+        mock_subprocess_run.return_value = MagicMock(
+            returncode=0, stdout="OK", stderr=""
+        )
+
+        result = trigger_pipeline(
+            project_name="test_project",
+            new_k_numbers=["K261001"],
+            product_code="DQY",
+            dry_run=False,
+            verbose=False,
+        )
+
+        assert len(result["steps"]) == 2
+        assert result["steps"][0]["status"] == "success"
+        assert result["steps"][1]["status"] == "success"
+
+
+# ===================================================================
+# MEDIUM: CLI with --json Output (SMART-016)
+# ===================================================================
+
+
+class TestSMART016CLIJsonOutput:
+    """SMART-016: CLI with --json output.
+
+    Validates that the command-line interface produces valid JSON output
+    when invoked with the --json flag.
+    """
+
+    @patch("change_detector.detect_changes")
+    @patch("change_detector.FDAClient")
+    def test_json_flag_produces_valid_json(
+        self, mock_fda_client_class, mock_detect_changes, capsys
+    ):
+        """--json flag produces valid JSON output."""
+        from change_detector import main as change_detector_main
+
+        mock_detect_changes.return_value = {
+            "project": "test_proj",
+            "status": "completed",
+            "total_new_clearances": 3,
+            "total_new_recalls": 1,
+            "changes": [
+                {
+                    "change_type": "new_clearances",
+                    "product_code": "DQY",
+                    "count": 3,
+                    "new_items": [],
+                }
+            ],
+        }
+
+        test_args = [
+            "change_detector.py",
+            "--project", "test_proj",
+            "--json",
+        ]
+        with patch("sys.argv", test_args):
+            try:
+                change_detector_main()
+            except SystemExit:
+                pass
+
+        captured = capsys.readouterr()
+        output = captured.out
+
+        # Output should be valid JSON
+        try:
+            parsed = json.loads(output)
+            assert isinstance(parsed, dict), "JSON output should be a dict"
+        except json.JSONDecodeError as e:
+            pytest.fail(f"Output is not valid JSON: {e}\nOutput:\n{output}")
+
+    @patch("change_detector.detect_changes")
+    @patch("change_detector.FDAClient")
+    def test_json_contains_required_keys(
+        self, mock_fda_client_class, mock_detect_changes, capsys
+    ):
+        """JSON output contains all expected keys."""
+        from change_detector import main as change_detector_main
+
+        mock_detect_changes.return_value = {
+            "project": "test_proj",
+            "status": "completed",
+            "total_new_clearances": 2,
+            "total_new_recalls": 0,
+            "changes": [],
+        }
+
+        test_args = [
+            "change_detector.py",
+            "--project", "test_proj",
+            "--json",
+        ]
+        with patch("sys.argv", test_args):
+            try:
+                change_detector_main()
+            except SystemExit:
+                pass
+
+        captured = capsys.readouterr()
+        output = captured.out
+        parsed = json.loads(output)
+
+        # Verify required keys are present
+        assert "project" in parsed or "status" in parsed
+        assert "status" in parsed
+        assert "changes" in parsed
+
+    @patch("change_detector.detect_changes")
+    @patch("change_detector.FDAClient")
+    def test_json_output_no_extra_text(
+        self, mock_fda_client_class, mock_detect_changes, capsys
+    ):
+        """JSON output contains no non-JSON text."""
+        from change_detector import main as change_detector_main
+
+        mock_detect_changes.return_value = {
+            "status": "completed",
+            "changes": [],
+        }
+
+        test_args = [
+            "change_detector.py",
+            "--project", "test_proj",
+            "--json",
+        ]
+        with patch("sys.argv", test_args):
+            try:
+                change_detector_main()
+            except SystemExit:
+                pass
+
+        captured = capsys.readouterr()
+        output = captured.out.strip()
+
+        # First non-whitespace character should be '{'
+        assert output.startswith("{"), (
+            f"JSON output should start with '{{', got: {output[:50]}"
+        )
+        # Last non-whitespace character should be '}'
+        assert output.endswith("}"), (
+            f"JSON output should end with '}}', got: ...{output[-50:]}"
+        )

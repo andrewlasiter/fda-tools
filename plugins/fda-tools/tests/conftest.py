@@ -224,3 +224,18 @@ def mock_fda_client_with_recalls(sample_api_responses):
                           results=resp["results"])
     client.set_recalls("DQY", meta_total=4)
     return client
+
+
+@pytest.fixture
+def mock_fda_client_with_recalls(sample_api_responses):
+    """Create a MockFDAClient with increased recall count (from 2 to 4) for DQY.
+
+    Returns stable clearances but recall count has increased from 2 to 4,
+    simulating 2 new recalls detected.
+    """
+    client = MockFDAClient()
+    resp = sample_api_responses["clearances_stable_2_items"]
+    client.set_clearances("DQY", meta_total=resp["meta"]["results"]["total"],
+                          results=resp["results"])
+    client.set_recalls("DQY", meta_total=4)  # Increased from baseline of 2
+    return client
