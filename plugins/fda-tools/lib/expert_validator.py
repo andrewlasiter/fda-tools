@@ -147,10 +147,14 @@ class ExpertValidator:
         # - YELLOW if coverage ≥95% AND quality ≥90%
         # - RED otherwise
 
+        # Safely extract statuses, handling None values
+        coverage_result = self.results.get('coverage_audit') or {}
+        quality_result = self.results.get('quality_review') or {}
+
         consensus = {
             'status': 'PENDING',
-            'coverage_status': self.results.get('coverage_audit', {}).get('status'),
-            'quality_status': self.results.get('quality_review', {}).get('status'),
+            'coverage_status': coverage_result.get('status'),
+            'quality_status': quality_result.get('status'),
             'final_determination': 'PENDING',
             'sign_off': False,
             'recommendations': []
