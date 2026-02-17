@@ -36,6 +36,7 @@ import os
 import sys
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Dict, List, Optional
 
 # Import sibling modules
@@ -44,14 +45,123 @@ from pma_data_store import PMADataStore
 
 
 # ------------------------------------------------------------------
+# Regulatory timeline configuration loading
+# ------------------------------------------------------------------
+
+def _load_regulatory_timelines() -> Dict:
+    """Load regulatory timeline configuration from external JSON file.
+
+    Loads timeline constants from data/regulatory_timelines.json with
+    backward compatibility fallback to hardcoded defaults if config
+    file is missing or invalid.
+
+    Returns:
+        Dict mapping supplement type keys to timeline configuration.
+        Falls back to hardcoded defaults on load failure.
+    """
+    # Determine config file path (relative to script location)
+    script_dir = Path(__file__).parent
+    config_path = script_dir.parent / "data" / "regulatory_timelines.json"
+
+    # Fallback defaults (backward compatibility)
+    default_timelines = {
+        "180_day_supplement": {
+            "typical_review_days": 180,
+            "cfr_citation": "21 CFR 814.39(d)",
+        },
+        "real_time_supplement": {
+            "typical_review_days": 180,
+            "cfr_citation": "21 CFR 814.39(c)",
+        },
+        "30_day_notice": {
+            "typical_review_days": 30,
+            "cfr_citation": "21 CFR 814.39(e)",
+        },
+        "panel_track_supplement": {
+            "typical_review_days": 365,
+            "cfr_citation": "21 CFR 814.39(f)",
+        },
+        "pas_related": {
+            "typical_review_days": 90,
+            "cfr_citation": "21 CFR 814.82",
+        },
+        "manufacturing_change": {
+            "typical_review_days": 135,
+            "cfr_citation": "21 CFR 814.39",
+        },
+        "other_unclassified": {
+            "typical_review_days": 180,
+            "cfr_citation": "21 CFR 814.39",
+        },
+    }
+
+    # Attempt to load from configuration file
+    if config_path.exists():
+        try:
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+
+            # Extract current timelines
+            current_timelines = config.get("current_timelines", {})
+
+            if current_timelines:
+                # Validate that required fields exist
+                loaded_timelines = {}
+                for key, timeline in current_timelines.items():
+                    if "typical_review_days" in timeline:
+                        loaded_timelines[key] = timeline
+
+                if loaded_timelines:
+                    print(
+                        f"INFO: Loaded regulatory timelines from {config_path} "
+                        f"(version {config.get('metadata', {}).get('version', 'unknown')})",
+                        file=sys.stderr
+                    )
+                    return loaded_timelines
+
+        except (json.JSONDecodeError, OSError) as e:
+            print(
+                f"WARNING: Failed to load regulatory timelines from {config_path}: {e}. "
+                f"Using hardcoded defaults.",
+                file=sys.stderr
+            )
+    else:
+        print(
+            f"INFO: Regulatory timeline config not found at {config_path}. "
+            f"Using hardcoded defaults.",
+            file=sys.stderr
+        )
+
+    # Return defaults if loading failed
+    return default_timelines
+
+
+# Load regulatory timelines (global configuration)
+_REGULATORY_TIMELINES = _load_regulatory_timelines()
+
+
+# ------------------------------------------------------------------
 # Supplement regulatory type definitions (21 CFR 814.39)
 # ------------------------------------------------------------------
 
+# Map internal supplement type keys to configuration keys
+_TYPE_KEY_MAPPING = {
+    "180_day": "180_day_supplement",
+    "real_time": "real_time_supplement",
+    "30_day_notice": "30_day_notice",
+    "panel_track": "panel_track_supplement",
+    "pas_related": "pas_related",
+    "manufacturing": "manufacturing_change",
+    "other": "other_unclassified",
+}
+
+# Supplement type definitions (keywords and risk levels)
+# Timeline values loaded from configuration
 SUPPLEMENT_REGULATORY_TYPES = {
     "180_day": {
         "label": "180-Day Supplement (21 CFR 814.39(d))",
         "cfr_section": "21 CFR 814.39(d)",
-        "typical_review_days": 180,
+        "typical_review_days": 180,  # Will be overridden from config
         "risk_level": "medium",
         "keywords": [
             "labeling", "label change", "instructions for use", "IFU",
@@ -67,7 +177,7 @@ SUPPLEMENT_REGULATORY_TYPES = {
     "real_time": {
         "label": "Real-Time Supplement (21 CFR 814.39(c))",
         "cfr_section": "21 CFR 814.39(c)",
-        "typical_review_days": 180,
+        "typical_review_days": 180,  # Will be overridden from config
         "risk_level": "high",
         "keywords": [
             "design change", "clinical study", "clinical data",
@@ -83,7 +193,7 @@ SUPPLEMENT_REGULATORY_TYPES = {
     "30_day_notice": {
         "label": "30-Day Notice (21 CFR 814.39(e))",
         "cfr_section": "21 CFR 814.39(e)",
-        "typical_review_days": 30,
+        "typical_review_days": 30,  # Will be overridden from config
         "risk_level": "low",
         "keywords": [
             "30-day", "30 day", "minor", "editorial",
@@ -97,7 +207,7 @@ SUPPLEMENT_REGULATORY_TYPES = {
     "panel_track": {
         "label": "Panel-Track Supplement (21 CFR 814.39(f))",
         "cfr_section": "21 CFR 814.39(f)",
-        "typical_review_days": 365,
+        "typical_review_days": 365,  # Will be overridden from config
         "risk_level": "high",
         "keywords": [
             "panel track", "panel-track", "advisory committee",
@@ -112,7 +222,7 @@ SUPPLEMENT_REGULATORY_TYPES = {
     "pas_related": {
         "label": "Post-Approval Study (PAS) Related",
         "cfr_section": "21 CFR 814.82",
-        "typical_review_days": 90,
+        "typical_review_days": 90,  # Will be overridden from config
         "risk_level": "medium",
         "keywords": [
             "post-approval study", "post approval study", "PAS",
@@ -127,7 +237,7 @@ SUPPLEMENT_REGULATORY_TYPES = {
     "manufacturing": {
         "label": "Manufacturing Change",
         "cfr_section": "21 CFR 814.39",
-        "typical_review_days": 135,
+        "typical_review_days": 135,  # Will be overridden from config
         "risk_level": "medium",
         "keywords": [
             "manufacturing", "facility", "site change", "supplier",
@@ -142,12 +252,27 @@ SUPPLEMENT_REGULATORY_TYPES = {
     "other": {
         "label": "Other/Unclassified",
         "cfr_section": "21 CFR 814.39",
-        "typical_review_days": 180,
+        "typical_review_days": 180,  # Will be overridden from config
         "risk_level": "unknown",
         "keywords": [],
         "description": "Supplements not matching established patterns.",
     },
 }
+
+# Override typical_review_days from loaded configuration
+for type_key, type_def in SUPPLEMENT_REGULATORY_TYPES.items():
+    config_key = _TYPE_KEY_MAPPING.get(type_key, type_key)
+    if config_key in _REGULATORY_TIMELINES:
+        config_timeline = _REGULATORY_TIMELINES[config_key]
+        type_def["typical_review_days"] = config_timeline.get(
+            "typical_review_days",
+            type_def["typical_review_days"]  # Fallback to hardcoded
+        )
+        # Update CFR section if changed in config
+        type_def["cfr_section"] = config_timeline.get(
+            "cfr_citation",
+            type_def["cfr_section"]
+        )
 
 # Decision codes for supplement approval status
 APPROVAL_STATUS_MAP = {

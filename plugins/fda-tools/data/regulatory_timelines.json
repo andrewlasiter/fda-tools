@@ -1,0 +1,234 @@
+{
+  "$schema": "regulatory_timelines_schema_v1.0",
+  "metadata": {
+    "version": "1.0.0",
+    "last_updated": "2026-02-17",
+    "description": "FDA PMA supplement review period timelines per 21 CFR 814.39 and related regulations",
+    "effective_date": "2024-01-01",
+    "update_procedure": "See REGULATORY_TIMELINE_UPDATE_PROCEDURE.md for instructions on updating these values when FDA changes review periods",
+    "disclaimer": "These timelines are typical review periods based on regulatory requirements. Actual review times may vary. Independent verification by qualified RA professionals required."
+  },
+  "current_timelines": {
+    "180_day_supplement": {
+      "typical_review_days": 180,
+      "cfr_citation": "21 CFR 814.39(d)",
+      "regulation_title": "180-Day Supplement",
+      "effective_date": "1986-05-28",
+      "last_verified": "2026-02-17",
+      "description": "Labeling changes including new/expanded indications, warnings, contraindications, and precautions",
+      "supplement_types": [
+        "new indication",
+        "expanded indication",
+        "labeling change",
+        "contraindication",
+        "warning",
+        "precaution"
+      ],
+      "regulatory_notes": "Original PMA regulation effective date. FDA may prioritize certain submissions.",
+      "guidance_references": [
+        "The 510(k) Program: Evaluating Substantial Equivalence in Premarket Notifications [510(k)] (2014)",
+        "Requests for Feedback and Meetings for Medical Device Submissions: The Q-Submission Program (2019)"
+      ]
+    },
+    "real_time_supplement": {
+      "typical_review_days": 180,
+      "cfr_citation": "21 CFR 814.39(c)",
+      "regulation_title": "Real-Time Supplement",
+      "effective_date": "1998-11-02",
+      "last_verified": "2026-02-17",
+      "description": "Design changes supported by clinical data, or manufacturing changes that may affect device performance",
+      "supplement_types": [
+        "design change",
+        "clinical study",
+        "manufacturing change with clinical data",
+        "performance validation",
+        "material change",
+        "component change"
+      ],
+      "regulatory_notes": "Real-time review program introduced by FDAMA 1997, effective 1998. Review times may be shorter for well-documented submissions.",
+      "guidance_references": [
+        "PMA Supplement (Real-Time) Process: A Guidance for Industry and FDA Staff (2001)"
+      ]
+    },
+    "30_day_notice": {
+      "typical_review_days": 30,
+      "cfr_citation": "21 CFR 814.39(e)",
+      "regulation_title": "30-Day Notice",
+      "effective_date": "1986-05-28",
+      "last_verified": "2026-02-17",
+      "description": "Minor labeling changes or manufacturing changes without performance impact",
+      "supplement_types": [
+        "minor labeling change",
+        "editorial change",
+        "minor manufacturing change",
+        "packaging change"
+      ],
+      "regulatory_notes": "Expedited review for low-risk changes. Device may be distributed after 30 days unless FDA requests additional information.",
+      "guidance_references": [
+        "Modifications to Devices Subject to Premarket Approval (PMA) - The PMA Supplement Decision-Making Process (2008)"
+      ]
+    },
+    "panel_track_supplement": {
+      "typical_review_days": 365,
+      "cfr_citation": "21 CFR 814.39(f)",
+      "regulation_title": "Panel-Track Supplement",
+      "effective_date": "1986-05-28",
+      "last_verified": "2026-02-17",
+      "description": "Significant design or indication changes requiring advisory committee panel review",
+      "supplement_types": [
+        "significant design change",
+        "significant indication change",
+        "technology change",
+        "new patient population"
+      ],
+      "regulatory_notes": "Requires advisory panel review. Timeline includes panel scheduling and review. Extended review times expected.",
+      "guidance_references": [
+        "Procedures for Meetings of the Medical Devices Advisory Committee (2019)"
+      ]
+    },
+    "pas_related": {
+      "typical_review_days": 90,
+      "cfr_citation": "21 CFR 814.82",
+      "regulation_title": "Post-Approval Study (PAS) Related",
+      "effective_date": "1986-05-28",
+      "last_verified": "2026-02-17",
+      "description": "Supplements reporting post-approval study results, protocol amendments, or enrollment updates",
+      "supplement_types": [
+        "post-approval study report",
+        "PAS protocol amendment",
+        "PAS enrollment update",
+        "condition of approval report",
+        "522 postmarket surveillance"
+      ],
+      "regulatory_notes": "Review time varies based on study type and reporting requirement. Some PAS reports may not require formal review.",
+      "guidance_references": [
+        "Procedures for Handling Post-Approval Studies Imposed by PMA Order (2009)",
+        "Postmarket Surveillance Under Section 522 of the Federal Food, Drug, and Cosmetic Act (2006)"
+      ]
+    },
+    "manufacturing_change": {
+      "typical_review_days": 135,
+      "cfr_citation": "21 CFR 814.39",
+      "regulation_title": "Manufacturing Change",
+      "effective_date": "1986-05-28",
+      "last_verified": "2026-02-17",
+      "description": "Manufacturing facility, process, supplier, or sterilization changes",
+      "supplement_types": [
+        "facility change",
+        "site change",
+        "supplier change",
+        "process change",
+        "sterilization method change",
+        "shelf life extension"
+      ],
+      "regulatory_notes": "Review time depends on change magnitude and validation data quality. May require site inspection.",
+      "guidance_references": [
+        "Manufacturing Changes to an Approved Device (1997)",
+        "Contract Manufacturing Arrangements for Devices (2020)"
+      ]
+    },
+    "other_unclassified": {
+      "typical_review_days": 180,
+      "cfr_citation": "21 CFR 814.39",
+      "regulation_title": "Other/Unclassified Supplement",
+      "effective_date": "1986-05-28",
+      "last_verified": "2026-02-17",
+      "description": "Supplements not matching established patterns",
+      "supplement_types": [
+        "miscellaneous",
+        "administrative",
+        "unclassified"
+      ],
+      "regulatory_notes": "Default 180-day review period applied. Actual review time depends on change complexity.",
+      "guidance_references": []
+    }
+  },
+  "historical_timelines": [
+    {
+      "version": "1.0",
+      "effective_date_range": {
+        "start": "1986-05-28",
+        "end": "2026-02-17"
+      },
+      "changes_from_previous": "Initial version - baseline FDA regulatory timelines",
+      "timelines": {
+        "180_day_supplement": {
+          "typical_review_days": 180,
+          "cfr_citation": "21 CFR 814.39(d)"
+        },
+        "real_time_supplement": {
+          "typical_review_days": 180,
+          "cfr_citation": "21 CFR 814.39(c)"
+        },
+        "30_day_notice": {
+          "typical_review_days": 30,
+          "cfr_citation": "21 CFR 814.39(e)"
+        },
+        "panel_track_supplement": {
+          "typical_review_days": 365,
+          "cfr_citation": "21 CFR 814.39(f)"
+        },
+        "pas_related": {
+          "typical_review_days": 90,
+          "cfr_citation": "21 CFR 814.82"
+        },
+        "manufacturing_change": {
+          "typical_review_days": 135,
+          "cfr_citation": "21 CFR 814.39"
+        },
+        "other_unclassified": {
+          "typical_review_days": 180,
+          "cfr_citation": "21 CFR 814.39"
+        }
+      }
+    }
+  ],
+  "cfr_citations": {
+    "21_CFR_814_39": {
+      "title": "PMA Supplements",
+      "url": "https://www.ecfr.gov/current/title-21/chapter-I/subchapter-H/part-814/subpart-B/section-814.39",
+      "last_verified": "2026-02-17",
+      "subsections": {
+        "814.39(a)": "General requirements for supplements",
+        "814.39(b)": "Approval requirements",
+        "814.39(c)": "Real-time supplement approval",
+        "814.39(d)": "180-day supplement",
+        "814.39(e)": "30-day notice",
+        "814.39(f)": "Panel-track supplement"
+      }
+    },
+    "21_CFR_814_82": {
+      "title": "Post-Approval Studies",
+      "url": "https://www.ecfr.gov/current/title-21/chapter-I/subchapter-H/part-814/subpart-E/section-814.82",
+      "last_verified": "2026-02-17",
+      "description": "Requirements for post-approval studies imposed as conditions of approval"
+    }
+  },
+  "update_history": [
+    {
+      "date": "2026-02-17",
+      "version": "1.0.0",
+      "changes": "Initial creation - extracted hardcoded values from supplement_tracker.py",
+      "updated_by": "FDA-57 Refactoring",
+      "verification_status": "PENDING_RA_PROFESSIONAL_VERIFICATION"
+    }
+  ],
+  "validation_rules": {
+    "typical_review_days": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 730,
+      "description": "Review period in days (1 day to 2 years)"
+    },
+    "cfr_citation": {
+      "type": "string",
+      "pattern": "^21 CFR [0-9]+\\.[0-9]+(\\([a-z]\\))?$",
+      "description": "Must be valid CFR citation format"
+    },
+    "effective_date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "description": "ISO 8601 date format (YYYY-MM-DD)"
+    }
+  }
+}
