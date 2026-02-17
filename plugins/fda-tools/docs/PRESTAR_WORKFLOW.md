@@ -392,4 +392,4 @@ done
 
 ## Support
 
-Issues or questions? File an issue at: https://github.com/andrewlasiter/fda-predicate-assistant/issues
+Issues or questions? File an issue at: https://github.com/andrewlasiter/fda-tools/issues

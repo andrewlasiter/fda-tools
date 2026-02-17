@@ -336,7 +336,7 @@ The `enrichment_metadata.json` file provides complete audit trail:
 **Documentation:**
 - Implementation details: `PHASE1_CHANGELOG.md`
 - Test results: `test_phase1.py`
-- Skill documentation: `plugins/fda-predicate-assistant/skills/fda-510k-knowledge/SKILL.md`
+- Skill documentation: `plugins/fda-tools/skills/fda-510k-knowledge/SKILL.md`
 
 **Questions?**
 - Phase 1 features are automatic with `--enrich` flag

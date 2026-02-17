@@ -21,7 +21,7 @@ f = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
 if os.path.exists(f):
     d = json.load(open(f))
     for k, v in d.get('plugins', {}).items():
-        if k.startswith('fda-predicate-assistant@'):
+        if k.startswith('fda-tools@'):
             for e in v:
                 p = e.get('installPath', '')
                 if os.path.isdir(p):
@@ -49,7 +49,7 @@ python3 << 'PYEOF'
 import json, os, re, glob
 from datetime import datetime
 
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 projects_dir = os.path.expanduser('~/fda-510k-data/projects')
 if os.path.exists(settings_path):
     with open(settings_path) as f:
@@ -137,7 +137,7 @@ python3 << 'PYEOF'
 import json, os, re, glob
 from datetime import datetime, timedelta
 
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 projects_dir = os.path.expanduser('~/fda-510k-data/projects')
 if os.path.exists(settings_path):
     with open(settings_path) as f:

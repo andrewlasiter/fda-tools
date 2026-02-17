@@ -295,7 +295,7 @@ between the OpenClaw TypeScript skill and the Python backend.
 
 To execute actual FDA commands, use the command-line interface:
   cd {PLUGIN_ROOT}
-  /fda-predicate-assistant:{command} {args or ''}
+  /fda-tools:{command} {args or ''}
 """
 
     duration_ms = int((time.time() - start_time) * 1000)

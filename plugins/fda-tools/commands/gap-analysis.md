@@ -21,7 +21,7 @@ f = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
 if os.path.exists(f):
     d = json.load(open(f))
     for k, v in d.get('plugins', {}).items():
-        if k.startswith('fda-predicate-assistant@'):
+        if k.startswith('fda-tools@'):
             for e in v:
                 p = e.get('installPath', '')
                 if os.path.isdir(p):
@@ -57,7 +57,7 @@ Parse `$ARGUMENTS` for:
 
 Check settings file for custom paths:
 ```bash
-cat ~/.claude/fda-predicate-assistant.local.md 2>/dev/null
+cat ~/.claude/fda-tools.local.md 2>/dev/null
 ```
 
 ### If `--project NAME` is provided

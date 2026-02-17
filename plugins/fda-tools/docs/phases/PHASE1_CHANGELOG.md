@@ -28,7 +28,7 @@ Phase 1 implements RA professional improvements to BatchFetch API enrichment, fo
 - `data_confidence` (HIGH/MEDIUM/LOW)
 
 **Files:**
-- `/plugins/fda-predicate-assistant/commands/batchfetch.md` (lines 1059-1139)
+- `/plugins/fda-tools/commands/batchfetch.md` (lines 1059-1139)
 
 ---
 
@@ -54,7 +54,7 @@ Phase 1 implements RA professional improvements to BatchFetch API enrichment, fo
 - `enrichment_quality_score` (0-100)
 
 **Files:**
-- `/plugins/fda-predicate-assistant/commands/batchfetch.md` (lines 1140-1293)
+- `/plugins/fda-tools/commands/batchfetch.md` (lines 1140-1293)
 
 ---
 
@@ -79,7 +79,7 @@ Phase 1 implements RA professional improvements to BatchFetch API enrichment, fo
 - `guidance_refs` (count of applicable guidance docs)
 
 **Files:**
-- `/plugins/fda-predicate-assistant/commands/batchfetch.md` (lines 1299-1499)
+- `/plugins/fda-tools/commands/batchfetch.md` (lines 1299-1499)
 
 ---
 

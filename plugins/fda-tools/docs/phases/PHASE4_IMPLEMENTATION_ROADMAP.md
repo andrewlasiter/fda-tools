@@ -256,7 +256,7 @@ SCHEDULE
    - Compare to declared standards
    - Return standards gap list with priority
 
-**File:** Create `plugins/fda-predicate-assistant/lib/gap_analyzer.py` (200-250 lines)
+**File:** Create `plugins/fda-tools/lib/gap_analyzer.py` (200-250 lines)
 
 #### Hour 2: Confidence Scoring & Report Generation (60 minutes)
 
@@ -288,14 +288,14 @@ SCHEDULE
 #### Hour 3: Integration & Command Creation (60 minutes)
 
 1. Create `/fda:auto-gap-analysis` command - 10 min
-   - **File:** `plugins/fda-predicate-assistant/commands/auto-gap-analysis.md`
+   - **File:** `plugins/fda-tools/commands/auto-gap-analysis.md`
    - Parse arguments: `--project NAME`, `--output-dir PATH`
    - Load project data
    - Call gap analysis functions
    - Display summary
 
 2. Add `--gap-analysis` flag to batchfetch - 10 min
-   - **File:** Modify `plugins/fda-predicate-assistant/commands/batchfetch.md`
+   - **File:** Modify `plugins/fda-tools/commands/batchfetch.md`
    - After enrichment completes, optionally run gap analysis
    - Display gap summary in final output
 
@@ -313,7 +313,7 @@ SCHEDULE
    - Output format explanation
    - Confidence level interpretation
 
-**Test File:** `plugins/fda-predicate-assistant/tests/test_gap_analysis.py` (200-250 lines)
+**Test File:** `plugins/fda-tools/tests/test_gap_analysis.py` (200-250 lines)
 
 ---
 
@@ -345,7 +345,7 @@ SCHEDULE
    - `test_cross_validation_agreement()`
    - `test_cross_validation_disagreement()`
 
-**File:** Create `plugins/fda-predicate-assistant/lib/predicate_ranker.py` (250-300 lines)
+**File:** Create `plugins/fda-tools/lib/predicate_ranker.py` (250-300 lines)
 
 #### Hour 2: Scoring & Ranking (60 minutes)
 
@@ -395,7 +395,7 @@ SCHEDULE
    - Include dimension scores per predicate
 
 3. Create `/fda:smart-predicates` command - 10 min
-   - **File:** `plugins/fda-predicate-assistant/commands/smart-predicates.md`
+   - **File:** `plugins/fda-tools/commands/smart-predicates.md`
    - Arguments: `--subject-device NAME`, `--project NAME`, `--top-n 10`
    - Load subject device from device_profile.json
    - Load predicates from 510k_download_enriched.csv
@@ -408,10 +408,10 @@ SCHEDULE
    - Update user documentation (5 min)
 
 **Command Files:**
-- `plugins/fda-predicate-assistant/commands/smart-predicates.md`
-- Update `plugins/fda-predicate-assistant/commands/batchfetch.md`
+- `plugins/fda-tools/commands/smart-predicates.md`
+- Update `plugins/fda-tools/commands/batchfetch.md`
 
-**Test File:** `plugins/fda-predicate-assistant/tests/test_smart_predicates.py` (250-300 lines)
+**Test File:** `plugins/fda-tools/tests/test_smart_predicates.py` (250-300 lines)
 
 ---
 
@@ -1107,7 +1107,7 @@ See user guide: PHASE1_SUMMARY.md (Phase 4 section)
 
 **New Files to Create:**
 ```
-plugins/fda-predicate-assistant/
+plugins/fda-tools/
 ├── lib/
 │   ├── gap_analyzer.py (450-500 lines)
 │   └── predicate_ranker.py (600-700 lines)
@@ -1125,7 +1125,7 @@ plugins/fda-predicate-assistant/
 
 **Files to Modify:**
 ```
-plugins/fda-predicate-assistant/
+plugins/fda-tools/
 ├── commands/batchfetch.md (add --gap-analysis, --smart-recommend flags)
 ├── commands/compare-se.md (no changes, works with automation output)
 ├── README.md or PHASE1_SUMMARY.md (add Phase 4 section)

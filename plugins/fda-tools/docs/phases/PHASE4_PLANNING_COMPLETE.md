@@ -523,7 +523,7 @@ Phase 4 Planning is **COMPLETE** with three comprehensive documents:
 - Phase 1 & 2 implementations (complete)
 
 **Code Repository:**
-- `plugins/fda-predicate-assistant/` (implementation location)
+- `plugins/fda-tools/` (implementation location)
 - `tests/` (test suite location)
 - `lib/` (library modules: gap_analyzer.py, predicate_ranker.py)
 - `commands/` (user-facing commands)

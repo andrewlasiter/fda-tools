@@ -29,7 +29,7 @@ Before starting analysis, check that required data exists. If files are missing,
 - `output.csv` — Main extraction results from `/fda:extract`
 
 **Check sequence:**
-1. Read `~/.claude/fda-predicate-assistant.local.md` for `projects_dir` and `extraction_dir` settings
+1. Read `~/.claude/fda-tools.local.md` for `projects_dir` and `extraction_dir` settings
 2. If `--project NAME` given, look in `{projects_dir}/{NAME}/output.csv`
 3. Otherwise, look in `{extraction_dir}/output.csv` or current directory
 4. If not found: output `"Required file output.csv not found. Run /fda:extract both --project {name} first to extract predicate data from PDFs."`

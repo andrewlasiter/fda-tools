@@ -46,7 +46,7 @@ This guide describes how to implement the **Automated Gap Analysis** feature (Ph
 ### 1.2 File Structure
 
 ```
-plugins/fda-predicate-assistant/
+plugins/fda-tools/
 ├── commands/
 │   └── gap-analysis.md                   [NEW] Command definition
 ├── scripts/

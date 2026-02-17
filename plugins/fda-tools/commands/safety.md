@@ -38,7 +38,7 @@ f = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
 if os.path.exists(f):
     d = json.load(open(f))
     for k, v in d.get('plugins', {}).items():
-        if k.startswith('fda-predicate-assistant@'):
+        if k.startswith('fda-tools@'):
             for e in v:
                 p = e.get('installPath', '')
                 if os.path.isdir(p):
@@ -63,7 +63,7 @@ If the manifest shows cached data that matches your needs (same product code, no
 ```bash
 python3 << 'PYEOF'
 import os, re
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 api_enabled = True
 api_key = os.environ.get('OPENFDA_API_KEY')  # Env var takes priority (never enters chat)
 if os.path.exists(settings_path):

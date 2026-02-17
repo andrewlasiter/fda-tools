@@ -322,7 +322,7 @@ to use FDA Recognized Consensus Standards Database and /fda:test-plan command.
 ## 🔐 Security & Data Protection
 
 ✅ **API Key Secured:**
-- Location: `~/.claude/fda-predicate-assistant.local.md`
+- Location: `~/.claude/fda-tools.local.md`
 - Git status: **NOT tracked** (local only)
 - Never committed to repository
 - Safe for production use

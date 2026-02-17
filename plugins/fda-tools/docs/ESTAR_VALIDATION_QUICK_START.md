@@ -385,7 +385,7 @@ WARNING: Project directory has no data files
 Run import or create data files:
 ```bash
 # Import from FDA data
-/fda-predicate-assistant:import --product-code DQY
+/fda-tools:import --product-code DQY
 
 # Or create minimal device_profile.json
 cat > device_profile.json << EOF

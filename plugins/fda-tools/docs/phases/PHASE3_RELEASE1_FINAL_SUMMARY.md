@@ -285,8 +285,8 @@ Automated market analysis reports for each product code with strategic recommend
 5. `87ad2aa` - Complete Phase 3 Release 1 documentation - Intelligence Suite ready for production
 
 **Files Changed:** 10 files
-- `plugins/fda-predicate-assistant/lib/fda_enrichment.py` (+170 lines)
-- `plugins/fda-predicate-assistant/commands/batchfetch.md` (+325 lines)
+- `plugins/fda-tools/lib/fda_enrichment.py` (+170 lines)
+- `plugins/fda-tools/commands/batchfetch.md` (+325 lines)
 - `tests/test_phase3_maude_peer.py` (+360 lines, new)
 - `test_phase3_e2e.py` (+300 lines, new)
 - `PHASE3_RELEASE1_COMPLETE.md` (updated)
@@ -357,8 +357,8 @@ Automated market analysis reports for each product code with strategic recommend
 - **Code Details:** `IMPLEMENTATION_COMPLETE.md`
 
 ### Code Location
-- **Production Module:** `plugins/fda-predicate-assistant/lib/fda_enrichment.py`
-- **Command:** `plugins/fda-predicate-assistant/commands/batchfetch.md`
+- **Production Module:** `plugins/fda-tools/lib/fda_enrichment.py`
+- **Command:** `plugins/fda-tools/commands/batchfetch.md`
 - **Tests:** `tests/test_phase3_maude_peer.py`
 - **E2E Test:** `test_phase3_e2e.py`
 

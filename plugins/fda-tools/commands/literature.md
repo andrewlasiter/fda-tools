@@ -21,7 +21,7 @@ f = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
 if os.path.exists(f):
     d = json.load(open(f))
     for k, v in d.get('plugins', {}).items():
-        if k.startswith('fda-predicate-assistant@'):
+        if k.startswith('fda-tools@'):
             for e in v:
                 p = e.get('installPath', '')
                 if os.path.isdir(p):
@@ -103,7 +103,7 @@ python3 << 'PYEOF'
 import os, re
 ncbi_key = os.environ.get('NCBI_API_KEY')
 if not ncbi_key:
-    settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+    settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
     if os.path.exists(settings_path):
         with open(settings_path) as f:
             m = re.search(r'ncbi_api_key:\s*(\S+)', f.read())
@@ -122,7 +122,7 @@ import urllib.request, urllib.parse, json, os, re, time, xml.etree.ElementTree a
 # Get NCBI API key
 ncbi_key = os.environ.get('NCBI_API_KEY')
 if not ncbi_key:
-    settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+    settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
     if os.path.exists(settings_path):
         with open(settings_path) as f:
             m = re.search(r'ncbi_api_key:\s*(\S+)', f.read())
@@ -142,7 +142,7 @@ def esearch(query, retmax=20):
         "retmax": str(retmax),
         "retmode": "json",
         "sort": "relevance",
-        "tool": "fda-predicate-assistant",
+        "tool": "fda-tools",
         "email": "plugin@example.com"
     }
     if ncbi_key:
@@ -160,7 +160,7 @@ def efetch(pmids):
         "id": ",".join(pmids),
         "rettype": "abstract",
         "retmode": "xml",
-        "tool": "fda-predicate-assistant",
+        "tool": "fda-tools",
         "email": "plugin@example.com"
     }
     if ncbi_key:
@@ -291,7 +291,7 @@ python3 << 'PYEOF'
 import json, os, re
 from datetime import datetime
 
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 projects_dir = os.path.expanduser('~/fda-510k-data/projects')
 if os.path.exists(settings_path):
     with open(settings_path) as f:

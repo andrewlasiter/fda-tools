@@ -168,21 +168,21 @@ pytest tests/test_fda_enrichment.py -v
 ## Files Changed
 
 ### Core Integration
-- ✅ `plugins/fda-predicate-assistant/commands/batchfetch.md` (-820 lines)
+- ✅ `plugins/fda-tools/commands/batchfetch.md` (-820 lines)
   - Replaced embedded code with module imports
   - Added disclaimer integration to all outputs
   - Simplified enrichment workflow
 
 ### Module Files (Already Created)
-- ✅ `plugins/fda-predicate-assistant/lib/fda_enrichment.py` (520 lines)
-- ✅ `plugins/fda-predicate-assistant/lib/disclaimers.py` (330 lines)
+- ✅ `plugins/fda-tools/lib/fda_enrichment.py` (520 lines)
+- ✅ `plugins/fda-tools/lib/disclaimers.py` (330 lines)
 
 ### Test Files (Already Created)
 - ✅ `tests/test_fda_enrichment.py` (460 lines, 22 tests)
 - ✅ `pytest.ini` (test configuration)
 
 ### Backup Files
-- ✅ `plugins/fda-predicate-assistant/commands/batchfetch.md.backup` (original version)
+- ✅ `plugins/fda-tools/commands/batchfetch.md.backup` (original version)
 
 ---
 
@@ -364,14 +364,14 @@ If integration causes issues:
 ```bash
 # Restore original batchfetch.md
 cd /home/linux/.claude/plugins/marketplaces/fda-tools
-cp plugins/fda-predicate-assistant/commands/batchfetch.md.backup \
-   plugins/fda-predicate-assistant/commands/batchfetch.md
+cp plugins/fda-tools/commands/batchfetch.md.backup \
+   plugins/fda-tools/commands/batchfetch.md
 
 # Verify original works
 /fda-tools:batchfetch --product-codes DQY --years 2024 --enrich
 ```
 
-Backup location: `plugins/fda-predicate-assistant/commands/batchfetch.md.backup`
+Backup location: `plugins/fda-tools/commands/batchfetch.md.backup`
 
 ---
 
@@ -404,9 +404,9 @@ Update `IMPLEMENTATION_STATUS_RA2_RA6.md`:
 ### 3. Commit Changes
 
 ```bash
-git add plugins/fda-predicate-assistant/commands/batchfetch.md
-git add plugins/fda-predicate-assistant/lib/fda_enrichment.py
-git add plugins/fda-predicate-assistant/lib/disclaimers.py
+git add plugins/fda-tools/commands/batchfetch.md
+git add plugins/fda-tools/lib/fda_enrichment.py
+git add plugins/fda-tools/lib/disclaimers.py
 git add tests/test_fda_enrichment.py
 git add pytest.ini
 

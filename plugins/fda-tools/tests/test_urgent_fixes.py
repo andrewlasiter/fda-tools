@@ -575,13 +575,13 @@ class TestSilentExceptPassAudit:
         os.path.join(SCRIPTS_DIR, "..", "lib"),  # plugins/fda-tools/lib/
     ]
 
-    # Also check fda-predicate-assistant if it exists
+    # Also check fda-tools if it exists
     PREDICATE_DIRS = [
         os.path.join(
-            SCRIPTS_DIR, "..", "..", "fda-predicate-assistant", "lib"
+            SCRIPTS_DIR, "..", "..", "fda-tools", "lib"
         ),
         os.path.join(
-            SCRIPTS_DIR, "..", "..", "fda-predicate-assistant", "bridge"
+            SCRIPTS_DIR, "..", "..", "fda-tools", "bridge"
         ),
     ]
 
@@ -656,7 +656,7 @@ class TestSilentExceptPassAudit:
             )
 
     def test_no_silent_except_pass_in_predicate_assistant(self):
-        """fda-predicate-assistant must have zero silent except...pass patterns.
+        """fda-tools must have zero silent except...pass patterns.
 
         This covers bridge/ and lib/ directories of the predicate assistant.
         """
@@ -667,7 +667,7 @@ class TestSilentExceptPassAudit:
             )
             pytest.fail(
                 f"Found {len(violations)} silent except...pass pattern(s) "
-                f"in fda-predicate-assistant:\n{details}\n\n"
+                f"in fda-tools:\n{details}\n\n"
                 f"Fix: Add error logging with "
                 f"'print(f\"Warning: ...\", file=sys.stderr)' "
                 f"or add an explanatory comment if silence is intentional."

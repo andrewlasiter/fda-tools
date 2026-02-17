@@ -22,7 +22,7 @@ f = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
 if os.path.exists(f):
     d = json.load(open(f))
     for k, v in d.get('plugins', {}).items():
-        if k.startswith('fda-predicate-assistant@'):
+        if k.startswith('fda-tools@'):
             for e in v:
                 p = e.get('installPath', '')
                 if os.path.isdir(p):
@@ -90,7 +90,7 @@ If `--product-code CODE` is provided:
 python3 << 'PYEOF'
 import urllib.request, urllib.parse, json, os, re
 
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 api_key = os.environ.get('OPENFDA_API_KEY')
 api_enabled = True
 if os.path.exists(settings_path):
@@ -203,7 +203,7 @@ WebSearch: "{standard_number}" new edition {YYYY} superseded
 
 If `--index` is specified:
 
-1. Read `standards_dir` from `~/.claude/fda-predicate-assistant.local.md`
+1. Read `standards_dir` from `~/.claude/fda-tools.local.md`
 2. If not set, report error: "No standards_dir configured. Run `/fda:configure --set standards_dir /path/to/Standards/`"
 3. Scan the directory recursively for PDF files
 4. Parse filenames for standard identifiers using these patterns:
@@ -360,7 +360,7 @@ If `--save` is specified:
 
 ```bash
 PROJECTS_DIR="~/fda-510k-data/projects"
-cat ~/.claude/fda-predicate-assistant.local.md 2>/dev/null
+cat ~/.claude/fda-tools.local.md 2>/dev/null
 # Write standards data to project
 cat << 'EOF' > "$PROJECTS_DIR/$PROJECT_NAME/standards_lookup.json"
 {json data}

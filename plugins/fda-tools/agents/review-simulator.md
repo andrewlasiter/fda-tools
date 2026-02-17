@@ -34,7 +34,7 @@ Before starting the review simulation, verify that sufficient project data exist
 - Project directory exists with at least `review.json` (accepted predicates)
 
 **Check sequence:**
-1. Read `~/.claude/fda-predicate-assistant.local.md` for `projects_dir`
+1. Read `~/.claude/fda-tools.local.md` for `projects_dir`
 2. Verify `{projects_dir}/{project_name}/review.json` exists
 3. If missing: output `"Required file review.json not found. Run /fda:review --project {name} first to accept predicates."`
 
@@ -56,7 +56,7 @@ You think like an FDA review team. Each reviewer on the team has specific expert
 
 ### Phase 1: Project Discovery
 
-1. **Find the project directory** — Check `~/.claude/fda-predicate-assistant.local.md` for `projects_dir`, default to `~/fda-510k-data/projects/`
+1. **Find the project directory** — Check `~/.claude/fda-tools.local.md` for `projects_dir`, default to `~/fda-510k-data/projects/`
 2. **Inventory ALL project files** — Read every file in the project directory recursively
 3. **Load review.json** — Get accepted predicates, reference devices, confidence scores, flags
 4. **Load query.json** — Get product codes, filters, creation metadata

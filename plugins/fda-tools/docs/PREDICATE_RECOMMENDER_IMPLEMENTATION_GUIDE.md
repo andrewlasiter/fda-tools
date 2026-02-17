@@ -54,7 +54,7 @@ print(f"Score: {recommendations['recommendations'][0]['final_score']}/100")
 ## File Structure
 
 ```
-plugins/fda-predicate-assistant/
+plugins/fda-tools/
 ├── lib/
 │   ├── fda_enrichment.py          # Existing (Phase 1-3)
 │   ├── disclaimers.py             # Existing (Phase 1-3)

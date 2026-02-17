@@ -277,7 +277,7 @@ python3 tests/test_prestar_integration.py
 - **Documentation**: `plugins/fda-tools/docs/PRESTAR_WORKFLOW.md`
 - **JSON Schema**: `plugins/fda-tools/data/schemas/presub_metadata_schema.json`
 - **Integration Tests**: `plugins/fda-tools/tests/test_prestar_integration.py`
-- **Issue Tracker**: https://github.com/andrewlasiter/fda-predicate-assistant/issues
+- **Issue Tracker**: https://github.com/andrewlasiter/fda-tools/issues
 
 ---
 

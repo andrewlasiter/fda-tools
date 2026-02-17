@@ -22,7 +22,7 @@ f = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
 if os.path.exists(f):
     d = json.load(open(f))
     for k, v in d.get('plugins', {}).items():
-        if k.startswith('fda-predicate-assistant@'):
+        if k.startswith('fda-tools@'):
             for e in v:
                 p = e.get('installPath', '')
                 if os.path.isdir(p):
@@ -43,7 +43,7 @@ You are looking up **FDA enforcement intelligence** using the FDA Data Dashboard
 Read the user's local settings file:
 
 ```bash
-cat ~/.claude/fda-predicate-assistant.local.md 2>/dev/null
+cat ~/.claude/fda-tools.local.md 2>/dev/null
 ```
 
 Look for `fda_dashboard_user` and `fda_dashboard_key` in the YAML frontmatter.

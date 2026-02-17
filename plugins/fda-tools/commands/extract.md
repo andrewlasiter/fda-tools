@@ -21,7 +21,7 @@ f = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
 if os.path.exists(f):
     d = json.load(open(f))
     for k, v in d.get('plugins', {}).items():
-        if k.startswith('fda-predicate-assistant@'):
+        if k.startswith('fda-tools@'):
             for e in v:
                 p = e.get('installPath', '')
                 if os.path.isdir(p):
@@ -51,7 +51,7 @@ Default: `~/fda-510k-data/projects/` (or custom path from settings)
 
 Check settings file for custom path:
 ```bash
-cat ~/.claude/fda-predicate-assistant.local.md 2>/dev/null
+cat ~/.claude/fda-tools.local.md 2>/dev/null
 ```
 
 ### Project Naming
@@ -390,7 +390,7 @@ NEXT STEPS
        exit(0)
 
    # Check settings for API key
-   settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+   settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
    api_key = os.environ.get('OPENFDA_API_KEY')
    api_enabled = True
    if os.path.exists(settings_path):

@@ -21,7 +21,7 @@ f = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
 if os.path.exists(f):
     d = json.load(open(f))
     for k, v in d.get('plugins', {}).items():
-        if k.startswith('fda-predicate-assistant@'):
+        if k.startswith('fda-tools@'):
             for e in v:
                 p = e.get('installPath', '')
                 if os.path.isdir(p):
@@ -71,7 +71,7 @@ From `$ARGUMENTS`, extract:
 # Check settings for projects_dir
 PROJECTS_DIR=$(python3 -c "
 import os, re
-settings = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings = os.path.expanduser('~/.claude/fda-tools.local.md')
 if os.path.exists(settings):
     with open(settings) as f:
         m = re.search(r'projects_dir:\s*(.+)', f.read())
@@ -315,7 +315,7 @@ python3 << 'PYEOF'
 import json, os, re
 
 # Read exclusion list path from settings
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 exclusion_path = os.path.expanduser('~/fda-510k-data/exclusion_list.json')
 
 if os.path.exists(settings_path):
@@ -981,7 +981,7 @@ If Task tool fails or RA advisor unavailable:
    - Web validation flags (YELLOW/RED) are addressed
    - FDA criteria compliance confirmed for each predicate
 
-   See plugins/fda-predicate-assistant/references/fda-predicate-criteria-2014.md
+   See plugins/fda-tools/references/fda-predicate-criteria-2014.md
    ```
 
 ### Audit logging
@@ -1161,7 +1161,7 @@ if not plugin_root:
         with open(installed_plugins_path) as ipf:
             installed_data = json.load(ipf)
             for key, value in installed_data.get('plugins', {}).items():
-                if key.startswith('fda-tools@') or key.startswith('fda-predicate-assistant@'):
+                if key.startswith('fda-tools@') or key.startswith('fda-tools@'):
                     for entry in value:
                         install_path = entry.get('installPath', '')
                         if os.path.isdir(install_path):
@@ -1176,7 +1176,7 @@ if plugin_root:
 from predicate_diversity import PredicateDiversityAnalyzer
 
 # Load review.json to get accepted predicates
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 projects_dir = os.path.expanduser('~/fda-510k-data/projects')
 if os.path.exists(settings_path):
     with open(settings_path) as f:

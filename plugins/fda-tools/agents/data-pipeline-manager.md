@@ -33,7 +33,7 @@ Before starting pipeline operations, verify the environment is set up.
 1. Resolve `$FDA_PLUGIN_ROOT` from `~/.claude/plugins/installed_plugins.json`
 2. Verify `$FDA_PLUGIN_ROOT/scripts/batchfetch.py` exists (needed for downloads)
 3. Verify `$FDA_PLUGIN_ROOT/scripts/predicate_extractor.py` exists (needed for extraction)
-4. Read `~/.claude/fda-predicate-assistant.local.md` for configured paths
+4. Read `~/.claude/fda-tools.local.md` for configured paths
 5. Verify Python dependencies: `pip show requests tqdm PyMuPDF pdfplumber 2>/dev/null`
 
 **If scripts not found:** output `"FDA plugin scripts not found at $FDA_PLUGIN_ROOT/scripts/. Ensure the FDA Predicate Assistant plugin is properly installed. Run /fda:status to diagnose."`
@@ -54,10 +54,10 @@ This agent combines the work of these individual commands into one autonomous wo
 
 ## Data Layout
 
-The pipeline reads configured paths from `~/.claude/fda-predicate-assistant.local.md`. If not configured, defaults are shown below.
+The pipeline reads configured paths from `~/.claude/fda-tools.local.md`. If not configured, defaults are shown below.
 
 **Path resolution order:**
-1. Read `~/.claude/fda-predicate-assistant.local.md` for `data_dir`, `extraction_dir`, `projects_dir`
+1. Read `~/.claude/fda-tools.local.md` for `data_dir`, `extraction_dir`, `projects_dir`
 2. Fall back to defaults if not configured
 
 ```

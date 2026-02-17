@@ -21,7 +21,7 @@ f = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
 if os.path.exists(f):
     d = json.load(open(f))
     for k, v in d.get('plugins', {}).items():
-        if k.startswith('fda-predicate-assistant@'):
+        if k.startswith('fda-tools@'):
             for e in v:
                 p = e.get('installPath', '')
                 if os.path.isdir(p):
@@ -398,7 +398,7 @@ else:
 # Check settings for projects_dir
 PROJECTS_DIR=$(python3 -c "
 import os, re
-settings = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings = os.path.expanduser('~/.claude/fda-tools.local.md')
 if os.path.exists(settings):
     with open(settings) as f:
         m = re.search(r'projects_dir:\s*(.+)', f.read())
@@ -1147,8 +1147,8 @@ OPENFDA_API_KEY=""
 if [ -n "$OPENFDA_API_KEY" ]; then
     API_KEY_SOURCE="environment"
 # Priority 2: Settings file
-elif [ -f ~/.claude/fda-predicate-assistant.local.md ]; then
-    OPENFDA_API_KEY=$(grep -oP 'openfda_api_key:\s*\K.+' ~/.claude/fda-predicate-assistant.local.md | tr -d ' ')
+elif [ -f ~/.claude/fda-tools.local.md ]; then
+    OPENFDA_API_KEY=$(grep -oP 'openfda_api_key:\s*\K.+' ~/.claude/fda-tools.local.md | tr -d ' ')
     API_KEY_SOURCE="settings"
 fi
 ```

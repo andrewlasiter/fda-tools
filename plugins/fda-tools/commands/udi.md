@@ -22,7 +22,7 @@ f = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
 if os.path.exists(f):
     d = json.load(open(f))
     for k, v in d.get('plugins', {}).items():
-        if k.startswith('fda-predicate-assistant@'):
+        if k.startswith('fda-tools@'):
             for e in v:
                 p = e.get('installPath', '')
                 if os.path.isdir(p):
@@ -63,7 +63,7 @@ At least one of `--product-code`, `--di`, `--company`, `--brand`, or `--parse-ud
 python3 << 'PYEOF'
 import urllib.request, urllib.parse, json, os, re, time
 
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 api_key = os.environ.get('OPENFDA_API_KEY')
 api_enabled = True
 if os.path.exists(settings_path):

@@ -74,7 +74,7 @@ MAUDE Contextualization → Competitive Intelligence → Gap Analysis → Beta T
 
 **Step 1.1: Add Peer Comparison Function (1.5 hrs)**
 
-Location: `plugins/fda-predicate-assistant/lib/fda_enrichment.py` after line 252
+Location: `plugins/fda-tools/lib/fda_enrichment.py` after line 252
 
 ```python
 def get_maude_peer_comparison(self, product_code: str, device_maude_count: int) -> Dict[str, Any]:
@@ -200,7 +200,7 @@ Add MAUDE contextualization section to `intelligence_report.md`:
 
 **Step 2.1: Add Review Time Analysis Function (1 hour)**
 
-Location: `plugins/fda-predicate-assistant/lib/fda_enrichment.py`
+Location: `plugins/fda-tools/lib/fda_enrichment.py`
 
 ```python
 def predict_review_time(self, product_code: str) -> Dict[str, Any]:
@@ -300,7 +300,7 @@ Add timeline section:
 
 **Step 3.1: Add Market Analysis Function (2 hours)**
 
-Location: `plugins/fda-predicate-assistant/lib/fda_enrichment.py`
+Location: `plugins/fda-tools/lib/fda_enrichment.py`
 
 ```python
 def analyze_market_competition(self, product_code: str) -> Dict[str, Any]:
@@ -433,7 +433,7 @@ Add competitive analysis section:
 
 **Step 4.1: Add Gap Analysis Function (4 hours)**
 
-Location: `plugins/fda-predicate-assistant/lib/fda_enrichment.py`
+Location: `plugins/fda-tools/lib/fda_enrichment.py`
 
 ```python
 def generate_gap_analysis(self, subject_device: Dict[str, Any], predicate_devices: List[Dict[str, Any]]) -> str:
@@ -657,7 +657,7 @@ Before each release:
 
 **Current (Phase 1 & 2):**
 ```
-plugins/fda-predicate-assistant/
+plugins/fda-tools/
 ├── commands/
 │   └── batchfetch.md (1,200 lines)
 ├── lib/
@@ -670,7 +670,7 @@ plugins/fda-predicate-assistant/
 
 **After Phase 3 & 4:**
 ```
-plugins/fda-predicate-assistant/
+plugins/fda-tools/
 ├── commands/
 │   └── batchfetch.md (+150 lines = 1,350 total)
 ├── lib/

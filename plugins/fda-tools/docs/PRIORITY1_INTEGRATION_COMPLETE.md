@@ -16,7 +16,7 @@ Priority 1 focused on integrating the web validation and FDA criteria compliance
 
 ### 1. Modified `review.md` Command
 
-**File:** `plugins/fda-predicate-assistant/commands/review.md`
+**File:** `plugins/fda-tools/commands/review.md`
 
 **New Steps Added:**
 
@@ -78,7 +78,7 @@ Priority 1 focused on integrating the web validation and FDA criteria compliance
 
 ### 3. Enhanced `confidence-scoring.md` Reference
 
-**File:** `plugins/fda-predicate-assistant/references/confidence-scoring.md`
+**File:** `plugins/fda-tools/references/confidence-scoring.md`
 
 **New Content Added:**
 
@@ -303,7 +303,7 @@ Full-Auto Review Results:
 ## Files Modified
 
 ```
-plugins/fda-predicate-assistant/
+plugins/fda-tools/
 ├── commands/
 │   └── review.md                          [Modified: +140 lines]
 │       ├── Step 3.5: Web Validation      [NEW]

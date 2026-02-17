@@ -39,7 +39,7 @@ Complete installation and configuration guide for the FDA Tools plugin.
 1. **Clone repository:**
    ```bash
    cd ~/.claude/plugins/marketplaces
-   git clone https://github.com/andrewlasiter/fda-predicate-assistant fda-tools
+   git clone https://github.com/andrewlasiter/fda-tools fda-tools
    ```
 
 2. **Install plugin:**
@@ -231,11 +231,11 @@ git pull origin master
 
 ### Migrate Settings (After v5.22.0 Rename)
 
-If upgrading from `fda-predicate-assistant`:
+If upgrading from `fda-tools`:
 
 ```bash
 # Migrate settings file
-mv ~/.claude/fda-predicate-assistant.local.md ~/.claude/fda-tools.local.md
+mv ~/.claude/fda-tools.local.md ~/.claude/fda-tools.local.md
 ```
 
 See [MIGRATION_NOTICE.md](../MIGRATION_NOTICE.md) for complete migration guide.
@@ -338,5 +338,5 @@ export HTTPS_PROXY=http://proxy:port
 
 - **Documentation:** `~/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/docs/`
 - **Command Help:** `/fda-tools:ask --question "How do I..."`
-- **Issues:** https://github.com/andrewlasiter/fda-predicate-assistant/issues
+- **Issues:** https://github.com/andrewlasiter/fda-tools/issues
 - **Status Check:** `/fda-tools:status`

@@ -21,7 +21,7 @@ f = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
 if os.path.exists(f):
     d = json.load(open(f))
     for k, v in d.get('plugins', {}).items():
-        if k.startswith('fda-predicate-assistant@'):
+        if k.startswith('fda-tools@'):
             for e in v:
                 p = e.get('installPath', '')
                 if os.path.isdir(p):
@@ -61,7 +61,7 @@ If no `--years` provided, default to last 5 years.
 ```bash
 python3 << 'PYEOF'
 import os, re
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 api_key = os.environ.get('OPENFDA_API_KEY')
 if os.path.exists(settings_path):
     with open(settings_path) as f:
@@ -143,7 +143,7 @@ description = "DEVICE_DESCRIPTION"  # Replace
 keywords = [w for w in description.lower().split() if len(w) > 3 and w not in {'with', 'that', 'this', 'from', 'have', 'been', 'used', 'device'}]
 search_terms = '+AND+'.join(f'"{kw}"' for kw in keywords[:5])
 
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 api_key = os.environ.get('OPENFDA_API_KEY')
 if os.path.exists(settings_path):
     with open(settings_path) as f:

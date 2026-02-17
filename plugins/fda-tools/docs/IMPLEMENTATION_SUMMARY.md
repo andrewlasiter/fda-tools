@@ -11,7 +11,7 @@
 ### Phase 1: Data Integration & Full-Text Search
 
 #### ✅ 1. Structured Text Cache Builder
-**File:** `plugins/fda-predicate-assistant/scripts/build_structured_cache.py` (415 lines)
+**File:** `plugins/fda-tools/scripts/build_structured_cache.py` (415 lines)
 
 **Capabilities:**
 - Applies 3-tier section detection (Tier 1: regex, Tier 2: OCR correction, Tier 3: semantic)
@@ -22,7 +22,7 @@
 
 **Usage:**
 ```bash
-python3 plugins/fda-predicate-assistant/scripts/build_structured_cache.py --both
+python3 plugins/fda-tools/scripts/build_structured_cache.py --both
 ```
 
 **Output:** `~/fda-510k-data/extraction/structured_text_cache/`
@@ -30,7 +30,7 @@ python3 plugins/fda-predicate-assistant/scripts/build_structured_cache.py --both
 ---
 
 #### ✅ 2. Full-Text Search Module
-**File:** `plugins/fda-predicate-assistant/scripts/full_text_search.py` (300 lines)
+**File:** `plugins/fda-tools/scripts/full_text_search.py` (300 lines)
 
 **Capabilities:**
 - `search_all_sections()` — Search ALL sections (not just SE)
@@ -55,7 +55,7 @@ predicates = find_predicates_by_feature(
 ---
 
 #### ✅ 3. Search-Predicates Command
-**File:** `plugins/fda-predicate-assistant/commands/search-predicates.md`
+**File:** `plugins/fda-tools/commands/search-predicates.md`
 
 **User Interface:**
 ```bash
@@ -80,7 +80,7 @@ predicates = find_predicates_by_feature(
 ### Phase 2: Predicate Validation & FDA Guidance
 
 #### ✅ 4. Web-Based Predicate Validator
-**File:** `plugins/fda-predicate-assistant/scripts/web_predicate_validator.py` (210 lines)
+**File:** `plugins/fda-tools/scripts/web_predicate_validator.py` (210 lines)
 
 **Capabilities:**
 - Batch validation against FDA databases (recalls, enforcement, warning letters)
@@ -110,7 +110,7 @@ Validation complete:
 ---
 
 #### ✅ 5. FDA Predicate Criteria Reference
-**File:** `plugins/fda-predicate-assistant/references/fda-predicate-criteria-2014.md`
+**File:** `plugins/fda-tools/references/fda-predicate-criteria-2014.md`
 
 **Contents:**
 - Complete checklist from FDA's "510(k) Program" guidance (2014)
@@ -152,15 +152,15 @@ Validation complete:
 ### 1. Build Structured Cache (First-Time Setup)
 ```bash
 # If you have PDF cache already:
-python3 plugins/fda-predicate-assistant/scripts/build_structured_cache.py \
+python3 plugins/fda-tools/scripts/build_structured_cache.py \
   --cache-dir ~/fda-510k-data/extraction/cache
 
 # Or from legacy cache:
-python3 plugins/fda-predicate-assistant/scripts/build_structured_cache.py \
+python3 plugins/fda-tools/scripts/build_structured_cache.py \
   --legacy ~/fda-510k-data/extraction/pdf_data.json
 
 # Or both:
-python3 plugins/fda-predicate-assistant/scripts/build_structured_cache.py --both
+python3 plugins/fda-tools/scripts/build_structured_cache.py --both
 ```
 
 Expected output:
@@ -192,7 +192,7 @@ Expected output:
 ### 3. Validate Predicate Candidates
 ```bash
 # Validate a batch of K-numbers
-python3 plugins/fda-predicate-assistant/scripts/web_predicate_validator.py \
+python3 plugins/fda-tools/scripts/web_predicate_validator.py \
   --k-numbers K241335,K234567,K345678 \
   --format md \
   --output validation_report.md
@@ -210,7 +210,7 @@ python3 web_predicate_validator.py --batch predicates.txt --format json
 ### 4. Reference FDA Criteria
 View the compliance checklist:
 ```bash
-cat plugins/fda-predicate-assistant/references/fda-predicate-criteria-2014.md
+cat plugins/fda-tools/references/fda-predicate-criteria-2014.md
 ```
 
 Use for:
@@ -224,7 +224,7 @@ Use for:
 
 ### Critical: Integrate into Review Workflow
 
-**File to modify:** `plugins/fda-predicate-assistant/commands/review.md`
+**File to modify:** `plugins/fda-tools/commands/review.md`
 
 **Changes needed:**
 
@@ -271,9 +271,9 @@ Use for:
 ### Important: RA Professional Integration
 
 **Files to modify:**
-- `plugins/fda-predicate-assistant/commands/research.md` (add Step 7)
-- `plugins/fda-predicate-assistant/commands/review.md` (add Step 5)
-- `plugins/fda-predicate-assistant/agents/ra-professional-advisor.md` (extend capabilities)
+- `plugins/fda-tools/commands/research.md` (add Step 7)
+- `plugins/fda-tools/commands/review.md` (add Step 5)
+- `plugins/fda-tools/agents/ra-professional-advisor.md` (extend capabilities)
 
 **Changes needed:**
 

@@ -32,7 +32,7 @@ Per `PHASE1_2_FIXES_COMPLETE.md`, standards detection was intentionally removed 
 
 ### Files to Update
 
-#### File 1: `plugins/fda-predicate-assistant/commands/batchfetch.md`
+#### File 1: `plugins/fda-tools/commands/batchfetch.md`
 
 **Location:** Lines 1510-1520 (approximate)
 
@@ -167,7 +167,7 @@ Claimed title "Recall Notifications: Guidance for Industry (2019)" does NOT exis
 
 ### File to Update
 
-**File:** `plugins/fda-predicate-assistant/commands/batchfetch.md`
+**File:** `plugins/fda-tools/commands/batchfetch.md`
 **Location:** Lines ~1192-1195 (in regulatory_context.md generation)
 
 **Current (INCORRECT):**
@@ -213,7 +213,7 @@ System cites only generic CFR parts (803 MDR, 7 Recalls, 807 510k) but NOT devic
 
 #### Step 1: Create Product Code Mapping (30 minutes)
 
-**File:** `plugins/fda-predicate-assistant/lib/fda_enrichment.py`
+**File:** `plugins/fda-tools/lib/fda_enrichment.py`
 **Location:** After imports, before FDAEnrichment class
 
 ```python
@@ -269,7 +269,7 @@ def get_device_specific_cfr(product_code: str) -> Optional[Tuple[str, str]]:
 
 #### Step 2: Integrate into Enrichment (1 hour)
 
-**File:** `plugins/fda-predicate-assistant/lib/fda_enrichment.py`
+**File:** `plugins/fda-tools/lib/fda_enrichment.py`
 **Location:** In `enrich_single_device()` method, after base CFR citations
 
 **Current code (~line 470):**
@@ -317,7 +317,7 @@ enriched['cfr_citations'] = ', '.join(citations) if citations else 'N/A'
 
 #### Step 3: Update Regulatory Context Generation (1 hour)
 
-**File:** `plugins/fda-predicate-assistant/commands/batchfetch.md`
+**File:** `plugins/fda-tools/commands/batchfetch.md`
 **Location:** `generate_regulatory_context()` function (embedded in Python)
 
 **Add device-specific CFR section:**
@@ -359,7 +359,7 @@ def generate_regulatory_context(project_dir, enriched_rows):
 
 #### Step 4: Update CSV Column Documentation (30 minutes)
 
-**File:** `plugins/fda-predicate-assistant/commands/batchfetch.md`
+**File:** `plugins/fda-tools/commands/batchfetch.md`
 **Location:** CSV output description
 
 **Add to column list:**
@@ -439,8 +439,8 @@ print(f"  - device_classification (e.g., 'Percutaneous Catheter')")
 If issues arise:
 ```bash
 # Restore from git
-git checkout plugins/fda-predicate-assistant/commands/batchfetch.md
-git checkout plugins/fda-predicate-assistant/lib/fda_enrichment.py
+git checkout plugins/fda-tools/commands/batchfetch.md
+git checkout plugins/fda-tools/lib/fda_enrichment.py
 git checkout RELEASE_ANNOUNCEMENT.md
 git checkout IMPLEMENTATION_COMPLETE.md
 git checkout TESTING_COMPLETE_FINAL_SUMMARY.md

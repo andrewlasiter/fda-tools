@@ -619,7 +619,7 @@ def generate_next_steps(risk_summary: Dict, resources: Dict) -> str:
 
 ### 4.1 File Structure
 
-**New File:** `/plugins/fda-predicate-assistant/lib/executive_summary.py`
+**New File:** `/plugins/fda-tools/lib/executive_summary.py`
 
 ```python
 """
@@ -639,7 +639,7 @@ import os
 # All functions from Section 3 go here
 ```
 
-**Integration Point:** `/plugins/fda-predicate-assistant/commands/batchfetch.md`
+**Integration Point:** `/plugins/fda-tools/commands/batchfetch.md`
 
 Add after `generate_intelligence_report()` call (around line 1362):
 
@@ -661,7 +661,7 @@ if '--enrich' in arguments:
 
 ### 4.2 Testing Strategy
 
-**Unit Tests:** `/plugins/fda-predicate-assistant/tests/test_executive_summary.py`
+**Unit Tests:** `/plugins/fda-tools/tests/test_executive_summary.py`
 
 ```python
 import pytest

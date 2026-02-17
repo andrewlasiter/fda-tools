@@ -15,7 +15,7 @@ f = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
 if os.path.exists(f):
     d = json.load(open(f))
     for k, v in d.get('plugins', {}).items():
-        if k.startswith('fda-predicate-assistant@'):
+        if k.startswith('fda-tools@'):
             for e in v:
                 p = e.get('installPath', '')
                 if os.path.isdir(p):
@@ -24,7 +24,7 @@ print('')
 ")
 ```
 
-After running this, `$FDA_PLUGIN_ROOT` will contain the absolute path to the plugin cache directory (e.g., `/home/user/.claude/plugins/cache/local/fda-predicate-assistant/abc123/`).
+After running this, `$FDA_PLUGIN_ROOT` will contain the absolute path to the plugin cache directory (e.g., `/home/user/.claude/plugins/cache/local/fda-tools/abc123/`).
 
 **Always check the result**: If `$FDA_PLUGIN_ROOT` is empty, the plugin may not be installed. Report an error to the user.
 
@@ -36,7 +36,7 @@ Before accessing any data file, read the user's settings and resolve paths:
 python3 << 'PYEOF'
 import os, re
 
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 defaults = {
     'projects_dir': os.path.expanduser('~/fda-510k-data/projects'),
     'batchfetch_dir': os.path.expanduser('~/fda-510k-data/batchfetch'),

@@ -101,20 +101,20 @@ Same pattern as CRITICAL-1. These are older files but still part of the active c
 File: `commands/presub.md`, lines 24, 79, 929, 1197, 1244
 
 ```python
-if k.startswith('fda-predicate-assistant@'):  # OLD NAME
+if k.startswith('fda-tools@'):  # OLD NAME
 ```
 
 ```python
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')  # OLD NAME
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')  # OLD NAME
 ```
 
-The plugin was renamed from `fda-predicate-assistant` to `fda-tools` in v5.22.0, but `presub.md` still references the old name in **5 locations**. This means the plugin root detection and settings file loading will FAIL for users who installed the plugin under the new name.
+The plugin was renamed from `fda-tools` to `fda-tools` in v5.22.0, but `presub.md` still references the old name in **5 locations**. This means the plugin root detection and settings file loading will FAIL for users who installed the plugin under the new name.
 
 **Impact:** The presub command will silently fail to find its own installation directory and settings file for any user who installed as `fda-tools`.
 
 **CRITICAL-4: Old plugin name references across 45 command files and 7 agent files**
 
-The grep results show that **45 out of 52 command files** and **7 out of 12 agent files** still reference `fda-predicate-assistant` for plugin root detection and settings file paths. This is a systematic migration regression.
+The grep results show that **45 out of 52 command files** and **7 out of 12 agent files** still reference `fda-tools` for plugin root detection and settings file paths. This is a systematic migration regression.
 
 **Impact:** Multiple commands may fail to locate plugin resources or read user settings under the new `fda-tools` namespace.
 

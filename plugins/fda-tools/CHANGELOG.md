@@ -2,6 +2,13 @@
 
 All notable changes to the FDA Tools plugin will be documented in this file.
 
+
+## [5.36.0] - 2026-02-17
+
+### Added
+- TODO: Add changes here
+
+---
 ## [5.36.0] - 2026-02-16
 
 ### Added
@@ -1544,10 +1551,10 @@ Generated XML includes:
 ## [5.22.0] - 2026-02-14
 
 ### Breaking Changes
-- **Plugin Rename:** `fda-predicate-assistant` → `fda-tools`
-  - Namespace: `fda-predicate-assistant@fda-tools` → `fda-tools@fda-tools`
-  - All commands: `/fda-predicate-assistant:*` → `/fda-tools:*`
-  - Settings file must be manually migrated: `~/.claude/fda-predicate-assistant.local.md` → `fda-tools.local.md`
+- **Plugin Rename:** `fda-tools` → `fda-tools`
+  - Namespace: `fda-tools@fda-tools` → `fda-tools@fda-tools`
+  - All commands: `/fda-tools:*` → `/fda-tools:*`
+  - Settings file must be manually migrated: `~/.claude/fda-tools.local.md` → `fda-tools.local.md`
   - See MIGRATION_NOTICE.md for migration guide
 
 ### Added - Universal Device Coverage (Knowledge-Based Standards Generation)

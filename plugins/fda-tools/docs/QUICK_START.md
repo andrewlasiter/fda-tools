@@ -249,7 +249,7 @@ Verify:
 - **Command help:** `/fda-tools:ask --question "How do I..."`
 - **System status:** `/fda-tools:status`
 - **Documentation:** See `plugins/fda-tools/docs/`
-- **Issues:** https://github.com/andrewlasiter/fda-predicate-assistant/issues
+- **Issues:** https://github.com/andrewlasiter/fda-tools/issues
 
 ## Important Notes
 

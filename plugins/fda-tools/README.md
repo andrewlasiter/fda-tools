@@ -1,6 +1,6 @@
-# FDA Predicate Assistant
+# FDA Tools
 
-Your regulatory assistant for FDA 510(k) submissions -- predicate research, substantial equivalence analysis, and submission drafting.
+Comprehensive FDA regulatory intelligence and submission management suite -- predicate research, substantial equivalence analysis, submission drafting, PMA intelligence, clinical data analysis, and real-time regulatory monitoring.
 
 > **CONFIDENTIAL DATA WARNING**
 >
@@ -25,6 +25,8 @@ New to the plugin? Follow these steps:
 3. **Try a simple workflow:** See [QUICK_START.md](docs/QUICK_START.md)
 
 ### Common Workflows
+
+> **NEW in v5.36.0:** Plugin renamed from `fda-predicate-assistant` to `fda-tools`. All command invocations now use `/fda-tools:*` prefix. See [MIGRATION_NOTICE.md](MIGRATION_NOTICE.md) for migration guide.
 
 **Keep your FDA data fresh (NEW in v5.26.0):**
 ```bash
@@ -649,7 +651,7 @@ Complete FDA Pre-Submission workflow with eSTAR-ready XML export for FDA Form 50
 - **[Quick Start Guide](docs/QUICK_START.md)** - Get started in minutes
 - **[Installation Guide](docs/INSTALLATION.md)** - Detailed setup instructions
 - **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** - Common issues and solutions
-- **[Migration Notice](MIGRATION_NOTICE.md)** - Upgrading from fda-predicate-assistant
+- **[Migration Notice](MIGRATION_NOTICE.md)** - Upgrading from fda-tools
 - **[Changelog](CHANGELOG.md)** - Version history and release notes
 
 ## What's included

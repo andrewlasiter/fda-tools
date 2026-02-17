@@ -25,7 +25,7 @@ NCBI E-utilities provide programmatic access to PubMed for structured, reproduci
 
 **API key configuration:**
 - **Priority 1:** Environment variable `NCBI_API_KEY`
-- **Priority 2:** Settings file `~/.claude/fda-predicate-assistant.local.md` field `ncbi_api_key`
+- **Priority 2:** Settings file `~/.claude/fda-tools.local.md` field `ncbi_api_key`
 - **Obtain key:** Register at [NCBI](https://www.ncbi.nlm.nih.gov/account/) — free
 
 Configure via: `/fda:configure --set ncbi_api_key YOUR_KEY`
@@ -33,7 +33,7 @@ Configure via: `/fda:configure --set ncbi_api_key YOUR_KEY`
 ## esearch — PubMed Search
 
 ```
-GET esearch.fcgi?db=pubmed&term={query}&retmax=20&retmode=json&sort=relevance&tool=fda-predicate-assistant&email=plugin@example.com
+GET esearch.fcgi?db=pubmed&term={query}&retmax=20&retmode=json&sort=relevance&tool=fda-tools&email=plugin@example.com
 ```
 
 **Parameters:**
@@ -58,7 +58,7 @@ GET esearch.fcgi?db=pubmed&term={query}&retmax=20&retmode=json&sort=relevance&to
 ## efetch — Retrieve Article Details
 
 ```
-GET efetch.fcgi?db=pubmed&id={pmid1,pmid2,...}&rettype=abstract&retmode=xml&tool=fda-predicate-assistant&email=plugin@example.com
+GET efetch.fcgi?db=pubmed&id={pmid1,pmid2,...}&rettype=abstract&retmode=xml&tool=fda-tools&email=plugin@example.com
 ```
 
 **Parameters:**
@@ -139,7 +139,7 @@ GET efetch.fcgi?db=pubmed&id={pmid1,pmid2,...}&rettype=abstract&retmode=xml&tool
 ## elink — Related Articles and Citation Counts
 
 ```
-GET elink.fcgi?dbfrom=pubmed&id={pmid}&cmd=neighbor_score&tool=fda-predicate-assistant&email=plugin@example.com
+GET elink.fcgi?dbfrom=pubmed&id={pmid}&cmd=neighbor_score&tool=fda-tools&email=plugin@example.com
 ```
 
 **Parameters:**

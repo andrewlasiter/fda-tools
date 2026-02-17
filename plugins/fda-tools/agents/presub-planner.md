@@ -33,7 +33,7 @@ This agent requires minimal input but needs a functioning environment.
 **Check sequence:**
 1. Resolve `$FDA_PLUGIN_ROOT` from `~/.claude/plugins/installed_plugins.json`
 2. Verify `$FDA_PLUGIN_ROOT/scripts/` exists (needed for API calls)
-3. Read `~/.claude/fda-predicate-assistant.local.md` for `projects_dir` setting
+3. Read `~/.claude/fda-tools.local.md` for `projects_dir` setting
 4. If `$FDA_PLUGIN_ROOT` not found: output `"FDA Predicate Assistant plugin not found. Ensure the plugin is installed."`
 
 **Required Input:**

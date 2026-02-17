@@ -12,7 +12,7 @@
 ### 1.1 Current Module Landscape
 
 ```
-plugins/fda-predicate-assistant/
+plugins/fda-tools/
     lib/
         fda_enrichment.py       (816 lines, FDAEnrichment class, Phases 1-3)
         disclaimers.py          (363 lines, output disclaimer generation)
@@ -489,7 +489,7 @@ RecommendationResult = {
 New command: `commands/automate.md`
 
 ```
-/fda-predicate-assistant:automate --project NAME [--mode full|gaps|recommend|summary]
+/fda-tools:automate --project NAME [--mode full|gaps|recommend|summary]
     [--subject-description TEXT] [--full-auto]
 ```
 

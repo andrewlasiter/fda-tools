@@ -673,7 +673,7 @@ Verify all cited information against current FDA databases before submission.
 
 ### Phase 4.1: Core Algorithm (4 hours)
 
-**File:** `plugins/fda-predicate-assistant/lib/predicate_recommender.py`
+**File:** `plugins/fda-tools/lib/predicate_recommender.py`
 
 **Components:**
 1. `PredicateRecommender` class (main entry point)
@@ -759,7 +759,7 @@ class PredicateRecommender:
 
 ### Phase 4.2: Integration with Batchfetch (2 hours)
 
-**File:** `plugins/fda-predicate-assistant/commands/batchfetch.md`
+**File:** `plugins/fda-tools/commands/batchfetch.md`
 
 **New Flag:** `--recommend-predicates`
 

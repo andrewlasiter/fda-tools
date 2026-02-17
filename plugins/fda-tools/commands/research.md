@@ -71,7 +71,7 @@ f = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
 if os.path.exists(f):
     d = json.load(open(f))
     for k, v in d.get('plugins', {}).items():
-        if k.startswith('fda-predicate-assistant@'):
+        if k.startswith('fda-tools@'):
             for e in v:
                 p = e.get('installPath', '')
                 if os.path.isdir(p):
@@ -232,7 +232,7 @@ Before searching the web, check if `/fda:guidance --save` was previously run for
 python3 << 'PYEOF'
 import json, os, re, glob
 
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 projects_dir = os.path.expanduser('~/fda-510k-data/projects')
 if os.path.exists(settings_path):
     with open(settings_path) as f:
@@ -1015,7 +1015,7 @@ If Task tool fails or RA advisor is not available:
    - Confirming testing strategy addresses all FDA guidance requirements
    - Evaluating whether Pre-Submission meeting is appropriate for your device
 
-   See plugins/fda-predicate-assistant/references/fda-predicate-criteria-2014.md
+   See plugins/fda-tools/references/fda-predicate-criteria-2014.md
    ```
 
 ### Audit logging
