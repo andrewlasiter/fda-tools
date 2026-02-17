@@ -50,6 +50,20 @@ from typing import Dict, List, Optional
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fda_api_client import FDAClient
 
+# Import manifest validator
+LIB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lib")
+sys.path.insert(0, LIB_DIR)
+try:
+    from manifest_validator import (
+        validate_manifest,
+        add_schema_version,
+        ValidationError,
+        CURRENT_SCHEMA_VERSION,
+    )
+    _MANIFEST_VALIDATOR_AVAILABLE = True
+except ImportError:
+    _MANIFEST_VALIDATOR_AVAILABLE = False
+
 # Import cache integrity module (GAP-011)
 try:
     from cache_integrity import (
@@ -139,6 +153,24 @@ class PMADataStore:
             try:
                 with open(manifest_path) as f:
                     self._manifest = json.load(f)
+
+                # Validate and add schema_version if missing
+                if _MANIFEST_VALIDATOR_AVAILABLE:
+                    if "schema_version" not in self._manifest:
+                        self._manifest = add_schema_version(self._manifest)
+                        _logger.info("Added schema_version to PMA manifest")
+
+                    # Validate manifest (non-strict, just log warnings)
+                    try:
+                        is_valid, errors = validate_manifest(self._manifest, strict=False)
+                        if not is_valid:
+                            _logger.warning(
+                                "PMA manifest validation warnings: %s",
+                                "; ".join(errors[:3])
+                            )
+                    except Exception as e:
+                        _logger.debug("PMA manifest validation skipped: %s", e)
+
                 assert self._manifest is not None  # Type narrowing for Pyright
                 return self._manifest
             except (json.JSONDecodeError, OSError):
@@ -148,8 +180,9 @@ class PMADataStore:
                 )
                 pass  # Fall through to create new manifest
 
+        schema_ver = CURRENT_SCHEMA_VERSION if _MANIFEST_VALIDATOR_AVAILABLE else "1.0.0"
         self._manifest = {
-            "schema_version": "1.0.0",
+            "schema_version": schema_ver,
             "created_at": datetime.now(timezone.utc).isoformat(),
             "last_updated": datetime.now(timezone.utc).isoformat(),
             "total_pmas": 0,

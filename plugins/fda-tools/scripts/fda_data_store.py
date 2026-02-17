@@ -31,6 +31,20 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fda_api_client import FDAClient
 
+# Import manifest validator
+LIB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lib")
+sys.path.insert(0, LIB_DIR)
+try:
+    from manifest_validator import (  # type: ignore
+        validate_manifest,
+        add_schema_version,
+        ValidationError,
+        CURRENT_SCHEMA_VERSION,
+    )
+    _VALIDATOR_AVAILABLE = True
+except ImportError:
+    _VALIDATOR_AVAILABLE = False
+
 # TTL tiers in hours
 TTL_TIERS = {
     "classification": 168,   # 7 days — rarely changes
@@ -79,7 +93,26 @@ def load_manifest(project_dir):
     if os.path.exists(manifest_path):
         try:
             with open(manifest_path) as f:
-                return json.load(f)
+                manifest = json.load(f)
+
+            # Validate and add schema_version if missing
+            if _VALIDATOR_AVAILABLE:
+                if "schema_version" not in manifest:
+                    manifest = add_schema_version(manifest)
+                    logger.info("Added schema_version to manifest at %s", manifest_path)
+
+                # Validate manifest (non-strict, just log warnings)
+                try:
+                    is_valid, errors = validate_manifest(manifest, strict=False)
+                    if not is_valid:
+                        logger.warning(
+                            "Manifest validation warnings for %s: %s",
+                            manifest_path, "; ".join(errors[:3])
+                        )
+                except Exception as e:
+                    logger.debug("Manifest validation skipped: %s", e)
+
+            return manifest
         except (json.JSONDecodeError, OSError) as exc:
             logger.warning(
                 "Primary manifest corrupted at %s: %s. Trying backup.",
@@ -101,13 +134,16 @@ def load_manifest(project_dir):
         except (json.JSONDecodeError, OSError) as exc:
             logger.warning("Backup manifest also corrupted: %s", exc)
 
-    return {
+    # Create new manifest with schema version
+    new_manifest = {
+        "schema_version": CURRENT_SCHEMA_VERSION if _VALIDATOR_AVAILABLE else "1.0.0",
         "project": os.path.basename(project_dir),
         "created_at": datetime.now(timezone.utc).isoformat(),
         "last_updated": datetime.now(timezone.utc).isoformat(),
         "product_codes": [],
         "queries": {},
     }
+    return new_manifest
 
 
 def save_manifest(project_dir, manifest):
