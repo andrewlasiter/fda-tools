@@ -30,6 +30,7 @@ import re
 import statistics
 import subprocess
 import sys
+import time
 from collections import Counter, defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -53,7 +54,78 @@ except ImportError:
     CACHE_STATS_AVAILABLE = False
 
 
+# ---------------------------------------------------------------------------
+# Progress Bar for Long-Running Operations
+# ---------------------------------------------------------------------------
+
+class ProgressBar:
+    """Simple CLI progress bar for long-running computations.
+
+    Displays a progress bar with percentage, current/total counts, and ETA.
+    Updates in-place using ANSI escape codes.
+
+    Example output:
+        Computing similarity matrix...
+        [████████████░░░░] 75% (3712/4950 pairs) ETA: 15s
+    """
+
+    def __init__(self, total: int, description: str = "", width: int = 20):
+        """Initialize progress bar.
+
+        Args:
+            total: Total number of iterations expected.
+            description: Description to display above the bar.
+            width: Width of the progress bar in characters.
+        """
+        self.total = total
+        self.description = description
+        self.width = width
+        self.start_time = time.time()
+        self.last_update_time = self.start_time
+        self.last_current = 0
+
+        if description:
+            print(description)
+
+    def update(self, current: int, message: str = ""):
+        """Update the progress bar.
+
+        Args:
+            current: Current iteration count (1-based or 0-based, as long as consistent).
+            message: Optional additional message to display.
+        """
+        if self.total == 0:
+            return
+
+        # Calculate percentage
+        pct = min(100, int((current / self.total) * 100))
+
+        # Calculate ETA
+        elapsed = time.time() - self.start_time
+        if current > 0 and elapsed > 0:
+            rate = current / elapsed
+            remaining = (self.total - current) / rate if rate > 0 else 0
+            eta_str = f"ETA: {int(remaining)}s"
+        else:
+            eta_str = "ETA: calculating..."
+
+        # Build progress bar
+        filled = int(self.width * current / self.total)
+        bar = "█" * filled + "░" * (self.width - filled)
+
+        # Display progress
+        msg_suffix = f" {message}" if message else ""
+        print(f"\r[{bar}] {pct}% ({current}/{self.total} pairs) {eta_str}{msg_suffix}", end="", flush=True)
+
+    def finish(self):
+        """Complete the progress bar and move to next line."""
+        print()
+
+
+# ---------------------------------------------------------------------------
 # Section type mapping for user-friendly names
+# ---------------------------------------------------------------------------
+
 SECTION_ALIASES = {
     'clinical': 'clinical_testing',
     'biocompat': 'biocompatibility',
@@ -1010,15 +1082,46 @@ def main():
             cache_status = "disabled" if args.no_cache else "enabled"
             print(f"Computing text similarity (method: {args.similarity_method}, "
                   f"sample: {args.similarity_sample}, cache: {cache_status})...")
+
         for section_type in section_types:
+            # Create progress callback if verbose mode
+            progress_bar = None
+            progress_callback = None
+
+            if verbose:
+                # Count devices with this section for progress bar initialization
+                devices_with_section = sum(
+                    1 for device in section_data.values()
+                    if section_type in device.get("sections", {})
+                )
+                # Limit by sample_size if provided
+                if args.similarity_sample:
+                    devices_with_section = min(devices_with_section, args.similarity_sample)
+
+                if devices_with_section >= 2:
+                    total_pairs = (devices_with_section * (devices_with_section - 1)) // 2
+                    progress_bar = ProgressBar(
+                        total_pairs,
+                        description=f"  Computing similarity for {section_type}..."
+                    )
+
+                    def progress_callback(current: int, total: int, message: str):
+                        if progress_bar:
+                            progress_bar.update(current, message)
+
             sim_result = pairwise_similarity_matrix(
                 section_data,
                 section_type,
                 method=args.similarity_method,
                 sample_size=args.similarity_sample,
                 use_cache=use_cache,
+                progress_callback=progress_callback,
             )
             similarity_results[section_type] = sim_result
+
+            # Finish progress bar if it was created
+            if progress_bar:
+                progress_bar.finish()
 
             if sim_result.get("pairs_computed", 0) > 0:
                 append_similarity_section(str(output_path), sim_result)

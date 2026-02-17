@@ -41,7 +41,7 @@ import sys
 import time
 from collections import Counter, defaultdict
 from difflib import SequenceMatcher
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 # Import sibling modules for cache loading
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -188,6 +188,7 @@ def pairwise_similarity_matrix(
     method: str = "sequence",
     sample_size: Optional[int] = None,
     use_cache: bool = True,
+    progress_callback: Optional[Callable[[int, int, str], None]] = None,
 ) -> Dict[str, Any]:
     """Compute pairwise similarity matrix for a given section type.
 
@@ -208,6 +209,9 @@ def pairwise_similarity_matrix(
             (for performance with large datasets).
         use_cache: If True, use disk cache for similarity matrices. Default: True.
             Set to False to bypass cache (--no-cache flag).
+        progress_callback: Optional callback for progress reporting.
+            Signature: callback(current: int, total: int, message: str)
+            Called periodically during computation with pairs completed so far.
 
     Returns:
         Dictionary with similarity analysis:
@@ -288,6 +292,10 @@ def pairwise_similarity_matrix(
 
     # Cache miss or cache disabled - compute similarity matrix
     scores = []
+    total_pairs = (n * (n - 1)) // 2
+    last_update = 0
+    update_interval = max(1, total_pairs // 100)  # Update every 1%
+
     for i in range(n):
         for j in range(i + 1, n):
             k1 = device_keys[i]
@@ -298,6 +306,11 @@ def pairwise_similarity_matrix(
                 method=method,
             )
             scores.append((k1, k2, round(score, 4)))
+
+            # Progress callback
+            if progress_callback and (len(scores) - last_update >= update_interval or len(scores) == total_pairs):
+                progress_callback(len(scores), total_pairs, f"Computing similarity")
+                last_update = len(scores)
 
     # Compute statistics
     score_values = [s[2] for s in scores]
