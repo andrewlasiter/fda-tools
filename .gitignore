@@ -1,28 +1,31 @@
 # Python cache
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
+*.so
 .Python
 
-# Testing
-.pytest_cache/
-.coverage
-.coverage.*
-htmlcov/
-.tox/
-coverage.xml
-
-# Build artifacts
-build/
-dist/
-*.egg-info/
-*.egg
-
 # Virtual environments
-.venv/
 venv/
+env/
 ENV/
+.venv
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
 # IDE
 .vscode/
@@ -30,10 +33,35 @@ ENV/
 *.swp
 *.swo
 *~
-
-# OS files
 .DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.hypothesis/
+coverage/
+coverage.xml
+*.cover
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+pip-log.txt
+
+# OS
 Thumbs.db
+.DS_Store
 *:Zone.Identifier
 
 # Backup files
@@ -46,6 +74,9 @@ node_modules/
 
 # Temp files
 *.tmp
+.data_manifest_*.tmp
 
-# Logs
-*.log
+# Project-specific
+archives/
+*.tar.gz
+*.zip

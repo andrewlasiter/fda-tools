@@ -1,21 +1,18 @@
-# Python
+# Python cache
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
+*.py[cod]
+*$py.class
 
 # Testing
 .pytest_cache/
 .coverage
-.coverage.*
 htmlcov/
-coverage.xml
+coverage/
 
-# Build
-dist/
-build/
-*.egg-info/
+# Virtual environment
+venv/
+.venv/
+ENV/
 
 # IDE
 .vscode/
@@ -29,10 +26,10 @@ build/
 Thumbs.db
 *:Zone.Identifier
 
-# Virtual env
-.venv/
-venv/
-ENV/
+# Build artifacts
+dist/
+build/
+*.egg-info/
 
 # Backup files (FDA-47)
 *.backup
