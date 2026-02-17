@@ -169,8 +169,8 @@ class ExternalDataSource(ABC):
                     f,
                     indent=2,
                 )
-        except OSError:
-            pass
+        except OSError as e:
+            print(f"Warning: Failed to write cache file {cache_file}: {e}", file=sys.stderr)
 
     def _http_get(self, url: str, timeout: int = 15) -> Optional[Dict]:
         """Make an HTTP GET request with error handling.

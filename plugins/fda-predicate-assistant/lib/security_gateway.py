@@ -17,6 +17,7 @@ Version: 1.0.0
 """
 
 import os
+import sys
 import re
 import toml
 import hashlib
@@ -268,8 +269,9 @@ class SecurityGateway:
                 models = response.json().get('models', [])
                 if any(m['name'].startswith(model) for m in models for model in self.policy.ollama_models):
                     available.append(LLMProvider.OLLAMA)
-        except:
-            pass
+        except Exception as e:
+            # Expected: Ollama may not be running
+            print(f"Info: Ollama provider detection failed: {e}", file=sys.stderr)
 
         # Check Anthropic (cloud) - just check if API key exists
         if os.environ.get('ANTHROPIC_API_KEY'):

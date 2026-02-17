@@ -47,6 +47,7 @@ try:
     from sklearn.model_selection import cross_val_score
     _HAS_SKLEARN = True
 except ImportError:
+    # Optional dependency: sklearn not installed, ML features disabled
     pass
 
 
@@ -594,8 +595,8 @@ class ReviewTimePredictionEngine:
                         features["clinical_enrollment"] = int(
                             enrollment_match.group(1).replace(",", "")
                         )
-                    except ValueError:
-                        pass
+                    except ValueError as e:
+                        print(f"Warning: Could not parse clinical enrollment count: {e}", file=sys.stderr)
 
                 # Detect risk factors from clinical text
                 for key, factor in REVIEW_RISK_FACTORS.items():

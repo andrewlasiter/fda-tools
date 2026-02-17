@@ -13,6 +13,7 @@ Version: 1.0.0
 """
 
 import os
+import sys
 import json
 import uuid
 import threading
@@ -407,8 +408,8 @@ class SessionManager:
                     try:
                         session_file.unlink()
                         cleaned += 1
-                    except OSError:
-                        pass
+                    except OSError as e:
+                        print(f"Warning: Failed to remove corrupt session file: {e}", file=sys.stderr)
 
         return cleaned
 
@@ -461,8 +462,8 @@ class SessionManager:
                                 'command_count': session.context.get('command_count', 0),
                                 'source': 'disk'
                             })
-                except (json.JSONDecodeError, KeyError, OSError):
-                    pass
+                except (json.JSONDecodeError, KeyError, OSError) as e:
+                    print(f"Warning: Failed to read session file from disk: {e}", file=sys.stderr)
 
         return sessions
 
@@ -505,8 +506,8 @@ class SessionManager:
         try:
             with open(session_file, 'w') as f:
                 json.dump(session.to_dict(), f, indent=2, default=str)
-        except OSError:
-            pass
+        except OSError as e:
+            print(f"Warning: Failed to persist session {session.session_id}: {e}", file=sys.stderr)
 
     def _restore_from_disk(self, session_id: str) -> Optional[Session]:
         """Read session from disk."""
@@ -526,8 +527,8 @@ class SessionManager:
         try:
             if session_file.exists():
                 session_file.unlink()
-        except OSError:
-            pass
+        except OSError as e:
+            print(f"Warning: Failed to delete session file {session_id}: {e}", file=sys.stderr)
 
     @property
     def cache_size(self) -> int:

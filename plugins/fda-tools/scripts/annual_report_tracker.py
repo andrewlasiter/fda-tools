@@ -323,14 +323,16 @@ class AnnualReportTracker:
         # Try YYYYMMDD format (FDA default)
         try:
             return datetime.strptime(date_str[:8], "%Y%m%d")
-        except (ValueError, TypeError):
-            pass
+        except (ValueError, TypeError) as e:
+            # Expected: try next format
+            print(f"Warning: _parse_date YYYYMMDD format failed for {date_str!r}: {e}", file=sys.stderr)
 
         # Try YYYY-MM-DD format
         try:
             return datetime.strptime(date_str[:10], "%Y-%m-%d")
-        except (ValueError, TypeError):
-            pass
+        except (ValueError, TypeError) as e:
+            # Expected: unrecognized date format
+            print(f"Warning: _parse_date all formats failed for {date_str!r}: {e}", file=sys.stderr)
 
         return None
 
@@ -642,8 +644,8 @@ class AnnualReportTracker:
                             "days_until_due": (due - now).days,
                         })
                     break
-                except (ValueError, TypeError):
-                    pass
+                except (ValueError, TypeError) as e:
+                    print(f"Warning: Could not parse due_date for compliance risk: {e}", file=sys.stderr)
 
         # Risk 4: Multiple supplements suggest active device -- check MAUDE data
         supp_count = len(supplements)

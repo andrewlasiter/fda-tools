@@ -107,8 +107,8 @@ def load_structured_cache():
                 data = json.load(f)
                 k_number = data.get("k_number", cache_file.stem)
                 cache[k_number] = data
-        except (json.JSONDecodeError, OSError):
-            pass
+        except (json.JSONDecodeError, OSError) as e:
+            print(f"Warning: Failed to load cache file {cache_file}: {e}", file=sys.stderr)
 
     return cache
 
@@ -159,8 +159,8 @@ def filter_by_year_range(structured_cache: Dict, year_start: Optional[int],
                 if year_end and year > year_end:
                     continue
                 filtered[k_number] = data
-            except (ValueError, IndexError):
-                pass
+            except (ValueError, IndexError) as e:
+                print(f"Warning: Could not parse year from decision_date: {e}", file=sys.stderr)
 
     return filtered
 

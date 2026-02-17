@@ -369,8 +369,8 @@ class PathwayRecommender:
                 },
             )
             recent_510k = recent_search.get("meta", {}).get("results", {}).get("total", 0)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Warning: Recent 510(k) search failed for predicate analysis: {e}", file=sys.stderr)
 
         return {
             "product_code": product_code,

@@ -464,8 +464,8 @@ async def health_check():
                 llm_info['anthropic']['available'] = True
             if LLMProvider.OPENAI in available:
                 llm_info['openai']['available'] = True
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Warning: LLM provider detection failed: {e}", file=sys.stderr)
     else:
         # No security gateway -- check directly
         if os.environ.get('ANTHROPIC_API_KEY'):
@@ -478,8 +478,8 @@ async def health_check():
     if gateway:
         try:
             config_hash = gateway.get_config_hash()
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Warning: Failed to get security config hash: {e}", file=sys.stderr)
 
     # Active sessions
     active_sessions = session_mgr.cache_size if session_mgr else 0

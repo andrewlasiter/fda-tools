@@ -136,8 +136,8 @@ class FDAApprovalMonitor:
                 self._watchlist = set(data.get("watchlist", []))
                 self._alert_history = data.get("alert_history", [])
                 self._seen_keys = set(data.get("seen_keys", []))
-            except (json.JSONDecodeError, OSError):
-                pass
+            except (json.JSONDecodeError, OSError) as e:
+                print(f"Warning: Failed to load monitor state: {e}", file=sys.stderr)
 
     def _save_state(self) -> None:
         """Save watchlist and alert history to disk."""
@@ -255,15 +255,15 @@ class FDAApprovalMonitor:
             try:
                 recall_alerts = self._check_recalls(code)
                 all_alerts.extend(recall_alerts)
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"Warning: Recall check failed for {code}: {e}", file=sys.stderr)
 
             # Check MAUDE event spikes
             try:
                 maude_alerts = self._check_maude_spikes(code)
                 all_alerts.extend(maude_alerts)
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"Warning: MAUDE spike check failed for {code}: {e}", file=sys.stderr)
 
         # Deduplicate
         new_alerts = self._deduplicate_alerts(all_alerts)
@@ -486,8 +486,8 @@ class FDAApprovalMonitor:
                 if weeks_ago < 12:
                     week_key = f"week_{weeks_ago}"
                     week_counts[week_key] += 1
-            except (ValueError, TypeError):
-                pass
+            except (ValueError, TypeError) as e:
+                print(f"Warning: Could not parse alert timestamp: {e}", file=sys.stderr)
 
         total_weeks = max(len(week_counts), 1)
         total_alerts = sum(week_counts.values())

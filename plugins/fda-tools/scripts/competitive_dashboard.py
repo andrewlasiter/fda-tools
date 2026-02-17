@@ -261,8 +261,8 @@ class CompetitiveDashboardGenerator:
             if dd and len(dd) >= 4:
                 try:
                     years.append(int(dd[:4]))
-                except ValueError:
-                    pass
+                except ValueError as e:
+                    print(f"Warning: Could not parse year from decision_date {dd!r}: {e}", file=sys.stderr)
         year_span = f"{min(years)}-{max(years)}" if years else "N/A"
 
         return {

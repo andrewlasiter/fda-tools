@@ -95,8 +95,8 @@ def load_manifest(project_dir):
             # Restore backup as primary
             try:
                 shutil.copy2(backup_path, manifest_path)
-            except OSError:
-                pass
+            except OSError as e:
+                print(f"Warning: Could not restore backup to primary manifest: {e}", file=sys.stderr)
             return data
         except (json.JSONDecodeError, OSError) as exc:
             logger.warning("Backup manifest also corrupted: %s", exc)
@@ -162,13 +162,13 @@ def save_manifest(project_dir, manifest):
         if fd is not None:
             try:
                 os.close(fd)
-            except OSError:
-                pass
+            except OSError as e:
+                print(f"Warning: Failed to close temp file descriptor: {e}", file=sys.stderr)
         if tmp_path and os.path.exists(tmp_path):
             try:
                 os.unlink(tmp_path)
-            except OSError:
-                pass
+            except OSError as e:
+                print(f"Warning: Failed to remove temp file {tmp_path}: {e}", file=sys.stderr)
         raise
 
 
@@ -617,8 +617,8 @@ def handle_show_manifest(args):
                     time_ago = f"{int(hours)}h ago"
                 else:
                     time_ago = f"{int(hours / 24)}d ago"
-            except (ValueError, TypeError):
-                pass
+            except (ValueError, TypeError) as e:
+                print(f"Warning: Could not parse fetched_at timestamp: {e}", file=sys.stderr)
 
         # Build compact summary string
         compact = _compact_summary(key, summary)

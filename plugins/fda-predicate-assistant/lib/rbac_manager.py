@@ -19,6 +19,7 @@ Version: 1.0.0
 import os
 import json
 import logging
+import sys
 from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Any
@@ -486,8 +487,8 @@ class RBACManager:
                         continue
 
                     events.append(event)
-        except OSError:
-            pass
+        except OSError as e:
+            print(f"Warning: Failed to read RBAC audit events: {e}", file=sys.stderr)
 
         return events
 

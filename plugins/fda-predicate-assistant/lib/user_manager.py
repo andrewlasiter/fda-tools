@@ -20,6 +20,7 @@ Version: 1.0.0
 """
 
 import os
+import sys
 import json
 import uuid
 import hmac
@@ -662,8 +663,8 @@ class UserManager:
             try:
                 with open(self.db_path, 'w') as f:
                     json.dump(data, f, indent=2, default=str)
-            except OSError:
-                pass
+            except OSError as e:
+                print(f"Warning: Failed to save user database: {e}", file=sys.stderr)
 
     @property
     def user_count(self) -> int:

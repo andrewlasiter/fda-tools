@@ -1172,8 +1172,8 @@ def main():
                             pdf_text = cached_data.get("text", "")
                             if pdf_text and len(pdf_text.strip()) > 200:
                                 print(f"  Using cached extraction for {data_k} ({len(pdf_text)} chars)")
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"Warning: Failed to read cached PDF extraction: {e}", file=sys.stderr)
 
             # Download if not cached
             if not pdf_text or len(pdf_text.strip()) < 200:

@@ -494,8 +494,8 @@ class SupplementTracker:
                 try:
                     year = int(dd[:4])
                     by_year[year].append(supp)
-                except ValueError:
-                    pass
+                except ValueError as e:
+                    print(f"Warning: Could not parse year from decision_date {dd!r}: {e}", file=sys.stderr)
 
         # Track phase transitions
         has_indication_expansion = False
@@ -900,8 +900,8 @@ class SupplementTracker:
                                 ),
                             })
                             break  # Only link closest match
-                    except ValueError:
-                        pass
+                    except ValueError as e:
+                        print(f"Warning: Could not parse supplement dates for dependency detection: {e}", file=sys.stderr)
 
         return dependencies[:20]  # Limit to 20 relationships
 
@@ -1039,8 +1039,8 @@ class SupplementTracker:
             try:
                 with open(report_path) as f:
                     return json.load(f)
-            except (json.JSONDecodeError, OSError):
-                pass
+            except (json.JSONDecodeError, OSError) as e:
+                print(f"Warning: Failed to read cached supplement report for {pma_number}: {e}", file=sys.stderr)
         return None
 
 

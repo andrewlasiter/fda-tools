@@ -713,8 +713,8 @@ class PMAComparisonEngine:
                 score += date_score * 15
                 details["year_difference"] = year_diff
                 details["date_proximity"] = round(date_score, 3)
-            except (ValueError, TypeError):
-                pass
+            except (ValueError, TypeError) as e:
+                print(f"Warning: Could not parse decision dates for regulatory history comparison: {e}", file=sys.stderr)
 
         return {
             "score": round(min(score, 100), 1),
@@ -1354,8 +1354,8 @@ class PMAComparisonEngine:
             if dd and len(dd) >= 4:
                 try:
                     approval_years.append(int(dd[:4]))
-                except ValueError:
-                    pass
+                except ValueError as e:
+                    print(f"Warning: Could not parse year from decision_date {dd!r}: {e}", file=sys.stderr)
 
         return {
             "product_code": product_code,

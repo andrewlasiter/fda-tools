@@ -311,8 +311,8 @@ def consolidate_pipeline(project_dir, project_name):
             t1 = datetime.fromisoformat(started)
             t2 = datetime.fromisoformat(completed)
             duration_seconds = int((t2 - t1).total_seconds())
-        except (ValueError, TypeError):
-            pass
+        except (ValueError, TypeError) as e:
+            print(f"Warning: Could not calculate pipeline duration: {e}", file=sys.stderr)
 
     consolidated = {
         "pipeline_version": PLUGIN_VERSION,

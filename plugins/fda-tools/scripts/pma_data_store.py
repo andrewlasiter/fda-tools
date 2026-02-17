@@ -264,8 +264,8 @@ class PMADataStore:
                         data = json.load(f)
                     data["_cache_status"] = "stale"
                     return data
-                except (json.JSONDecodeError, OSError):
-                    pass
+                except (json.JSONDecodeError, OSError) as e:
+                    print(f"Warning: Failed to read stale PMA cache for {pma_key}: {e}", file=sys.stderr)
             return {"error": result.get("error", "API unavailable"), "pma_number": pma_key}
 
         # Extract and structure data
@@ -383,8 +383,8 @@ class PMADataStore:
             try:
                 with open(supp_path) as f:
                     return json.load(f)
-            except (json.JSONDecodeError, OSError):
-                pass
+            except (json.JSONDecodeError, OSError) as e:
+                print(f"Warning: Failed to read supplements cache for {pma_key}: {e}", file=sys.stderr)
 
         # Fetch from API
         result = self.client.get_pma_supplements(pma_key, limit=100)
@@ -394,8 +394,8 @@ class PMADataStore:
                 try:
                     with open(supp_path) as f:
                         return json.load(f)
-                except (json.JSONDecodeError, OSError):
-                    pass
+                except (json.JSONDecodeError, OSError) as e:
+                    print(f"Warning: Failed to read stale supplements cache: {e}", file=sys.stderr)
             return []
 
         # Extract supplements
@@ -419,8 +419,8 @@ class PMADataStore:
         try:
             with open(supp_path, "w") as f:
                 json.dump(supplements, f, indent=2)
-        except OSError:
-            pass
+        except OSError as e:
+            print(f"Warning: Failed to cache supplements for {pma_key}: {e}", file=sys.stderr)
 
         # Update manifest
         self.update_manifest_entry(pma_key, {

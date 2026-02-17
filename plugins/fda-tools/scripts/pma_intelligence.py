@@ -477,8 +477,8 @@ class PMAIntelligenceEngine:
                 result["sites_mentioned"] = True
                 try:
                     result["number_of_sites"] = int(match.group(1))
-                except (IndexError, ValueError):
-                    pass
+                except (IndexError, ValueError) as e:
+                    print(f"Warning: Could not parse number of sites: {e}", file=sys.stderr)
                 break
 
         return result
@@ -654,8 +654,8 @@ class PMAIntelligenceEngine:
                         "matched_text": match.group().strip()[:100],
                         "confidence": 0.85,
                     })
-                except ValueError:
-                    pass
+                except ValueError as e:
+                    print(f"Warning: Could not parse efficacy metric value: {e}", file=sys.stderr)
 
         return {
             "results": results,
@@ -719,8 +719,8 @@ class PMAIntelligenceEngine:
                         "matched_text": match.group().strip()[:80],
                         "confidence": 0.75,
                     })
-                except ValueError:
-                    pass
+                except ValueError as e:
+                    print(f"Warning: Could not parse adverse event value: {e}", file=sys.stderr)
 
         # Total AE count
         count_pattern = r"(?i)(\d+)\s+(?:serious\s+)?adverse\s+events?\s+(?:were\s+)?(?:reported|observed|recorded)"
@@ -729,8 +729,8 @@ class PMAIntelligenceEngine:
         if count_match:
             try:
                 total_aes = int(count_match.group(1))
-            except ValueError:
-                pass
+            except ValueError as e:
+                print(f"Warning: Could not parse total adverse event count: {e}", file=sys.stderr)
 
         return {
             "events": events,
@@ -1280,8 +1280,8 @@ class PMAIntelligenceEngine:
                     factors.append(f"Moderate age ({age} years) (+5)")
                 else:
                     factors.append(f"Older approval ({age} years) (+0)")
-            except ValueError:
-                pass
+            except ValueError as e:
+                print(f"Warning: Could not parse decision_date year for suitability scoring: {e}", file=sys.stderr)
 
         # Clinical data availability (10 points)
         if sections:

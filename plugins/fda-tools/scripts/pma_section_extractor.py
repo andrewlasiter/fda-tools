@@ -402,9 +402,10 @@ class PMAExtractor:
                         text_parts.append(page_text)
             return "\n\n".join(text_parts)
         except ImportError:
+            # pdfplumber not installed, try PyPDF2
             pass
-        except Exception:
-            pass  # Fall through to PyPDF2
+        except Exception as e:
+            print(f"Warning: pdfplumber text extraction failed for {pdf_path}: {e}", file=sys.stderr)
 
         # Try PyPDF2
         try:
@@ -417,9 +418,10 @@ class PMAExtractor:
                     text_parts.append(page_text)
             return "\n\n".join(text_parts)
         except ImportError:
-            pass
-        except Exception:
-            pass
+            # Neither pdfplumber nor PyPDF2 installed
+            print("Warning: No PDF library available (install pdfplumber or PyPDF2)", file=sys.stderr)
+        except Exception as e:
+            print(f"Warning: PyPDF2 text extraction failed for {pdf_path}: {e}", file=sys.stderr)
 
         return None
 
@@ -436,15 +438,20 @@ class PMAExtractor:
             import pdfplumber
             with pdfplumber.open(pdf_path) as pdf:
                 return len(pdf.pages)
-        except (ImportError, Exception):
+        except ImportError:
+            # pdfplumber not installed, try PyPDF2
             pass
+        except Exception as e:
+            print(f"Warning: pdfplumber page count failed for {pdf_path}: {e}", file=sys.stderr)
 
         try:
             from PyPDF2 import PdfReader
             reader = PdfReader(pdf_path)
             return len(reader.pages)
-        except (ImportError, Exception):
-            pass
+        except ImportError:
+            print("Warning: No PDF library available for page count (install pdfplumber or PyPDF2)", file=sys.stderr)
+        except Exception as e:
+            print(f"Warning: PyPDF2 page count failed for {pdf_path}: {e}", file=sys.stderr)
 
         return 0
 

@@ -20,6 +20,7 @@ import json
 import os
 import re
 import time
+import sys
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -400,8 +401,8 @@ class FDAClient:
                 # Check TTL (use 30 days for product code enumeration since it's relatively stable)
                 if time.time() - cached.get("_cached_at", 0) < (30 * 24 * 60 * 60):
                     return cached.get("codes", [])
-            except (json.JSONDecodeError, OSError):
-                pass
+            except (json.JSONDecodeError, OSError) as e:
+                print(f"Warning: Failed to read product code cache: {e}", file=sys.stderr)
 
         # Fetch all product codes via pagination
         all_codes = set()
@@ -448,8 +449,8 @@ class FDAClient:
                     "total": len(codes_list)
                 }, f, indent=2)
             print(f"✅ Found {len(codes_list)} product codes (cached for 30 days)")
-        except OSError:
-            pass
+        except OSError as e:
+            print(f"Warning: Failed to cache product codes: {e}", file=sys.stderr)
 
         return codes_list
 

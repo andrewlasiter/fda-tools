@@ -19,6 +19,7 @@ import json
 import uuid
 import time
 import logging
+import sys
 import threading
 from enum import Enum
 from pathlib import Path
@@ -549,8 +550,8 @@ class MonitoringManager:
                             continue
 
                     results.append(metric)
-        except OSError:
-            pass
+        except OSError as e:
+            print(f"Warning: Failed to read metrics file: {e}", file=sys.stderr)
 
         return results
 
@@ -951,16 +952,16 @@ class MonitoringManager:
         try:
             with open(alert_file, 'w') as f:
                 json.dump(alert.to_dict(), f, indent=2, default=str)
-        except OSError:
-            pass
+        except OSError as e:
+            print(f"Warning: Failed to save alert {alert.alert_id}: {e}", file=sys.stderr)
 
         # Also append to alerts log
         log_file = self.alerts_dir / "alerts.jsonl"
         try:
             with open(log_file, 'a') as f:
                 f.write(json.dumps(alert.to_dict()) + '\n')
-        except OSError:
-            pass
+        except OSError as e:
+            print(f"Warning: Failed to append to alerts log: {e}", file=sys.stderr)
 
     def _load_alerts(self) -> None:
         """Load alerts from disk."""
@@ -994,8 +995,8 @@ class MonitoringManager:
                 for metric in self._metrics_buffer:
                     f.write(json.dumps(metric.to_dict()) + '\n')
             self._metrics_buffer.clear()
-        except OSError:
-            pass
+        except OSError as e:
+            print(f"Warning: Failed to flush metrics to disk: {e}", file=sys.stderr)
 
         return count
 

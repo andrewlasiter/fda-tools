@@ -748,8 +748,8 @@ class UnifiedPredicateAnalyzer:
                 else:
                     score += 5
                     factors.append(f"Approved {diff} years apart (significant gap)")
-            except ValueError:
-                pass
+            except ValueError as e:
+                print(f"Warning: Could not parse decision_date years for regulatory comparison: {e}", file=sys.stderr)
 
         # Regulatory status match
         status1 = d1.get("regulatory_status", "")
@@ -850,8 +850,8 @@ class UnifiedPredicateAnalyzer:
                     factors.append(f"Moderate age ({age} years) (+{rec_score})")
                 else:
                     factors.append(f"Older device ({age} years) (+0)")
-            except ValueError:
-                pass
+            except ValueError as e:
+                print(f"Warning: Could not parse decision_date year for suitability assessment: {e}", file=sys.stderr)
 
         # Clinical evidence availability (10 points)
         if candidate_data.get("has_clinical_data"):

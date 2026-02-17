@@ -9,6 +9,7 @@ Part of Phase 4: Automation Features
 """
 
 import json
+import sys
 import re
 from datetime import datetime
 from pathlib import Path
@@ -298,8 +299,8 @@ class PredicateRanker:
                 age_years = (datetime.now() - clearance_date).days / 365.25
                 if age_years > 15:
                     flags.append(f'OLD ({int(age_years)} years)')
-            except (ValueError, TypeError):
-                pass
+            except (ValueError, TypeError) as e:
+                print(f"Warning: Could not parse decision_date for risk flag extraction: {e}", file=sys.stderr)
 
         # Web validation flags (if present)
         web_val = predicate.get('web_validation', '')

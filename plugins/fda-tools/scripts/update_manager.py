@@ -470,8 +470,8 @@ def clean_system_cache(verbose=True):
                 cache_file.unlink()
                 expired_count += 1
                 bytes_freed += file_size
-            except OSError:
-                pass
+            except OSError as e:
+                print(f"Warning: Failed to remove expired cache file: {e}", file=sys.stderr)
 
     results = {
         "cache_dir": str(cache_dir),

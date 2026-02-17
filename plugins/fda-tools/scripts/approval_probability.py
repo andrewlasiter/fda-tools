@@ -44,6 +44,7 @@ try:
     from sklearn.ensemble import RandomForestClassifier
     _HAS_SKLEARN = True
 except ImportError:
+    # Optional dependency: sklearn not installed, ML features disabled
     pass
 
 
@@ -406,8 +407,8 @@ class ApprovalProbabilityScorer:
                 try:
                     year = int(dd[:4])
                     by_year[year][outcome] += 1
-                except ValueError:
-                    pass
+                except ValueError as e:
+                    print(f"Warning: Could not parse year from decision_date {dd!r}: {e}", file=sys.stderr)
 
         total = sum(outcomes.values())
         approval_rate = outcomes.get(OUTCOME_APPROVED, 0) / max(total, 1)

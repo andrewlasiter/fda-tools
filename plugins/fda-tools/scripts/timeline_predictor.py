@@ -268,8 +268,8 @@ class TimelinePredictor:
         if submission_date:
             try:
                 start_date = datetime.strptime(submission_date, "%Y-%m-%d")
-            except ValueError:
-                pass
+            except ValueError as e:
+                print(f"Warning: Could not parse submission_date {submission_date!r}: {e}", file=sys.stderr)
 
         milestones = self._generate_milestones(
             base_days, start_date,
@@ -356,8 +356,8 @@ class TimelinePredictor:
                 try:
                     year = int(dd[:4])
                     yearly_counts[year] += 1
-                except ValueError:
-                    pass
+                except ValueError as e:
+                    print(f"Warning: Could not parse year from decision_date {dd!r}: {e}", file=sys.stderr)
 
             # openFDA PMA endpoint does not always have date_received.
             # We still track approval dates for frequency analysis.
@@ -599,8 +599,8 @@ class TimelinePredictor:
         if submission_date:
             try:
                 start_date = datetime.strptime(submission_date, "%Y-%m-%d")
-            except ValueError:
-                pass
+            except ValueError as e:
+                print(f"Warning: Could not parse submission_date {submission_date!r}: {e}", file=sys.stderr)
 
         milestones = self._generate_milestones(
             realistic_days, start_date, panel_required

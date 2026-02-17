@@ -774,8 +774,8 @@ def _detect_template_from_data(project_data):
             reg_prefix = int(str(reg_num).split(".")[0])
             if 862 <= reg_prefix <= 864:
                 return "IVD"
-        except (ValueError, IndexError):
-            pass
+        except (ValueError, IndexError) as e:
+            print(f"Warning: Could not parse regulation number {reg_num!r} for template detection: {e}", file=sys.stderr)
 
     return "nIVD"
 

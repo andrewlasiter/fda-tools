@@ -543,3 +543,168 @@ class TestDisclaimerIntegration:
         assert "compliance_disclaimer" in source
         assert "show_disclaimer" in source
         assert "accept_disclaimer" in source
+
+
+# ============================================================================
+# FDA-30: Silent except...pass Audit (GAP-002)
+# ============================================================================
+
+
+class TestSilentExceptPassAudit:
+    """Verify that silent except...pass patterns have been eliminated.
+
+    Per 21 CFR 820.70(i), errors must be logged for troubleshooting
+    and data integrity. Silent error suppression with except...pass
+    hides failures and makes debugging impossible.
+
+    This test scans all production Python files (scripts/ and lib/)
+    for the pattern:
+        except ...:
+            pass
+    which silently swallows errors without any logging or handling.
+
+    Acceptable patterns that are NOT flagged:
+    - except ...pass with a preceding comment explaining intent
+    - except blocks that have actual handling (not just pass)
+    - Test files (different standards apply)
+    """
+
+    # Directories containing production code to audit
+    AUDIT_DIRS = [
+        os.path.join(SCRIPTS_DIR),  # plugins/fda-tools/scripts/
+        os.path.join(SCRIPTS_DIR, "..", "lib"),  # plugins/fda-tools/lib/
+    ]
+
+    # Also check fda-predicate-assistant if it exists
+    PREDICATE_DIRS = [
+        os.path.join(
+            SCRIPTS_DIR, "..", "..", "fda-predicate-assistant", "lib"
+        ),
+        os.path.join(
+            SCRIPTS_DIR, "..", "..", "fda-predicate-assistant", "bridge"
+        ),
+    ]
+
+    def _find_silent_except_pass(self, directories):
+        """Scan directories for except...pass patterns without logging.
+
+        Returns a list of (filepath, line_number, except_text) tuples.
+        """
+        violations = []
+        for search_dir in directories:
+            search_dir = os.path.normpath(search_dir)
+            if not os.path.isdir(search_dir):
+                continue
+            for root, dirs, files in os.walk(search_dir):
+                # Skip non-production directories
+                dirs[:] = [
+                    d for d in dirs
+                    if d not in ("__pycache__", "venv", "tests", "node_modules")
+                ]
+                for fname in sorted(files):
+                    if not fname.endswith(".py"):
+                        continue
+                    fpath = os.path.join(root, fname)
+                    with open(fpath) as f:
+                        lines = f.readlines()
+                    for i, line in enumerate(lines):
+                        stripped = line.strip()
+                        if not (
+                            stripped.startswith("except")
+                            and stripped.endswith(":")
+                        ):
+                            continue
+                        # Check if next non-blank line is just 'pass'
+                        for j in range(i + 1, min(i + 3, len(lines))):
+                            next_stripped = lines[j].strip()
+                            if next_stripped == "pass":
+                                # Check if there is an explanatory comment
+                                # on the same line or the line before pass
+                                has_comment = False
+                                if "#" in lines[j]:
+                                    has_comment = True
+                                if j > 0 and lines[j - 1].strip().startswith("#"):
+                                    has_comment = True
+                                if not has_comment:
+                                    violations.append(
+                                        (fpath, i + 1, stripped)
+                                    )
+                                break
+                            elif next_stripped == "":
+                                continue
+                            else:
+                                break
+        return violations
+
+    def test_no_silent_except_pass_in_scripts(self):
+        """scripts/ directory must have zero silent except...pass patterns.
+
+        FDA-30 (GAP-002) fixed 87 instances of silent error suppression.
+        This test prevents regressions by scanning for the pattern.
+        """
+        violations = self._find_silent_except_pass(self.AUDIT_DIRS)
+        if violations:
+            details = "\n".join(
+                f"  {fp}:{ln}: {txt}" for fp, ln, txt in violations
+            )
+            pytest.fail(
+                f"Found {len(violations)} silent except...pass pattern(s) "
+                f"in production code:\n{details}\n\n"
+                f"Fix: Add error logging with "
+                f"'print(f\"Warning: ...\", file=sys.stderr)' "
+                f"or add an explanatory comment if silence is intentional."
+            )
+
+    def test_no_silent_except_pass_in_predicate_assistant(self):
+        """fda-predicate-assistant must have zero silent except...pass patterns.
+
+        This covers bridge/ and lib/ directories of the predicate assistant.
+        """
+        violations = self._find_silent_except_pass(self.PREDICATE_DIRS)
+        if violations:
+            details = "\n".join(
+                f"  {fp}:{ln}: {txt}" for fp, ln, txt in violations
+            )
+            pytest.fail(
+                f"Found {len(violations)} silent except...pass pattern(s) "
+                f"in fda-predicate-assistant:\n{details}\n\n"
+                f"Fix: Add error logging with "
+                f"'print(f\"Warning: ...\", file=sys.stderr)' "
+                f"or add an explanatory comment if silence is intentional."
+            )
+
+    def test_no_bare_except_colon(self):
+        """No bare 'except:' without exception type in production code.
+
+        This extends the FDA-31 check to all production code, not just
+        standards generators. Bare except catches SystemExit and
+        KeyboardInterrupt, which is almost never the right behavior.
+        """
+        bare_excepts = []
+        for search_dir in self.AUDIT_DIRS:
+            search_dir = os.path.normpath(search_dir)
+            if not os.path.isdir(search_dir):
+                continue
+            for root, dirs, files in os.walk(search_dir):
+                dirs[:] = [
+                    d for d in dirs
+                    if d not in ("__pycache__", "venv", "tests")
+                ]
+                for fname in sorted(files):
+                    if not fname.endswith(".py"):
+                        continue
+                    fpath = os.path.join(root, fname)
+                    with open(fpath) as f:
+                        for line_num, line in enumerate(f, 1):
+                            stripped = line.strip()
+                            if stripped == "except:" or stripped.startswith(
+                                "except: "
+                            ):
+                                bare_excepts.append(
+                                    f"{fpath}:{line_num}: {stripped}"
+                                )
+
+        assert len(bare_excepts) == 0, (
+            f"Bare except: clauses found (use 'except Exception as e:' "
+            f"instead):\n" + "\n".join(f"  {x}" for x in bare_excepts)
+        )

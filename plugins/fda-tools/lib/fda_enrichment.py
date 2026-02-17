@@ -22,6 +22,7 @@ from urllib.parse import quote
 from urllib.error import HTTPError, URLError
 import json
 import time
+import sys
 
 
 # Product Code to CFR Part Mapping
@@ -242,8 +243,8 @@ class FDAEnrichment:
                     'maude_recent_6m': recent_6m,
                     'maude_scope': 'PRODUCT_CODE'  # Critical disclaimer
                 }
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Warning: MAUDE events query failed: {e}", file=sys.stderr)
 
         return {
             'maude_productcode_5y': 'N/A',
@@ -285,8 +286,8 @@ class FDAEnrichment:
                         'recall_class': latest.get('classification', 'Unknown'),
                         'recall_status': latest.get('status', 'Unknown')
                     }
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Warning: Recall history query failed: {e}", file=sys.stderr)
 
         return {
             'recalls_total': 0,
@@ -323,8 +324,8 @@ class FDAEnrichment:
                     'expedited_review': device.get('expedited_review_flag', 'N'),
                     'statement_or_summary': device.get('statement_or_summary', 'Unknown')
                 }
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Warning: 510(k) validation query failed: {e}", file=sys.stderr)
 
         return {
             'api_validated': 'No',
@@ -509,8 +510,8 @@ class FDAEnrichment:
                 rationale.append(f"Device cleared in {clearance_year} may not reflect current standards")
             elif age_years > 10:
                 risk_factors.append(f"Clearance age: {age_years} years")
-        except:
-            pass
+        except Exception as e:
+            print(f"Warning: Could not calculate clearance age for predicate acceptability: {e}", file=sys.stderr)
 
         # Generate recommendation
         if acceptability_status == "ACCEPTABLE":

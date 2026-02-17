@@ -2,6 +2,7 @@
 """Central plugin version source of truth."""
 
 import json
+import sys
 from pathlib import Path
 
 
@@ -14,8 +15,8 @@ def get_plugin_version(default="0.0.0"):
         version = data.get("version")
         if isinstance(version, str) and version.strip():
             return version.strip()
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Warning: Could not read plugin version from plugin.json: {e}", file=sys.stderr)
     return default
 
 

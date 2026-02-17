@@ -22,6 +22,7 @@ Version: 1.0.0
 """
 
 import os
+import sys
 import json
 import uuid
 import hmac
@@ -547,8 +548,8 @@ class SignatureManager:
         try:
             with open(sig_file, 'w') as f:
                 json.dump(signature.to_dict(), f, indent=2, default=str)
-        except OSError:
-            pass
+        except OSError as e:
+            print(f"Warning: Failed to save signature {signature.signature_id}: {e}", file=sys.stderr)
 
     def _load_signatures(self) -> None:
         """Load signatures from disk."""
@@ -602,8 +603,8 @@ class SignatureManager:
         try:
             with open(audit_file, 'a') as f:
                 f.write(json.dumps(event) + '\n')
-        except OSError:
-            pass
+        except OSError as e:
+            print(f"Warning: Failed to write signature audit event: {e}", file=sys.stderr)
 
     def get_audit_trail(
         self,
@@ -644,8 +645,8 @@ class SignatureManager:
                         continue
 
                     events.append(event)
-        except OSError:
-            pass
+        except OSError as e:
+            print(f"Warning: Failed to read signature audit trail: {e}", file=sys.stderr)
 
         return events
 

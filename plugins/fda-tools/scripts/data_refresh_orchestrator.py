@@ -812,8 +812,8 @@ class DataRefreshOrchestrator:
                         "generated_at": log_data.get("generated_at", ""),
                         "entries_count": len(log_data.get("entries", [])),
                     })
-                except (json.JSONDecodeError, OSError):
-                    pass
+                except (json.JSONDecodeError, OSError) as e:
+                    print(f"Warning: Failed to read refresh log: {e}", file=sys.stderr)
 
         return {
             "total_pmas_tracked": len(entries),

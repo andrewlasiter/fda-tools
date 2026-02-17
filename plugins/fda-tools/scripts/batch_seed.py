@@ -61,8 +61,8 @@ def get_plugin_commit():
         )
         if result.returncode == 0:
             return result.stdout.strip()
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Warning: get_plugin_commit failed: {e}", file=sys.stderr)
     return "unknown"
 
 
@@ -158,8 +158,8 @@ def seed_one_project(client, rng, product_code, archetype_id, round_dir,
                         pdf_text = cached_data.get("text", "")
                         if pdf_text and len(pdf_text.strip()) > 200:
                             print(f"  Using cached extraction ({len(pdf_text)} chars)")
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"Warning: Failed to read cached extraction: {e}", file=sys.stderr)
 
         if not pdf_text or len(pdf_text.strip()) < 200:
             print(f"  Downloading PDF for {data_k}...")

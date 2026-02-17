@@ -39,6 +39,7 @@ Version: 1.0.0
 """
 
 import os
+import sys
 import json
 import uuid
 import shutil
@@ -675,8 +676,8 @@ class TenantManager:
         try:
             with open(metadata_file, 'w') as f:
                 json.dump(org.to_dict(), f, indent=2, default=str)
-        except OSError:
-            pass
+        except OSError as e:
+            print(f"Warning: Failed to save organization metadata: {e}", file=sys.stderr)
 
     def _save_shared_projects(self) -> None:
         """Save shared projects registry to disk."""
@@ -690,8 +691,8 @@ class TenantManager:
             }
             with open(registry_file, 'w') as f:
                 json.dump(data, f, indent=2, default=str)
-        except OSError:
-            pass
+        except OSError as e:
+            print(f"Warning: Failed to save shared projects registry: {e}", file=sys.stderr)
 
     def _load_shared_projects(self) -> None:
         """Load shared projects registry from disk."""
@@ -709,8 +710,8 @@ class TenantManager:
                     sp.organization_id, sp.owner_user_id, sp.project_id
                 )
                 self._shared_projects[key] = sp
-        except (json.JSONDecodeError, OSError):
-            pass
+        except (json.JSONDecodeError, OSError) as e:
+            print(f"Warning: Failed to load shared projects registry: {e}", file=sys.stderr)
 
     @property
     def organization_count(self) -> int:

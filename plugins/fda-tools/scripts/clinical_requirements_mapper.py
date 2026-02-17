@@ -1101,8 +1101,8 @@ class ClinicalRequirementsMapper:
         if power_match:
             try:
                 requirements["power_calculation"] = int(power_match.group(1))
-            except ValueError:
-                pass
+            except ValueError as e:
+                print(f"Warning: Failed to parse power calculation: {e}", file=sys.stderr)
 
         # Alpha level
         alpha_match = re.search(
@@ -1111,8 +1111,8 @@ class ClinicalRequirementsMapper:
         if alpha_match:
             try:
                 requirements["alpha_level"] = float(alpha_match.group(1))
-            except ValueError:
-                pass
+            except ValueError as e:
+                print(f"Warning: Failed to parse alpha level: {e}", file=sys.stderr)
 
         # Multiple comparison adjustment
         if re.search(

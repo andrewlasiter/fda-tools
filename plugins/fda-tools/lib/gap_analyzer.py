@@ -9,6 +9,7 @@ Part of Phase 4: Automation Features
 """
 
 import json
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Any
@@ -231,8 +232,8 @@ class GapAnalyzer:
                         issues.append(f'{int(age_years)} years old (>{self.CLEARANCE_AGE_THRESHOLD_MEDIUM} years)')
                         if max_priority == 'LOW':
                             max_priority = 'MEDIUM'
-                except (ValueError, TypeError):
-                    pass
+                except (ValueError, TypeError) as e:
+                    print(f"Warning: Could not parse clearance date for weak predicate detection: {e}", file=sys.stderr)
 
             # Check SE differences (from se_comparison.md)
             if self.se_comparison and k_number in self.se_comparison:

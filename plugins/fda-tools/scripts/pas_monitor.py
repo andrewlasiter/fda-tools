@@ -555,8 +555,8 @@ class PASMonitor:
                         return "protocol_review"  # Protocol likely under review
                     else:
                         return "required"
-                except ValueError:
-                    pass
+                except ValueError as e:
+                    print(f"Warning: Could not parse approval year for study status inference: {e}", file=sys.stderr)
             return "required"
 
         # Look at milestones in supplements
@@ -822,12 +822,14 @@ class PASMonitor:
             return None
         try:
             return datetime.strptime(date_str[:8], "%Y%m%d")
-        except (ValueError, TypeError):
-            pass
+        except (ValueError, TypeError) as e:
+            # Expected: try next format
+            print(f"Warning: _parse_date YYYYMMDD format failed for {date_str!r}: {e}", file=sys.stderr)
         try:
             return datetime.strptime(date_str[:10], "%Y-%m-%d")
-        except (ValueError, TypeError):
-            pass
+        except (ValueError, TypeError) as e:
+            # Expected: unrecognized date format
+            print(f"Warning: _parse_date all formats failed for {date_str!r}: {e}", file=sys.stderr)
         return None
 
     def _save_report(self, pma_number: str, report: Dict) -> None:

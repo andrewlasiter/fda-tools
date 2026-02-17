@@ -160,8 +160,8 @@ class ChangeDetectionEngine:
                 with open(history_path) as f:
                     data = json.load(f)
                 self._change_history = data.get("changes", [])
-            except (json.JSONDecodeError, OSError):
-                pass
+            except (json.JSONDecodeError, OSError) as e:
+                print(f"Warning: Failed to load change history: {e}", file=sys.stderr)
 
     def _save_history(self) -> None:
         """Save change history to disk."""
@@ -579,8 +579,8 @@ class ChangeDetectionEngine:
                             f"({prev_maude} -> {curr_total})"
                         ),
                     })
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"Warning: MAUDE change detection failed: {e}", file=sys.stderr)
 
         return changes
 

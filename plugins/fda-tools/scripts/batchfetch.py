@@ -1149,6 +1149,7 @@ def main():
     try:
         pd.set_option('future.no_silent_downcasting', True)
     except Exception:
+        # Expected: older pandas may not support this option
         pass
 
 
