@@ -45,6 +45,11 @@ from section_analytics import (
     analyze_temporal_trends,
     cross_product_compare,
 )
+from trend_visualization import (  # type: ignore
+    generate_ascii_chart,
+    generate_svg_chart,
+    format_trend_table,
+)
 
 # Import similarity cache stats for reporting
 try:
@@ -709,6 +714,8 @@ def append_similarity_section(output_path: str, similarity_results: Dict):
 def append_trends_section(output_path: str, trends_results: Dict):
     """Append temporal trends section to the markdown report.
 
+    Enhanced with ASCII trend charts and detailed change analysis.
+
     Args:
         output_path: Path to existing markdown report.
         trends_results: Output from analyze_temporal_trends().
@@ -735,7 +742,7 @@ def append_trends_section(output_path: str, trends_results: Dict):
             r_sq = coverage.get("r_squared", 0)
             f.write(f"**Coverage trend:** {direction}")
             if direction not in ("insufficient_data",):
-                f.write(f" (R2={r_sq:.3f}, slope={coverage.get('slope', 0):.2f})")
+                f.write(f" (R²={r_sq:.3f}, slope={coverage.get('slope', 0):.2f})")
             f.write("\n\n")
 
             # Length trend
@@ -743,22 +750,23 @@ def append_trends_section(output_path: str, trends_results: Dict):
             l_direction = length.get("direction", "unknown")
             f.write(f"**Section length trend:** {l_direction}")
             if l_direction not in ("insufficient_data",):
-                f.write(f" (R2={length.get('r_squared', 0):.3f})")
+                f.write(f" (R²={length.get('r_squared', 0):.3f})")
             f.write("\n\n")
 
-            # Year-by-year table
+            # Generate ASCII trend chart
+            try:
+                ascii_chart = generate_ascii_chart(trends_results, section_type)
+                f.write(ascii_chart)
+                f.write("\n")
+            except (ValueError, KeyError) as e:
+                f.write(f"*Unable to generate chart: {e}*\n\n")
+
+            # Year-by-year table with change indicators
             by_year = section_trends.get("by_year", {})
             if by_year:
-                f.write("| Year | Devices | Coverage % | Avg Words | Standards |\n")
-                f.write("|------|---------|------------|-----------|----------|\n")
-                for year in sorted(by_year.keys()):
-                    yd = by_year[year]
-                    f.write(
-                        f"| {year} | {yd.get('device_count', 0)} "
-                        f"| {yd.get('coverage_pct', 0):.1f}% "
-                        f"| {yd.get('avg_word_count', 0):.0f} "
-                        f"| {yd.get('standards_count', 0)} |\n"
-                    )
+                f.write("#### Detailed Year-by-Year Data\n\n")
+                trend_table = format_trend_table(trends_results, section_type)
+                f.write(trend_table)
                 f.write("\n")
 
 
@@ -883,6 +891,198 @@ def generate_csv_export(_product_code: str, section_types: List[str],
             writer.writerow(row)
 
 
+def generate_html_report(
+    product_code: str,
+    section_types: List[str],
+    coverage: Dict,
+    standards_analysis: Dict,
+    trends_results: Optional[Dict],
+    output_path: str
+):
+    """Generate HTML report with SVG charts.
+
+    Args:
+        product_code: Product code analyzed.
+        section_types: Section types analyzed.
+        coverage: Coverage matrix data.
+        standards_analysis: Standards frequency analysis.
+        trends_results: Temporal trends analysis (optional).
+        output_path: Path to write HTML file.
+    """
+    with open(output_path, 'w') as f:
+        # HTML header
+        f.write("""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FDA 510(k) Section Comparison Report - {product_code}</title>
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            color: #333;
+        }}
+        h1 {{
+            color: #0066cc;
+            border-bottom: 3px solid #0066cc;
+            padding-bottom: 10px;
+        }}
+        h2 {{
+            color: #0066cc;
+            margin-top: 30px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+        }}
+        h3 {{
+            color: #444;
+            margin-top: 20px;
+        }}
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }}
+        th, td {{
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }}
+        th {{
+            background: #f5f5f5;
+            font-weight: 600;
+            color: #555;
+        }}
+        tr:hover {{
+            background: #f9f9f9;
+        }}
+        .chart-container {{
+            margin: 20px 0;
+            padding: 15px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }}
+        .metadata {{
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }}
+        .metadata p {{
+            margin: 5px 0;
+        }}
+        .footer {{
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #ddd;
+            color: #666;
+            font-size: 0.9em;
+        }}
+    </style>
+</head>
+<body>
+    <h1>FDA 510(k) Section Comparison Report</h1>
+    <div class="metadata">
+        <p><strong>Product Code:</strong> {product_code}</p>
+        <p><strong>Analysis Date:</strong> {timestamp}</p>
+        <p><strong>Devices Analyzed:</strong> {device_count}</p>
+        <p><strong>Sections Analyzed:</strong> {sections}</p>
+    </div>
+""".format(
+            product_code=product_code,
+            timestamp=datetime.now().strftime('%Y-%m-%d %H:%M'),
+            device_count=coverage['total_devices'],
+            sections=', '.join(section_types)
+        ))
+
+        # Coverage matrix
+        f.write("<h2>Section Coverage Matrix</h2>\n")
+        f.write("<table>\n")
+        f.write("<thead><tr><th>Section Type</th><th>Devices</th><th>Coverage %</th></tr></thead>\n")
+        f.write("<tbody>\n")
+        for section_type in sorted(section_types):
+            cov = coverage['section_coverage'].get(section_type, {})
+            count = cov.get('count', 0)
+            pct = cov.get('percentage', 0)
+            f.write(
+                f"<tr><td>{section_type}</td>"
+                f"<td>{count}/{coverage['total_devices']}</td>"
+                f"<td>{pct:.1f}%</td></tr>\n"
+            )
+        f.write("</tbody></table>\n")
+
+        # Standards analysis
+        f.write("<h2>FDA Standards Frequency Analysis</h2>\n")
+        top_standards = standards_analysis['overall_standards'].most_common(20)
+        if top_standards:
+            f.write("<table>\n")
+            f.write("<thead><tr><th>Standard</th><th>Citations</th><th>Percentage</th></tr></thead>\n")
+            f.write("<tbody>\n")
+            for standard, count in top_standards:
+                pct = (count / coverage['total_devices'] * 100) if coverage['total_devices'] > 0 else 0
+                f.write(f"<tr><td>{standard}</td><td>{count}</td><td>{pct:.1f}%</td></tr>\n")
+            f.write("</tbody></table>\n")
+        else:
+            f.write("<p><em>No standards citations detected</em></p>\n")
+
+        # Temporal trends with SVG charts
+        if trends_results:
+            f.write("<h2>Temporal Trend Analysis</h2>\n")
+            year_range = trends_results.get("year_range", {})
+            f.write(f"<p><strong>Year range:</strong> {year_range.get('start', '?')} - {year_range.get('end', '?')}</p>\n")
+
+            trends = trends_results.get("trends", {})
+            for section_type in section_types:
+                if section_type in trends:
+                    f.write(f"<h3>{section_type.replace('_', ' ').title()}</h3>\n")
+
+                    section_trends = trends[section_type]
+                    coverage_trend = section_trends.get("coverage_trend", {})
+                    length_trend = section_trends.get("length_trend", {})
+
+                    f.write(f"<p><strong>Coverage trend:</strong> {coverage_trend.get('direction', 'unknown')}")
+                    if coverage_trend.get("direction") not in ("insufficient_data",):
+                        f.write(f" (R²={coverage_trend.get('r_squared', 0):.3f}, slope={coverage_trend.get('slope', 0):.2f})")
+                    f.write("</p>\n")
+
+                    f.write(f"<p><strong>Section length trend:</strong> {length_trend.get('direction', 'unknown')}")
+                    if length_trend.get("direction") not in ("insufficient_data",):
+                        f.write(f" (R²={length_trend.get('r_squared', 0):.3f})")
+                    f.write("</p>\n")
+
+                    # Generate SVG chart
+                    try:
+                        f.write('<div class="chart-container">\n')
+                        svg_chart = generate_svg_chart(trends_results, section_type)
+                        f.write(svg_chart)
+                        f.write('\n</div>\n')
+                    except (ValueError, KeyError) as e:
+                        f.write(f"<p><em>Unable to generate chart: {e}</em></p>\n")
+
+        # Footer
+        try:
+            from version import PLUGIN_VERSION
+        except ImportError:
+            PLUGIN_VERSION = "5.27.0"
+
+        f.write(f"""
+    <div class="footer">
+        <p><strong>Generated by:</strong> FDA Tools Plugin v{PLUGIN_VERSION}</p>
+        <p><strong>Report Type:</strong> Section Comparison Analysis (HTML)</p>
+        <p><strong>Note:</strong> This analysis is for regulatory intelligence only. Always verify standards applicability with current FDA guidance.</p>
+    </div>
+</body>
+</html>
+""")
+
+
+
 def main():
     """CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -902,6 +1102,8 @@ def main():
                         help="Output file path (defaults to product_code_comparison_TIMESTAMP.md)")
     parser.add_argument("--csv", action="store_true",
                         help="Also generate CSV export")
+    parser.add_argument("--html", action="store_true",
+                        help="Also generate HTML report with SVG charts")
     parser.add_argument("--similarity", action="store_true",
                         help="Compute pairwise text similarity for each section type")
     parser.add_argument("--similarity-method", dest="similarity_method",
@@ -1173,6 +1375,21 @@ def main():
             print(f"Writing CSV export to {csv_path}...")
         generate_csv_export(primary_product_code, section_types, section_data, str(csv_path))
 
+    # Generate HTML if requested
+    html_path = None
+    if args.html:
+        html_path = output_path.with_suffix('.html')
+        if verbose:
+            print(f"Writing HTML report with SVG charts to {html_path}...")
+        generate_html_report(
+            primary_product_code,
+            section_types,
+            coverage,
+            standards_analysis,
+            trends_results if args.trends else None,
+            str(html_path)
+        )
+
     # Print summary
     if verbose:
         print("\n" + "=" * 60)
@@ -1202,6 +1419,8 @@ def main():
         print(f"\nReport: {output_path}")
         if csv_path:
             print(f"CSV: {csv_path}")
+        if html_path:
+            print(f"HTML: {html_path}")
     else:
         # JSON output for scripting
         result = {
@@ -1213,6 +1432,8 @@ def main():
         }
         if csv_path:
             result['csv_path'] = str(csv_path)
+        if html_path:
+            result['html_path'] = str(html_path)
         if args.similarity:
             result['similarity'] = {
                 st: {
