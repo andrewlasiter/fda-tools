@@ -23,11 +23,19 @@ import requests
 import json
 import time
 import argparse
+import logging
 from datetime import datetime, timedelta
 from tqdm import tqdm
 from multiprocessing import Pool
 import fitz  # PyMuPDF
 import pdfplumber
+
+# Import helpers for safe optional imports (FDA-17 / GAP-015)
+lib_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib')
+sys.path.insert(0, lib_path)
+from import_helpers import  # type: ignore safe_import_from
+
+logger = logging.getLogger(__name__)
 
 # Multiprocessing shared state (initialized per worker)
 CSV_DATA = {}
@@ -652,17 +660,25 @@ def main():
             sys.exit(1)
 
         # Fall back to tkinter GUI
+        tk_imports = safe_import_from('tkinter', ['Tk', 'filedialog', 'messagebox'])
+
+        if tk_imports['Tk'] is None:
+            print("Error: GUI not available (tkinter not installed). Use --directory to specify PDF path.")
+            sys.exit(1)
+
         try:
-            import tkinter as tk
-            from tkinter import filedialog, messagebox
-            root = tk.Tk()
+            Tk = tk_imports['Tk']
+            filedialog = tk_imports['filedialog']
+
+            root = Tk()
             root.withdraw()
             directory = filedialog.askdirectory()
             if not directory:
                 print("No directory selected. Exiting.")
                 sys.exit(1)
-        except (ImportError, Exception) as e:
-            print(f"Error: GUI not available ({e}). Use --directory to specify PDF path.")
+        except Exception as e:
+            logger.error(f"Error using tkinter GUI: {e}", exc_info=True)
+            print(f"Error: GUI failed ({type(e).__name__}). Use --directory to specify PDF path.")
             sys.exit(1)
 
     def generate_pdf_files(directory):

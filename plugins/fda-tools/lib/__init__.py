@@ -145,6 +145,34 @@ except ImportError:
         get_markdown_header_disclaimer = None
         get_json_disclaimers_section = None
 
+# Import Helpers (FDA-17 / GAP-015)
+try:
+    from lib.import_helpers import (
+        ImportResult,
+        safe_import,
+        try_optional_import,
+        safe_import_from,
+        conditional_import,
+        try_import_with_alternatives,
+    )
+except ImportError:
+    try:
+        from import_helpers import (
+            ImportResult,
+            safe_import,
+            try_optional_import,
+            safe_import_from,
+            conditional_import,
+            try_import_with_alternatives,
+        )
+    except ImportError:
+        ImportResult = None
+        safe_import = None
+        try_optional_import = None
+        safe_import_from = None
+        conditional_import = None
+        try_import_with_alternatives = None
+
 __all__ = [
     # Gap Analysis
     'GapAnalyzer',
@@ -176,4 +204,11 @@ __all__ = [
     'get_html_footer_disclaimer',
     'get_markdown_header_disclaimer',
     'get_json_disclaimers_section',
+    # Import Helpers
+    'ImportResult',
+    'safe_import',
+    'try_optional_import',
+    'safe_import_from',
+    'conditional_import',
+    'try_import_with_alternatives',
 ]

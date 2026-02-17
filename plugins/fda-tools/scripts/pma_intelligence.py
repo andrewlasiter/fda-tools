@@ -29,6 +29,7 @@ Usage:
 
 import argparse
 import json
+import logging
 import os
 import re
 import sys
@@ -40,6 +41,13 @@ from typing import Any, Dict, List, Optional
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from pma_data_store import PMADataStore
 from pma_section_extractor import PMAExtractor
+
+# Import helpers for safe optional imports (FDA-17 / GAP-015)
+lib_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib')
+sys.path.insert(0, lib_path)
+from import_helpers import  # type: ignore safe_import
+
+logger = logging.getLogger(__name__)
 
 
 # ------------------------------------------------------------------
@@ -1362,59 +1370,77 @@ class PMAIntelligenceEngine:
         }
 
         # Try supplement lifecycle analysis
-        try:
-            from supplement_tracker import SupplementTracker
-            tracker = SupplementTracker(store=self.store)
-            supp_report = tracker.generate_supplement_report(pma_key, refresh=refresh)
+        result = safe_import('supplement_tracker', 'SupplementTracker', log_level=logging.DEBUG)
+        if result.success:
+            try:
+                tracker = result.module(store=self.store)
+                supp_report = tracker.generate_supplement_report(pma_key, refresh=refresh)
 
-            if supp_report and not supp_report.get("error"):
-                summary["has_post_approval_data"] = True
+                if supp_report and not supp_report.get("error"):
+                    summary["has_post_approval_data"] = True
+                    summary["supplement_lifecycle"] = {
+                        "total_supplements": supp_report.get("total_supplements", 0),
+                        "regulatory_type_distribution": supp_report.get("regulatory_type_distribution", {}),
+                        "change_impact": supp_report.get("change_impact", {}),
+                        "risk_flags": supp_report.get("risk_flags", []),
+                        "frequency": supp_report.get("frequency_analysis", {}),
+                    }
+            except Exception as e:
+                logger.error(f"Error running supplement tracker: {e}", exc_info=True)
                 summary["supplement_lifecycle"] = {
-                    "total_supplements": supp_report.get("total_supplements", 0),
-                    "regulatory_type_distribution": supp_report.get("regulatory_type_distribution", {}),
-                    "change_impact": supp_report.get("change_impact", {}),
-                    "risk_flags": supp_report.get("risk_flags", []),
-                    "frequency": supp_report.get("frequency_analysis", {}),
+                    "note": f"Supplement tracker error: {type(e).__name__}"
                 }
-        except (ImportError, Exception):
+        else:
             summary["supplement_lifecycle"] = {
                 "note": "Supplement tracker module not available."
             }
 
         # Try annual report compliance
-        try:
-            from annual_report_tracker import AnnualReportTracker
-            ar_tracker = AnnualReportTracker(store=self.store)
-            ar_report = ar_tracker.generate_compliance_calendar(pma_key, refresh=refresh)
+        result = safe_import('annual_report_tracker', 'AnnualReportTracker', log_level=logging.DEBUG)
+        if result.success:
+            try:
+                ar_tracker = result.module(store=self.store)
+                ar_report = ar_tracker.generate_compliance_calendar(pma_key, refresh=refresh)
 
-            if ar_report and not ar_report.get("error"):
-                summary["has_post_approval_data"] = True
+                if ar_report and not ar_report.get("error"):
+                    summary["has_post_approval_data"] = True
+                    summary["annual_report_compliance"] = {
+                        "next_due_date": ar_report.get("next_due_date", {}),
+                        "total_expected_reports": ar_report.get("total_expected_reports", 0),
+                        "compliance_risks": ar_report.get("compliance_risks", []),
+                    }
+            except Exception as e:
+                logger.error(f"Error running annual report tracker: {e}", exc_info=True)
                 summary["annual_report_compliance"] = {
-                    "next_due_date": ar_report.get("next_due_date", {}),
-                    "total_expected_reports": ar_report.get("total_expected_reports", 0),
-                    "compliance_risks": ar_report.get("compliance_risks", []),
+                    "note": f"Annual report tracker error: {type(e).__name__}"
                 }
-        except (ImportError, Exception):
+        else:
             summary["annual_report_compliance"] = {
                 "note": "Annual report tracker module not available."
             }
 
         # Try PAS monitoring
-        try:
-            from pas_monitor import PASMonitor
-            monitor = PASMonitor(store=self.store)
-            pas_report = monitor.generate_pas_report(pma_key, refresh=refresh)
+        result = safe_import('pas_monitor', 'PASMonitor', log_level=logging.DEBUG)
+        if result.success:
+            try:
+                monitor = result.module(store=self.store)
+                pas_report = monitor.generate_pas_report(pma_key, refresh=refresh)
 
-            if pas_report and not pas_report.get("error"):
-                summary["has_post_approval_data"] = True
+                if pas_report and not pas_report.get("error"):
+                    summary["has_post_approval_data"] = True
+                    summary["pas_monitoring"] = {
+                        "pas_required": pas_report.get("pas_required", False),
+                        "pas_requirements": pas_report.get("pas_requirements", []),
+                        "pas_status": pas_report.get("pas_status", {}),
+                        "compliance": pas_report.get("compliance", {}),
+                        "alerts": pas_report.get("alerts", []),
+                    }
+            except Exception as e:
+                logger.error(f"Error running PAS monitor: {e}", exc_info=True)
                 summary["pas_monitoring"] = {
-                    "pas_required": pas_report.get("pas_required", False),
-                    "pas_requirements": pas_report.get("pas_requirements", []),
-                    "pas_status": pas_report.get("pas_status", {}),
-                    "compliance": pas_report.get("compliance", {}),
-                    "alerts": pas_report.get("alerts", []),
+                    "note": f"PAS monitor error: {type(e).__name__}"
                 }
-        except (ImportError, Exception):
+        else:
             summary["pas_monitoring"] = {
                 "note": "PAS monitor module not available."
             }
@@ -1457,60 +1483,78 @@ class PMAIntelligenceEngine:
         }
 
         # Try review time prediction
-        try:
-            from review_time_predictor import ReviewTimePredictionEngine
-            predictor = ReviewTimePredictionEngine(store=self.store)
-            prediction = predictor.predict_review_time(pma_key, refresh=refresh)
+        result = safe_import('review_time_predictor', 'ReviewTimePredictionEngine', log_level=logging.DEBUG)
+        if result.success:
+            try:
+                predictor = result.module(store=self.store)
+                prediction = predictor.predict_review_time(pma_key, refresh=refresh)
 
-            if prediction and not prediction.get("error"):
-                summary["has_analytics_data"] = True
-                pred = prediction.get("prediction", {})
+                if prediction and not prediction.get("error"):
+                    summary["has_analytics_data"] = True
+                    pred = prediction.get("prediction", {})
+                    summary["review_time_prediction"] = {
+                        "expected_days": pred.get("expected_days"),
+                        "expected_months": pred.get("expected_months"),
+                        "model_confidence": pred.get("model_confidence"),
+                        "risk_factor_count": len(pred.get("risk_factors", [])),
+                    }
+            except Exception as e:
+                logger.error(f"Error running review time predictor: {e}", exc_info=True)
                 summary["review_time_prediction"] = {
-                    "expected_days": pred.get("expected_days"),
-                    "expected_months": pred.get("expected_months"),
-                    "model_confidence": pred.get("model_confidence"),
-                    "risk_factor_count": len(pred.get("risk_factors", [])),
+                    "note": f"Review time predictor error: {type(e).__name__}"
                 }
-        except (ImportError, Exception):
+        else:
             summary["review_time_prediction"] = {
                 "note": "Review time predictor module not available."
             }
 
         # Try approval probability
-        try:
-            from approval_probability import ApprovalProbabilityScorer
-            scorer = ApprovalProbabilityScorer(store=self.store)
-            scores = scorer.score_approval_probability(pma_key, refresh=refresh)
+        result = safe_import('approval_probability', 'ApprovalProbabilityScorer', log_level=logging.DEBUG)
+        if result.success:
+            try:
+                scorer = result.module(store=self.store)
+                scores = scorer.score_approval_probability(pma_key, refresh=refresh)
 
-            if scores and not scores.get("error"):
-                summary["has_analytics_data"] = True
-                agg = scores.get("aggregate_analysis", {})
+                if scores and not scores.get("error"):
+                    summary["has_analytics_data"] = True
+                    agg = scores.get("aggregate_analysis", {})
+                    summary["approval_probability"] = {
+                        "avg_probability": agg.get("avg_approval_probability"),
+                        "classification_accuracy": agg.get("classification_accuracy"),
+                        "total_scored": agg.get("total_scored", 0),
+                    }
+            except Exception as e:
+                logger.error(f"Error running approval probability scorer: {e}", exc_info=True)
                 summary["approval_probability"] = {
-                    "avg_probability": agg.get("avg_approval_probability"),
-                    "classification_accuracy": agg.get("classification_accuracy"),
-                    "total_scored": agg.get("total_scored", 0),
+                    "note": f"Approval probability scorer error: {type(e).__name__}"
                 }
-        except (ImportError, Exception):
+        else:
             summary["approval_probability"] = {
                 "note": "Approval probability scorer module not available."
             }
 
         # Try MAUDE comparison
-        try:
-            from maude_comparison import MAUDEComparisonEngine
-            engine = MAUDEComparisonEngine(store=self.store)
-            profile = engine.build_adverse_event_profile(pma_key, refresh=refresh)
+        result = safe_import('maude_comparison', 'MAUDEComparisonEngine', log_level=logging.DEBUG)
+        if result.success:
+            try:
+                engine = result.module(store=self.store)
+                profile = engine.build_adverse_event_profile(pma_key, refresh=refresh)
 
-            if profile and profile.get("total_events", 0) > 0:
-                summary["has_analytics_data"] = True
+                if profile and profile.get("total_events", 0) > 0:
+                    summary["has_analytics_data"] = True
+                    summary["maude_comparison"] = {
+                        "total_events": profile.get("total_events", 0),
+                        "death_count": profile.get("death_count", 0),
+                        "injury_count": profile.get("injury_count", 0),
+                        "malfunction_count": profile.get("malfunction_count", 0),
+                        "has_death_reports": profile.get("has_death_reports", False),
+                    }
+            except Exception as e:
+                logger.error(f"Error running MAUDE comparison: {e}", exc_info=True)
                 summary["maude_comparison"] = {
-                    "total_events": profile.get("total_events", 0),
-                    "death_count": profile.get("death_count", 0),
-                    "injury_count": profile.get("injury_count", 0),
-                    "malfunction_count": profile.get("malfunction_count", 0),
-                    "has_death_reports": profile.get("has_death_reports", False),
+                    "note": f"MAUDE comparison error: {type(e).__name__}"
                 }
-        except (ImportError, Exception):
+        else:
             summary["maude_comparison"] = {
                 "note": "MAUDE comparison engine not available."
             }

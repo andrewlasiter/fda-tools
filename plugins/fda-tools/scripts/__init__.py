@@ -4,77 +4,81 @@ This __init__.py enables proper Python package imports and pytest
 coverage measurement for the scripts directory.
 
 Public API exports for commonly used modules and classes.
+
+REFACTORED: Uses import_helpers (FDA-17 / GAP-015) for safe imports.
 """
 
+import os
+import sys
+
+# Import helpers for safe optional imports
+lib_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib')
+sys.path.insert(0, lib_path)
+from import_helpers import safe_import, safe_import_from
+
 # Core API client (most frequently imported)
-try:
-    from scripts.fda_api_client import FDAClient
-except ImportError:
-    try:
-        from fda_api_client import FDAClient
-    except ImportError:
-        FDAClient = None
+result = safe_import(
+    'scripts.fda_api_client',
+    'FDAClient',
+    alternative_names=['fda_api_client']
+)
+FDAClient = result.module
 
 # Data stores
-try:
-    from scripts.pma_data_store import PMADataStore
-except ImportError:
-    try:
-        from pma_data_store import PMADataStore
-    except ImportError:
-        PMADataStore = None
+result = safe_import(
+    'scripts.pma_data_store',
+    'PMADataStore',
+    alternative_names=['pma_data_store']
+)
+PMADataStore = result.module
 
-try:
-    from scripts.fda_data_store import (
-        get_projects_dir,
-        load_manifest,
-        save_manifest,
-        make_query_key,
+# FDA data store functions
+fda_store_result = safe_import(
+    'scripts.fda_data_store',
+    alternative_names=['fda_data_store']
+)
+if fda_store_result.success:
+    imports = safe_import_from(
+        'fda_data_store',
+        ['get_projects_dir', 'load_manifest', 'save_manifest', 'make_query_key']
     )
-except ImportError:
-    try:
-        from fda_data_store import (
-            get_projects_dir,
-            load_manifest,
-            save_manifest,
-            make_query_key,
-        )
-    except ImportError:
-        get_projects_dir = None
-        load_manifest = None
-        save_manifest = None
-        make_query_key = None
+    get_projects_dir = imports['get_projects_dir']
+    load_manifest = imports['load_manifest']
+    save_manifest = imports['save_manifest']
+    make_query_key = imports['make_query_key']
+else:
+    get_projects_dir = None
+    load_manifest = None
+    save_manifest = None
+    make_query_key = None
 
 # Cache integrity (GAP-011)
-try:
-    from scripts.cache_integrity import (
-        integrity_read,
-        integrity_write,
-        verify_checksum,
-        invalidate_corrupt_file,
+cache_result = safe_import(
+    'scripts.cache_integrity',
+    alternative_names=['cache_integrity']
+)
+if cache_result.success:
+    imports = safe_import_from(
+        'cache_integrity',
+        ['integrity_read', 'integrity_write', 'verify_checksum', 'invalidate_corrupt_file']
     )
-except ImportError:
-    try:
-        from cache_integrity import (
-            integrity_read,
-            integrity_write,
-            verify_checksum,
-            invalidate_corrupt_file,
-        )
-    except ImportError:
-        integrity_read = None
-        integrity_write = None
-        verify_checksum = None
-        invalidate_corrupt_file = None
+    integrity_read = imports['integrity_read']
+    integrity_write = imports['integrity_write']
+    verify_checksum = imports['verify_checksum']
+    invalidate_corrupt_file = imports['invalidate_corrupt_file']
+else:
+    integrity_read = None
+    integrity_write = None
+    verify_checksum = None
+    invalidate_corrupt_file = None
 
 # Unified predicate analyzer
-try:
-    from scripts.unified_predicate import UnifiedPredicateAnalyzer
-except ImportError:
-    try:
-        from unified_predicate import UnifiedPredicateAnalyzer
-    except ImportError:
-        UnifiedPredicateAnalyzer = None
+result = safe_import(
+    'scripts.unified_predicate',
+    'UnifiedPredicateAnalyzer',
+    alternative_names=['unified_predicate']
+)
+UnifiedPredicateAnalyzer = result.module
 
 __all__ = [
     # API Client
