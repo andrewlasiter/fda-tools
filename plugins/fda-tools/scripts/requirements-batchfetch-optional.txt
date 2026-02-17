@@ -1,0 +1,35 @@
+# FDA Batch Fetch - Optional Dependencies
+#
+# These dependencies enable additional features but are not required for core functionality.
+# batchfetch.py has try/except fallbacks for all of these packages.
+#
+# Install all optional features:
+#   pip install -r requirements-batchfetch-optional.txt
+#
+# Or install selectively based on needed features:
+#
+# Progress bars and colored output (recommended):
+#   pip install tqdm colorama
+#
+# OCR support for image-based PDFs:
+#   pip install pytesseract pdf2image
+#   Note: Also requires tesseract binary installed on system
+#
+# PDF validation and Excel export:
+#   pip install PyPDF2 reportlab openpyxl
+#
+
+# Progress feedback (recommended)
+tqdm>=4.66.0,<5.0.0         # Progress bars during download
+colorama>=0.4.6,<1.0.0      # Colored terminal output
+
+# OCR support (image-based PDFs)
+pytesseract>=0.3.10,<1.0.0  # Python wrapper for Tesseract OCR
+pdf2image>=1.16.0,<2.0.0    # Convert PDF pages to images for OCR
+
+# PDF processing (validation and generation)
+PyPDF2>=3.0.0,<4.0.0        # PDF validation during download
+reportlab>=4.0.0,<5.0.0     # PDF report generation
+
+# Excel export
+openpyxl>=3.1.0,<4.0.0      # --save-excel flag support

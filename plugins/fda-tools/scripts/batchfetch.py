@@ -192,6 +192,9 @@ Examples:
   # Save Excel workbook:
   python batchfetch.py --date-range pmn96cur --years 2024 --product-codes KGN --save-excel
 
+  # Check installed dependencies:
+  python batchfetch.py --check-deps
+
 Available date range keys:
   pmnlstmn  - Most current month available
   pmn96cur  - 1996-current
@@ -233,6 +236,8 @@ Available date range keys:
                         help='Path to gap_manifest.csv from /fda:gap-analysis — download only need_download rows')
     parser.add_argument('--resume', action='store_true',
                         help='Resume interrupted download using download_progress.json checkpoint file')
+    parser.add_argument('--check-deps', action='store_true',
+                        help='Check installed dependencies and exit (shows which features are available)')
     return parser.parse_args()
 
 
@@ -369,12 +374,12 @@ def display_table_with_total(df, group_col, col_name, count_col_name, avg_col_na
     print(header)
     print(divider)
 
-    for idx, row in grouped_df.iterrows():
+    for idx, row in grouped_df.iterrows():  # type: ignore
         if row[group_col] == "Total":
             print(divider)
-        value1 = f"{idx + 1}. {row[group_col]}" if row[group_col] != "Total" else row[group_col]
+        value1 = f"{idx + 1}. {row[group_col]}" if row[group_col] != "Total" else row[group_col]  # type: ignore
         value2 = row['count']
-        value3 = int(round(row['avg_review_time']))
+        value3 = int(round(row['avg_review_time']))  # type: ignore
         value3_colored = format_review_time_product(value3, value3)
         formatted_row = f"| {str(value1):<{col_width1}} | {str(value2):<{col_width2}} | {value3_colored:^{col_width3 + 9}} |"
         print(formatted_row)
@@ -429,7 +434,7 @@ def display_date_range_table(data_dir):
         avg_review_time = int(round(avg_review_time)) if avg_review_time != 'N/A' else 'N/A'
         date_ranges.append((f"{idx}. {zip_descriptions[key]}", count, avg_review_time))
 
-    date_range_df = pd.DataFrame(date_ranges, columns=['Date Range', 'COUNT', 'AVG REVIEW'])
+    date_range_df = pd.DataFrame(date_ranges, columns=['Date Range', 'COUNT', 'AVG REVIEW'])  # type: ignore
 
     total_count = date_range_df['COUNT'].sum()
     total_avg_review_time = (date_range_df['COUNT'] * date_range_df['AVG REVIEW'].replace('N/A', 0)).sum() / total_count
@@ -719,8 +724,157 @@ def display_applicants_table(df, applicant_stats):
     print(f"Total number of clearances: {total_clearances}")
 
 
+def check_dependencies():
+    """Check and report status of all dependencies (--check-deps flag)."""
+    import importlib
+    try:
+        import importlib.metadata as metadata
+    except ImportError:
+        import importlib_metadata as metadata  # type: ignore
+
+    # Color codes (use colorama if available)
+    try:
+        GREEN = Fore.GREEN
+        YELLOW = Fore.YELLOW
+        RED = Fore.RED
+        CYAN = Fore.CYAN
+        RESET = Style.RESET_ALL
+    except NameError:
+        GREEN = YELLOW = RED = CYAN = RESET = ""
+
+    def check_dep(module_name, package_name=None, import_from=None):
+        """Check if a dependency is installed and get its version."""
+        pkg_name = package_name or module_name
+        import_desc = f"{module_name}.{import_from}" if import_from else module_name
+
+        try:
+            if import_from:
+                mod = importlib.import_module(module_name)
+                getattr(mod, import_from)
+            else:
+                importlib.import_module(module_name)
+
+            try:
+                version = metadata.version(pkg_name)
+            except Exception:
+                version = "unknown"
+
+            return True, version, import_desc
+        except (ImportError, AttributeError):
+            return False, None, import_desc
+
+    # Header
+    print("=" * 80)
+    print(f"{CYAN}FDA 510(k) Batch Fetch - Dependency Status Report{RESET}")
+    print("=" * 80)
+    print()
+
+    # Required dependencies
+    print(f"{CYAN}REQUIRED DEPENDENCIES{RESET}")
+    print("-" * 80)
+
+    required_deps = [
+        ('requests', 'requests', None, 'HTTP client for FDA API and PDF downloads'),
+        ('pandas', 'pandas', None, 'DataFrame operations for data filtering/analysis'),
+        ('numpy', 'numpy', None, 'Numerical operations (used by pandas)'),
+    ]
+
+    all_required_present = True
+    for module, package, import_from, purpose in required_deps:
+        installed, version, import_desc = check_dep(module, package, import_from)
+
+        if installed:
+            print(f"{GREEN}✓{RESET} {import_desc:20s} v{version:12s} {purpose}")
+        else:
+            all_required_present = False
+            print(f"{RED}✗{RESET} {import_desc:20s} {'MISSING':12s} {purpose}")
+            print(f"  Install: pip install {package}")
+
+    print()
+
+    if not all_required_present:
+        print(f"{RED}ERROR: One or more required dependencies are missing.{RESET}")
+        print(f"Install all required dependencies: pip install requests pandas numpy")
+        print()
+        sys.exit(1)
+
+    # Optional dependencies
+    print(f"{CYAN}OPTIONAL DEPENDENCIES{RESET}")
+    print("-" * 80)
+
+    optional_deps = [
+        ('tqdm', 'tqdm', None,
+         'Progress bars during download',
+         'Falls back to simple print statements'),
+        ('colorama', 'colorama', None,
+         'Colored terminal output',
+         'Falls back to uncolored text'),
+        ('pytesseract', 'pytesseract', None,
+         'OCR for image-based PDFs (requires tesseract binary)',
+         'Skips OCR, returns empty text for image PDFs'),
+        ('pdf2image', 'pdf2image', None,
+         'PDF to image conversion for OCR',
+         'Skips OCR feature entirely'),
+        ('PyPDF2', 'PyPDF2', 'PdfReader',
+         'PDF validation during download',
+         'Skips validation checks'),
+        ('reportlab', 'reportlab', None,
+         'PDF generation for reports',
+         'Report generation features disabled'),
+        ('openpyxl', 'openpyxl', None,
+         'Excel file generation (--save-excel)',
+         'Excel export unavailable, use CSV'),
+    ]
+
+    missing_optional = []
+    for module, package, import_from, purpose, fallback in optional_deps:
+        installed, version, import_desc = check_dep(module, package, import_from)
+
+        if installed:
+            print(f"{GREEN}✓{RESET} {import_desc:20s} v{version:12s} {purpose}")
+        else:
+            missing_optional.append((package, purpose, fallback))
+            print(f"{YELLOW}○{RESET} {import_desc:20s} {'MISSING':12s} {purpose}")
+            print(f"  Fallback: {fallback}")
+
+    print()
+
+    # Summary
+    print(f"{CYAN}SUMMARY{RESET}")
+    print("-" * 80)
+
+    if missing_optional:
+        print(f"{YELLOW}⚠{RESET}  {len(missing_optional)} optional dependencies missing")
+        print()
+        print(f"{CYAN}Impact of Missing Dependencies:{RESET}")
+        for package, purpose, fallback in missing_optional:
+            print(f"  • {package}: {purpose}")
+            print(f"    → {fallback}")
+        print()
+        print(f"{CYAN}Installation Commands:{RESET}")
+        missing_packages = ' '.join([pkg for pkg, _, _ in missing_optional])
+        print(f"  pip install {missing_packages}")
+        print()
+        print(f"{GREEN}Note:{RESET} All core functionality is available. Optional features will gracefully degrade.")
+    else:
+        print(f"{GREEN}✓{RESET} All dependencies installed!")
+        print(f"  All features are available including progress bars, OCR, PDF validation,")
+        print(f"  colored output, and Excel export.")
+
+    print()
+    print("=" * 80)
+    print(f"{CYAN}Dependency check complete. You can now run batchfetch.{RESET}")
+    print("=" * 80)
+
+
 def main():
     args = parse_args()
+
+    # Handle --check-deps flag
+    if args.check_deps:
+        check_dependencies()
+        sys.exit(0)
+
     start_time = time.time()
 
     # Determine directories

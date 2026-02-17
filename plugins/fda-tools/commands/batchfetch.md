@@ -51,6 +51,142 @@ This command provides an **AI-guided interactive workflow** for filtering and do
 
 ---
 
+## Dependency Requirements
+
+### Core Dependencies (Required)
+
+These packages MUST be installed for batchfetch to function:
+
+| Package | Purpose | Install Command |
+|---------|---------|-----------------|
+| `requests` | HTTP client for FDA API and PDF downloads | `pip install requests` |
+| `pandas` | DataFrame operations for data filtering/analysis | `pip install pandas` |
+| `numpy` | Numerical operations (used by pandas) | `pip install numpy` |
+
+**Installation:** `pip install requests pandas numpy`
+
+**Note:** pandas and numpy are imported at module level and used throughout for data processing. If either is missing, batchfetch will fail immediately with ImportError. These are architecturally required dependencies, not optional.
+
+### Optional Dependencies
+
+These packages enable additional features but are not required for core functionality:
+
+| Package | Feature Enabled | Graceful Degradation | Install Command |
+|---------|----------------|---------------------|-----------------|
+| `tqdm` | Progress bars during download | Falls back to simple print statements | `pip install tqdm` |
+| `colorama` | Colored terminal output | Falls back to uncolored text | `pip install colorama` |
+| `pytesseract` + `pdf2image` | OCR for image-based PDFs | Skips OCR, returns empty text | `pip install pytesseract pdf2image` |
+| `PyPDF2` | PDF validation during download | Skips validation checks | `pip install PyPDF2` |
+| `reportlab` | PDF generation for reports | Report generation features disabled | `pip install reportlab` |
+| `openpyxl` | Excel file generation (--save-excel) | Excel export unavailable | `pip install openpyxl` |
+
+### Feature Impact Matrix
+
+| Missing Dependency | Lost Features | Workarounds |
+|-------------------|---------------|-------------|
+| `tqdm` | - Progress bars<br>- Download ETA<br>- Visual feedback | - Basic text progress updates<br>- Check logs for status |
+| `colorama` | - Color-coded review times<br>- Highlighted warnings<br>- Formatted tables | - Plain text output<br>- All information still visible |
+| `pytesseract`/`pdf2image` | - OCR text extraction<br>- Image-based PDF parsing | - Use text-layer PDFs only<br>- Manual text extraction |
+| `PyPDF2` | - PDF integrity validation<br>- Corruption detection | - Download proceeds without validation<br>- May get corrupt PDFs |
+| `reportlab` | - Custom PDF report generation | - Use CSV/HTML reports instead |
+| `openpyxl` | - --save-excel flag<br>- Excel workbook exports | - Use CSV output<br>- Import CSV to Excel manually |
+
+### Installation Guide
+
+**Minimal installation (core features only):**
+```bash
+pip install requests pandas numpy
+```
+
+**Recommended installation (with progress bars and colored output):**
+```bash
+pip install requests pandas numpy tqdm colorama
+```
+
+**Full installation (all optional features):**
+```bash
+# From plugin directory
+cd $FDA_PLUGIN_ROOT/scripts
+pip install -r requirements.txt
+pip install -r requirements-batchfetch-optional.txt
+```
+
+**Feature-specific installation:**
+```bash
+# For OCR support (image-based PDFs)
+pip install pytesseract pdf2image
+# Note: Also requires tesseract binary: apt-get install tesseract-ocr (Linux) or brew install tesseract (Mac)
+
+# For Excel export (--save-excel flag)
+pip install openpyxl
+
+# For PDF validation
+pip install PyPDF2
+```
+
+### Checking Installed Dependencies
+
+Use the `--check-deps` flag to verify which dependencies are available:
+
+```bash
+/fda:batchfetch --check-deps
+```
+
+This will display:
+- All installed dependencies with versions
+- Missing optional dependencies
+- Impact of missing dependencies on features
+- Installation commands for missing packages
+
+**Example output:**
+```
+================================================================================
+FDA 510(k) Batch Fetch - Dependency Status Report
+================================================================================
+
+REQUIRED DEPENDENCIES
+--------------------------------------------------------------------------------
+✓ requests            v2.31.0      HTTP client for FDA API and PDF downloads
+✓ pandas              v2.1.0       DataFrame operations for data filtering/analysis
+✓ numpy               v1.24.3      Numerical operations (used by pandas)
+
+OPTIONAL DEPENDENCIES
+--------------------------------------------------------------------------------
+✓ tqdm                v4.66.1      Progress bars during download
+✓ colorama            v0.4.6       Colored terminal output
+○ pytesseract         MISSING      OCR for image-based PDFs (requires tesseract binary)
+  Fallback: Skips OCR, returns empty text for image PDFs
+○ pdf2image           MISSING      PDF to image conversion for OCR
+  Fallback: Skips OCR feature entirely
+✓ PyPDF2              v3.0.1       PDF validation during download
+○ reportlab           MISSING      PDF generation for reports
+  Fallback: Report generation features disabled
+✓ openpyxl            v3.1.2       Excel file generation (--save-excel)
+
+SUMMARY
+--------------------------------------------------------------------------------
+⚠  3 optional dependencies missing
+
+Impact of Missing Dependencies:
+  • pytesseract: OCR for image-based PDFs (requires tesseract binary)
+    → Skips OCR, returns empty text for image PDFs
+  • pdf2image: PDF to image conversion for OCR
+    → Skips OCR feature entirely
+  • reportlab: PDF generation for reports
+    → Report generation features disabled
+
+Installation Commands:
+  pip install pytesseract pdf2image reportlab
+
+Note: All core functionality is available. Optional features will gracefully degrade.
+
+================================================================================
+Dependency check complete. You can now run batchfetch.
+================================================================================
+```
+
+---
+
 ## Parse Arguments
 
 From `$ARGUMENTS`, extract:
@@ -66,8 +202,176 @@ From `$ARGUMENTS`, extract:
 - `--full-auto` — Skip all questions, use only CLI args
 - `--resume` — Resume interrupted download from checkpoint
 - `--no-download` — Preview only, skip PDF download
-- `--save-excel` — Generate Excel analytics workbook
+- `--save-excel` — Generate Excel analytics workbook (requires openpyxl)
 - `--enrich` — Enrich data with openFDA API intelligence (MAUDE events, recalls, predicates, risk scoring)
+- `--check-deps` — Check installed dependencies and exit
+
+---
+
+## Step 0: Dependency Check (if --check-deps)
+
+If `--check-deps` is present in arguments, run dependency checker and exit:
+
+```bash
+if [[ "$ARGUMENTS" == *"--check-deps"* ]]; then
+    echo "Running dependency check..."
+    python3 << 'DEPCHECK_EOF'
+import sys
+import importlib
+import importlib.metadata
+
+# Color codes for terminal output (fallback if colorama missing)
+try:
+    from colorama import Fore, Style, init
+    init(autoreset=True)
+    GREEN = Fore.GREEN
+    YELLOW = Fore.YELLOW
+    RED = Fore.RED
+    CYAN = Fore.CYAN
+    RESET = Style.RESET_ALL
+except ImportError:
+    GREEN = YELLOW = RED = CYAN = RESET = ""
+
+def check_dependency(module_name, package_name=None, import_from=None):
+    """Check if a dependency is installed and get its version.
+
+    Args:
+        module_name: Module to import (e.g., 'pandas')
+        package_name: Package name for pip (e.g., 'pandas', defaults to module_name)
+        import_from: Specific attribute to import (e.g., 'PdfReader' from 'PyPDF2')
+
+    Returns:
+        tuple: (installed: bool, version: str or None, import_name: str)
+    """
+    pkg_name = package_name or module_name
+    import_desc = f"{module_name}.{import_from}" if import_from else module_name
+
+    try:
+        if import_from:
+            # Try importing specific attribute
+            mod = importlib.import_module(module_name)
+            getattr(mod, import_from)
+        else:
+            # Try importing module
+            importlib.import_module(module_name)
+
+        # Get version
+        try:
+            version = importlib.metadata.version(pkg_name)
+        except Exception:
+            version = "unknown"
+
+        return True, version, import_desc
+    except (ImportError, AttributeError):
+        return False, None, import_desc
+
+# Header
+print("=" * 80)
+print(f"{CYAN}FDA 510(k) Batch Fetch - Dependency Status Report{RESET}")
+print("=" * 80)
+print()
+
+# Required dependencies
+print(f"{CYAN}REQUIRED DEPENDENCIES{RESET}")
+print("-" * 80)
+
+required_deps = [
+    ('requests', 'requests', None, 'HTTP client for FDA API and PDF downloads'),
+    ('pandas', 'pandas', None, 'DataFrame operations for data filtering/analysis'),
+    ('numpy', 'numpy', None, 'Numerical operations (used by pandas)'),
+]
+
+all_required_present = True
+for module, package, import_from, purpose in required_deps:
+    installed, version, import_desc = check_dependency(module, package, import_from)
+
+    if installed:
+        print(f"{GREEN}✓{RESET} {import_desc:20s} v{version:12s} {purpose}")
+    else:
+        all_required_present = False
+        print(f"{RED}✗{RESET} {import_desc:20s} {'MISSING':12s} {purpose}")
+        print(f"  Install: pip install {package}")
+
+print()
+
+if not all_required_present:
+    print(f"{RED}ERROR: One or more required dependencies are missing.{RESET}")
+    print(f"Install all required dependencies: pip install requests pandas numpy")
+    print()
+    sys.exit(1)
+
+# Optional dependencies
+print(f"{CYAN}OPTIONAL DEPENDENCIES{RESET}")
+print("-" * 80)
+
+optional_deps = [
+    ('tqdm', 'tqdm', None,
+     'Progress bars during download',
+     'Falls back to simple print statements'),
+    ('colorama', 'colorama', None,
+     'Colored terminal output',
+     'Falls back to uncolored text'),
+    ('pytesseract', 'pytesseract', None,
+     'OCR for image-based PDFs (requires tesseract binary)',
+     'Skips OCR, returns empty text for image PDFs'),
+    ('pdf2image', 'pdf2image', None,
+     'PDF to image conversion for OCR',
+     'Skips OCR feature entirely'),
+    ('PyPDF2', 'PyPDF2', 'PdfReader',
+     'PDF validation during download',
+     'Skips validation checks'),
+    ('reportlab', 'reportlab', None,
+     'PDF generation for reports',
+     'Report generation features disabled'),
+    ('openpyxl', 'openpyxl', None,
+     'Excel file generation (--save-excel)',
+     'Excel export unavailable, use CSV'),
+]
+
+missing_optional = []
+for module, package, import_from, purpose, fallback in optional_deps:
+    installed, version, import_desc = check_dependency(module, package, import_from)
+
+    if installed:
+        print(f"{GREEN}✓{RESET} {import_desc:20s} v{version:12s} {purpose}")
+    else:
+        missing_optional.append((package, purpose, fallback))
+        print(f"{YELLOW}○{RESET} {import_desc:20s} {'MISSING':12s} {purpose}")
+        print(f"  Fallback: {fallback}")
+
+print()
+
+# Summary
+print(f"{CYAN}SUMMARY{RESET}")
+print("-" * 80)
+
+if missing_optional:
+    print(f"{YELLOW}⚠{RESET}  {len(missing_optional)} optional dependencies missing")
+    print()
+    print(f"{CYAN}Impact of Missing Dependencies:{RESET}")
+    for package, purpose, fallback in missing_optional:
+        print(f"  • {package}: {purpose}")
+        print(f"    → {fallback}")
+    print()
+    print(f"{CYAN}Installation Commands:{RESET}")
+    missing_packages = ' '.join([pkg for pkg, _, _ in missing_optional])
+    print(f"  pip install {missing_packages}")
+    print()
+    print(f"{GREEN}Note:{RESET} All core functionality is available. Optional features will gracefully degrade.")
+else:
+    print(f"{GREEN}✓{RESET} All dependencies installed!")
+    print(f"  All features are available including progress bars, OCR, PDF validation,")
+    print(f"  colored output, and Excel export.")
+
+print()
+print("=" * 80)
+print(f"{CYAN}Dependency check complete. You can now run batchfetch.{RESET}")
+print("=" * 80)
+
+DEPCHECK_EOF
+    exit 0
+fi
+```
 
 ---
 
