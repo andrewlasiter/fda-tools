@@ -1,0 +1,176 @@
+# Pre-commit hooks configuration for FDA Tools Project
+# Install: pip install pre-commit && pre-commit install
+# Run manually: pre-commit run --all-files
+# Skip for a commit: git commit --no-verify
+
+repos:
+  # Ruff: Fast Python linter and formatter
+  # Replaces flake8, isort, pyupgrade, and more
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.5.6
+    hooks:
+      - id: ruff
+        name: Ruff linter
+        description: Fast Python linter for code quality issues
+        stages: [commit]
+        args: [--fix]
+      - id: ruff-format
+        name: Ruff formatter
+        description: Fast Python code formatter
+        stages: [commit]
+
+  # Trailing whitespace fixer
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        name: Trim trailing whitespace
+        description: Fix trailing whitespace in files
+        stages: [commit]
+        exclude: |
+          (?x)^(
+            \.coverage.*|
+            htmlcov/|
+            .*\.egg-info/
+          )$
+
+      - id: end-of-file-fixer
+        name: Fix end of file
+        description: Ensure files end with a newline
+        stages: [commit]
+        exclude: |
+          (?x)^(
+            \.coverage.*|
+            htmlcov/|
+            .*\.egg-info/
+          )$
+
+      - id: check-yaml
+        name: Check YAML syntax
+        description: Validate YAML syntax
+        stages: [commit]
+        args: [--unsafe]  # Allow multiple documents and custom tags
+        exclude: |
+          (?x)^(
+            openclaw-skill/.*|
+            node_modules/.*
+          )$
+
+      - id: check-json
+        name: Check JSON syntax
+        description: Validate JSON syntax
+        stages: [commit]
+        exclude: |
+          (?x)^(
+            openclaw-skill/.*|
+            node_modules/.*|
+            \.pytest_cache/
+          )$
+
+      - id: check-merge-conflict
+        name: Check for merge conflicts
+        description: Ensure merge conflicts are resolved
+        stages: [commit]
+
+      - id: check-case-conflict
+        name: Check for case conflicts
+        description: Prevent files with same name but different case
+        stages: [commit]
+
+      - id: mixed-line-ending
+        name: Fix mixed line endings
+        description: Normalize line endings (LF for Python/Unix, CRLF for Windows files)
+        stages: [commit]
+        args: [--fix=lf]
+        exclude: |
+          (?x)^(
+            \.git/|
+            \.venv/|
+            venv/|
+            node_modules/
+          )$
+
+  # Detect secrets
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        name: Detect secrets in code
+        description: Prevent API keys, passwords, and tokens from being committed
+        stages: [commit]
+        args: [--baseline, .secrets.baseline]
+        exclude: |
+          (?x)^(
+            .*\.lock|
+            .*requirements.*\.txt|
+            \.coverage.*|
+            tests/fixtures/.*|
+            EXAMPLE_OUTPUT/.*
+          )$
+
+  # Check for large files
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: check-added-large-files
+        name: Check for large files
+        description: Prevent accidentally committing large files (> 500KB)
+        stages: [commit]
+        args: [--maxkb=500]
+        exclude: |
+          (?x)^(
+            \.coverage|
+            \.pytest_cache/
+          )$
+
+  # Python syntax check
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: check-ast
+        name: Check Python syntax
+        description: Verify Python files are syntactically valid
+        stages: [commit]
+        language: python
+
+  # Docstring coverage (optional but recommended)
+  - repo: https://github.com/econchick/interrogate
+    rev: 1.7.0
+    hooks:
+      - id: interrogate
+        name: Check docstring coverage
+        description: Ensure adequate docstring coverage
+        stages: [commit]
+        args: [--vv, --fail-under=75, --ignore-init-method, --ignore-init-module, --ignore-nested-functions]
+        exclude: |
+          (?x)^(
+            tests/|
+            openclaw-skill/|
+            node_modules/|
+            .*/__pycache__/
+          )$
+
+# Global exclusions
+exclude: |
+  (?x)^(
+    \.git/|
+    \.venv/|
+    venv/|
+    env/|
+    ENV/|
+    build/|
+    dist/|
+    \.eggs/|
+    .*\.egg-info/|
+    node_modules/|
+    __pycache__/|
+    \.pytest_cache/|
+    \.tox/|
+    htmlcov/|
+    \.coverage.*|
+    EXAMPLE_OUTPUT/
+  )$
+
+# Pre-commit framework settings
+fail_fast: false  # Continue checking all files even if one fails
+default_stages: [commit]
