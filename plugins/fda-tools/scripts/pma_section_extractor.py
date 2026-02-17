@@ -37,11 +37,14 @@ Usage:
 
 import argparse
 import json
+import logging
 import os
 import re
 import sys
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
+
+# Configure module logger
+logger = logging.getLogger(__name__)
 
 # Import sibling modules
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -252,6 +255,8 @@ class PMAExtractor:
             store: Optional PMADataStore for saving extracted sections.
         """
         self.store = store
+        self.extraction_warnings: List[str] = []
+        self.failed_sections: List[str] = []
 
     def extract_from_pdf(self, pdf_path: str) -> Dict:
         """Extract sections from a PMA SSED PDF file.
@@ -262,19 +267,35 @@ class PMAExtractor:
         Returns:
             Extraction result dictionary with sections and metadata.
         """
+        # Reset extraction tracking
+        self.extraction_warnings = []
+        self.failed_sections = []
+
         text = self._extract_text_from_pdf(pdf_path)
         if text is None:
+            error_msg = "Could not extract text from PDF (no PDF library available)"
+            logger.error(f"PDF extraction failed for {pdf_path}: {error_msg}")
             return {
                 "success": False,
-                "error": "Could not extract text from PDF (no PDF library available)",
+                "error": error_msg,
                 "pdf_path": pdf_path,
                 "sections": {},
-                "metadata": {},
+                "metadata": {
+                    "completeness_score": 0.0,
+                    "failed_sections": [],
+                    "extraction_warnings": [error_msg],
+                },
             }
 
         result = self.extract_from_text(text)
         result["pdf_path"] = pdf_path
         result["page_count"] = self._get_page_count(pdf_path)
+
+        # Add extraction quality indicators
+        result["metadata"]["completeness_score"] = self._calculate_completeness_score(result)
+        result["metadata"]["failed_sections"] = self.failed_sections
+        result["metadata"]["extraction_warnings"] = self.extraction_warnings
+
         return result
 
     def extract_from_text(self, text: str) -> Dict:
@@ -305,17 +326,31 @@ class PMAExtractor:
                     "char_count": 150000,
                     "extraction_quality": "HIGH",
                     "quality_score": 85,
+                    "completeness_score": 0.8,
+                    "failed_sections": [],
+                    "extraction_warnings": [],
                     "missing_sections": ["panel_recommendation", "statistical_analysis"],
                     "section_order": ["general_information", "indications_for_use", ...]
                 }
             }
         """
+        # Reset extraction tracking
+        self.extraction_warnings = []
+        self.failed_sections = []
+
         if not text or len(text) < 100:
+            warning = "Text too short for section extraction"
+            logger.warning(warning)
             return {
                 "success": False,
-                "error": "Text too short for section extraction",
+                "error": warning,
                 "sections": {},
-                "metadata": {"char_count": len(text) if text else 0},
+                "metadata": {
+                    "char_count": len(text) if text else 0,
+                    "completeness_score": 0.0,
+                    "failed_sections": [],
+                    "extraction_warnings": [warning],
+                },
             }
 
         # Find section boundaries
@@ -326,6 +361,18 @@ class PMAExtractor:
 
         # Build metadata
         metadata = self._build_metadata(text, sections, boundaries)
+
+        # Add extraction quality indicators
+        metadata["completeness_score"] = self._calculate_completeness_score(
+            {"sections": sections, "metadata": metadata}
+        )
+        metadata["failed_sections"] = self.failed_sections
+        metadata["extraction_warnings"] = self.extraction_warnings
+
+        logger.info(
+            f"Extraction complete: {len(sections)}/{len(SSED_SECTIONS)} sections, "
+            f"completeness={metadata['completeness_score']:.2f}"
+        )
 
         return {
             "success": True,
@@ -394,34 +441,76 @@ class PMAExtractor:
         # Try pdfplumber first
         try:
             import pdfplumber
+
             text_parts = []
             with pdfplumber.open(pdf_path) as pdf:
-                for page in pdf.pages:
+                for page_num, page in enumerate(pdf.pages, 1):
+                    try:
+                        page_text = page.extract_text()
+                        if page_text:
+                            text_parts.append(page_text)
+                        else:
+                            warning = f"No text extracted from page {page_num}"
+                            logger.warning(f"{pdf_path}: {warning}")
+                            self.extraction_warnings.append(warning)
+                    except Exception as e:
+                        error_msg = f"Failed to extract page {page_num}: {type(e).__name__}: {e}"
+                        logger.warning(f"{pdf_path}: {error_msg}")
+                        self.extraction_warnings.append(error_msg)
+                        continue
+
+            if text_parts:
+                logger.info(f"Extracted {len(text_parts)} pages using pdfplumber from {pdf_path}")
+                return "\n\n".join(text_parts)
+            else:
+                warning = "pdfplumber extracted 0 pages with text"
+                logger.warning(f"{pdf_path}: {warning}")
+                self.extraction_warnings.append(warning)
+
+        except ImportError:
+            logger.debug("pdfplumber not installed, will try PyPDF2")
+        except Exception as e:
+            error_msg = f"pdfplumber extraction failed: {type(e).__name__}: {e}"
+            logger.warning(f"{pdf_path}: {error_msg}")
+            self.extraction_warnings.append(error_msg)
+
+        # Try PyPDF2 fallback
+        try:
+            from PyPDF2 import PdfReader
+
+            reader = PdfReader(pdf_path)
+            text_parts = []
+            for page_num, page in enumerate(reader.pages, 1):
+                try:
                     page_text = page.extract_text()
                     if page_text:
                         text_parts.append(page_text)
-            return "\n\n".join(text_parts)
-        except ImportError:
-            # pdfplumber not installed, try PyPDF2
-            pass
-        except Exception as e:
-            print(f"Warning: pdfplumber text extraction failed for {pdf_path}: {e}", file=sys.stderr)
+                    else:
+                        warning = f"No text extracted from page {page_num} (PyPDF2)"
+                        logger.warning(f"{pdf_path}: {warning}")
+                        self.extraction_warnings.append(warning)
+                except Exception as e:
+                    error_msg = f"Failed to extract page {page_num} (PyPDF2): {type(e).__name__}: {e}"
+                    logger.warning(f"{pdf_path}: {error_msg}")
+                    self.extraction_warnings.append(error_msg)
+                    continue
 
-        # Try PyPDF2
-        try:
-            from PyPDF2 import PdfReader
-            reader = PdfReader(pdf_path)
-            text_parts = []
-            for page in reader.pages:
-                page_text = page.extract_text()
-                if page_text:
-                    text_parts.append(page_text)
-            return "\n\n".join(text_parts)
+            if text_parts:
+                logger.info(f"Extracted {len(text_parts)} pages using PyPDF2 from {pdf_path}")
+                return "\n\n".join(text_parts)
+            else:
+                warning = "PyPDF2 extracted 0 pages with text"
+                logger.warning(f"{pdf_path}: {warning}")
+                self.extraction_warnings.append(warning)
+
         except ImportError:
-            # Neither pdfplumber nor PyPDF2 installed
-            print("Warning: No PDF library available (install pdfplumber or PyPDF2)", file=sys.stderr)
+            error_msg = "No PDF library available (install pdfplumber or PyPDF2)"
+            logger.error(error_msg)
+            self.extraction_warnings.append(error_msg)
         except Exception as e:
-            print(f"Warning: PyPDF2 text extraction failed for {pdf_path}: {e}", file=sys.stderr)
+            error_msg = f"PyPDF2 extraction failed: {type(e).__name__}: {e}"
+            logger.error(f"{pdf_path}: {error_msg}")
+            self.extraction_warnings.append(error_msg)
 
         return None
 
@@ -436,22 +525,33 @@ class PMAExtractor:
         """
         try:
             import pdfplumber
+
             with pdfplumber.open(pdf_path) as pdf:
-                return len(pdf.pages)
+                page_count = len(pdf.pages)
+                logger.debug(f"Page count via pdfplumber: {page_count} for {pdf_path}")
+                return page_count
         except ImportError:
-            # pdfplumber not installed, try PyPDF2
-            pass
+            logger.debug("pdfplumber not available for page count, trying PyPDF2")
         except Exception as e:
-            print(f"Warning: pdfplumber page count failed for {pdf_path}: {e}", file=sys.stderr)
+            error_msg = f"pdfplumber page count failed: {type(e).__name__}: {e}"
+            logger.warning(f"{pdf_path}: {error_msg}")
+            self.extraction_warnings.append(error_msg)
 
         try:
             from PyPDF2 import PdfReader
+
             reader = PdfReader(pdf_path)
-            return len(reader.pages)
+            page_count = len(reader.pages)
+            logger.debug(f"Page count via PyPDF2: {page_count} for {pdf_path}")
+            return page_count
         except ImportError:
-            print("Warning: No PDF library available for page count (install pdfplumber or PyPDF2)", file=sys.stderr)
+            error_msg = "No PDF library available for page count (install pdfplumber or PyPDF2)"
+            logger.warning(error_msg)
+            self.extraction_warnings.append(error_msg)
         except Exception as e:
-            print(f"Warning: PyPDF2 page count failed for {pdf_path}: {e}", file=sys.stderr)
+            error_msg = f"PyPDF2 page count failed: {type(e).__name__}: {e}"
+            logger.warning(f"{pdf_path}: {error_msg}")
+            self.extraction_warnings.append(error_msg)
 
         return 0
 
@@ -534,30 +634,50 @@ class PMAExtractor:
         sections = {}
 
         for i, (start_pos, section_key, header, confidence) in enumerate(boundaries):
-            # End position is the start of the next section or end of text
-            if i + 1 < len(boundaries):
-                end_pos = boundaries[i + 1][0]
-            else:
-                end_pos = len(text)
+            try:
+                # End position is the start of the next section or end of text
+                if i + 1 < len(boundaries):
+                    end_pos = boundaries[i + 1][0]
+                else:
+                    end_pos = len(text)
 
-            content = text[start_pos:end_pos].strip()
-            word_count = len(content.split())
+                content = text[start_pos:end_pos].strip()
+                word_count = len(content.split())
 
-            # Skip very short sections (likely false positive)
-            if word_count < 10:
+                # Skip very short sections (likely false positive)
+                if word_count < 10:
+                    warning = f"Section '{section_key}' too short ({word_count} words), skipping"
+                    logger.warning(warning)
+                    self.extraction_warnings.append(warning)
+                    self.failed_sections.append(section_key)
+                    continue
+
+                section_def = SSED_SECTIONS.get(section_key, {})
+                sections[section_key] = {
+                    "display_name": section_def.get("display_name", section_key),
+                    "section_number": section_def.get("section_number", 0),
+                    "content": content,
+                    "word_count": word_count,
+                    "header_matched": header,
+                    "start_pos": start_pos,
+                    "end_pos": end_pos,
+                    "confidence": round(confidence, 3),
+                }
+
+                logger.debug(
+                    f"Extracted section '{section_key}': {word_count} words, "
+                    f"confidence={confidence:.3f}"
+                )
+
+            except Exception as e:
+                error_msg = (
+                    f"Failed to extract section '{section_key}': "
+                    f"{type(e).__name__}: {e}"
+                )
+                logger.warning(error_msg)
+                self.extraction_warnings.append(error_msg)
+                self.failed_sections.append(section_key)
                 continue
-
-            section_def = SSED_SECTIONS.get(section_key, {})
-            sections[section_key] = {
-                "display_name": section_def.get("display_name", section_key),
-                "section_number": section_def.get("section_number", 0),
-                "content": content,
-                "word_count": word_count,
-                "header_matched": header,
-                "start_pos": start_pos,
-                "end_pos": end_pos,
-                "confidence": round(confidence, 3),
-            }
 
         return sections
 
@@ -670,6 +790,50 @@ class PMAExtractor:
 
         return min(score, 100)
 
+    def _calculate_completeness_score(self, result: Dict) -> float:
+        """Calculate completeness score (0.0-1.0) for extraction result.
+
+        Factors:
+            - Sections found vs total possible (0.0-0.6)
+            - Key sections present (0.0-0.3)
+            - No failed sections (0.0-0.1)
+
+        Args:
+            result: Extraction result dictionary with sections and metadata.
+
+        Returns:
+            Completeness score between 0.0 and 1.0.
+        """
+        sections = result.get("sections", {})
+
+        score = 0.0
+
+        # Factor 1: Section coverage (0.0-0.6)
+        total_possible = len(SSED_SECTIONS)
+        sections_found = len(sections)
+        score += 0.6 * (sections_found / total_possible)
+
+        # Factor 2: Key sections present (0.0-0.3)
+        key_sections = [
+            "general_information",
+            "indications_for_use",
+            "device_description",
+            "clinical_studies",
+            "overall_conclusions",
+            "benefit_risk",
+        ]
+        key_found = sum(1 for k in key_sections if k in sections)
+        score += 0.3 * (key_found / len(key_sections))
+
+        # Factor 3: No failed sections (0.0-0.1)
+        failed_count = len(self.failed_sections)
+        if failed_count == 0:
+            score += 0.1
+        elif failed_count <= 2:
+            score += 0.05
+
+        return min(score, 1.0)
+
     # ------------------------------------------------------------------
     # Batch extraction
     # ------------------------------------------------------------------
@@ -748,8 +912,31 @@ def main():
     parser.add_argument("--list-sections", action="store_true", dest="list_sections",
                         help="List all 15 supported sections")
     parser.add_argument("--batch", help="Comma-separated PMA numbers for batch extraction")
+    parser.add_argument(
+        "--verbose", "-v", action="store_true",
+        help="Enable verbose logging (DEBUG level)"
+    )
+    parser.add_argument(
+        "--quiet", "-q", action="store_true",
+        help="Suppress all logging except errors"
+    )
 
     args = parser.parse_args()
+
+    # Configure logging
+    if args.quiet:
+        log_level = logging.ERROR
+    elif args.verbose:
+        log_level = logging.DEBUG
+    else:
+        log_level = logging.INFO
+
+    logging.basicConfig(
+        level=log_level,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
     store = PMADataStore()
     extractor = PMAExtractor(store)
 
@@ -785,10 +972,26 @@ def main():
         print(f"EXTRACTION:SUCCESS")
         print(f"SECTIONS_FOUND:{meta.get('total_sections_found', 0)}/{meta.get('total_possible_sections', 15)}")
         print(f"QUALITY:{meta.get('extraction_quality', 'N/A')} ({meta.get('quality_score', 0)}/100)")
+        print(f"COMPLETENESS:{meta.get('completeness_score', 0.0):.2f}")
         print(f"TOTAL_WORDS:{meta.get('total_word_count', 0)}")
         print(f"AVG_CONFIDENCE:{meta.get('average_confidence', 0):.3f}")
+
+        # Show failed sections if any
+        failed = meta.get("failed_sections", [])
+        if failed:
+            print(f"FAILED_SECTIONS:{','.join(failed)}")
+
+        # Show warnings if any
+        warnings = meta.get("extraction_warnings", [])
+        if warnings:
+            print(f"WARNINGS:{len(warnings)}")
+            if args.verbose:
+                for w in warnings:
+                    print(f"  - {w}")
+
         if meta.get("missing_sections"):
             print(f"MISSING:{','.join(meta['missing_sections'])}")
+
         print("---")
         for key, sec in sorted(result["sections"].items(),
                                key=lambda x: x[1].get("section_number", 0)):
@@ -796,6 +999,12 @@ def main():
     else:
         print(f"EXTRACTION:FAILED")
         print(f"ERROR:{result.get('error', 'Unknown error')}")
+        meta = result.get("metadata", {})
+        warnings = meta.get("extraction_warnings", [])
+        if warnings and args.verbose:
+            print(f"WARNINGS:")
+            for w in warnings:
+                print(f"  - {w}")
 
     # Save to file if requested
     if args.output:
