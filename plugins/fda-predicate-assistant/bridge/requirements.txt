@@ -1,0 +1,20 @@
+# FDA Bridge Server Dependencies
+# Install: pip install -r requirements.txt
+
+# Web framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# Request validation
+pydantic>=2.0.0
+
+# HTTP client (for LLM provider health checks)
+requests>=2.28.0
+httpx>=0.25.0
+
+# Config parsing
+toml>=0.10.0
+
+# Testing
+pytest>=7.0.0
+pytest-asyncio>=0.21.0

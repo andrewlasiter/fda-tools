@@ -1,0 +1,162 @@
+# ============================================================
+# FDA Tools Enterprise Configuration Template
+# ============================================================
+#
+# Copy this file to ~/.claude/fda-tools.enterprise.toml
+# and customize for your deployment.
+#
+# For security, set permissions after configuration:
+#   chmod 644 ~/.claude/fda-tools.enterprise.toml
+#
+# ============================================================
+
+[enterprise]
+enabled = true
+version = "1.0.0"
+
+# ============================================================
+# User Management
+# ============================================================
+
+[users]
+# Path to user database
+database_path = "~/.claude/fda-tools.users.json"
+
+# Enrollment token validity period
+enrollment_token_expiry_hours = 24
+
+# Require two-factor authentication (future feature)
+require_2fa = false
+
+# Password complexity requirements (21 CFR Part 11.300)
+enforce_password_complexity = true
+min_password_length = 8
+require_uppercase = true
+require_number = true
+require_special_char = true
+
+# Account lockout after failed attempts
+max_failed_attempts = 5
+lockout_duration_minutes = 30
+
+# ============================================================
+# Role-Based Access Control
+# ============================================================
+
+[rbac]
+enabled = true
+
+# Default role for new users
+default_role = "readonly"
+
+# Prevent users from self-elevating their role
+allow_role_elevation = false
+
+# RBAC audit log path
+audit_log_path = "~/.claude/fda-tools.rbac-audit.jsonl"
+
+# ============================================================
+# Multi-Tenancy
+# ============================================================
+
+[tenancy]
+enabled = true
+
+# Root directory for enterprise data
+data_root = "~/fda-enterprise-data"
+
+# Share FDA API cache across organizations
+shared_cache = true
+
+# Allow projects to be shared across organizations
+# CAUTION: Enabling this breaks strict data isolation
+allow_cross_org_sharing = false
+
+# ============================================================
+# Electronic Signatures (21 CFR Part 11)
+# ============================================================
+
+[signatures]
+enabled = true
+
+# Commands that require electronic signature before execution
+require_for_commands = ["export", "assemble"]
+
+# Signature authentication method
+# Options: "password", "token", "biometric"
+signature_method = "password"
+
+# Signature validity period (hours) before re-authentication required
+signature_expiry_hours = 1
+
+# Storage directory for signatures
+signatures_path = "~/.claude/fda-tools-signatures"
+
+# ============================================================
+# Monitoring and Alerting
+# ============================================================
+
+[monitoring]
+enabled = true
+
+# Email alerts (configure SMTP separately)
+alert_email = ""
+
+# Slack webhook for alerts
+alert_slack_webhook = ""
+
+# Generic webhook URL for alerts
+alert_webhook = ""
+
+# Alert on security violations (recommended: always true)
+alert_on_security_violations = true
+
+# Alert on LLM provider failures
+alert_on_llm_failures = true
+
+# Health check interval (seconds)
+health_check_interval_seconds = 300
+
+# Unusual activity detection
+failure_threshold = 5
+failure_window_seconds = 300
+
+# ============================================================
+# Compliance (21 CFR Part 11)
+# ============================================================
+
+[compliance]
+# Enable full 21 CFR Part 11 compliance mode
+cfr_part_11_mode = true
+
+# Audit log retention (days) -- 7 years = 2555 days
+audit_retention_days = 2555
+
+# Require electronic signatures for controlled operations
+require_signatures = true
+
+# Enforce password complexity (11.300)
+enforce_password_complexity = true
+
+# System access controls (11.10(d))
+enforce_access_controls = true
+
+# Audit trail (11.10(e))
+enforce_audit_trail = true
+
+# ============================================================
+# Performance
+# ============================================================
+
+[performance]
+# Maximum concurrent sessions
+max_sessions = 1000
+
+# Session expiry (hours)
+session_expiry_hours = 24
+
+# Metrics flush interval (seconds)
+metrics_flush_interval = 60
+
+# Command execution timeout (seconds)
+command_timeout = 120

@@ -1,0 +1,39 @@
+# FDA Tools Plugin - Pinned Dependencies (Lock File)
+# Generated: 2026-02-16
+# Purpose: Ensures reproducible builds per 21 CFR 820.70(i)
+# Usage: pip install -r requirements-lock.txt
+# Update: Run `pip freeze > requirements-lock.txt` after testing with new versions.
+
+# Shared
+requests==2.31.0
+tqdm==4.66.1
+urllib3==2.1.0
+certifi==2023.11.17
+charset-normalizer==3.3.2
+idna==3.6
+
+# PredicateExtraction
+PyMuPDF==1.23.7
+pdfplumber==0.10.3
+orjson==3.9.10
+ijson==3.2.3
+
+# BatchFetch
+pandas==2.1.4
+pytesseract==0.3.10
+pdf2image==1.16.3
+PyPDF2==3.0.1
+reportlab==4.0.8
+colorama==0.4.6
+numpy==1.26.2
+openpyxl==3.1.2
+
+# eSTAR XML
+pikepdf==8.10.1
+beautifulsoup4==4.12.2
+lxml==4.9.4
+soupsieve==2.5
+
+# Dev / Testing
+pytest==7.4.4
+pytest-cov==4.1.0

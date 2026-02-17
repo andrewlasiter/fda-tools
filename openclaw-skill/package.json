@@ -1,0 +1,68 @@
+{
+  "name": "@openclaw/skill-fda-tools",
+  "version": "1.0.0",
+  "description": "OpenClaw skill for FDA 510(k)/PMA regulatory intelligence -- predicate research, device validation, safety analysis, submission drafting via secure bridge API",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "files": [
+    "dist/",
+    "SKILL.md",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest --config jest.config.json",
+    "test:watch": "node --experimental-vm-modules node_modules/.bin/jest --watch --config jest.config.json",
+    "lint": "eslint . --ext .ts",
+    "lint:fix": "eslint . --ext .ts --fix",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist/",
+    "prepublishOnly": "npm run clean && npm run build && npm test"
+  },
+  "keywords": [
+    "openclaw",
+    "skill",
+    "fda",
+    "510k",
+    "pma",
+    "medical-device",
+    "regulatory",
+    "predicate",
+    "substantial-equivalence",
+    "submission",
+    "safety",
+    "maude"
+  ],
+  "author": "FDA Tools Development Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "peerDependencies": {
+    "@openclaw/sdk": "^1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@openclaw/sdk": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0",
+    "eslint": "^8.56.0",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "jest": "^29.7.0",
+    "@types/jest": "^29.5.0",
+    "ts-jest": "^29.1.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fda-tools/openclaw-skill-fda-tools"
+  },
+  "bugs": {
+    "url": "https://github.com/fda-tools/openclaw-skill-fda-tools/issues"
+  }
+}

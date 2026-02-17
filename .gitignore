@@ -11,6 +11,7 @@ __pycache__/
 .coverage.*
 htmlcov/
 .tox/
+coverage.xml
 
 # Build artifacts
 build/
@@ -33,6 +34,18 @@ ENV/
 # OS files
 .DS_Store
 Thumbs.db
+*:Zone.Identifier
+
+# Backup files
+*.backup
+*.bak
+*.orig
+
+# Node
+node_modules/
+
+# Temp files
+*.tmp
 
 # Logs
 *.log

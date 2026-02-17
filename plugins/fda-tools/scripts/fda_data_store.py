@@ -19,9 +19,12 @@ Usage:
 
 import argparse
 import json
+import logging
 import os
 import re
+import shutil
 import sys
+import tempfile
 from datetime import datetime, timezone
 
 # Import FDAClient from sibling module
@@ -52,15 +55,52 @@ def get_projects_dir():
     return os.path.expanduser("~/fda-510k-data/projects")
 
 
+logger = logging.getLogger(__name__)
+
+
 def load_manifest(project_dir):
-    """Load or create a project manifest."""
+    """Load or create a project manifest.
+
+    Attempts to load data_manifest.json from the project directory. If the
+    primary file is corrupted or missing, falls back to the .bak copy
+    (created by save_manifest on each write). If both are unavailable,
+    returns a fresh empty manifest.
+
+    Args:
+        project_dir: Absolute path to the project directory.
+
+    Returns:
+        dict: The manifest data.
+    """
     manifest_path = os.path.join(project_dir, "data_manifest.json")
+    backup_path = manifest_path + ".bak"
+
+    # Try primary manifest first
     if os.path.exists(manifest_path):
         try:
             with open(manifest_path) as f:
                 return json.load(f)
-        except (json.JSONDecodeError, OSError):
-            pass
+        except (json.JSONDecodeError, OSError) as exc:
+            logger.warning(
+                "Primary manifest corrupted at %s: %s. Trying backup.",
+                manifest_path, exc,
+            )
+
+    # Fall back to backup if primary is missing or corrupted
+    if os.path.exists(backup_path):
+        try:
+            with open(backup_path) as f:
+                data = json.load(f)
+            logger.info("Recovered manifest from backup: %s", backup_path)
+            # Restore backup as primary
+            try:
+                shutil.copy2(backup_path, manifest_path)
+            except OSError:
+                pass
+            return data
+        except (json.JSONDecodeError, OSError) as exc:
+            logger.warning("Backup manifest also corrupted: %s", exc)
+
     return {
         "project": os.path.basename(project_dir),
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -71,12 +111,65 @@ def load_manifest(project_dir):
 
 
 def save_manifest(project_dir, manifest):
-    """Save the project manifest."""
+    """Save the project manifest atomically with backup.
+
+    Uses a write-to-temp-then-rename strategy to prevent data corruption
+    if the process crashes during write. Before overwriting, the current
+    manifest is preserved as data_manifest.json.bak.
+
+    Per 21 CFR 820.70(i), data integrity during automated processing
+    must be ensured. Atomic writes guarantee that the manifest is always
+    in a consistent state on disk.
+
+    Args:
+        project_dir: Absolute path to the project directory.
+        manifest: The manifest dict to persist.
+
+    Raises:
+        OSError: If the project directory cannot be created or the
+            atomic rename fails (e.g., cross-device move).
+    """
     manifest["last_updated"] = datetime.now(timezone.utc).isoformat()
     manifest_path = os.path.join(project_dir, "data_manifest.json")
+    backup_path = manifest_path + ".bak"
     os.makedirs(project_dir, exist_ok=True)
-    with open(manifest_path, "w") as f:
-        json.dump(manifest, f, indent=2)
+
+    # Create backup of existing manifest before overwriting
+    if os.path.exists(manifest_path):
+        try:
+            shutil.copy2(manifest_path, backup_path)
+        except OSError as exc:
+            logger.warning("Could not create manifest backup: %s", exc)
+
+    # Atomic write: write to temp file in same directory, then rename.
+    # os.replace() is atomic on POSIX when source and dest are on the
+    # same filesystem. Using the same directory guarantees this.
+    fd = None
+    tmp_path = None
+    try:
+        fd, tmp_path = tempfile.mkstemp(
+            dir=project_dir, prefix=".data_manifest_", suffix=".tmp"
+        )
+        with os.fdopen(fd, "w") as f:
+            fd = None  # os.fdopen takes ownership of the fd
+            json.dump(manifest, f, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, manifest_path)
+        tmp_path = None  # successfully moved, nothing to clean up
+    except Exception:
+        # Clean up temp file on failure
+        if fd is not None:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+        raise
 
 
 def is_expired(entry):

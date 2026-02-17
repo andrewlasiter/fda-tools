@@ -11,6 +11,8 @@
     "voltagent-dev-exp@voltagent-subagents": true,
     "voltagent-data-ai@voltagent-subagents": true,
     "voltagent-core-dev@voltagent-subagents": true,
-    "ralphex@ralphex": true
+    "ralphex@ralphex": true,
+    "fda-tools@fda-tools": true,
+    "hookify@claude-plugins-official": true
   }
 }

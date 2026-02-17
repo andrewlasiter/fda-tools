@@ -3,11 +3,14 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+.Python
 
 # Testing
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
+coverage.xml
 
 # Build
 dist/
@@ -17,10 +20,31 @@ build/
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
 
 # OS
 .DS_Store
+Thumbs.db
+*:Zone.Identifier
 
 # Virtual env
 .venv/
 venv/
+ENV/
+
+# Backup files (FDA-47)
+*.backup
+*.bak
+*.orig
+
+# Node (openclaw-skill)
+node_modules/
+
+# Temp files
+*.tmp
+.data_manifest_*.tmp
+
+# Logs
+*.log

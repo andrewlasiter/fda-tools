@@ -1,0 +1,191 @@
+FDA Software/AI Expert Skill Validation Checklist
+================================================
+
+SKILL.md Requirements (918 lines):
+
+✅ Expert Profile Section
+  ✅ Name: Dr. Michael Torres, PhD, RAC
+  ✅ FDA Experience: 15 years, CDRH Digital Health Center of Excellence
+  ✅ Industry Experience: 12 years in SaMD, AI/ML, clinical decision support
+  ✅ Education: PhD Computer Science (ML), MS Biomedical Engineering
+  ✅ Certifications: RAC, CISSP
+  ✅ Specialty areas (11 listed)
+  ✅ Review experience (250+ SaMD submissions, 80+ cybersecurity assessments)
+
+✅ Workflows (7 major workflows)
+  ✅ 1. Confirm Software Device Scope
+  ✅ 2. Software Lifecycle Assessment (IEC 62304)
+     - Safety classification (Class A/B/C)
+     - Development planning
+     - Requirements analysis
+     - Architecture design
+     - Integration and testing
+     - Software release
+  ✅ 3. Software Verification & Validation (V&V)
+     - V&V plan
+     - RTM (Requirements Traceability Matrix)
+     - Test coverage analysis
+  ✅ 4. AI/ML Algorithm Transparency and Validation
+     - Training data assessment
+     - Bias mitigation and fairness
+     - Algorithm explainability
+     - PCCP for continuous learning
+     - Clinical decision support
+  ✅ 5. Cybersecurity Assessment (FDA 2023 Premarket Guidance)
+     - Threat modeling
+     - SBOM generation
+     - Security architecture
+     - Penetration testing
+     - Vulnerability management
+  ✅ 6. Off-the-Shelf (OTS) Software Validation
+     - SOUP identification
+     - GAMP 5 validation
+     - Open-source software
+  ✅ 7. Software Problem Resolution and Maintenance
+     - Change control
+     - Version control
+     - Configuration management
+
+✅ Output Template
+  ✅ Device Software Summary
+  ✅ Software Lifecycle Compliance (IEC 62304)
+  ✅ Verification & Validation Assessment
+  ✅ AI/ML Transparency and Bias Assessment
+  ✅ Cybersecurity Assessment
+  ✅ OTS Software Validation
+  ✅ Software Change Control
+  ✅ Deficiency Summary (CRITICAL/MAJOR/MINOR)
+  ✅ RTA Risk Assessment
+  ✅ Recommended Next Steps with timelines
+  ✅ Software Validation Readiness Score (X/100)
+
+✅ Common Deficiency Library
+  ✅ Software Verification & Validation (4 patterns)
+  ✅ Off-the-Shelf Software (3 patterns)
+  ✅ AI/ML Algorithm Transparency (4 patterns)
+  ✅ Cybersecurity (5 patterns)
+  ✅ Software Change Control (2 patterns)
+  Total: 18+ specific deficiency patterns with examples and fixes
+
+✅ References Section
+  ✅ FDA Regulations (3 CFR sections)
+  ✅ FDA Guidance Documents (9 guidance docs)
+  ✅ International Standards (7 standards)
+  ✅ Industry Standards (6 frameworks)
+  ✅ Internal References (7 reference docs)
+
+✅ Expert Tips (5 categories)
+  ✅ For SaMD 510(k) Submissions
+  ✅ For AI/ML Devices
+  ✅ For Cybersecurity (FDA 2023 Guidance)
+  ✅ For OTS/SOUP Validation
+  ✅ For Agile/DevOps Software Development
+
+✅ Example Use Cases (3 detailed examples)
+  ✅ Use Case 1: AI/ML Diagnostic Algorithm 510(k)
+     - Diabetic retinopathy screening
+     - Bias assessment deficiency
+     - Explainability gaps
+     - Test coverage issues
+  ✅ Use Case 2: Continuous Learning Algorithm with PCCP
+     - Sepsis prediction with online learning
+     - PCCP requirement
+     - SPS/ACP components
+  ✅ Use Case 3: Networked Device Cybersecurity Review
+     - Cloud-connected CGM
+     - SBOM missing
+     - CVE remediation
+     - Penetration testing
+
+✅ Continuous Learning Section
+
+agent.yaml Requirements (185 lines):
+
+✅ Basic Configuration
+  ✅ name: fda-software-ai-expert
+  ✅ model: opus (deep reasoning for AI/ML validation)
+  ✅ description: Software & AI/ML expertise summary
+
+✅ Tools Section
+  ✅ Read - V&V protocols, SRS, test reports, SBOM
+  ✅ Grep - Software requirements, test cases, CVEs
+  ✅ Glob - Software documentation, source code
+  ✅ WebFetch - FDA guidance documents
+
+✅ Context Configuration
+  ✅ max_context: 200000 (large context for V&V review)
+  ✅ temperature: 0.3 (consistent assessment)
+
+✅ Expertise Areas (20+ specializations)
+  ✅ IEC 62304 software lifecycle
+  ✅ IEC 82304 health software
+  ✅ SaMD regulatory pathways
+  ✅ AI/ML algorithms and clinical decision support
+  ✅ PCCP for adaptive AI/ML
+  ✅ FDA Software Functions Guidance (2023)
+  ✅ Cybersecurity Premarket Guidance (2023)
+  ✅ V&V and RTM
+  ✅ Test coverage analysis
+  ✅ OTS software validation (GAMP 5)
+  ✅ SBOM generation
+  ✅ Threat modeling
+  ✅ Algorithmic bias assessment
+
+✅ Regulatory Knowledge
+  ✅ CFR sections (3 sections)
+  ✅ Guidance documents (9 guidance docs)
+  ✅ Standards (8 standards)
+  ✅ Cybersecurity frameworks (5 frameworks)
+
+✅ AI/ML Expertise Section
+  ✅ Algorithm types (5 categories)
+  ✅ Validation areas (8 areas)
+  ✅ Bias detection (5 methods)
+
+✅ Cybersecurity Expertise Section
+  ✅ Threat modeling (3 methods)
+  ✅ Security controls (6 controls)
+  ✅ Security testing (6 testing types)
+  ✅ SBOM standards (2 standards)
+
+✅ Deficiency Patterns (5 categories, 20+ patterns)
+  ✅ Verification/Validation
+  ✅ OTS Software
+  ✅ AI/ML
+  ✅ Cybersecurity
+  ✅ Software Change Control
+
+✅ Output Standards (10 standards)
+  ✅ compliance_scoring: true
+  ✅ risk_prioritization: true
+  ✅ standards_citations: true
+  ✅ actionable_findings: true
+  ✅ rta_assessment: true
+  ✅ test_coverage_metrics: true
+  ✅ rtm_gap_analysis: true
+  ✅ sbom_completeness: true
+  ✅ cve_prioritization: true
+  ✅ bias_assessment: true
+  ✅ pccp_requirement: true
+
+Quality Metrics:
+===============
+SKILL.md: 918 lines (~40KB)
+agent.yaml: 185 lines (~7.2KB)
+
+Structure Match: ✅ Matches fda-quality-expert format
+Completeness: ✅ 100% of requirements met
+Detail Level: ✅ Comprehensive (3 detailed use cases)
+Expert Depth: ✅ 15 years CDRH Digital Health experience
+Regulatory Coverage: ✅ IEC 62304, FDA 2023 guidance, AI/ML, cybersecurity
+
+Priority Issues Coverage:
+========================
+✅ FDA-29: Software validation gaps (V&V, RTM, test coverage)
+✅ FDA-28: AI/ML algorithm transparency and bias
+✅ FDA-22: Cybersecurity documentation (SBOM, CVEs, penetration testing)
+✅ FDA-26: Clinical decision support software
+✅ FDA-25: OTS software validation (GAMP 5)
+✅ FDA-58: PCCP for continuous learning algorithms
+
+VALIDATION: ✅ PASS - All requirements met
