@@ -26,7 +26,6 @@ import argparse
 import json
 import logging
 import os
-import subprocess
 import sys
 import time
 from datetime import datetime, timezone
@@ -39,84 +38,7 @@ logger = logging.getLogger(__name__)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fda_api_client import FDAClient
 from fda_data_store import get_projects_dir, load_manifest, save_manifest
-
-
-def _run_subprocess(
-    cmd: List[str],
-    step_name: str,
-    timeout_seconds: int,
-    cwd: str,
-    verbose: bool = True,
-) -> Dict[str, Any]:
-    """Run a subprocess with standardized error handling and user-friendly messages.
-
-    Centralizes the try/except pattern for subprocess calls used by the
-    pipeline trigger functions, providing consistent timeout messages,
-    error reporting, and verbose output.
-
-    Args:
-        cmd: Command and arguments to execute.
-        step_name: Human-readable name for the step (e.g., 'batchfetch').
-        timeout_seconds: Maximum seconds before killing the process.
-        cwd: Working directory for the subprocess.
-        verbose: If True, print progress information.
-
-    Returns:
-        Dictionary with step result:
-        {
-            "step": str,
-            "status": "success" | "error" | "timeout",
-            "returncode": int (only on success/error),
-            "output": str,
-            "error": str (only on failure),
-        }
-    """
-    try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=timeout_seconds,
-            cwd=cwd,
-        )
-        step_result = {
-            "step": step_name,
-            "status": "success" if result.returncode == 0 else "error",
-            "returncode": result.returncode,
-            "output": result.stdout[-500:] if result.stdout else "",
-            "error": result.stderr[-500:] if result.stderr else "",
-        }
-        if verbose:
-            status = "success" if result.returncode == 0 else "error"
-            print(f"    {step_name}: {status}")
-        return step_result
-    except subprocess.TimeoutExpired:
-        timeout_minutes = timeout_seconds / 60
-        message = (
-            f"Process timed out after {timeout_seconds} seconds. "
-            f"Possible causes: (1) FDA API may be slow or unreachable -- "
-            f"check your internet connection; (2) Large dataset requires "
-            f"more time -- consider increasing the timeout; (3) The API "
-            f"server may be under maintenance -- try again later."
-        )
-        step_result = {
-            "step": step_name,
-            "status": "timeout",
-            "output": message,
-        }
-        if verbose:
-            print(f"    {step_name}: TIMEOUT ({timeout_minutes:.0f}min)")
-            print(f"      Suggestion: Check API connectivity or retry later.")
-        return step_result
-    except OSError as e:
-        step_result = {
-            "step": step_name,
-            "status": "error",
-            "output": str(e),
-        }
-        if verbose:
-            print(f"    {step_name}: ERROR ({e})")
-        return step_result
+from subprocess_utils import run_subprocess  # type: ignore
 
 
 def _load_fingerprint(
@@ -693,7 +615,7 @@ def trigger_pipeline(
         if verbose:
             print(f"  Step 1: Running batchfetch for {product_code}...")
 
-        step_result = _run_subprocess(
+        step_result = run_subprocess(
             cmd, "batchfetch", timeout_seconds=300,
             cwd=str(scripts_dir), verbose=verbose,
         )
@@ -718,7 +640,7 @@ def trigger_pipeline(
         if verbose:
             print("  Step 2: Building structured cache...")
 
-        step_result = _run_subprocess(
+        step_result = run_subprocess(
             cmd, "build_structured_cache", timeout_seconds=600,
             cwd=str(scripts_dir), verbose=verbose,
         )
