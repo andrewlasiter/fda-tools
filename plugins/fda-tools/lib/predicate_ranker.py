@@ -9,12 +9,15 @@ Part of Phase 4: Automation Features
 """
 
 import json
+import logging
 import sys
 import re
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Any
 from collections import Counter
+
+logger = logging.getLogger(__name__)
 
 
 class PredicateRanker:
@@ -300,7 +303,7 @@ class PredicateRanker:
                 if age_years > 15:
                     flags.append(f'OLD ({int(age_years)} years)')
             except (ValueError, TypeError) as e:
-                print(f"Warning: Could not parse decision_date for risk flag extraction: {e}", file=sys.stderr)
+                logger.warning("Could not parse decision_date for risk flag extraction: %s", e)
 
         # Web validation flags (if present)
         web_val = predicate.get('web_validation', '')

@@ -129,7 +129,7 @@ def load_manifest(project_dir):
             try:
                 shutil.copy2(backup_path, manifest_path)
             except OSError as e:
-                print(f"Warning: Could not restore backup to primary manifest: {e}", file=sys.stderr)
+                logger.warning("Could not restore backup to primary manifest: %s", e)
             return data
         except (json.JSONDecodeError, OSError) as exc:
             logger.warning("Backup manifest also corrupted: %s", exc)
@@ -199,12 +199,12 @@ def save_manifest(project_dir, manifest):
             try:
                 os.close(fd)
             except OSError as e:
-                print(f"Warning: Failed to close temp file descriptor: {e}", file=sys.stderr)
+                logger.warning("Failed to close temp file descriptor: %s", e)
         if tmp_path and os.path.exists(tmp_path):
             try:
                 os.unlink(tmp_path)
             except OSError as e:
-                print(f"Warning: Failed to remove temp file {tmp_path}: {e}", file=sys.stderr)
+                logger.warning("Failed to remove temp file %s: %s", tmp_path, e)
         raise
 
 
@@ -495,7 +495,7 @@ def handle_query(args):
         if entry:
             summary = entry.get("summary", {})
             fetched_at = entry.get("fetched_at", "unknown")
-            print("WARNING:API_ERROR — using stale cached data", file=sys.stderr)
+            logger.warning("API_ERROR -- using stale cached data")
             _print_result(query_type, summary, "STALE", fetched_at, count_field)
             return
         print(f"CACHE_STATUS:MISS")
@@ -654,7 +654,7 @@ def handle_show_manifest(args):
                 else:
                     time_ago = f"{int(hours / 24)}d ago"
             except (ValueError, TypeError) as e:
-                print(f"Warning: Could not parse fetched_at timestamp: {e}", file=sys.stderr)
+                logger.warning("Could not parse fetched_at timestamp: %s", e)
 
         # Build compact summary string
         compact = _compact_summary(key, summary)

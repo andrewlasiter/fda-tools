@@ -25,11 +25,14 @@ Features:
 
 import argparse
 import json
+import logging
 import os
 import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # Import existing modules
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -471,7 +474,7 @@ def clean_system_cache(verbose=True):
                 expired_count += 1
                 bytes_freed += file_size
             except OSError as e:
-                print(f"Warning: Failed to remove expired cache file: {e}", file=sys.stderr)
+                logger.warning("Failed to remove expired cache file: %s", e)
 
     results = {
         "cache_dir": str(cache_dir),

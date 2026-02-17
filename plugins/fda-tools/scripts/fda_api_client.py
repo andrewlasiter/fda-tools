@@ -43,6 +43,9 @@ except ImportError:
     _INTEGRITY_AVAILABLE = False
 
 
+# Module logger (FDA-18 / GAP-014)
+logger = logging.getLogger(__name__)
+
 # Cache integrity audit logger
 _cache_logger = logging.getLogger("fda.cache_integrity")
 
@@ -473,20 +476,20 @@ class FDAClient:
                     if time.time() - cached.get("_cached_at", 0) < product_code_ttl:
                         return cached.get("codes", [])
                 except (json.JSONDecodeError, OSError) as e:
-                    print(f"Warning: Failed to read product code cache: {e}", file=sys.stderr)
+                    logger.warning("Failed to read product code cache: %s", e)
 
         # Fetch all product codes via pagination
         all_codes = set()
         limit = 1000  # Max per request
         skip = 0
 
-        print("Enumerating all FDA product codes (this may take a minute)...")
+        logger.info("Enumerating all FDA product codes (this may take a minute)...")
 
         while True:
             result = self._request("classification", {"limit": str(limit), "skip": str(skip)})
 
             if result.get("degraded"):
-                print(f"Warning: API degraded during enumeration: {result.get('error')}")
+                logger.warning("API degraded during enumeration: %s", result.get('error'))
                 break
 
             results = result.get("results", [])
@@ -499,7 +502,7 @@ class FDAClient:
                 if code:
                     all_codes.add(code.upper())
 
-            print(f"   Fetched {len(results)} devices (total codes: {len(all_codes)})")
+            logger.debug("Fetched %d devices (total codes: %d)", len(results), len(all_codes))
 
             # Check if there are more results
             total = result.get("meta", {}).get("results", {}).get("total", 0)
@@ -524,9 +527,9 @@ class FDAClient:
                         "total": len(codes_list)
                     }, f, indent=2)
             except OSError as e:
-                print(f"Warning: Failed to cache product codes: {e}", file=sys.stderr)
+                logger.warning("Failed to cache product codes: %s", e)
 
-        print(f"Found {len(codes_list)} product codes (cached for 30 days)")
+        logger.info("Found %d product codes (cached for 30 days)", len(codes_list))
         return codes_list
 
     def get_device_characteristics(self, product_code):

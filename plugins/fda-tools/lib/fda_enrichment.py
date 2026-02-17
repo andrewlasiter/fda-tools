@@ -21,8 +21,11 @@ from urllib.request import Request, urlopen
 from urllib.parse import quote
 from urllib.error import HTTPError, URLError
 import json
+import logging
 import time
 import sys
+
+logger = logging.getLogger(__name__)
 
 
 # Product Code to CFR Part Mapping
@@ -244,7 +247,7 @@ class FDAEnrichment:
                     'maude_scope': 'PRODUCT_CODE'  # Critical disclaimer
                 }
         except Exception as e:
-            print(f"Warning: MAUDE events query failed: {e}", file=sys.stderr)
+            logger.warning("MAUDE events query failed: %s", e)
 
         return {
             'maude_productcode_5y': 'N/A',
@@ -287,7 +290,7 @@ class FDAEnrichment:
                         'recall_status': latest.get('status', 'Unknown')
                     }
         except Exception as e:
-            print(f"Warning: Recall history query failed: {e}", file=sys.stderr)
+            logger.warning("Recall history query failed: %s", e)
 
         return {
             'recalls_total': 0,
@@ -325,7 +328,7 @@ class FDAEnrichment:
                     'statement_or_summary': device.get('statement_or_summary', 'Unknown')
                 }
         except Exception as e:
-            print(f"Warning: 510(k) validation query failed: {e}", file=sys.stderr)
+            logger.warning("510(k) validation query failed: %s", e)
 
         return {
             'api_validated': 'No',
@@ -511,7 +514,7 @@ class FDAEnrichment:
             elif age_years > 10:
                 risk_factors.append(f"Clearance age: {age_years} years")
         except Exception as e:
-            print(f"Warning: Could not calculate clearance age for predicate acceptability: {e}", file=sys.stderr)
+            logger.warning("Could not calculate clearance age for predicate acceptability: %s", e)
 
         # Generate recommendation
         if acceptability_status == "ACCEPTABLE":
@@ -794,8 +797,7 @@ class FDAEnrichment:
         api_log = []
         total = len(device_rows)
 
-        print(f"\n📊 Enriching {total} devices with FDA API data...")
-        print("━" * 60)
+        logger.info("Enriching %d devices with FDA API data...", total)
 
         for i, row in enumerate(device_rows, 1):
             k_number = row['KNUMBER']
@@ -804,10 +806,9 @@ class FDAEnrichment:
 
             # Progress reporting
             if i % 10 == 0 or i == total:
-                print(f"  ✓ Processed {i}/{total} devices ({i/total*100:.1f}%)")
+                logger.debug("Processed %d/%d devices (%.1f%%)", i, total, i/total*100)
 
-        print("━" * 60)
-        print(f"✅ Enrichment complete: {total} devices processed\n")
+        logger.info("Enrichment complete: %d devices processed", total)
 
         return enriched_rows, api_log
 

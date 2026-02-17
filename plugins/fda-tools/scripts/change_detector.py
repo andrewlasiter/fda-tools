@@ -24,6 +24,7 @@ Usage:
 
 import argparse
 import json
+import logging
 import os
 import subprocess
 import sys
@@ -31,6 +32,8 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 # Import sibling modules
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

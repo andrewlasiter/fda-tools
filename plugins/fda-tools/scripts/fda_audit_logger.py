@@ -33,11 +33,14 @@ Usage:
 
 import argparse
 import json
+import logging
 import os
 import re
 import sys
 import uuid
 from datetime import datetime, timezone
+
+logger = logging.getLogger(__name__)
 
 
 # ── Valid action types (must match references/audit-logging.md) ──
@@ -173,7 +176,7 @@ def read_log(project_dir):
             try:
                 entries.append(json.loads(line))
             except json.JSONDecodeError:
-                print(f"WARNING:malformed entry at line {line_num}", file=sys.stderr)
+                logger.warning("Malformed entry at line %d", line_num)
     return entries
 
 
@@ -312,7 +315,7 @@ def consolidate_pipeline(project_dir, project_name):
             t2 = datetime.fromisoformat(completed)
             duration_seconds = int((t2 - t1).total_seconds())
         except (ValueError, TypeError) as e:
-            print(f"Warning: Could not calculate pipeline duration: {e}", file=sys.stderr)
+            logger.warning("Could not calculate pipeline duration: %s", e)
 
     consolidated = {
         "pipeline_version": PLUGIN_VERSION,
@@ -442,7 +445,7 @@ def handle_append(args):
             elif isinstance(raw, list):
                 entry["exclusion_records"] = raw
         except json.JSONDecodeError:
-            print(f"WARNING:Could not parse --exclusions as JSON", file=sys.stderr)
+            logger.warning("Could not parse --exclusions as JSON")
 
     if args.metadata:
         try:
@@ -454,7 +457,7 @@ def handle_append(args):
                 if meta:
                     entry["metadata"] = meta
         except json.JSONDecodeError:
-            print(f"WARNING:Could not parse --metadata as JSON", file=sys.stderr)
+            logger.warning("Could not parse --metadata as JSON")
 
     if args.files_read:
         entry["files_read"] = [s.strip() for s in args.files_read.split(",")]

@@ -76,7 +76,10 @@ try:
 except ImportError:
     _INTEGRITY_AVAILABLE = False
 
-# Module logger for cache integrity events
+# Module logger (FDA-18 / GAP-014)
+logger = logging.getLogger(__name__)
+
+# Cache integrity logger
 _logger = logging.getLogger("fda.pma_cache_integrity")
 
 
@@ -535,7 +538,7 @@ class PMADataStore:
             except OSError as e:
                 if tmp_path.exists():
                     tmp_path.unlink(missing_ok=True)
-                print(f"Warning: Failed to cache supplements for {pma_key}: {e}", file=sys.stderr)
+                logger.warning("Failed to cache supplements for %s: %s", pma_key, e)
 
         # Update manifest
         self.update_manifest_entry(pma_key, {

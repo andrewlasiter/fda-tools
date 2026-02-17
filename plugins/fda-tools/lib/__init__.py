@@ -173,6 +173,37 @@ except ImportError:
         conditional_import = None
         try_import_with_alternatives = None
 
+# Logging Configuration (FDA-18 / GAP-014)
+try:
+    from lib.logging_config import (  # type: ignore
+        setup_logging,
+        get_logger,
+        get_audit_logger,
+        AuditLogger,
+        add_logging_args,
+        apply_logging_args,
+        reset_logging,
+    )
+except ImportError:
+    try:
+        from logging_config import (  # type: ignore
+            setup_logging,
+            get_logger,
+            get_audit_logger,
+            AuditLogger,
+            add_logging_args,
+            apply_logging_args,
+            reset_logging,
+        )
+    except ImportError:
+        setup_logging = None
+        get_logger = None
+        get_audit_logger = None
+        AuditLogger = None
+        add_logging_args = None
+        apply_logging_args = None
+        reset_logging = None
+
 __all__ = [
     # Gap Analysis
     'GapAnalyzer',
@@ -211,4 +242,12 @@ __all__ = [
     'safe_import_from',
     'conditional_import',
     'try_import_with_alternatives',
+    # Logging Configuration
+    'setup_logging',
+    'get_logger',
+    'get_audit_logger',
+    'AuditLogger',
+    'add_logging_args',
+    'apply_logging_args',
+    'reset_logging',
 ]

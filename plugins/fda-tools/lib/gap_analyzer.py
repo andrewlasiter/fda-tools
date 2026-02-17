@@ -9,10 +9,13 @@ Part of Phase 4: Automation Features
 """
 
 import json
+import logging
 import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Any
+
+logger = logging.getLogger(__name__)
 
 
 class GapAnalyzer:
@@ -233,7 +236,7 @@ class GapAnalyzer:
                         if max_priority == 'LOW':
                             max_priority = 'MEDIUM'
                 except (ValueError, TypeError) as e:
-                    print(f"Warning: Could not parse clearance date for weak predicate detection: {e}", file=sys.stderr)
+                    logger.warning("Could not parse clearance date for weak predicate detection: %s", e)
 
             # Check SE differences (from se_comparison.md)
             if self.se_comparison and k_number in self.se_comparison:
