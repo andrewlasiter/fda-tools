@@ -9,6 +9,7 @@ Usage:
     python3 update_manager.py --scan-all                    # Scan all projects for stale data
     python3 update_manager.py --project NAME --update       # Update stale data for one project
     python3 update_manager.py --update-all                  # Update all stale data across projects
+    python3 update_manager.py --update-all --backup         # Backup before updating all projects
     python3 update_manager.py --clean-cache                 # Remove expired API cache files
     python3 update_manager.py --dry-run --update-all        # Preview updates without executing
     python3 update_manager.py --smart --project NAME        # Smart detection: find new clearances
@@ -21,6 +22,7 @@ Features:
     - Integration with existing is_expired() and TTL_TIERS
     - System cache cleanup for expired API responses
     - Smart change detection: compare live API against fingerprints
+    - Automatic backup before updates (optional --backup flag)
 """
 
 import argparse
@@ -47,6 +49,14 @@ from fda_data_store import (
 )
 from fda_api_client import FDAClient
 from change_detector import detect_changes, trigger_pipeline
+
+# Import backup functionality
+try:
+    from backup_project import backup_all_projects
+    BACKUP_AVAILABLE = True
+except ImportError:
+    BACKUP_AVAILABLE = False
+    logger.warning("Backup functionality not available (backup_project.py not found)")
 
 
 # Rate limiting configuration
@@ -354,12 +364,13 @@ def batch_update(project_name, dry_run=False, verbose=True):
     return results
 
 
-def update_all_projects(dry_run=False, verbose=True):
+def update_all_projects(dry_run=False, verbose=True, backup_first=False):
     """Update stale data across all projects.
 
     Args:
         dry_run: If True, preview updates without executing
         verbose: If True, print progress
+        backup_first: If True, create backup before updating
 
     Returns:
         Dictionary with overall results:
@@ -368,9 +379,44 @@ def update_all_projects(dry_run=False, verbose=True):
             "updated_projects": int,
             "total_updated": int,
             "total_failed": int,
+            "backup_info": dict | None,
             "projects": {project_name: update_results, ...}
         }
     """
+    # Create backup if requested
+    backup_info = None
+    if backup_first and not dry_run:
+        if not BACKUP_AVAILABLE:
+            logger.error("❌ Backup requested but backup_project.py not available")
+            return {
+                "total_projects": 0,
+                "updated_projects": 0,
+                "total_updated": 0,
+                "total_failed": 0,
+                "backup_info": {"status": "failed", "message": "Backup module not available"},
+                "projects": {}
+            }
+
+        if verbose:
+            print("📦 Creating backup before updates...")
+
+        try:
+            backup_result = backup_all_projects(output_dir=None, verify=True)
+            backup_info = {
+                "status": "success",
+                "backup_file": backup_result["backup_file"],
+                "timestamp": backup_result["timestamp"]
+            }
+            if verbose:
+                print(f"✅ Backup created: {backup_result['backup_file']}")
+                print()
+        except Exception as e:
+            logger.error(f"❌ Backup failed: {e}")
+            backup_info = {"status": "failed", "message": str(e)}
+            if verbose:
+                print(f"⚠️  Continuing without backup (use Ctrl+C to abort)")
+                time.sleep(2)
+
     scan_results = scan_all_projects(verbose=False)
 
     projects_with_stale = {
@@ -387,6 +433,7 @@ def update_all_projects(dry_run=False, verbose=True):
             "updated_projects": 0,
             "total_updated": 0,
             "total_failed": 0,
+            "backup_info": backup_info,
             "projects": {}
         }
 
@@ -400,6 +447,7 @@ def update_all_projects(dry_run=False, verbose=True):
         "updated_projects": 0,
         "total_updated": 0,
         "total_failed": 0,
+        "backup_info": backup_info,
         "projects": {}
     }
 
@@ -425,6 +473,8 @@ def update_all_projects(dry_run=False, verbose=True):
         print(f"  Projects updated: {overall_results['updated_projects']}/{overall_results['total_projects']}")
         print(f"  Queries updated: {overall_results['total_updated']}")
         print(f"  Queries failed: {overall_results['total_failed']}")
+        if backup_info and backup_info.get("status") == "success":
+            print(f"  Backup: {backup_info['backup_file']}")
 
     return overall_results
 
@@ -548,6 +598,8 @@ def main():
                         help="Update stale data (use with --project or --update-all)")
     parser.add_argument("--update-all", action="store_true", dest="update_all",
                         help="Update stale data across all projects")
+    parser.add_argument("--backup", action="store_true",
+                        help="Create backup before updating (use with --update-all)")
     parser.add_argument("--clean-cache", action="store_true", dest="clean_cache",
                         help="Remove expired files from system API cache")
     parser.add_argument("--smart", action="store_true",
@@ -574,7 +626,7 @@ def main():
             print(json.dumps(results, indent=2))
 
     elif args.update_all:
-        results = update_all_projects(dry_run=args.dry_run, verbose=verbose)
+        results = update_all_projects(dry_run=args.dry_run, verbose=verbose, backup_first=args.backup)
         if not verbose:
             print(json.dumps(results, indent=2))
 
