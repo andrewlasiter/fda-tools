@@ -21,13 +21,19 @@
  * @version 1.0.0
  */
 
-import { describe, test, expect, beforeEach, jest } from '@jest/globals';
+import { describe, test, expect, beforeEach } from '@jest/globals';
 import * as fs from 'fs';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 
 // ============================================================
 // Test Utilities
 // ============================================================
+
+// ES Module equivalent of __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const SKILL_ROOT = path.resolve(__dirname, '..');
 const SKILL_MD_PATH = path.join(SKILL_ROOT, 'SKILL.md');
