@@ -30,7 +30,7 @@ from unittest.mock import patch, MagicMock
 # Import module under test
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent / 'lib'))
-from predicate_ranker import (
+from predicate_ranker import (  # type: ignore
     PredicateRanker,
     rank_predicates,
     generate_smart_recommendations_report
