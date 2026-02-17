@@ -155,8 +155,9 @@ class DeviceStandardsGenerator:
             if data.get('results'):
                 return data['results'][0].get('device_name', 'Unknown Device')
 
-        except:
-            pass
+        except (Exception,) as exc:
+            print(f"  WARNING: Could not fetch device name for {product_code}: {exc}",
+                  file=sys.stderr)
 
         return 'Unknown Device'
 
@@ -177,7 +178,9 @@ class DeviceStandardsGenerator:
                         match = re.search(r',([A-Z]{3}),', line)
                         if match:
                             codes_counter[match.group(1)] += 1
-            except:
+            except (OSError, UnicodeDecodeError) as exc:
+                print(f"  WARNING: Could not read {csv_file}: {exc}",
+                      file=sys.stderr)
                 continue
 
         # Convert to sorted list
@@ -284,8 +287,10 @@ class DeviceStandardsGenerator:
             )
             if result.returncode == 0:
                 return result.stdout
-        except:
-            pass
+        except (OSError, subprocess.TimeoutExpired, subprocess.SubprocessError) as exc:
+            # pdftotext not available or failed — try Python fallback
+            print(f"  DEBUG: pdftotext failed for {pdf_path}: {exc}",
+                  file=sys.stderr)
 
         # Fallback: Try pypdf
         try:
@@ -295,8 +300,10 @@ class DeviceStandardsGenerator:
             for page in reader.pages:
                 text += page.extract_text()
             return text
-        except:
-            pass
+        except (ImportError, OSError, ValueError) as exc:
+            # pypdf not available or PDF is corrupt
+            print(f"  DEBUG: pypdf failed for {pdf_path}: {exc}",
+                  file=sys.stderr)
 
         return ''
 
@@ -556,7 +563,27 @@ def main():
         help='Output directory for generated JSON files'
     )
 
+    # Add compliance disclaimer flags
+    try:
+        from compliance_disclaimer import add_disclaimer_args, show_disclaimer
+        add_disclaimer_args(parser)
+        _has_disclaimer = True
+    except ImportError:
+        _has_disclaimer = False
+        # Define stub functions for type checker
+        def add_disclaimer_args(parser):  # type: ignore
+            pass
+        def show_disclaimer(tool_name, accept_flag=False, quiet=False):  # type: ignore
+            return True
+
     args = parser.parse_args()
+
+    # Show compliance disclaimer before any processing (FDA-34)
+    if _has_disclaimer:
+        show_disclaimer(
+            "auto-generate-device-standards",
+            accept_flag=getattr(args, "accept_disclaimer", False),
+        )
 
     # Validate arguments
     if not any([args.all, args.product_code, args.top]):

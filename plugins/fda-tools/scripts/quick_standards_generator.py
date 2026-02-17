@@ -147,8 +147,10 @@ class QuickStandardsGenerator:
                     'regulation': result.get('regulation_number', ''),
                     'review_panel': result.get('review_panel', '')
                 }
-        except:
-            pass
+        except (requests.RequestException, ValueError, KeyError) as exc:
+            # Network or parsing error — fall back to unknown device
+            print(f"  WARNING: Could not fetch device info for {product_code}: {exc}",
+                  file=sys.stderr)
 
         return {'name': 'Unknown Device', 'class': '', 'regulation': '', 'review_panel': ''}
 
@@ -269,7 +271,27 @@ def main():
                        default=Path(__file__).parent.parent / 'data' / 'standards',
                        help='Output directory')
 
+    # Add compliance disclaimer flags
+    try:
+        from compliance_disclaimer import add_disclaimer_args, show_disclaimer
+        add_disclaimer_args(parser)
+        _has_disclaimer = True
+    except ImportError:
+        _has_disclaimer = False
+        # Define stub functions for type checker
+        def add_disclaimer_args(parser):  # type: ignore
+            pass
+        def show_disclaimer(tool_name, accept_flag=False, quiet=False):  # type: ignore
+            return True
+
     args = parser.parse_args()
+
+    # Show compliance disclaimer before any processing (FDA-34)
+    if _has_disclaimer:
+        show_disclaimer(
+            "quick-standards-generator",
+            accept_flag=getattr(args, "accept_disclaimer", False),
+        )
 
     if not args.codes and not args.all and not args.top:
         parser.error('Specify product codes, --all, or --top N')
