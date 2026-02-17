@@ -28,6 +28,17 @@ except ImportError:
     print("ERROR: requests required. Install: pip3 install requests")
     sys.exit(1)
 
+# Import FDA HTTP utilities for proper user-agent handling
+try:
+    from fda_http import FDA_API_HEADERS
+except ImportError:
+    # Fallback if fda_http not available (should not happen in production)
+    from version import PLUGIN_VERSION
+    FDA_API_HEADERS = {
+        'User-Agent': f'FDA-Plugin/{PLUGIN_VERSION}',
+        'Accept': 'application/json',
+    }
+
 
 # FDA Recognized Consensus Standards by Device Category
 # Source: FDA Recognized Consensus Standards Database
@@ -144,7 +155,7 @@ class KnowledgeBasedGenerator:
         try:
             url = "https://api.fda.gov/device/classification.json"
             params = {'search': f'product_code:"{product_code}"', 'limit': 1}
-            response = requests.get(url, params=params, timeout=10)
+            response = requests.get(url, params=params, headers=FDA_API_HEADERS, timeout=10)
             data = response.json()
 
             if data.get('results'):

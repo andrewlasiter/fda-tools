@@ -42,9 +42,9 @@ from colorama import init, Fore, Style
 
 # Shared HTTP utilities
 try:
-    from fda_http import create_session, FDA_HEADERS
+    from fda_http import create_session, FDA_WEBSITE_HEADERS
 except ImportError:
-    FDA_HEADERS = {
+    FDA_WEBSITE_HEADERS = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.5',
@@ -54,7 +54,7 @@ except ImportError:
     }
     def create_session(api_mode=False):
         session = requests.Session()
-        session.headers.update(FDA_HEADERS)
+        session.headers.update(FDA_WEBSITE_HEADERS)
         return session
 
 # Initialize colorama
@@ -479,7 +479,7 @@ def process_zip_file(key, data_dir):
     key = key.strip()
     zip_url = zip_dict[key]
 
-    headers = dict(FDA_HEADERS)
+    headers = dict(FDA_WEBSITE_HEADERS)
     headers['Referer'] = 'https://www.accessdata.fda.gov/'
 
     extract_path = data_dir
@@ -1025,7 +1025,7 @@ def main():
     df = df.sort_values("APPLICANT")
 
     # ---- Step 7: Fetch FOI Class data and display product codes ----
-    dl_headers = dict(FDA_HEADERS)
+    dl_headers = dict(FDA_WEBSITE_HEADERS)
 
     foiclass_url = "https://www.accessdata.fda.gov/premarket/ftparea/foiclass.zip"
     foiclass_file_path = os.path.join(data_dir, "foiclass.txt")
