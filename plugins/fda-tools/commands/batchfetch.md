@@ -927,7 +927,7 @@ if 'FDA_PLUGIN_ROOT' in os.environ:
     lib_path = Path(os.environ['FDA_PLUGIN_ROOT']) / 'lib'
 else:
     # Fallback: try to resolve from installed plugins
-    lib_path = Path.home() / '.claude' / 'plugins' / 'marketplaces' / 'fda-tools' / 'plugins' / 'fda-predicate-assistant' / 'lib'
+    lib_path = Path.home() / '.claude' / 'plugins' / 'marketplaces' / 'fda-tools' / 'plugins' / 'fda-tools' / 'lib'
 
 if not lib_path.exists():
     print(f"ERROR: Could not locate plugin lib directory at {lib_path}")
