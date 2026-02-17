@@ -222,10 +222,178 @@ def find_new_clearances(
     return new_clearances
 
 
+def _detect_field_changes(
+    stored_devices: Dict[str, Dict[str, Any]],
+    current_devices: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Detect field-level changes in existing K-numbers.
+
+    Compares stored device data against current API data to identify
+    fields that have changed values (e.g., decision_date corrections,
+    applicant name changes due to acquisitions).
+
+    Args:
+        stored_devices: Dict mapping K-number to stored device data.
+        current_devices: List of current device records from API.
+
+    Returns:
+        List of field change records:
+        [
+            {
+                "k_number": str,
+                "field": str,
+                "before": Any,
+                "after": Any,
+            }
+        ]
+    """
+    changes = []
+
+    # Fields to monitor for changes
+    monitored_fields = [
+        "device_name",
+        "applicant",
+        "decision_date",
+        "decision_code",
+        "clearance_type",
+        "product_code",
+    ]
+
+    for current in current_devices:
+        k_number = current.get("k_number", "").upper()
+        if not k_number or k_number not in stored_devices:
+            continue
+
+        stored = stored_devices[k_number]
+
+        for field in monitored_fields:
+            current_value = current.get(field, "")
+            stored_value = stored.get(field, "")
+
+            # Normalize for comparison
+            if isinstance(current_value, str):
+                current_value = current_value.strip()
+            if isinstance(stored_value, str):
+                stored_value = stored_value.strip()
+
+            if current_value != stored_value:
+                changes.append({
+                    "k_number": k_number,
+                    "field": field,
+                    "before": stored_value,
+                    "after": current_value,
+                })
+
+    return changes
+
+
+def _generate_diff_report(
+    diff_changes: List[Dict[str, Any]],
+    product_code: str,
+    timestamp: str,
+    output_path: Optional[str] = None,
+) -> str:
+    """Generate markdown diff report for field-level changes.
+
+    Args:
+        diff_changes: List of field change records.
+        product_code: FDA product code.
+        timestamp: ISO timestamp of detection.
+        output_path: Optional path to write report file.
+
+    Returns:
+        Markdown report as string.
+    """
+    report_lines = [
+        "# FDA Field-Level Change Report",
+        "",
+        f"**Product Code:** {product_code}",
+        f"**Detection Time:** {timestamp}",
+        f"**Changes Detected:** {len(diff_changes)}",
+        "",
+        "## Summary",
+        "",
+    ]
+
+    if not diff_changes:
+        report_lines.extend([
+            "No field-level changes detected in existing clearances.",
+            "",
+        ])
+    else:
+        # Group changes by K-number
+        by_k_number = {}
+        for change in diff_changes:
+            k_num = change["k_number"]
+            if k_num not in by_k_number:
+                by_k_number[k_num] = []
+            by_k_number[k_num].append(change)
+
+        report_lines.append(
+            f"Field changes detected across {len(by_k_number)} device(s)."
+        )
+        report_lines.append("")
+
+        # Field change frequency
+        field_counts = {}
+        for change in diff_changes:
+            field = change["field"]
+            field_counts[field] = field_counts.get(field, 0) + 1
+
+        report_lines.append("### Changes by Field Type")
+        report_lines.append("")
+        for field, count in sorted(field_counts.items(), key=lambda x: -x[1]):
+            report_lines.append(f"- **{field}**: {count} change(s)")
+        report_lines.append("")
+
+        # Detailed changes
+        report_lines.append("## Detailed Changes")
+        report_lines.append("")
+
+        for k_num in sorted(by_k_number.keys()):
+            report_lines.append(f"### {k_num}")
+            report_lines.append("")
+            report_lines.append("| Field | Before | After |")
+            report_lines.append("|-------|--------|-------|")
+
+            for change in by_k_number[k_num]:
+                field = change["field"]
+                before = change["before"] or "(empty)"
+                after = change["after"] or "(empty)"
+                # Escape pipe characters in values
+                before = str(before).replace("|", "\\|")
+                after = str(after).replace("|", "\\|")
+                report_lines.append(f"| {field} | {before} | {after} |")
+
+            report_lines.append("")
+
+    report_lines.extend([
+        "## Notes",
+        "",
+        "- **Decision Date Changes**: May indicate FDA backdating corrections",
+        "- **Applicant Changes**: Often due to company acquisitions or mergers",
+        "- **Device Name Changes**: May reflect FDA database corrections",
+        "- **Decision Code/Clearance Type**: Rare but can indicate reclassification",
+        "",
+        "---",
+        f"*Generated by FDA Smart Change Detector on {timestamp}*",
+        "",
+    ])
+
+    report_text = "\n".join(report_lines)
+
+    if output_path:
+        with open(output_path, "w") as f:
+            f.write(report_text)
+
+    return report_text
+
+
 def detect_changes(
     project_name: str,
     client: Optional[FDAClient] = None,
     verbose: bool = False,
+    detect_field_diffs: bool = False,
 ) -> Dict[str, Any]:
     """Compare live FDA API data against stored fingerprints for a project.
 
@@ -234,11 +402,13 @@ def detect_changes(
     - Changes in total clearance count
     - New recall events
     - Changes in recall count
+    - Field-level changes in existing clearances (if detect_field_diffs=True)
 
     Args:
         project_name: Name of the project directory.
         client: FDAClient instance (created if None).
         verbose: If True, print progress information.
+        detect_field_diffs: If True, detect field-level changes in existing devices.
 
     Returns:
         Dictionary with change detection results:
@@ -250,13 +420,14 @@ def detect_changes(
             "changes": [
                 {
                     "product_code": str,
-                    "change_type": "new_clearances" | "new_recalls" | "count_change",
+                    "change_type": "new_clearances" | "new_recalls" | "field_changes",
                     "details": {...},
                     "new_items": [...],
                 }
             ],
             "total_new_clearances": int,
             "total_new_recalls": int,
+            "total_field_changes": int,
         }
     """
     if client is None:
@@ -286,6 +457,7 @@ def detect_changes(
             "changes": [],
             "total_new_clearances": 0,
             "total_new_recalls": 0,
+            "total_field_changes": 0,
         }
 
     # Merge product_codes from both sources
@@ -298,6 +470,7 @@ def detect_changes(
     all_changes = []
     total_new_clearances = 0
     total_new_recalls = 0
+    total_field_changes = 0
     now = datetime.now(timezone.utc).isoformat()
 
     for idx, product_code in enumerate(sorted(codes_to_check), 1):
@@ -308,6 +481,7 @@ def detect_changes(
         known_k_numbers = fp.get("known_k_numbers", [])
         prev_clearance_count = fp.get("clearance_count", 0)
         prev_recall_count = fp.get("recall_count", 0)
+        stored_device_data = fp.get("device_data", {})
 
         # -- Check clearances --
         clearance_result = client.get_clearances(
@@ -325,10 +499,23 @@ def detect_changes(
         known_set = {k.upper() for k in known_k_numbers}
         new_clearances = []
         all_current_k_numbers = list(known_set)  # Start with existing
+        updated_device_data = {}
 
         for item in current_results:
             k_num = item.get("k_number", "").upper()
             if k_num:
+                # Store device data for field diff detection
+                device_record = {
+                    "k_number": k_num,
+                    "device_name": item.get("device_name", ""),
+                    "applicant": item.get("applicant", ""),
+                    "decision_date": item.get("decision_date", ""),
+                    "decision_code": item.get("decision_code", ""),
+                    "clearance_type": item.get("clearance_type", ""),
+                    "product_code": item.get("product_code", product_code),
+                }
+                updated_device_data[k_num] = device_record
+
                 if k_num not in known_set:
                     new_clearances.append({
                         "k_number": k_num,
@@ -351,6 +538,21 @@ def detect_changes(
                 "new_items": new_clearances,
             })
             total_new_clearances += len(new_clearances)
+
+        # -- Detect field-level changes --
+        if detect_field_diffs and stored_device_data:
+            field_changes = _detect_field_changes(stored_device_data, current_results)
+            if field_changes:
+                all_changes.append({
+                    "product_code": product_code,
+                    "change_type": "field_changes",
+                    "count": len(field_changes),
+                    "details": {
+                        "devices_affected": len(set(c["k_number"] for c in field_changes)),
+                    },
+                    "new_items": field_changes,
+                })
+                total_field_changes += len(field_changes)
 
         # -- Check recalls --
         recall_result = client.get_recalls(product_code, limit=10)
@@ -386,6 +588,7 @@ def detect_changes(
             "latest_decision_date": latest_date,
             "recall_count": current_recall_count,
             "known_k_numbers": sorted(set(all_current_k_numbers)),
+            "device_data": updated_device_data,
         }
         _save_fingerprint(project_dir, product_code, new_fingerprint)
 
@@ -407,6 +610,7 @@ def detect_changes(
         "changes": all_changes,
         "total_new_clearances": total_new_clearances,
         "total_new_recalls": total_new_recalls,
+        "total_field_changes": total_field_changes,
     }
 
 
@@ -577,6 +781,10 @@ def main():
         "--json", action="store_true",
         help="Output results as JSON"
     )
+    parser.add_argument(
+        "--diff-report", action="store_true", dest="diff_report",
+        help="Generate markdown diff report for field-level changes"
+    )
 
     args = parser.parse_args()
     verbose = not args.quiet
@@ -588,6 +796,7 @@ def main():
         project_name=args.project,
         client=client,
         verbose=verbose,
+        detect_field_diffs=args.diff_report,
     )
 
     if result.get("status") == "error":
@@ -596,6 +805,36 @@ def main():
         else:
             print(f"Error: {result.get('error', 'Unknown error')}")
         sys.exit(1)
+
+    # Generate diff report if requested
+    diff_report_path = None
+    if args.diff_report:
+        projects_dir = get_projects_dir()
+        project_dir = os.path.join(projects_dir, args.project)
+        diff_report_path = os.path.join(project_dir, "field_changes_report.md")
+
+        # Collect all field changes across product codes
+        all_field_changes = []
+        for change in result.get("changes", []):
+            if change.get("change_type") == "field_changes":
+                all_field_changes.extend(change.get("new_items", []))
+
+        if all_field_changes:
+            # Generate report for all product codes
+            product_codes = sorted(set(
+                change.get("product_code", "")
+                for change in result.get("changes", [])
+            ))
+            product_code_str = ", ".join(product_codes)
+
+            _generate_diff_report(
+                all_field_changes,
+                product_code_str,
+                result.get("checked_at", ""),
+                output_path=diff_report_path,
+            )
+            if verbose:
+                print(f"\nDiff report written to: {diff_report_path}")
 
     # Display results
     if args.json or args.quiet:
@@ -609,6 +848,8 @@ def main():
         print(f"Product codes checked: {result.get('product_codes_checked', 0)}")
         print(f"New clearances found: {result.get('total_new_clearances', 0)}")
         print(f"New recalls found: {result.get('total_new_recalls', 0)}")
+        if args.diff_report:
+            print(f"Field changes detected: {result.get('total_field_changes', 0)}")
         print()
 
         changes = result.get("changes", [])
@@ -630,6 +871,17 @@ def main():
                     remaining = len(change.get("new_items", [])) - 5
                     if remaining > 0:
                         print(f"    ... and {remaining} more")
+                elif ct == "field_changes":
+                    devices_affected = change.get("details", {}).get("devices_affected", 0)
+                    print(f"    Devices affected: {devices_affected}")
+                    # Show first few field changes
+                    for item in change.get("new_items", [])[:3]:
+                        k = item.get("k_number", "")
+                        field = item.get("field", "")
+                        before = item.get("before", "")[:30]
+                        after = item.get("after", "")[:30]
+                        print(f"    - {k}: {field} changed")
+                        print(f"      '{before}' -> '{after}'")
             print()
         else:
             print("No changes detected. All data is up to date.")

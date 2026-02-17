@@ -37,7 +37,9 @@ SCRIPTS_DIR = os.path.join(
 )
 sys.path.insert(0, SCRIPTS_DIR)
 
-from change_detector import (
+from change_detector import (  # type: ignore
+    _detect_field_changes,
+    _generate_diff_report,
     _load_fingerprint,
     _run_subprocess,
     _save_fingerprint,
@@ -45,7 +47,7 @@ from change_detector import (
     find_new_clearances,
     trigger_pipeline,
 )
-from fda_data_store import load_manifest, save_manifest
+from fda_data_store import load_manifest, save_manifest  # type: ignore
 
 # Ensure tests directory is on sys.path for mock imports
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -352,8 +354,6 @@ class TestSMART001FingerprintCreation:
         fp = manifest["fingerprints"]["DQY"]
 
         # last_checked should be a valid ISO timestamp
-        from datetime import datetime
-
         # Should parse without error
         ts = fp["last_checked"]
         assert "T" in ts, f"Timestamp should be ISO format: {ts}"
@@ -1234,3 +1234,683 @@ class TestSMART016CLIJsonOutput:
         assert output.endswith("}"), (
             f"JSON output should end with '}}', got: ...{output[-50:]}"
         )
+
+
+# ===================================================================
+# FE-004: Fingerprint Diff Reporting Tests
+# ===================================================================
+
+
+class TestFE004FieldChangeDetection:
+    """FE-004: Field-level diff detection for existing K-numbers.
+
+    Validates that _detect_field_changes correctly identifies changed
+    fields in existing devices.
+    """
+
+    def test_decision_date_change_detected(self):
+        """Decision date correction is detected."""
+        stored = {
+            "K241001": {
+                "k_number": "K241001",
+                "device_name": "Test Device",
+                "applicant": "Test Co",
+                "decision_date": "20240315",
+                "decision_code": "SESE",
+                "clearance_type": "Traditional",
+                "product_code": "DQY",
+            }
+        }
+
+        current = [
+            {
+                "k_number": "K241001",
+                "device_name": "Test Device",
+                "applicant": "Test Co",
+                "decision_date": "20240320",  # Changed
+                "decision_code": "SESE",
+                "clearance_type": "Traditional",
+                "product_code": "DQY",
+            }
+        ]
+
+        changes = _detect_field_changes(stored, current)
+
+        assert len(changes) == 1
+        assert changes[0]["k_number"] == "K241001"
+        assert changes[0]["field"] == "decision_date"
+        assert changes[0]["before"] == "20240315"
+        assert changes[0]["after"] == "20240320"
+
+    def test_applicant_name_change_detected(self):
+        """Applicant name change (e.g., acquisition) is detected."""
+        stored = {
+            "K241001": {
+                "k_number": "K241001",
+                "device_name": "Test Device",
+                "applicant": "OldCorp Inc",
+                "decision_date": "20240315",
+                "decision_code": "SESE",
+                "clearance_type": "Traditional",
+                "product_code": "DQY",
+            }
+        }
+
+        current = [
+            {
+                "k_number": "K241001",
+                "device_name": "Test Device",
+                "applicant": "NewCorp LLC",  # Changed
+                "decision_date": "20240315",
+                "decision_code": "SESE",
+                "clearance_type": "Traditional",
+                "product_code": "DQY",
+            }
+        ]
+
+        changes = _detect_field_changes(stored, current)
+
+        assert len(changes) == 1
+        assert changes[0]["field"] == "applicant"
+        assert changes[0]["before"] == "OldCorp Inc"
+        assert changes[0]["after"] == "NewCorp LLC"
+
+    def test_multiple_fields_changed_same_device(self):
+        """Multiple field changes in same device are all detected."""
+        stored = {
+            "K241001": {
+                "k_number": "K241001",
+                "device_name": "Old Name",
+                "applicant": "OldCorp",
+                "decision_date": "20240315",
+                "decision_code": "SESE",
+                "clearance_type": "Traditional",
+                "product_code": "DQY",
+            }
+        }
+
+        current = [
+            {
+                "k_number": "K241001",
+                "device_name": "New Name",  # Changed
+                "applicant": "NewCorp",  # Changed
+                "decision_date": "20240320",  # Changed
+                "decision_code": "SESE",
+                "clearance_type": "Traditional",
+                "product_code": "DQY",
+            }
+        ]
+
+        changes = _detect_field_changes(stored, current)
+
+        assert len(changes) == 3
+        fields_changed = {c["field"] for c in changes}
+        assert "device_name" in fields_changed
+        assert "applicant" in fields_changed
+        assert "decision_date" in fields_changed
+
+    def test_no_changes_detected_when_identical(self):
+        """No false positives when data is identical."""
+        stored = {
+            "K241001": {
+                "k_number": "K241001",
+                "device_name": "Test Device",
+                "applicant": "Test Co",
+                "decision_date": "20240315",
+                "decision_code": "SESE",
+                "clearance_type": "Traditional",
+                "product_code": "DQY",
+            }
+        }
+
+        current = [
+            {
+                "k_number": "K241001",
+                "device_name": "Test Device",
+                "applicant": "Test Co",
+                "decision_date": "20240315",
+                "decision_code": "SESE",
+                "clearance_type": "Traditional",
+                "product_code": "DQY",
+            }
+        ]
+
+        changes = _detect_field_changes(stored, current)
+
+        assert len(changes) == 0
+
+    def test_new_k_numbers_ignored(self):
+        """New K-numbers not in stored data are skipped."""
+        stored = {
+            "K241001": {
+                "k_number": "K241001",
+                "device_name": "Test Device",
+                "applicant": "Test Co",
+                "decision_date": "20240315",
+            }
+        }
+
+        current = [
+            {
+                "k_number": "K241001",
+                "device_name": "Test Device",
+                "applicant": "Test Co",
+                "decision_date": "20240315",
+            },
+            {
+                "k_number": "K261001",  # New K-number
+                "device_name": "New Device",
+                "applicant": "New Co",
+                "decision_date": "20260201",
+            }
+        ]
+
+        changes = _detect_field_changes(stored, current)
+
+        assert len(changes) == 0
+
+    def test_whitespace_normalization(self):
+        """Whitespace differences are normalized (no false positives)."""
+        stored = {
+            "K241001": {
+                "k_number": "K241001",
+                "device_name": "Test Device  ",  # Trailing spaces
+                "applicant": " Test Co",  # Leading space
+            }
+        }
+
+        current = [
+            {
+                "k_number": "K241001",
+                "device_name": "Test Device",
+                "applicant": "Test Co",
+            }
+        ]
+
+        changes = _detect_field_changes(stored, current)
+
+        assert len(changes) == 0
+
+
+class TestFE004DiffReportGeneration:
+    """FE-004: Markdown diff report generation.
+
+    Validates that _generate_diff_report produces well-formatted
+    markdown reports with change summaries.
+    """
+
+    def test_report_contains_summary(self):
+        """Report includes summary section with change counts."""
+        changes = [
+            {
+                "k_number": "K241001",
+                "field": "decision_date",
+                "before": "20240315",
+                "after": "20240320",
+            },
+            {
+                "k_number": "K241001",
+                "field": "applicant",
+                "before": "OldCorp",
+                "after": "NewCorp",
+            },
+        ]
+
+        report = _generate_diff_report(
+            changes,
+            "DQY",
+            "2026-02-17T10:00:00+00:00",
+            output_path=None,
+        )
+
+        assert "# FDA Field-Level Change Report" in report
+        assert "**Product Code:** DQY" in report
+        assert "**Changes Detected:** 2" in report
+        assert "## Summary" in report
+
+    def test_report_groups_by_k_number(self):
+        """Changes are grouped by K-number in detailed section."""
+        changes = [
+            {
+                "k_number": "K241001",
+                "field": "decision_date",
+                "before": "20240315",
+                "after": "20240320",
+            },
+            {
+                "k_number": "K241002",
+                "field": "applicant",
+                "before": "OldCorp",
+                "after": "NewCorp",
+            },
+        ]
+
+        report = _generate_diff_report(
+            changes,
+            "DQY",
+            "2026-02-17T10:00:00+00:00",
+            output_path=None,
+        )
+
+        assert "### K241001" in report
+        assert "### K241002" in report
+
+    def test_report_includes_field_frequency(self):
+        """Report shows frequency of each field type changed."""
+        changes = [
+            {"k_number": "K241001", "field": "decision_date", "before": "A", "after": "B"},
+            {"k_number": "K241002", "field": "decision_date", "before": "C", "after": "D"},
+            {"k_number": "K241003", "field": "applicant", "before": "E", "after": "F"},
+        ]
+
+        report = _generate_diff_report(
+            changes,
+            "DQY",
+            "2026-02-17T10:00:00+00:00",
+            output_path=None,
+        )
+
+        assert "### Changes by Field Type" in report
+        assert "**decision_date**: 2 change(s)" in report
+        assert "**applicant**: 1 change(s)" in report
+
+    def test_report_markdown_table_format(self):
+        """Detailed changes use proper markdown table format."""
+        changes = [
+            {
+                "k_number": "K241001",
+                "field": "decision_date",
+                "before": "20240315",
+                "after": "20240320",
+            },
+        ]
+
+        report = _generate_diff_report(
+            changes,
+            "DQY",
+            "2026-02-17T10:00:00+00:00",
+            output_path=None,
+        )
+
+        assert "| Field | Before | After |" in report
+        assert "|-------|--------|-------|" in report
+        assert "| decision_date | 20240315 | 20240320 |" in report
+
+    def test_report_empty_changes(self):
+        """Report handles empty changes gracefully."""
+        report = _generate_diff_report(
+            [],
+            "DQY",
+            "2026-02-17T10:00:00+00:00",
+            output_path=None,
+        )
+
+        assert "**Changes Detected:** 0" in report
+        assert "No field-level changes detected" in report
+
+    def test_report_writes_to_file(self, tmp_path):
+        """Report can be written to file path."""
+        changes = [
+            {
+                "k_number": "K241001",
+                "field": "decision_date",
+                "before": "20240315",
+                "after": "20240320",
+            },
+        ]
+
+        output_path = tmp_path / "diff_report.md"
+
+        _generate_diff_report(
+            changes,
+            "DQY",
+            "2026-02-17T10:00:00+00:00",
+            output_path=str(output_path),
+        )
+
+        assert output_path.exists()
+        content = output_path.read_text()
+        assert "# FDA Field-Level Change Report" in content
+        assert "K241001" in content
+
+    def test_report_escapes_pipe_characters(self):
+        """Pipe characters in values are escaped for markdown."""
+        changes = [
+            {
+                "k_number": "K241001",
+                "field": "device_name",
+                "before": "Device | Old Name",
+                "after": "Device | New Name",
+            },
+        ]
+
+        report = _generate_diff_report(
+            changes,
+            "DQY",
+            "2026-02-17T10:00:00+00:00",
+            output_path=None,
+        )
+
+        # Pipe should be escaped
+        assert "Device \\| Old Name" in report
+        assert "Device \\| New Name" in report
+
+
+class TestFE004IntegrationWithDetectChanges:
+    """FE-004: Integration of diff detection with detect_changes().
+
+    Validates that detect_changes correctly integrates field diff
+    detection when detect_field_diffs=True.
+    """
+
+    def test_detect_changes_with_field_diffs_enabled(
+        self, tmp_project_dir, sample_api_responses
+    ):
+        """detect_changes detects field changes when flag is enabled."""
+        project_dir = tmp_project_dir
+        project_name = os.path.basename(project_dir)
+        parent_dir = os.path.dirname(project_dir)
+
+        # Set up fingerprint with device_data
+        manifest = load_manifest(project_dir)
+        manifest["fingerprints"] = {
+            "DQY": {
+                "last_checked": "2026-01-01T00:00:00+00:00",
+                "clearance_count": 2,
+                "latest_k_number": "K241001",
+                "latest_decision_date": "20240315",
+                "recall_count": 1,
+                "known_k_numbers": ["K241001", "K241002"],
+                "device_data": {
+                    "K241001": {
+                        "k_number": "K241001",
+                        "device_name": "Device One",
+                        "applicant": "OldCorp",
+                        "decision_date": "20240315",
+                        "decision_code": "SESE",
+                        "clearance_type": "Traditional",
+                        "product_code": "DQY",
+                    },
+                    "K241002": {
+                        "k_number": "K241002",
+                        "device_name": "Device Two",
+                        "applicant": "TestCo",
+                        "decision_date": "20240401",
+                        "decision_code": "SESE",
+                        "clearance_type": "Traditional",
+                        "product_code": "DQY",
+                    },
+                },
+            }
+        }
+        save_manifest(project_dir, manifest)
+
+        # Create mock client with field changes
+        client = MockFDAClient()
+        client.set_clearances("DQY", meta_total=2, results=[
+            {
+                "k_number": "K241001",
+                "device_name": "Device One",
+                "applicant": "NewCorp",  # Changed
+                "decision_date": "20240320",  # Changed
+                "decision_code": "SESE",
+                "clearance_type": "Traditional",
+                "product_code": "DQY",
+            },
+            {
+                "k_number": "K241002",
+                "device_name": "Device Two",
+                "applicant": "TestCo",
+                "decision_date": "20240401",
+                "decision_code": "SESE",
+                "clearance_type": "Traditional",
+                "product_code": "DQY",
+            },
+        ])
+        client.set_recalls("DQY", meta_total=1)
+
+        with patch("change_detector.get_projects_dir", return_value=parent_dir):
+            result = detect_changes(
+                project_name=project_name,
+                client=client,
+                verbose=False,
+                detect_field_diffs=True,
+            )
+
+        assert result["status"] == "completed"
+        assert result["total_field_changes"] == 2
+
+        # Find field_changes entry
+        field_change_entries = [
+            c for c in result["changes"]
+            if c["change_type"] == "field_changes"
+        ]
+        assert len(field_change_entries) == 1
+
+        change = field_change_entries[0]
+        assert change["count"] == 2
+        assert change["details"]["devices_affected"] == 1  # Only K241001 changed
+
+    def test_detect_changes_without_field_diffs_flag(
+        self, tmp_project_dir, sample_api_responses
+    ):
+        """detect_changes does NOT detect field changes when flag is False."""
+        project_dir = tmp_project_dir
+        project_name = os.path.basename(project_dir)
+        parent_dir = os.path.dirname(project_dir)
+
+        # Set up fingerprint with device_data
+        manifest = load_manifest(project_dir)
+        manifest["fingerprints"] = {
+            "DQY": {
+                "last_checked": "2026-01-01T00:00:00+00:00",
+                "clearance_count": 1,
+                "known_k_numbers": ["K241001"],
+                "device_data": {
+                    "K241001": {
+                        "k_number": "K241001",
+                        "applicant": "OldCorp",
+                    },
+                },
+            }
+        }
+        save_manifest(project_dir, manifest)
+
+        client = MockFDAClient()
+        client.set_clearances("DQY", meta_total=1, results=[
+            {
+                "k_number": "K241001",
+                "applicant": "NewCorp",  # Changed but should not be detected
+            }
+        ])
+        client.set_recalls("DQY", meta_total=0)
+
+        with patch("change_detector.get_projects_dir", return_value=parent_dir):
+            result = detect_changes(
+                project_name=project_name,
+                client=client,
+                verbose=False,
+                detect_field_diffs=False,
+            )
+
+        assert result["status"] == "completed"
+        assert result["total_field_changes"] == 0
+
+        # No field_changes entries
+        field_change_entries = [
+            c for c in result["changes"]
+            if c["change_type"] == "field_changes"
+        ]
+        assert len(field_change_entries) == 0
+
+    def test_fingerprint_stores_device_data(
+        self, tmp_project_dir
+    ):
+        """Updated fingerprint stores device_data for future comparisons."""
+        project_dir = tmp_project_dir
+        project_name = os.path.basename(project_dir)
+        parent_dir = os.path.dirname(project_dir)
+
+        client = MockFDAClient()
+        client.set_clearances("DQY", meta_total=2, results=[
+            {
+                "k_number": "K241001",
+                "device_name": "Device One",
+                "applicant": "TestCo",
+                "decision_date": "20240315",
+                "decision_code": "SESE",
+                "clearance_type": "Traditional",
+                "product_code": "DQY",
+            },
+            {
+                "k_number": "K241002",
+                "device_name": "Device Two",
+                "applicant": "TestCo2",
+                "decision_date": "20240401",
+                "decision_code": "SESE",
+                "clearance_type": "Traditional",
+                "product_code": "DQY",
+            },
+        ])
+        client.set_recalls("DQY", meta_total=0)
+
+        with patch("change_detector.get_projects_dir", return_value=parent_dir):
+            detect_changes(
+                project_name=project_name,
+                client=client,
+                verbose=False,
+                detect_field_diffs=True,
+            )
+
+        # Check fingerprint has device_data
+        manifest = load_manifest(project_dir)
+        fp = manifest["fingerprints"]["DQY"]
+
+        assert "device_data" in fp
+        assert "K241001" in fp["device_data"]
+        assert "K241002" in fp["device_data"]
+
+        # Verify device data fields
+        device1 = fp["device_data"]["K241001"]
+        assert device1["device_name"] == "Device One"
+        assert device1["applicant"] == "TestCo"
+        assert device1["decision_date"] == "20240315"
+
+
+class TestFE004CLIDiffReportFlag:
+    """FE-004: CLI --diff-report flag integration.
+
+    Validates that the CLI properly handles --diff-report flag
+    and generates report files.
+    """
+
+    @patch("change_detector.detect_changes")
+    @patch("change_detector.FDAClient")
+    @patch("change_detector.get_projects_dir")
+    def test_diff_report_flag_enables_detection(
+        self, mock_get_projects_dir, mock_fda_client_class, mock_detect_changes, tmp_path
+    ):
+        """--diff-report flag enables field diff detection."""
+        from change_detector import main as change_detector_main
+
+        mock_get_projects_dir.return_value = str(tmp_path)
+        project_dir = tmp_path / "test_project"
+        project_dir.mkdir()
+
+        mock_detect_changes.return_value = {
+            "project": "test_project",
+            "status": "completed",
+            "checked_at": "2026-02-17T10:00:00+00:00",
+            "total_new_clearances": 0,
+            "total_new_recalls": 0,
+            "total_field_changes": 2,
+            "changes": [
+                {
+                    "product_code": "DQY",
+                    "change_type": "field_changes",
+                    "count": 2,
+                    "new_items": [
+                        {
+                            "k_number": "K241001",
+                            "field": "applicant",
+                            "before": "OldCorp",
+                            "after": "NewCorp",
+                        }
+                    ],
+                }
+            ],
+        }
+
+        test_args = [
+            "change_detector.py",
+            "--project", "test_project",
+            "--diff-report",
+        ]
+
+        with patch("sys.argv", test_args):
+            try:
+                change_detector_main()
+            except SystemExit:
+                pass
+
+        # Verify detect_changes was called with detect_field_diffs=True
+        mock_detect_changes.assert_called_once()
+        call_kwargs = mock_detect_changes.call_args[1]
+        assert call_kwargs["detect_field_diffs"] is True
+
+    @patch("change_detector.detect_changes")
+    @patch("change_detector.FDAClient")
+    @patch("change_detector.get_projects_dir")
+    def test_diff_report_file_created(
+        self, mock_get_projects_dir, mock_fda_client_class, mock_detect_changes, tmp_path, capsys
+    ):
+        """--diff-report creates field_changes_report.md file."""
+        from change_detector import main as change_detector_main
+
+        mock_get_projects_dir.return_value = str(tmp_path)
+        project_dir = tmp_path / "test_project"
+        project_dir.mkdir()
+
+        mock_detect_changes.return_value = {
+            "project": "test_project",
+            "status": "completed",
+            "checked_at": "2026-02-17T10:00:00+00:00",
+            "total_new_clearances": 0,
+            "total_new_recalls": 0,
+            "total_field_changes": 1,
+            "changes": [
+                {
+                    "product_code": "DQY",
+                    "change_type": "field_changes",
+                    "count": 1,
+                    "new_items": [
+                        {
+                            "k_number": "K241001",
+                            "field": "decision_date",
+                            "before": "20240315",
+                            "after": "20240320",
+                        }
+                    ],
+                }
+            ],
+        }
+
+        test_args = [
+            "change_detector.py",
+            "--project", "test_project",
+            "--diff-report",
+        ]
+
+        with patch("sys.argv", test_args):
+            try:
+                change_detector_main()
+            except SystemExit:
+                pass
+
+        report_path = project_dir / "field_changes_report.md"
+        assert report_path.exists(), "Diff report file should be created"
+
+        content = report_path.read_text()
+        assert "# FDA Field-Level Change Report" in content
+        assert "K241001" in content
+        assert "decision_date" in content
