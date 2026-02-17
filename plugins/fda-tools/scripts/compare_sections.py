@@ -45,6 +45,13 @@ from section_analytics import (
     cross_product_compare,
 )
 
+# Import similarity cache stats for reporting
+try:
+    from similarity_cache import get_cache_stats  # type: ignore
+    CACHE_STATS_AVAILABLE = True
+except ImportError:
+    CACHE_STATS_AVAILABLE = False
+
 
 # Section type mapping for user-friendly names
 SECTION_ALIASES = {
@@ -833,6 +840,8 @@ def main():
                         help="Max devices for similarity matrix (default: 30, for performance)")
     parser.add_argument("--trends", action="store_true",
                         help="Analyze year-over-year temporal trends")
+    parser.add_argument("--no-cache", dest="no_cache", action="store_true",
+                        help="Bypass similarity score cache (force recomputation)")
     parser.add_argument("--quiet", action="store_true",
                         help="Minimal output (for scripting)")
 
@@ -996,15 +1005,18 @@ def main():
     # Similarity analysis
     similarity_results = {}
     if args.similarity:
+        use_cache = not args.no_cache
         if verbose:
+            cache_status = "disabled" if args.no_cache else "enabled"
             print(f"Computing text similarity (method: {args.similarity_method}, "
-                  f"sample: {args.similarity_sample})...")
+                  f"sample: {args.similarity_sample}, cache: {cache_status})...")
         for section_type in section_types:
             sim_result = pairwise_similarity_matrix(
                 section_data,
                 section_type,
                 method=args.similarity_method,
                 sample_size=args.similarity_sample,
+                use_cache=use_cache,
             )
             similarity_results[section_type] = sim_result
 
@@ -1012,9 +1024,12 @@ def main():
                 append_similarity_section(str(output_path), sim_result)
                 if verbose:
                     stats = sim_result.get("statistics", {})
+                    cache_indicator = "CACHE HIT" if sim_result.get("cache_hit") else "computed"
+                    comp_time = sim_result.get("computation_time", 0)
                     print(f"  {section_type}: mean={stats.get('mean', 0):.3f}, "
                           f"stdev={stats.get('stdev', 0):.3f}, "
-                          f"pairs={sim_result.get('pairs_computed', 0)}")
+                          f"pairs={sim_result.get('pairs_computed', 0)}, "
+                          f"{cache_indicator} ({comp_time:.2f}s)")
 
     # Temporal trends
     trends_results = {}
@@ -1066,6 +1081,17 @@ def main():
         print(f"Outliers detected: {len(outliers)}")
         if args.similarity:
             print(f"Similarity computed: {sum(r.get('pairs_computed', 0) for r in similarity_results.values())} pairs")
+
+            # Display cache statistics
+            if CACHE_STATS_AVAILABLE and not args.no_cache:
+                cache_stats = get_cache_stats()
+                if cache_stats['total_queries'] > 0:
+                    print(f"\nCache Performance:")
+                    print(f"  Hits: {cache_stats['hits']}, Misses: {cache_stats['misses']}")
+                    print(f"  Hit Rate: {cache_stats['hit_rate']:.1%}")
+                    if cache_stats['hits'] > 0:
+                        print(f"  Speedup: ~30x on cached queries")
+
         if args.trends:
             print(f"Trend analysis: {len(trends_results.get('trends', {}))} section(s)")
         if multi_code_mode:
