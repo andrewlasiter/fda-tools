@@ -26,6 +26,7 @@ import argparse
 import json
 import logging
 import os
+import sqlite3
 import sys
 import time
 from datetime import datetime, timezone
@@ -99,6 +100,299 @@ def _save_fingerprint(
         manifest["fingerprints"] = {}
     manifest["fingerprints"][product_code.upper()] = fingerprint
     save_manifest(project_dir, manifest)
+
+
+# ------------------------------------------------------------------
+# SQLite fingerprint storage (FDA-40)
+# ------------------------------------------------------------------
+
+
+def _get_sqlite_path(project_dir: str) -> str:
+    """Return the path to the SQLite fingerprint database.
+
+    Args:
+        project_dir: Absolute path to the project directory.
+
+    Returns:
+        Absolute path to fingerprints.db.
+    """
+    return os.path.join(project_dir, "fingerprints.db")
+
+
+def _init_sqlite_db(db_path: str) -> sqlite3.Connection:
+    """Initialize the SQLite fingerprint database.
+
+    Creates the key-value table if it does not exist.
+
+    Args:
+        db_path: Path to the SQLite database file.
+
+    Returns:
+        sqlite3.Connection instance.
+    """
+    conn = sqlite3.connect(db_path)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS fingerprints (
+            product_code TEXT PRIMARY KEY,
+            data         JSON NOT NULL,
+            updated_at   TEXT NOT NULL
+        )
+    """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS migration_meta (
+            key   TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        )
+    """)
+    conn.commit()
+    return conn
+
+
+def _migrate_json_to_sqlite(project_dir: str) -> int:
+    """Migrate existing JSON fingerprints to SQLite on first use.
+
+    Reads fingerprints from data_manifest.json and inserts them into
+    fingerprints.db. Existing SQLite entries are preserved (INSERT OR IGNORE).
+    Records migration timestamp in migration_meta table.
+
+    Args:
+        project_dir: Absolute path to the project directory.
+
+    Returns:
+        Number of fingerprints migrated.
+    """
+    db_path = _get_sqlite_path(project_dir)
+    conn = _init_sqlite_db(db_path)
+
+    try:
+        # Check if already migrated
+        row = conn.execute(
+            "SELECT value FROM migration_meta WHERE key = 'migrated_from_json'"
+        ).fetchone()
+        if row is not None:
+            conn.close()
+            return 0
+
+        # Load JSON fingerprints
+        manifest = load_manifest(project_dir)
+        fingerprints = manifest.get("fingerprints", {})
+
+        migrated = 0
+        now = datetime.now(timezone.utc).isoformat()
+
+        for product_code, fp_data in fingerprints.items():
+            conn.execute(
+                """INSERT OR IGNORE INTO fingerprints
+                   (product_code, data, updated_at) VALUES (?, ?, ?)""",
+                (product_code.upper(), json.dumps(fp_data), now),
+            )
+            migrated += 1
+
+        # Record migration
+        conn.execute(
+            """INSERT OR REPLACE INTO migration_meta (key, value) VALUES (?, ?)""",
+            ("migrated_from_json", now),
+        )
+        conn.execute(
+            """INSERT OR REPLACE INTO migration_meta (key, value) VALUES (?, ?)""",
+            ("migrated_count", str(migrated)),
+        )
+        conn.commit()
+        logger.info(
+            "Migrated %d fingerprint(s) from JSON to SQLite at %s",
+            migrated, db_path,
+        )
+        return migrated
+    finally:
+        conn.close()
+
+
+def _load_fingerprint_sqlite(
+    project_dir: str, product_code: str
+) -> Optional[Dict[str, Any]]:
+    """Load a fingerprint from the SQLite database.
+
+    Args:
+        project_dir: Absolute path to the project directory.
+        product_code: FDA product code (e.g., 'DQY').
+
+    Returns:
+        Fingerprint dictionary or None if not found.
+    """
+    db_path = _get_sqlite_path(project_dir)
+    if not os.path.exists(db_path):
+        return None
+
+    conn = _init_sqlite_db(db_path)
+    try:
+        row = conn.execute(
+            "SELECT data FROM fingerprints WHERE product_code = ?",
+            (product_code.upper(),),
+        ).fetchone()
+        if row is None:
+            return None
+        return json.loads(row[0])
+    except (sqlite3.Error, json.JSONDecodeError) as e:
+        logger.warning("Error loading fingerprint from SQLite: %s", e)
+        return None
+    finally:
+        conn.close()
+
+
+def _save_fingerprint_sqlite(
+    project_dir: str, product_code: str, fingerprint: Dict[str, Any]
+) -> None:
+    """Save a fingerprint to the SQLite database.
+
+    Uses INSERT OR REPLACE for upsert semantics.
+
+    Args:
+        project_dir: Absolute path to the project directory.
+        product_code: FDA product code (e.g., 'DQY').
+        fingerprint: Fingerprint dictionary to store.
+    """
+    db_path = _get_sqlite_path(project_dir)
+    conn = _init_sqlite_db(db_path)
+    try:
+        now = datetime.now(timezone.utc).isoformat()
+        conn.execute(
+            """INSERT OR REPLACE INTO fingerprints
+               (product_code, data, updated_at) VALUES (?, ?, ?)""",
+            (product_code.upper(), json.dumps(fingerprint), now),
+        )
+        conn.commit()
+    except sqlite3.Error as e:
+        logger.error("Error saving fingerprint to SQLite: %s", e)
+    finally:
+        conn.close()
+
+
+def _list_fingerprints_sqlite(project_dir: str) -> Dict[str, Dict[str, Any]]:
+    """List all fingerprints from the SQLite database.
+
+    Args:
+        project_dir: Absolute path to the project directory.
+
+    Returns:
+        Dict mapping product_code to fingerprint data.
+    """
+    db_path = _get_sqlite_path(project_dir)
+    if not os.path.exists(db_path):
+        return {}
+
+    conn = _init_sqlite_db(db_path)
+    try:
+        rows = conn.execute(
+            "SELECT product_code, data FROM fingerprints ORDER BY product_code"
+        ).fetchall()
+        result = {}
+        for pc, data_json in rows:
+            try:
+                result[pc] = json.loads(data_json)
+            except json.JSONDecodeError:
+                logger.warning("Corrupted fingerprint for %s in SQLite", pc)
+        return result
+    except sqlite3.Error as e:
+        logger.warning("Error listing fingerprints from SQLite: %s", e)
+        return {}
+    finally:
+        conn.close()
+
+
+def _delete_fingerprint_sqlite(project_dir: str, product_code: str) -> bool:
+    """Delete a fingerprint from the SQLite database.
+
+    Args:
+        project_dir: Absolute path to the project directory.
+        product_code: FDA product code.
+
+    Returns:
+        True if a row was deleted.
+    """
+    db_path = _get_sqlite_path(project_dir)
+    if not os.path.exists(db_path):
+        return False
+
+    conn = _init_sqlite_db(db_path)
+    try:
+        cursor = conn.execute(
+            "DELETE FROM fingerprints WHERE product_code = ?",
+            (product_code.upper(),),
+        )
+        conn.commit()
+        return cursor.rowcount > 0
+    except sqlite3.Error as e:
+        logger.warning("Error deleting fingerprint from SQLite: %s", e)
+        return False
+    finally:
+        conn.close()
+
+
+# ------------------------------------------------------------------
+# Unified fingerprint access (respects --use-sqlite flag)
+# ------------------------------------------------------------------
+
+# Module-level flag; set via CLI --use-sqlite or programmatic call
+_USE_SQLITE: bool = False
+
+
+def set_use_sqlite(enabled: bool) -> None:
+    """Enable or disable SQLite fingerprint storage globally.
+
+    When enabled, fingerprint reads and writes use fingerprints.db.
+    When disabled (default), fingerprint reads and writes use
+    data_manifest.json (original behavior).
+
+    On first SQLite use, existing JSON fingerprints are automatically
+    migrated to SQLite.
+
+    Args:
+        enabled: True to use SQLite, False for JSON.
+    """
+    global _USE_SQLITE
+    _USE_SQLITE = enabled
+
+
+def load_fingerprint(
+    project_dir: str, product_code: str
+) -> Optional[Dict[str, Any]]:
+    """Load a fingerprint using the active storage backend.
+
+    Delegates to SQLite or JSON based on the _USE_SQLITE flag.
+
+    Args:
+        project_dir: Absolute path to the project directory.
+        product_code: FDA product code (e.g., 'DQY').
+
+    Returns:
+        Fingerprint dictionary or None if not found.
+    """
+    if _USE_SQLITE:
+        # Ensure migration on first use
+        _migrate_json_to_sqlite(project_dir)
+        return _load_fingerprint_sqlite(project_dir, product_code)
+    return _load_fingerprint(project_dir, product_code)
+
+
+def save_fingerprint(
+    project_dir: str, product_code: str, fingerprint: Dict[str, Any]
+) -> None:
+    """Save a fingerprint using the active storage backend.
+
+    When SQLite is active, writes to both SQLite and JSON for backward
+    compatibility. When JSON-only, writes to JSON as before.
+
+    Args:
+        project_dir: Absolute path to the project directory.
+        product_code: FDA product code (e.g., 'DQY').
+        fingerprint: Fingerprint dictionary to store.
+    """
+    if _USE_SQLITE:
+        _save_fingerprint_sqlite(project_dir, product_code, fingerprint)
+        # Also write to JSON for backward compatibility
+        _save_fingerprint(project_dir, product_code, fingerprint)
+    else:
+        _save_fingerprint(project_dir, product_code, fingerprint)
 
 
 def find_new_clearances(
@@ -372,8 +666,16 @@ def detect_changes(
     product_codes = manifest.get("product_codes", [])
     fingerprints = manifest.get("fingerprints", {})
 
+    # When using SQLite, also include fingerprints from the database
+    if _USE_SQLITE:
+        sqlite_fps = _list_fingerprints_sqlite(project_dir)
+        # SQLite fingerprints take precedence (they may be newer)
+        merged_fps = {**fingerprints, **sqlite_fps}
+    else:
+        merged_fps = fingerprints
+
     # If no product codes and no fingerprints, nothing to check
-    if not product_codes and not fingerprints:
+    if not product_codes and not merged_fps:
         return {
             "project": project_name,
             "status": "no_fingerprints",
@@ -386,10 +688,12 @@ def detect_changes(
 
     # Merge product_codes from both sources
     codes_to_check = set(pc.upper() for pc in product_codes)
-    codes_to_check.update(fingerprints.keys())
+    codes_to_check.update(merged_fps.keys())
 
     if verbose:
-        print(f"Checking {len(codes_to_check)} product code(s) for project '{project_name}'...")
+        backend = "SQLite" if _USE_SQLITE else "JSON"
+        print(f"Checking {len(codes_to_check)} product code(s) for project "
+              f"'{project_name}' (storage: {backend})...")
 
     all_changes = []
     total_new_clearances = 0
@@ -401,7 +705,7 @@ def detect_changes(
         if verbose:
             print(f"  [{idx}/{len(codes_to_check)}] Checking {product_code}...", end=" ")
 
-        fp = fingerprints.get(product_code, {})
+        fp = load_fingerprint(project_dir, product_code) or {}
         known_k_numbers = fp.get("known_k_numbers", [])
         prev_clearance_count = fp.get("clearance_count", 0)
         prev_recall_count = fp.get("recall_count", 0)
@@ -514,7 +818,7 @@ def detect_changes(
             "known_k_numbers": sorted(set(all_current_k_numbers)),
             "device_data": updated_device_data,
         }
-        _save_fingerprint(project_dir, product_code, new_fingerprint)
+        save_fingerprint(project_dir, product_code, new_fingerprint)
 
         if verbose:
             if new_clearances:
@@ -709,9 +1013,22 @@ def main():
         "--diff-report", action="store_true", dest="diff_report",
         help="Generate markdown diff report for field-level changes"
     )
+    parser.add_argument(
+        "--use-sqlite", action="store_true", dest="use_sqlite",
+        help="Use SQLite database (fingerprints.db) for fingerprint storage "
+             "instead of JSON (data_manifest.json). On first use, existing "
+             "JSON fingerprints are automatically migrated to SQLite. "
+             "Recommended for projects with 100+ product codes."
+    )
 
     args = parser.parse_args()
     verbose = not args.quiet
+
+    # Enable SQLite storage if requested
+    if args.use_sqlite:
+        set_use_sqlite(True)
+        if verbose:
+            print("SQLite fingerprint storage enabled.")
 
     client = FDAClient()
 
