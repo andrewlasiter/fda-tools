@@ -9,7 +9,7 @@
  * and the FDA Bridge Server running on localhost:18790.
  *
  * @module bridge/client
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 import type {
@@ -37,6 +37,13 @@ const DEFAULT_BASE_URL = 'http://localhost:18790';
 const DEFAULT_TIMEOUT = 120_000; // 2 minutes
 const DEFAULT_RETRIES = 3;
 const DEFAULT_RETRY_DELAY = 1_000; // 1 second
+const API_KEY_HEADER = 'X-API-Key';
+
+/**
+ * Environment variable name for the bridge API key.
+ * Set this to authenticate with the FDA Bridge Server.
+ */
+const API_KEY_ENV_VAR = 'FDA_BRIDGE_API_KEY';
 
 /**
  * HTTP status codes that should trigger a retry.
@@ -163,6 +170,7 @@ export class BridgeClient {
   private readonly timeout: number;
   private readonly retries: number;
   private readonly retryDelay: number;
+  private readonly apiKey: string | undefined;
   private readonly logger: BridgeLogger;
 
   constructor(config: BridgeClientConfig = {}) {
@@ -170,7 +178,16 @@ export class BridgeClient {
     this.timeout = config.timeout ?? DEFAULT_TIMEOUT;
     this.retries = config.retries ?? DEFAULT_RETRIES;
     this.retryDelay = config.retryDelay ?? DEFAULT_RETRY_DELAY;
+    // API key resolution: explicit config > environment variable > undefined
+    this.apiKey = config.apiKey ?? process.env[API_KEY_ENV_VAR];
     this.logger = new BridgeLogger();
+
+    if (!this.apiKey) {
+      this.logger.warn(
+        `No API key configured. Set ${API_KEY_ENV_VAR} environment variable ` +
+        `or pass apiKey in BridgeClientConfig. Authenticated endpoints will return 401.`
+      );
+    }
   }
 
   // ----------------------------------------------------------
@@ -365,7 +382,22 @@ export class BridgeClient {
   // ----------------------------------------------------------
 
   /**
+   * Build common headers for all requests, including API key authentication.
+   */
+  private buildHeaders(extra?: Record<string, string>): Record<string, string> {
+    const headers: Record<string, string> = {
+      Accept: 'application/json',
+      ...extra,
+    };
+    if (this.apiKey) {
+      headers[API_KEY_HEADER] = this.apiKey;
+    }
+    return headers;
+  }
+
+  /**
    * Send a GET request to the bridge server.
+   * Includes X-API-Key header for authentication.
    */
   private async get<T>(path: string): Promise<T> {
     const url = `${this.baseUrl}${path}`;
@@ -375,9 +407,7 @@ export class BridgeClient {
     try {
       const response = await fetch(url, {
         method: 'GET',
-        headers: {
-          Accept: 'application/json',
-        },
+        headers: this.buildHeaders(),
         signal: controller.signal,
       });
 
@@ -389,6 +419,7 @@ export class BridgeClient {
 
   /**
    * Send a POST request to the bridge server.
+   * Includes X-API-Key header for authentication.
    */
   private async post<T>(path: string, body: unknown): Promise<T> {
     const url = `${this.baseUrl}${path}`;
@@ -398,10 +429,7 @@ export class BridgeClient {
     try {
       const response = await fetch(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
+        headers: this.buildHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(body),
         signal: controller.signal,
       });
@@ -448,6 +476,12 @@ export class BridgeClient {
    * Classify an HTTP error status into a BridgeErrorType.
    */
   private classifyHttpError(status: number, detail: string): BridgeErrorType {
+    if (status === 401) {
+      return 'AUTHENTICATION_REQUIRED';
+    }
+    if (status === 429) {
+      return 'RATE_LIMITED';
+    }
     if (status === 404) {
       if (detail.toLowerCase().includes('session')) {
         return 'SESSION_NOT_FOUND';
@@ -542,6 +576,9 @@ export class BridgeClient {
 
   /**
    * Determine if an error is retryable.
+   *
+   * Authentication errors (401) are NEVER retried -- they indicate
+   * a missing or invalid API key that will not resolve with retries.
    */
   private isRetryable(error: unknown): boolean {
     // Network errors (connection refused, etc.) are retryable
@@ -557,6 +594,10 @@ export class BridgeClient {
 
     // BridgeClientError with retryable status code
     if (error instanceof BridgeClientError && error.status !== undefined) {
+      // Never retry authentication failures
+      if (error.status === 401) {
+        return false;
+      }
       return RETRYABLE_STATUS_CODES.has(error.status);
     }
 

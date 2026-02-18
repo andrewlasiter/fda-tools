@@ -310,6 +310,23 @@ function formatBridgeError(
         `The bridge server must be accessible at http://localhost:18790.`
       );
 
+    case 'AUTHENTICATION_REQUIRED':
+      return (
+        `[AUTHENTICATION ERROR] Missing or invalid API key.\n\n` +
+        `The FDA Bridge Server requires authentication.\n` +
+        `Set the FDA_BRIDGE_API_KEY environment variable:\n` +
+        `  export FDA_BRIDGE_API_KEY="<your-bridge-api-key>"\n\n` +
+        `The API key is displayed when the bridge server starts for the first time.\n` +
+        `You can also retrieve it from the OS keyring.`
+      );
+
+    case 'RATE_LIMITED':
+      return (
+        `[RATE LIMITED] Too many requests for command '${command}'.\n` +
+        `The bridge server is rate limiting requests. Wait a moment ` +
+        `and try again.`
+      );
+
     case 'TIMEOUT':
       return (
         `[TIMEOUT] Command '${command}' timed out after ${error.attempts} attempts.\n` +

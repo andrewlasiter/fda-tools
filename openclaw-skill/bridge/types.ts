@@ -400,7 +400,9 @@ export interface BridgeError {
 export type BridgeErrorType =
   | 'CONNECTION_REFUSED'    // Bridge server not running
   | 'TIMEOUT'               // Request timed out
+  | 'AUTHENTICATION_REQUIRED' // Missing or invalid API key (HTTP 401)
   | 'SECURITY_VIOLATION'    // SecurityGateway blocked the request
+  | 'RATE_LIMITED'          // Too many requests (HTTP 429)
   | 'COMMAND_NOT_FOUND'     // FDA command does not exist
   | 'SESSION_NOT_FOUND'     // Session ID not valid
   | 'INVALID_REQUEST'       // Malformed request body
