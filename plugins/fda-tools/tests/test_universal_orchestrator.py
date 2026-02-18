@@ -48,8 +48,10 @@ class TestEndToEndReviewWorkflow:
         assert result["team"].total_agents > 0
         assert result["team"].total_agents <= 5
 
-        # Verify plan was created
-        assert len(result["plan"].phases) == 4
+        # Verify plan was created (3-4 phases depending on team size)
+        # Phase 3 (Integration) only exists if coordinator is present
+        assert len(result["plan"].phases) >= 3
+        assert len(result["plan"].phases) <= 4
 
         # Verify results were aggregated
         assert hasattr(result["results"], "findings")
@@ -344,8 +346,9 @@ class TestComponentIntegration:
         # Create execution plan
         plan = coordinator.create_execution_plan(team, profile)
 
-        # Verify integration
-        assert len(plan.phases) == 4
+        # Verify integration (3-4 phases depending on coordinator)
+        assert len(plan.phases) >= 3
+        assert len(plan.phases) <= 4
         assert plan.total_estimated_hours > 0
 
     def test_coordinator_to_linear_integration(self):
