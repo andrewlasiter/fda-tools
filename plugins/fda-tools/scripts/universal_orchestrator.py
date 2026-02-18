@@ -1,0 +1,414 @@
+#!/usr/bin/env python3
+"""
+Universal Multi-Agent Orchestrator - Main CLI Entry Point
+
+Unified command-line interface for the Universal Multi-Agent Orchestrator System.
+Provides 4 main workflows for JIT agent assignment and comprehensive code review.
+
+Commands:
+  review    - Comprehensive code review with multi-agent team
+  assign    - Assign agents to existing Linear issue
+  batch     - Process multiple Linear issues in batch
+  execute   - Full workflow: review + create Linear issues
+
+Usage:
+    # Comprehensive code review
+    python3 universal_orchestrator.py review \
+        --task "Fix authentication vulnerability" \
+        --files api/auth.py \
+        --max-agents 10
+
+    # Assign agents to Linear issue
+    python3 universal_orchestrator.py assign \
+        --issue-id FDA-92 \
+        --auto
+
+    # Batch process Linear issues
+    python3 universal_orchestrator.py batch \
+        --issue-ids FDA-92,FDA-93,FDA-94
+
+    # Full workflow (review + create issues)
+    python3 universal_orchestrator.py execute \
+        --task "Security audit of bridge server" \
+        --files bridge/server.py \
+        --create-linear \
+        --max-agents 12
+"""
+
+import argparse
+import json
+import logging
+import sys
+from pathlib import Path
+from typing import List, Optional
+
+# Import orchestrator components
+from agent_registry import UniversalAgentRegistry
+from task_analyzer import TaskAnalyzer
+from agent_selector import AgentSelector
+from execution_coordinator import ExecutionCoordinator
+from linear_integrator import LinearIntegrator
+
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
+
+
+class UniversalOrchestrator:
+    """Main orchestrator class integrating all components.
+
+    Provides 4 main workflows:
+    1. review: Comprehensive code review
+    2. assign: Assign agents to Linear issue
+    3. batch: Process multiple Linear issues
+    4. execute: Full workflow (review + create issues)
+    """
+
+    def __init__(self):
+        """Initialize orchestrator with all components."""
+        logger.info("Initializing Universal Multi-Agent Orchestrator...")
+
+        self.registry = UniversalAgentRegistry()
+        self.analyzer = TaskAnalyzer()
+        self.selector = AgentSelector(self.registry)
+        self.coordinator = ExecutionCoordinator()
+        self.linear = LinearIntegrator(self.registry, self.analyzer, self.selector)
+
+        logger.info("✓ Orchestrator initialized with 167 agents")
+
+    def review(
+        self,
+        task: str,
+        files: List[str],
+        max_agents: int = 10,
+        context: Optional[dict] = None
+    ) -> dict:
+        """Comprehensive code review workflow.
+
+        Steps:
+        1. Analyze task to generate profile
+        2. Select optimal agent team
+        3. Create execution plan
+        4. Execute review (simulated)
+        5. Return aggregated findings
+
+        Args:
+            task: Task description
+            files: List of file paths
+            max_agents: Maximum team size
+            context: Optional additional context
+
+        Returns:
+            Dict with profile, team, plan, and results
+        """
+        logger.info("=" * 70)
+        logger.info("COMPREHENSIVE CODE REVIEW")
+        logger.info("=" * 70)
+
+        # Step 1: Analyze task
+        logger.info("\n1. Analyzing task...")
+        task_context = context or {}
+        task_context["files"] = files
+        profile = self.analyzer.analyze_task(task, task_context)
+
+        logger.info("   Task type: %s", profile.task_type)
+        logger.info("   Languages: %s", ", ".join(profile.languages) or "None")
+        logger.info("   Complexity: %s", profile.complexity)
+
+        # Step 2: Select team
+        logger.info("\n2. Selecting agent team...")
+        team = self.selector.select_review_team(profile, max_agents)
+
+        logger.info("   Team size: %d agents", team.total_agents)
+        logger.info("   Core agents: %d", len(team.core_agents))
+        logger.info("   Language agents: %d", len(team.language_agents))
+        logger.info("   Domain agents: %d", len(team.domain_agents))
+        if team.coordinator:
+            logger.info("   Coordinator: %s", team.coordinator)
+
+        # Step 3: Create execution plan
+        logger.info("\n3. Creating execution plan...")
+        plan = self.coordinator.create_execution_plan(team, profile)
+
+        logger.info("   Phases: %d", len(plan.phases))
+        logger.info("   Estimated hours: %d", plan.total_estimated_hours)
+        logger.info("   Coordination: %s", plan.coordination_pattern)
+
+        # Step 4: Execute review
+        logger.info("\n4. Executing multi-agent review...")
+        results = self.coordinator.execute_plan(plan)
+
+        logger.info("   Total findings: %d", len(results.findings))
+        logger.info("   CRITICAL: %d", results.critical_count)
+        logger.info("   HIGH: %d", results.high_count)
+        logger.info("   MEDIUM: %d", results.medium_count)
+        logger.info("   LOW: %d", results.low_count)
+
+        logger.info("\n" + "=" * 70)
+
+        return {
+            "profile": profile,
+            "team": team,
+            "plan": plan,
+            "results": results,
+        }
+
+    def assign(
+        self,
+        issue_id: str,
+        auto: bool = True,
+        task_description: Optional[str] = None
+    ) -> dict:
+        """Assign agents to existing Linear issue.
+
+        Args:
+            issue_id: Linear issue ID (e.g., "FDA-92")
+            auto: Auto-select agents based on issue content
+            task_description: Manual task description (if not auto)
+
+        Returns:
+            Dict with assignment details
+        """
+        logger.info("=" * 70)
+        logger.info("ASSIGN AGENTS TO LINEAR ISSUE")
+        logger.info("=" * 70)
+
+        logger.info("\nIssue: %s", issue_id)
+
+        if auto:
+            # Fetch issue and auto-analyze
+            logger.info("Mode: Auto-assignment")
+            result = self.linear.assign_agents_to_existing_issue(issue_id)
+        else:
+            # Manual task description
+            logger.info("Mode: Manual assignment")
+            if not task_description:
+                raise ValueError("task_description required when auto=False")
+
+            profile = self.analyzer.analyze_task(task_description)
+            result = self.linear.assign_agents_to_existing_issue(
+                issue_id,
+                task_profile=profile
+            )
+
+        logger.info("\nAssigned agents:")
+        logger.info("  Assignee: %s", result["assignee"])
+        logger.info("  Delegate: %s", result["delegate"] or "None")
+        logger.info("  Reviewers: %d", len(result["reviewers"]))
+        for reviewer in result["reviewers"]:
+            logger.info("    - %s", reviewer)
+
+        logger.info("\n" + "=" * 70)
+
+        return result
+
+    def batch(
+        self,
+        issue_ids: List[str]
+    ) -> List[dict]:
+        """Process multiple Linear issues in batch.
+
+        Args:
+            issue_ids: List of Linear issue IDs
+
+        Returns:
+            List of assignment results
+        """
+        logger.info("=" * 70)
+        logger.info("BATCH PROCESS LINEAR ISSUES")
+        logger.info("=" * 70)
+
+        logger.info("\nProcessing %d issues...", len(issue_ids))
+
+        results = self.linear.bulk_assign_agents(issue_ids)
+
+        success_count = sum(1 for r in results if "error" not in r)
+        error_count = len(results) - success_count
+
+        logger.info("\nResults:")
+        logger.info("  Success: %d", success_count)
+        logger.info("  Errors: %d", error_count)
+
+        for result in results:
+            if "error" in result:
+                logger.error("  %s: ERROR - %s", result["issue_id"], result["error"])
+            else:
+                logger.info("  %s: ✓ Assigned to %s", result["issue_id"], result["assignee"])
+
+        logger.info("\n" + "=" * 70)
+
+        return results
+
+    def execute(
+        self,
+        task: str,
+        files: List[str],
+        create_linear: bool = False,
+        max_agents: int = 10
+    ) -> dict:
+        """Full workflow: review + create Linear issues.
+
+        Args:
+            task: Task description
+            files: List of file paths
+            create_linear: Whether to create Linear issues from findings
+            max_agents: Maximum team size
+
+        Returns:
+            Dict with review results and created issues
+        """
+        logger.info("=" * 70)
+        logger.info("FULL ORCHESTRATION WORKFLOW")
+        logger.info("=" * 70)
+
+        # Step 1: Comprehensive review
+        review_result = self.review(task, files, max_agents)
+
+        created_issues = []
+
+        # Step 2: Create Linear issues if requested
+        if create_linear:
+            logger.info("\n5. Creating Linear issues from findings...")
+
+            profile = review_result["profile"]
+            results = review_result["results"]
+
+            # Select implementation agent
+            impl_agent = self.selector.select_implementation_agent(profile)
+
+            # Select review agents
+            team = review_result["team"]
+            review_agents = (
+                [a["name"] for a in team.core_agents[:3]] +
+                [a["name"] for a in team.language_agents[:1]]
+            )
+
+            # Create issue for each finding
+            for finding in results.findings[:10]:  # Limit to top 10
+                issue_id = self.linear.create_issue_from_finding(
+                    finding,
+                    impl_agent,
+                    review_agents
+                )
+                created_issues.append(issue_id)
+
+            logger.info("   Created %d Linear issues", len(created_issues))
+
+        logger.info("\n" + "=" * 70)
+
+        return {
+            **review_result,
+            "created_issues": created_issues,
+        }
+
+
+# ==================================================================
+# CLI Entry Point
+# ==================================================================
+
+def main():
+    """Main CLI entry point."""
+    parser = argparse.ArgumentParser(
+        description="Universal Multi-Agent Orchestrator",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=__doc__
+    )
+
+    subparsers = parser.add_subparsers(dest="command", help="Command to execute")
+
+    # review command
+    review_parser = subparsers.add_parser("review", help="Comprehensive code review")
+    review_parser.add_argument("--task", required=True, help="Task description")
+    review_parser.add_argument("--files", required=True, help="Comma-separated file paths")
+    review_parser.add_argument("--max-agents", type=int, default=10, help="Maximum team size")
+    review_parser.add_argument("--json", action="store_true", help="Output JSON")
+
+    # assign command
+    assign_parser = subparsers.add_parser("assign", help="Assign agents to Linear issue")
+    assign_parser.add_argument("--issue-id", required=True, help="Linear issue ID (e.g., FDA-92)")
+    assign_parser.add_argument("--auto", action="store_true", default=True, help="Auto-select agents")
+    assign_parser.add_argument("--task", help="Manual task description (if not auto)")
+    assign_parser.add_argument("--json", action="store_true", help="Output JSON")
+
+    # batch command
+    batch_parser = subparsers.add_parser("batch", help="Batch process Linear issues")
+    batch_parser.add_argument("--issue-ids", required=True, help="Comma-separated issue IDs")
+    batch_parser.add_argument("--json", action="store_true", help="Output JSON")
+
+    # execute command
+    execute_parser = subparsers.add_parser("execute", help="Full workflow")
+    execute_parser.add_argument("--task", required=True, help="Task description")
+    execute_parser.add_argument("--files", required=True, help="Comma-separated file paths")
+    execute_parser.add_argument("--create-linear", action="store_true", help="Create Linear issues")
+    execute_parser.add_argument("--max-agents", type=int, default=10, help="Maximum team size")
+    execute_parser.add_argument("--json", action="store_true", help="Output JSON")
+
+    args = parser.parse_args()
+
+    if not args.command:
+        parser.print_help()
+        return 1
+
+    # Initialize orchestrator
+    orchestrator = UniversalOrchestrator()
+
+    # Execute command
+    try:
+        if args.command == "review":
+            files = args.files.split(",")
+            result = orchestrator.review(args.task, files, args.max_agents)
+
+            if args.json:
+                # Convert dataclasses to dicts for JSON
+                print(json.dumps({
+                    "task_type": result["profile"].task_type,
+                    "team_size": result["team"].total_agents,
+                    "findings": len(result["results"].findings),
+                }, indent=2))
+
+        elif args.command == "assign":
+            result = orchestrator.assign(
+                args.issue_id,
+                auto=args.auto,
+                task_description=args.task
+            )
+
+            if args.json:
+                print(json.dumps(result, indent=2))
+
+        elif args.command == "batch":
+            issue_ids = args.issue_ids.split(",")
+            results = orchestrator.batch(issue_ids)
+
+            if args.json:
+                print(json.dumps(results, indent=2))
+
+        elif args.command == "execute":
+            files = args.files.split(",")
+            result = orchestrator.execute(
+                args.task,
+                files,
+                create_linear=args.create_linear,
+                max_agents=args.max_agents
+            )
+
+            if args.json:
+                print(json.dumps({
+                    "task_type": result["profile"].task_type,
+                    "team_size": result["team"].total_agents,
+                    "findings": len(result["results"].findings),
+                    "created_issues": result["created_issues"],
+                }, indent=2))
+
+        return 0
+
+    except Exception as e:
+        logger.error("Error: %s", e, exc_info=True)
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

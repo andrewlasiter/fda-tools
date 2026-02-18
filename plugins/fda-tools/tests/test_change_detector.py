@@ -38,13 +38,13 @@ from change_detector import (  # type: ignore
     _detect_field_changes,
     _generate_diff_report,
     _load_fingerprint,
-    _run_subprocess,
     _save_fingerprint,
     detect_changes,
     find_new_clearances,
     trigger_pipeline,
 )
-from scripts.fda_data_store import load_manifest, save_manifest
+from subprocess_utils import run_subprocess as _run_subprocess  # type: ignore
+from fda_data_store import load_manifest, save_manifest
 
 # Ensure tests directory is on sys.path for mock imports
 TESTS_DIR = os.path.dirname(os.path.abspath(__file__))

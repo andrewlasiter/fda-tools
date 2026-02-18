@@ -174,6 +174,1223 @@ PATHWAY_AGENT_MAP = {
 
 
 # ------------------------------------------------------------------
+# Universal Agent Catalog (170+ agents across 12 categories)
+# ------------------------------------------------------------------
+
+# Review dimensions for multi-dimensional agent selection
+REVIEW_DIMENSIONS = [
+    "code_quality",      # Code quality, best practices, bug detection
+    "security",          # Security audits, vulnerability analysis, penetration testing
+    "testing",           # Test automation, QA strategy, test coverage
+    "documentation",     # Technical writing, API docs, user guides
+    "performance",       # Performance optimization, bottleneck analysis
+    "compliance",        # Regulatory compliance, audit frameworks, legal review
+    "architecture",      # System design, architectural patterns, tech choices
+    "operations",        # DevOps, deployment, incident response, monitoring
+]
+
+# Comprehensive catalog of all 170+ agents
+# Each agent has: category, model, review_dimensions, languages, description
+UNIVERSAL_AGENT_CATALOG = {
+    # =================================================================
+    # FDA REGULATORY AGENTS (20 agents)
+    # =================================================================
+    "fda-quality-expert": {
+        "category": "fda",
+        "model": "opus",
+        "review_dimensions": ["compliance", "code_quality"],
+        "languages": [],
+        "description": "FDA Quality Systems expert - 21 CFR 820, ISO 13485, design controls"
+    },
+    "fda-software-ai-expert": {
+        "category": "fda",
+        "model": "opus",
+        "review_dimensions": ["compliance", "code_quality", "testing"],
+        "languages": ["python", "javascript", "typescript"],
+        "description": "FDA Software & AI/ML expert - IEC 62304, PCCP, cybersecurity, V&V"
+    },
+    "fda-clinical-expert": {
+        "category": "fda",
+        "model": "opus",
+        "review_dimensions": ["compliance"],
+        "languages": [],
+        "description": "FDA Clinical Affairs expert - IDE, clinical trials, statistical design"
+    },
+    "fda-biocompatibility-expert": {
+        "category": "fda",
+        "model": "opus",
+        "review_dimensions": ["compliance"],
+        "languages": [],
+        "description": "FDA Biocompatibility expert - ISO 10993, biological evaluation"
+    },
+    "fda-sterilization-expert": {
+        "category": "fda",
+        "model": "opus",
+        "review_dimensions": ["compliance"],
+        "languages": [],
+        "description": "FDA Sterilization expert - ISO 11135, ISO 11137, validation"
+    },
+    "fda-postmarket-expert": {
+        "category": "fda",
+        "model": "opus",
+        "review_dimensions": ["compliance"],
+        "languages": [],
+        "description": "FDA Post-Market expert - MDR, recalls, vigilance, MAUDE"
+    },
+    "fda-regulatory-strategy-expert": {
+        "category": "fda",
+        "model": "opus",
+        "review_dimensions": ["compliance"],
+        "languages": [],
+        "description": "FDA Regulatory Strategy expert - pathway selection, Pre-Sub, breakthrough"
+    },
+    "fda-cardiovascular-expert": {
+        "category": "fda",
+        "model": "opus",
+        "review_dimensions": ["compliance"],
+        "languages": [],
+        "description": "FDA Cardiovascular devices expert - circulatory, cardiac devices"
+    },
+    "fda-orthopedic-expert": {
+        "category": "fda",
+        "model": "opus",
+        "review_dimensions": ["compliance"],
+        "languages": [],
+        "description": "FDA Orthopedic devices expert - spinal, joint implants"
+    },
+    "fda-neurology-expert": {
+        "category": "fda",
+        "model": "opus",
+        "review_dimensions": ["compliance"],
+        "languages": [],
+        "description": "FDA Neurology devices expert - neuro-stimulation, brain interfaces"
+    },
+    "fda-ophthalmic-expert": {
+        "category": "fda",
+        "model": "opus",
+        "review_dimensions": ["compliance"],
+        "languages": [],
+        "description": "FDA Ophthalmic devices expert - vision correction, intraocular lenses"
+    },
+    "fda-ivd-expert": {
+        "category": "fda",
+        "model": "opus",
+        "review_dimensions": ["compliance"],
+        "languages": [],
+        "description": "FDA In Vitro Diagnostic expert - lab tests, diagnostic assays"
+    },
+    "fda-combination-product-expert": {
+        "category": "fda",
+        "model": "opus",
+        "review_dimensions": ["compliance"],
+        "languages": [],
+        "description": "FDA Combination Product expert - drug-device, biologic-device combinations"
+    },
+    "fda-international-expert": {
+        "category": "fda",
+        "model": "opus",
+        "review_dimensions": ["compliance"],
+        "languages": [],
+        "description": "FDA International expert - EU MDR, IVDR, global harmonization"
+    },
+    "fda-radiology-expert": {
+        "category": "fda",
+        "model": "opus",
+        "review_dimensions": ["compliance"],
+        "languages": [],
+        "description": "FDA Radiology devices expert - imaging, X-ray, MRI devices"
+    },
+    "fda-510k-knowledge": {
+        "category": "fda",
+        "model": "sonnet",
+        "review_dimensions": ["compliance"],
+        "languages": ["python"],
+        "description": "FDA 510(k) pipeline knowledge - local data, scripts, workflow"
+    },
+    "fda-predicate-assessment": {
+        "category": "fda",
+        "model": "sonnet",
+        "review_dimensions": ["compliance"],
+        "languages": [],
+        "description": "FDA predicate assessment - substantial equivalence, predicate validity"
+    },
+    "fda-safety-signal-triage": {
+        "category": "fda",
+        "model": "sonnet",
+        "review_dimensions": ["compliance"],
+        "languages": [],
+        "description": "FDA safety signal triage - recalls, MAUDE adverse events, complaints"
+    },
+    "fda-510k-submission-outline": {
+        "category": "fda",
+        "model": "sonnet",
+        "review_dimensions": ["compliance", "documentation"],
+        "languages": [],
+        "description": "FDA 510(k) submission outlines - RTA readiness, evidence plans"
+    },
+    "fda-plugin-e2e-smoke": {
+        "category": "fda",
+        "model": "haiku",
+        "review_dimensions": ["testing"],
+        "languages": ["python"],
+        "description": "FDA plugin smoke tests - deterministic live testing"
+    },
+
+    # =================================================================
+    # VOLTAGENT QA/SECURITY AGENTS (15 agents)
+    # =================================================================
+    "voltagent-qa-sec:code-reviewer": {
+        "category": "qa-sec",
+        "model": "opus",
+        "review_dimensions": ["code_quality", "testing"],
+        "languages": ["python", "javascript", "typescript", "java", "go", "rust"],
+        "description": "Code quality, best practices, bug detection, test coverage"
+    },
+    "voltagent-qa-sec:security-auditor": {
+        "category": "qa-sec",
+        "model": "opus",
+        "review_dimensions": ["security", "compliance"],
+        "languages": ["python", "javascript", "typescript", "java", "go"],
+        "description": "Security audits, compliance assessments, vulnerability analysis"
+    },
+    "voltagent-qa-sec:test-automator": {
+        "category": "qa-sec",
+        "model": "sonnet",
+        "review_dimensions": ["testing", "code_quality"],
+        "languages": ["python", "javascript", "typescript", "java"],
+        "description": "Build automated test frameworks, create test scripts, CI/CD integration"
+    },
+    "voltagent-qa-sec:qa-expert": {
+        "category": "qa-sec",
+        "model": "sonnet",
+        "review_dimensions": ["testing", "code_quality"],
+        "languages": [],
+        "description": "QA strategy, test planning, quality metrics, comprehensive testing"
+    },
+    "voltagent-qa-sec:penetration-tester": {
+        "category": "qa-sec",
+        "model": "opus",
+        "review_dimensions": ["security"],
+        "languages": ["python", "bash"],
+        "description": "Security penetration tests, active exploitation, vulnerability validation"
+    },
+    "voltagent-qa-sec:performance-engineer": {
+        "category": "qa-sec",
+        "model": "sonnet",
+        "review_dimensions": ["performance", "code_quality"],
+        "languages": ["python", "javascript", "typescript", "go", "rust"],
+        "description": "Performance bottleneck identification, optimization, benchmarking"
+    },
+    "voltagent-qa-sec:compliance-auditor": {
+        "category": "qa-sec",
+        "model": "sonnet",
+        "review_dimensions": ["compliance"],
+        "languages": [],
+        "description": "Regulatory compliance, GDPR, HIPAA, PCI DSS, SOC 2, ISO standards"
+    },
+    "voltagent-qa-sec:architect-reviewer": {
+        "category": "qa-sec",
+        "model": "opus",
+        "review_dimensions": ["architecture", "code_quality"],
+        "languages": [],
+        "description": "System design evaluation, architectural patterns, tech choices"
+    },
+    "voltagent-qa-sec:debugger": {
+        "category": "qa-sec",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality"],
+        "languages": ["python", "javascript", "typescript", "java", "go"],
+        "description": "Bug diagnosis, root cause analysis, error log analysis"
+    },
+    "voltagent-qa-sec:error-detective": {
+        "category": "qa-sec",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality", "operations"],
+        "languages": [],
+        "description": "Error correlation, root cause identification, failure prevention"
+    },
+    "voltagent-qa-sec:chaos-engineer": {
+        "category": "qa-sec",
+        "model": "sonnet",
+        "review_dimensions": ["operations", "testing"],
+        "languages": [],
+        "description": "Chaos engineering, failure experiments, resilience testing"
+    },
+    "voltagent-qa-sec:accessibility-tester": {
+        "category": "qa-sec",
+        "model": "sonnet",
+        "review_dimensions": ["testing", "compliance"],
+        "languages": ["javascript", "typescript"],
+        "description": "WCAG compliance, accessibility testing, assistive technology"
+    },
+    "voltagent-qa-sec:ad-security-reviewer": {
+        "category": "qa-sec",
+        "model": "sonnet",
+        "review_dimensions": ["security"],
+        "languages": ["powershell"],
+        "description": "Active Directory security audits, privilege escalation risks"
+    },
+    "voltagent-qa-sec:powershell-security-hardening": {
+        "category": "qa-sec",
+        "model": "sonnet",
+        "review_dimensions": ["security"],
+        "languages": ["powershell"],
+        "description": "PowerShell security hardening, least-privilege design"
+    },
+    "voltagent-qa-sec:security-engineer": {
+        "category": "qa-sec",
+        "model": "opus",
+        "review_dimensions": ["security", "operations"],
+        "languages": [],
+        "description": "Comprehensive security solutions, automated controls, compliance programs"
+    },
+
+    # =================================================================
+    # VOLTAGENT LANGUAGE SPECIALISTS (24 agents)
+    # =================================================================
+    "voltagent-lang:python-pro": {
+        "category": "lang",
+        "model": "opus",
+        "review_dimensions": ["code_quality"],
+        "languages": ["python"],
+        "description": "Type-safe, production-ready Python code, modern async patterns"
+    },
+    "voltagent-lang:typescript-pro": {
+        "category": "lang",
+        "model": "opus",
+        "review_dimensions": ["code_quality"],
+        "languages": ["typescript"],
+        "description": "Advanced TypeScript, complex generics, type-level programming"
+    },
+    "voltagent-lang:javascript-pro": {
+        "category": "lang",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality"],
+        "languages": ["javascript"],
+        "description": "Modern JavaScript, ES2023+, async patterns, performance-critical code"
+    },
+    "voltagent-lang:rust-engineer": {
+        "category": "lang",
+        "model": "opus",
+        "review_dimensions": ["code_quality", "performance"],
+        "languages": ["rust"],
+        "description": "Rust systems programming, memory safety, zero-cost abstractions"
+    },
+    "voltagent-lang:golang-pro": {
+        "category": "lang",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality", "performance"],
+        "languages": ["go"],
+        "description": "Go concurrent programming, high-performance systems, microservices"
+    },
+    "voltagent-lang:java-architect": {
+        "category": "lang",
+        "model": "opus",
+        "review_dimensions": ["code_quality", "architecture"],
+        "languages": ["java"],
+        "description": "Enterprise Java, Spring Boot, microservices, cloud-native"
+    },
+    "voltagent-lang:csharp-developer": {
+        "category": "lang",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality"],
+        "languages": ["csharp"],
+        "description": "ASP.NET Core, cloud-native .NET, async patterns, dependency injection"
+    },
+    "voltagent-lang:cpp-pro": {
+        "category": "lang",
+        "model": "opus",
+        "review_dimensions": ["code_quality", "performance"],
+        "languages": ["cpp"],
+        "description": "Modern C++20/23, template metaprogramming, systems programming"
+    },
+    "voltagent-lang:swift-expert": {
+        "category": "lang",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality"],
+        "languages": ["swift"],
+        "description": "Native iOS/macOS development, SwiftUI, async/await, actor-based concurrency"
+    },
+    "voltagent-lang:kotlin-specialist": {
+        "category": "lang",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality"],
+        "languages": ["kotlin"],
+        "description": "Kotlin coroutines, multiplatform code, Android/server-side development"
+    },
+    "voltagent-lang:php-pro": {
+        "category": "lang",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality"],
+        "languages": ["php"],
+        "description": "PHP 8.3+, strict typing, Laravel/Symfony expertise"
+    },
+    "voltagent-lang:ruby-expert": {
+        "category": "lang",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality"],
+        "languages": ["ruby"],
+        "description": "Ruby on Rails, full-stack development, Hotwire reactivity"
+    },
+    "voltagent-lang:elixir-expert": {
+        "category": "lang",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality"],
+        "languages": ["elixir"],
+        "description": "Fault-tolerant systems, OTP patterns, Phoenix framework"
+    },
+    "voltagent-lang:sql-pro": {
+        "category": "lang",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality", "performance"],
+        "languages": ["sql"],
+        "description": "Complex SQL queries, database schema design, query optimization"
+    },
+    "voltagent-lang:dotnet-core-expert": {
+        "category": "lang",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality"],
+        "languages": ["csharp"],
+        "description": ".NET Core cloud-native, high-performance microservices, minimal APIs"
+    },
+    "voltagent-lang:dotnet-framework-4.8-expert": {
+        "category": "lang",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality"],
+        "languages": ["csharp"],
+        "description": "Legacy .NET Framework 4.8, maintenance, modernization"
+    },
+    "voltagent-lang:powershell-5.1-expert": {
+        "category": "lang",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality", "operations"],
+        "languages": ["powershell"],
+        "description": "PowerShell 5.1, Active Directory, Windows infrastructure automation"
+    },
+    "voltagent-lang:powershell-7-expert": {
+        "category": "lang",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality", "operations"],
+        "languages": ["powershell"],
+        "description": "PowerShell 7+, cross-platform automation, Azure orchestration"
+    },
+    "voltagent-lang:angular-architect": {
+        "category": "lang",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality", "architecture"],
+        "languages": ["typescript"],
+        "description": "Enterprise Angular 15+, RxJS patterns, micro-frontends"
+    },
+    "voltagent-lang:react-specialist": {
+        "category": "lang",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality"],
+        "languages": ["typescript", "javascript"],
+        "description": "React 18+, performance optimization, advanced React patterns"
+    },
+    "voltagent-lang:vue-expert": {
+        "category": "lang",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality"],
+        "languages": ["typescript", "javascript"],
+        "description": "Vue 3 Composition API, reactivity optimization, Nuxt 3"
+    },
+    "voltagent-lang:flutter-expert": {
+        "category": "lang",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality"],
+        "languages": ["dart"],
+        "description": "Flutter 3+ cross-platform mobile, custom UI, state management"
+    },
+    "voltagent-lang:django-developer": {
+        "category": "lang",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality"],
+        "languages": ["python"],
+        "description": "Django 4+ web applications, REST APIs, async views"
+    },
+    "voltagent-lang:laravel-specialist": {
+        "category": "lang",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality"],
+        "languages": ["php"],
+        "description": "Laravel 10+, Eloquent ORM, queue systems, API performance"
+    },
+
+    # =================================================================
+    # VOLTAGENT INFRASTRUCTURE (16 agents)
+    # =================================================================
+    "voltagent-infra:devops-engineer": {
+        "category": "infra",
+        "model": "opus",
+        "review_dimensions": ["operations", "code_quality"],
+        "languages": ["python", "bash", "yaml"],
+        "description": "CI/CD pipelines, infrastructure automation, deployment workflows"
+    },
+    "voltagent-infra:kubernetes-specialist": {
+        "category": "infra",
+        "model": "sonnet",
+        "review_dimensions": ["operations", "architecture"],
+        "languages": ["yaml"],
+        "description": "Kubernetes clusters, workload deployment, production troubleshooting"
+    },
+    "voltagent-infra:cloud-architect": {
+        "category": "infra",
+        "model": "opus",
+        "review_dimensions": ["architecture", "operations"],
+        "languages": [],
+        "description": "Cloud infrastructure design, multi-cloud strategies, cost optimization"
+    },
+    "voltagent-infra:terraform-engineer": {
+        "category": "infra",
+        "model": "sonnet",
+        "review_dimensions": ["operations"],
+        "languages": ["hcl"],
+        "description": "Terraform IaC, multi-cloud deployments, module architecture"
+    },
+    "voltagent-infra:sre-engineer": {
+        "category": "infra",
+        "model": "opus",
+        "review_dimensions": ["operations", "performance"],
+        "languages": [],
+        "description": "SLO definition, error budget management, automation, fault tolerance"
+    },
+    "voltagent-infra:database-administrator": {
+        "category": "infra",
+        "model": "sonnet",
+        "review_dimensions": ["operations", "performance"],
+        "languages": ["sql"],
+        "description": "Database performance, high-availability, disaster recovery"
+    },
+    "voltagent-infra:network-engineer": {
+        "category": "infra",
+        "model": "sonnet",
+        "review_dimensions": ["operations", "security"],
+        "languages": [],
+        "description": "Cloud/hybrid network infrastructure, security, performance"
+    },
+    "voltagent-infra:deployment-engineer": {
+        "category": "infra",
+        "model": "sonnet",
+        "review_dimensions": ["operations"],
+        "languages": ["python", "bash"],
+        "description": "CI/CD pipeline design, deployment automation strategies"
+    },
+    "voltagent-infra:incident-responder": {
+        "category": "infra",
+        "model": "sonnet",
+        "review_dimensions": ["operations", "security"],
+        "languages": [],
+        "description": "Security breach response, evidence preservation, recovery"
+    },
+    "voltagent-infra:devops-incident-responder": {
+        "category": "infra",
+        "model": "sonnet",
+        "review_dimensions": ["operations"],
+        "languages": [],
+        "description": "Production incidents, service failures, postmortems"
+    },
+    "voltagent-infra:platform-engineer": {
+        "category": "infra",
+        "model": "opus",
+        "review_dimensions": ["operations", "architecture"],
+        "languages": [],
+        "description": "Internal developer platforms, self-service infrastructure, golden paths"
+    },
+    "voltagent-infra:security-engineer": {
+        "category": "infra",
+        "model": "opus",
+        "review_dimensions": ["security", "operations"],
+        "languages": [],
+        "description": "Security automation, compliance programs, zero-trust architecture"
+    },
+    "voltagent-infra:azure-infra-engineer": {
+        "category": "infra",
+        "model": "sonnet",
+        "review_dimensions": ["operations"],
+        "languages": ["powershell"],
+        "description": "Azure infrastructure, Entra ID, PowerShell automation, Bicep IaC"
+    },
+    "voltagent-infra:windows-infra-admin": {
+        "category": "infra",
+        "model": "sonnet",
+        "review_dimensions": ["operations"],
+        "languages": ["powershell"],
+        "description": "Windows Server, Active Directory, DNS, DHCP, Group Policy"
+    },
+    "voltagent-infra:terragrunt-expert": {
+        "category": "infra",
+        "model": "sonnet",
+        "review_dimensions": ["operations"],
+        "languages": ["hcl"],
+        "description": "Terragrunt orchestration, DRY configs, multi-environment deployments"
+    },
+    "voltagent-infra:postgres-pro": {
+        "category": "infra",
+        "model": "sonnet",
+        "review_dimensions": ["performance", "operations"],
+        "languages": ["sql"],
+        "description": "PostgreSQL performance, high-availability replication, tuning"
+    },
+
+    # =================================================================
+    # VOLTAGENT DATA & AI (12 agents)
+    # =================================================================
+    "voltagent-data-ai:ml-engineer": {
+        "category": "data-ai",
+        "model": "opus",
+        "review_dimensions": ["code_quality"],
+        "languages": ["python"],
+        "description": "ML model deployment, serving infrastructure, automated retraining"
+    },
+    "voltagent-data-ai:data-scientist": {
+        "category": "data-ai",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality"],
+        "languages": ["python", "r"],
+        "description": "Data analysis, predictive models, statistical insights"
+    },
+    "voltagent-data-ai:data-engineer": {
+        "category": "data-ai",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality", "operations"],
+        "languages": ["python", "sql"],
+        "description": "Data pipelines, ETL/ELT processes, data infrastructure"
+    },
+    "voltagent-data-ai:ai-engineer": {
+        "category": "data-ai",
+        "model": "opus",
+        "review_dimensions": ["code_quality"],
+        "languages": ["python"],
+        "description": "End-to-end AI systems, model training, production deployment"
+    },
+    "voltagent-data-ai:data-analyst": {
+        "category": "data-ai",
+        "model": "sonnet",
+        "review_dimensions": [],
+        "languages": ["sql", "python"],
+        "description": "Business data insights, dashboards, statistical analysis"
+    },
+    "voltagent-data-ai:llm-architect": {
+        "category": "data-ai",
+        "model": "opus",
+        "review_dimensions": ["architecture"],
+        "languages": ["python"],
+        "description": "LLM systems, fine-tuning, RAG architectures, inference serving"
+    },
+    "voltagent-data-ai:mlops-engineer": {
+        "category": "data-ai",
+        "model": "sonnet",
+        "review_dimensions": ["operations"],
+        "languages": ["python"],
+        "description": "ML infrastructure, experiment tracking, model versioning, automation"
+    },
+    "voltagent-data-ai:nlp-engineer": {
+        "category": "data-ai",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality"],
+        "languages": ["python"],
+        "description": "Production NLP systems, text processing, language models"
+    },
+    "voltagent-data-ai:prompt-engineer": {
+        "category": "data-ai",
+        "model": "sonnet",
+        "review_dimensions": [],
+        "languages": [],
+        "description": "Prompt design, optimization, testing, evaluation for LLMs"
+    },
+    "voltagent-data-ai:database-optimizer": {
+        "category": "data-ai",
+        "model": "sonnet",
+        "review_dimensions": ["performance"],
+        "languages": ["sql"],
+        "description": "Slow query analysis, database performance, indexing strategies"
+    },
+    "voltagent-data-ai:machine-learning-engineer": {
+        "category": "data-ai",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality"],
+        "languages": ["python"],
+        "description": "ML model deployment, optimization, serving at scale"
+    },
+    "voltagent-data-ai:postgres-pro": {
+        "category": "data-ai",
+        "model": "sonnet",
+        "review_dimensions": ["performance"],
+        "languages": ["sql"],
+        "description": "PostgreSQL optimization, replication, scaling"
+    },
+
+    # =================================================================
+    # VOLTAGENT CORE DEVELOPMENT (10 agents)
+    # =================================================================
+    "voltagent-core-dev:fullstack-developer": {
+        "category": "core-dev",
+        "model": "opus",
+        "review_dimensions": ["code_quality"],
+        "languages": ["python", "typescript", "javascript"],
+        "description": "Complete features spanning database, API, and frontend"
+    },
+    "voltagent-core-dev:frontend-developer": {
+        "category": "core-dev",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality"],
+        "languages": ["typescript", "javascript"],
+        "description": "React, Vue, Angular frontend applications, full-stack integration"
+    },
+    "voltagent-core-dev:backend-developer": {
+        "category": "core-dev",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality"],
+        "languages": ["python", "javascript", "java", "go"],
+        "description": "Server-side APIs, microservices, backend systems"
+    },
+    "voltagent-core-dev:api-designer": {
+        "category": "core-dev",
+        "model": "sonnet",
+        "review_dimensions": ["architecture", "documentation"],
+        "languages": [],
+        "description": "API design, OpenAPI specs, REST/GraphQL endpoints"
+    },
+    "voltagent-core-dev:microservices-architect": {
+        "category": "core-dev",
+        "model": "opus",
+        "review_dimensions": ["architecture"],
+        "languages": [],
+        "description": "Distributed system architecture, microservices decomposition"
+    },
+    "voltagent-core-dev:graphql-architect": {
+        "category": "core-dev",
+        "model": "sonnet",
+        "review_dimensions": ["architecture"],
+        "languages": ["typescript", "javascript"],
+        "description": "GraphQL schemas, federation, distributed graphs"
+    },
+    "voltagent-core-dev:mobile-developer": {
+        "category": "core-dev",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality"],
+        "languages": ["typescript", "swift", "kotlin"],
+        "description": "Cross-platform mobile apps, React Native, Flutter"
+    },
+    "voltagent-core-dev:ui-designer": {
+        "category": "core-dev",
+        "model": "sonnet",
+        "review_dimensions": [],
+        "languages": ["typescript", "javascript"],
+        "description": "Visual interface design, design systems, component libraries"
+    },
+    "voltagent-core-dev:websocket-engineer": {
+        "category": "core-dev",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality"],
+        "languages": ["typescript", "javascript", "python"],
+        "description": "Real-time bidirectional communication, WebSockets, Socket.IO"
+    },
+    "voltagent-core-dev:electron-pro": {
+        "category": "core-dev",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality"],
+        "languages": ["typescript", "javascript"],
+        "description": "Electron desktop apps, native OS integration, cross-platform"
+    },
+
+    # =================================================================
+    # VOLTAGENT DOMAINS (12 agents)
+    # =================================================================
+    "voltagent-domains:fintech-engineer": {
+        "category": "domains",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality", "security", "compliance"],
+        "languages": ["python", "javascript", "java"],
+        "description": "Payment systems, financial integrations, compliance-heavy financial apps"
+    },
+    "voltagent-domains:blockchain-developer": {
+        "category": "domains",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality", "security"],
+        "languages": ["solidity", "rust", "javascript"],
+        "description": "Smart contracts, DApps, blockchain protocols, Web3 integration"
+    },
+    "voltagent-domains:iot-engineer": {
+        "category": "domains",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality", "operations"],
+        "languages": ["python", "c", "cpp"],
+        "description": "IoT solutions, device management, edge computing, cloud integration"
+    },
+    "voltagent-domains:game-developer": {
+        "category": "domains",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality", "performance"],
+        "languages": ["cpp", "csharp"],
+        "description": "Game systems, graphics rendering, multiplayer networking"
+    },
+    "voltagent-domains:mobile-app-developer": {
+        "category": "domains",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality"],
+        "languages": ["swift", "kotlin", "dart"],
+        "description": "iOS/Android mobile apps, native or cross-platform"
+    },
+    "voltagent-domains:payment-integration": {
+        "category": "domains",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality", "security", "compliance"],
+        "languages": ["python", "javascript"],
+        "description": "Payment systems, payment gateways, PCI compliance, fraud prevention"
+    },
+    "voltagent-domains:embedded-systems": {
+        "category": "domains",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality", "performance"],
+        "languages": ["c", "cpp"],
+        "description": "Firmware, microcontrollers, RTOS-based applications"
+    },
+    "voltagent-domains:m365-admin": {
+        "category": "domains",
+        "model": "sonnet",
+        "review_dimensions": ["operations"],
+        "languages": ["powershell"],
+        "description": "Microsoft 365 automation, Exchange, Teams, SharePoint, Graph API"
+    },
+    "voltagent-domains:api-documenter": {
+        "category": "domains",
+        "model": "sonnet",
+        "review_dimensions": ["documentation"],
+        "languages": [],
+        "description": "API documentation, OpenAPI specs, interactive documentation portals"
+    },
+    "voltagent-domains:seo-specialist": {
+        "category": "domains",
+        "model": "sonnet",
+        "review_dimensions": [],
+        "languages": [],
+        "description": "SEO optimization, technical audits, keyword strategy, rankings"
+    },
+    "voltagent-domains:quant-analyst": {
+        "category": "domains",
+        "model": "sonnet",
+        "review_dimensions": [],
+        "languages": ["python", "r"],
+        "description": "Quantitative trading strategies, financial models, risk analytics"
+    },
+    "voltagent-domains:risk-manager": {
+        "category": "domains",
+        "model": "sonnet",
+        "review_dimensions": ["compliance"],
+        "languages": [],
+        "description": "Enterprise risk identification, quantification, mitigation, compliance"
+    },
+
+    # =================================================================
+    # VOLTAGENT META-COORDINATION (9 agents)
+    # =================================================================
+    "voltagent-meta:multi-agent-coordinator": {
+        "category": "meta",
+        "model": "opus",
+        "review_dimensions": [],
+        "languages": [],
+        "description": "Coordinate multiple concurrent agents, shared state, distributed failures"
+    },
+    "voltagent-meta:task-distributor": {
+        "category": "meta",
+        "model": "sonnet",
+        "review_dimensions": [],
+        "languages": [],
+        "description": "Distribute tasks across agents/workers, queue management, load balancing"
+    },
+    "voltagent-meta:workflow-orchestrator": {
+        "category": "meta",
+        "model": "sonnet",
+        "review_dimensions": [],
+        "languages": [],
+        "description": "Business process workflows, state machines, error handling, transactions"
+    },
+    "voltagent-meta:agent-organizer": {
+        "category": "meta",
+        "model": "sonnet",
+        "review_dimensions": [],
+        "languages": [],
+        "description": "Assemble and optimize multi-agent teams, task decomposition, coordination"
+    },
+    "voltagent-meta:context-manager": {
+        "category": "meta",
+        "model": "sonnet",
+        "review_dimensions": [],
+        "languages": [],
+        "description": "Manage shared state, information retrieval, data sync for multi-agent systems"
+    },
+    "voltagent-meta:error-coordinator": {
+        "category": "meta",
+        "model": "sonnet",
+        "review_dimensions": [],
+        "languages": [],
+        "description": "Coordinated error handling, failure detection, cascade prevention"
+    },
+    "voltagent-meta:it-ops-orchestrator": {
+        "category": "meta",
+        "model": "sonnet",
+        "review_dimensions": ["operations"],
+        "languages": [],
+        "description": "Orchestrate IT ops tasks across PowerShell, .NET, infrastructure, Azure, M365"
+    },
+    "voltagent-meta:knowledge-synthesizer": {
+        "category": "meta",
+        "model": "sonnet",
+        "review_dimensions": [],
+        "languages": [],
+        "description": "Extract actionable patterns from agent interactions, organizational learning"
+    },
+    "voltagent-meta:performance-monitor": {
+        "category": "meta",
+        "model": "sonnet",
+        "review_dimensions": ["performance", "operations"],
+        "languages": [],
+        "description": "Track system metrics, detect anomalies, optimize resource usage"
+    },
+
+    # =================================================================
+    # VOLTAGENT BUSINESS (11 agents)
+    # =================================================================
+    "voltagent-biz:product-manager": {
+        "category": "biz",
+        "model": "sonnet",
+        "review_dimensions": [],
+        "languages": [],
+        "description": "Product strategy, feature prioritization, roadmap planning"
+    },
+    "voltagent-biz:technical-writer": {
+        "category": "biz",
+        "model": "sonnet",
+        "review_dimensions": ["documentation"],
+        "languages": [],
+        "description": "Technical documentation, API references, user guides, SDK docs"
+    },
+    "voltagent-biz:business-analyst": {
+        "category": "biz",
+        "model": "sonnet",
+        "review_dimensions": [],
+        "languages": [],
+        "description": "Business process analysis, requirements gathering, process improvements"
+    },
+    "voltagent-biz:scrum-master": {
+        "category": "biz",
+        "model": "sonnet",
+        "review_dimensions": [],
+        "languages": [],
+        "description": "Agile facilitation, sprint planning, retrospectives, impediment removal"
+    },
+    "voltagent-biz:project-manager": {
+        "category": "biz",
+        "model": "sonnet",
+        "review_dimensions": [],
+        "languages": [],
+        "description": "Project planning, execution tracking, risk management, stakeholder coordination"
+    },
+    "voltagent-biz:sales-engineer": {
+        "category": "biz",
+        "model": "sonnet",
+        "review_dimensions": [],
+        "languages": [],
+        "description": "Technical pre-sales, solution architecture, proof-of-concept, demos"
+    },
+    "voltagent-biz:customer-success-manager": {
+        "category": "biz",
+        "model": "sonnet",
+        "review_dimensions": [],
+        "languages": [],
+        "description": "Customer health, retention strategies, upsell opportunities, LTV maximization"
+    },
+    "voltagent-biz:legal-advisor": {
+        "category": "biz",
+        "model": "sonnet",
+        "review_dimensions": ["compliance"],
+        "languages": [],
+        "description": "Contract drafting, compliance review, IP protection, legal risk assessment"
+    },
+    "voltagent-biz:content-marketer": {
+        "category": "biz",
+        "model": "sonnet",
+        "review_dimensions": [],
+        "languages": [],
+        "description": "Content strategy, SEO-optimized marketing, multi-channel campaigns"
+    },
+    "voltagent-biz:ux-researcher": {
+        "category": "biz",
+        "model": "sonnet",
+        "review_dimensions": [],
+        "languages": [],
+        "description": "User research, behavior analysis, usability testing, persona development"
+    },
+    "voltagent-biz:wordpress-master": {
+        "category": "biz",
+        "model": "sonnet",
+        "review_dimensions": [],
+        "languages": ["php", "javascript"],
+        "description": "WordPress architecture, custom themes/plugins, enterprise multisite"
+    },
+
+    # =================================================================
+    # VOLTAGENT DEV EXPERIENCE (13 agents)
+    # =================================================================
+    "voltagent-dev-exp:refactoring-specialist": {
+        "category": "dev-exp",
+        "model": "opus",
+        "review_dimensions": ["code_quality"],
+        "languages": ["python", "javascript", "typescript", "java"],
+        "description": "Transform complex code into clean, maintainable systems"
+    },
+    "voltagent-dev-exp:mcp-developer": {
+        "category": "dev-exp",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality"],
+        "languages": ["typescript", "python"],
+        "description": "Build MCP servers/clients connecting AI to external tools and data"
+    },
+    "voltagent-dev-exp:cli-developer": {
+        "category": "dev-exp",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality"],
+        "languages": ["python", "javascript", "typescript", "go"],
+        "description": "Command-line tools, terminal apps, cross-platform CLI"
+    },
+    "voltagent-dev-exp:tooling-engineer": {
+        "category": "dev-exp",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality"],
+        "languages": ["python", "javascript", "typescript"],
+        "description": "Developer tools, CLIs, code generators, build tools, IDE extensions"
+    },
+    "voltagent-dev-exp:documentation-engineer": {
+        "category": "dev-exp",
+        "model": "sonnet",
+        "review_dimensions": ["documentation"],
+        "languages": [],
+        "description": "Comprehensive documentation systems, API docs, tutorials, guides"
+    },
+    "voltagent-dev-exp:dx-optimizer": {
+        "category": "dev-exp",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality", "operations"],
+        "languages": [],
+        "description": "Developer workflow optimization, build times, feedback loops, testing efficiency"
+    },
+    "voltagent-dev-exp:git-workflow-manager": {
+        "category": "dev-exp",
+        "model": "sonnet",
+        "review_dimensions": [],
+        "languages": [],
+        "description": "Git workflows, branching strategies, merge management"
+    },
+    "voltagent-dev-exp:dependency-manager": {
+        "category": "dev-exp",
+        "model": "sonnet",
+        "review_dimensions": ["security", "code_quality"],
+        "languages": [],
+        "description": "Dependency audits, vulnerability scanning, version conflicts, bundle optimization"
+    },
+    "voltagent-dev-exp:build-engineer": {
+        "category": "dev-exp",
+        "model": "sonnet",
+        "review_dimensions": ["performance"],
+        "languages": [],
+        "description": "Build performance optimization, compilation times, build system scaling"
+    },
+    "voltagent-dev-exp:legacy-modernizer": {
+        "category": "dev-exp",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality", "architecture"],
+        "languages": [],
+        "description": "Modernize legacy systems, incremental migration, technical debt reduction"
+    },
+    "voltagent-dev-exp:powershell-module-architect": {
+        "category": "dev-exp",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality"],
+        "languages": ["powershell"],
+        "description": "PowerShell module architecture, profile systems, cross-version compatibility"
+    },
+    "voltagent-dev-exp:powershell-ui-architect": {
+        "category": "dev-exp",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality"],
+        "languages": ["powershell"],
+        "description": "PowerShell desktop GUIs (WinForms, WPF) and terminal UIs (TUIs)"
+    },
+    "voltagent-dev-exp:slack-expert": {
+        "category": "dev-exp",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality", "security"],
+        "languages": ["typescript", "javascript", "python"],
+        "description": "Slack app development, Slack API integrations, security review"
+    },
+
+    # =================================================================
+    # VOLTAGENT RESEARCH (6 agents)
+    # =================================================================
+    "voltagent-research:market-researcher": {
+        "category": "research",
+        "model": "sonnet",
+        "review_dimensions": [],
+        "languages": [],
+        "description": "Market analysis, consumer behavior, competitive landscapes, opportunity sizing"
+    },
+    "voltagent-research:competitive-analyst": {
+        "category": "research",
+        "model": "sonnet",
+        "review_dimensions": [],
+        "languages": [],
+        "description": "Competitor analysis, market benchmarking, competitive positioning"
+    },
+    "voltagent-research:trend-analyst": {
+        "category": "research",
+        "model": "sonnet",
+        "review_dimensions": [],
+        "languages": [],
+        "description": "Emerging patterns, industry shifts, future scenarios, strategic planning"
+    },
+    "voltagent-research:research-analyst": {
+        "category": "research",
+        "model": "sonnet",
+        "review_dimensions": [],
+        "languages": [],
+        "description": "Comprehensive research, synthesis into insights, trend identification, reporting"
+    },
+    "voltagent-research:search-specialist": {
+        "category": "research",
+        "model": "haiku",
+        "review_dimensions": [],
+        "languages": [],
+        "description": "Advanced search strategies, query optimization, targeted information retrieval"
+    },
+    "voltagent-research:data-researcher": {
+        "category": "research",
+        "model": "sonnet",
+        "review_dimensions": [],
+        "languages": [],
+        "description": "Discover, collect, validate data from multiple sources for analysis"
+    },
+
+    # =================================================================
+    # PLUGIN AGENTS (20+ agents)
+    # =================================================================
+    "agent-sdk-dev:agent-sdk-verifier-py": {
+        "category": "plugins",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality", "compliance"],
+        "languages": ["python"],
+        "description": "Verify Python Agent SDK apps follow best practices and documentation"
+    },
+    "agent-sdk-dev:agent-sdk-verifier-ts": {
+        "category": "plugins",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality", "compliance"],
+        "languages": ["typescript"],
+        "description": "Verify TypeScript Agent SDK apps follow best practices"
+    },
+    "code-simplifier:code-simplifier": {
+        "category": "plugins",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality"],
+        "languages": ["python", "javascript", "typescript"],
+        "description": "Simplify code for clarity, consistency, maintainability while preserving functionality"
+    },
+    "feature-dev:code-reviewer": {
+        "category": "plugins",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality", "testing"],
+        "languages": ["python", "javascript", "typescript"],
+        "description": "Code review for project guidelines, style guides, best practices"
+    },
+    "feature-dev:code-architect": {
+        "category": "plugins",
+        "model": "opus",
+        "review_dimensions": ["architecture", "code_quality"],
+        "languages": [],
+        "description": "Design feature architectures, analyze codebase patterns, implementation blueprints"
+    },
+    "feature-dev:code-explorer": {
+        "category": "plugins",
+        "model": "sonnet",
+        "review_dimensions": [],
+        "languages": [],
+        "description": "Analyze codebase features, trace execution, map architecture, document dependencies"
+    },
+    "pr-review-toolkit:code-reviewer": {
+        "category": "plugins",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality"],
+        "languages": [],
+        "description": "Review code for project guidelines, style violations, best practices"
+    },
+    "pr-review-toolkit:pr-test-analyzer": {
+        "category": "plugins",
+        "model": "sonnet",
+        "review_dimensions": ["testing"],
+        "languages": [],
+        "description": "Review PR test coverage quality and completeness, identify gaps"
+    },
+    "pr-review-toolkit:silent-failure-hunter": {
+        "category": "plugins",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality", "security"],
+        "languages": [],
+        "description": "Identify silent failures, inadequate error handling, inappropriate fallbacks"
+    },
+    "pr-review-toolkit:comment-analyzer": {
+        "category": "plugins",
+        "model": "sonnet",
+        "review_dimensions": ["documentation", "code_quality"],
+        "languages": [],
+        "description": "Analyze code comments for accuracy, completeness, maintainability"
+    },
+    "pr-review-toolkit:type-design-analyzer": {
+        "category": "plugins",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality"],
+        "languages": ["typescript", "python"],
+        "description": "Analyze type design for encapsulation, invariants, best practices"
+    },
+    "hookify:conversation-analyzer": {
+        "category": "plugins",
+        "model": "haiku",
+        "review_dimensions": [],
+        "languages": [],
+        "description": "Analyze conversation transcripts to find behaviors worth preventing with hooks"
+    },
+    "plugin-dev:plugin-validator": {
+        "category": "plugins",
+        "model": "sonnet",
+        "review_dimensions": ["code_quality", "compliance"],
+        "languages": ["typescript", "python"],
+        "description": "Validate plugin structure, configuration, best practices"
+    },
+    "plugin-dev:agent-creator": {
+        "category": "plugins",
+        "model": "sonnet",
+        "review_dimensions": [],
+        "languages": [],
+        "description": "Create plugin agents with proper structure and configuration"
+    },
+    "plugin-dev:skill-reviewer": {
+        "category": "plugins",
+        "model": "sonnet",
+        "review_dimensions": ["documentation"],
+        "languages": [],
+        "description": "Review plugin skills for completeness and best practices"
+    },
+    "huggingface-skills:AGENTS": {
+        "category": "plugins",
+        "model": "sonnet",
+        "review_dimensions": [],
+        "languages": ["python"],
+        "description": "Hugging Face Hub operations, model/dataset management"
+    },
+}
+
+
+# ------------------------------------------------------------------
 # YAML Frontmatter Parser (fallback when PyYAML not available)
 # ------------------------------------------------------------------
 
@@ -258,8 +1475,13 @@ def _parse_yaml_file(path: Path) -> Dict:
     try:
         content = path.read_text(encoding="utf-8")
         if HAS_YAML:
-            data = yaml.safe_load(content) or {}  # type: ignore
-            return _validate_yaml_schema(data, source=str(path))
+            try:
+                data = yaml.safe_load(content) or {}  # type: ignore
+                return _validate_yaml_schema(data, source=str(path))
+            except Exception as yaml_err:  # type: ignore
+                # Catch any YAML parsing errors (ParserError, ScannerError, etc.)
+                logger.warning("YAML parsing error in %s: %s - falling back to basic parsing", path, yaml_err)
+                # Fall through to basic parsing
         # Fallback: basic parsing
         result = {}
         for line in content.split("\n"):
@@ -781,6 +2003,348 @@ class AgentRegistry:
             "total_skill_lines": total_lines,
             "total_reference_files": total_refs,
             "avg_skill_lines": round(total_lines / max(len(self._agents), 1)),
+        }
+
+
+# ==================================================================
+# Universal Agent Registry (Extends AgentRegistry for 170+ agents)
+# ==================================================================
+
+class UniversalAgentRegistry(AgentRegistry):
+    """Extended registry supporting ALL 170+ agents across 12 categories.
+
+    Extends the base AgentRegistry to include not just FDA agents from
+    the skills/ directory, but also voltagent specialists, plugin agents,
+    and other specialized agents from the universal catalog.
+
+    Provides multi-dimensional agent discovery:
+    - By review dimension (code_quality, security, testing, etc.)
+    - By programming language
+    - By category (fda, qa-sec, lang, infra, data-ai, etc.)
+    - By model tier (opus, sonnet, haiku)
+
+    Usage:
+        registry = UniversalAgentRegistry()
+
+        # Find all agents for a review dimension
+        security_agents = registry.find_agents_by_review_dimension("security")
+
+        # Find language-specific agents
+        python_agents = registry.find_agents_by_language("python")
+
+        # Find all agents in a category
+        qa_agents = registry.find_agents_by_category("qa-sec")
+
+        # Get full catalog
+        all_agents = registry.discover_all_agents()
+    """
+
+    def __init__(self, skills_dir: Optional[Path] = None):
+        """Initialize the universal agent registry.
+
+        Args:
+            skills_dir: Path to skills directory for FDA agents.
+        """
+        super().__init__(skills_dir)
+        self._universal_agents: Dict[str, Dict] = {}
+        self._universal_loaded = False
+
+    def _ensure_universal_loaded(self):
+        """Lazy-load universal agent catalog on first access."""
+        if not self._universal_loaded:
+            self._load_universal_catalog()
+            self._universal_loaded = True
+
+    def _load_universal_catalog(self):
+        """Load all agents from the universal catalog.
+
+        Merges FDA agents from skills/ directory with agents from
+        the UNIVERSAL_AGENT_CATALOG constant.
+        """
+        # First load FDA agents from skills/ directory
+        self._ensure_loaded()
+
+        # Copy FDA agents to universal registry
+        for name, agent in self._agents.items():
+            catalog_metadata = UNIVERSAL_AGENT_CATALOG.get(name, {})
+            self._universal_agents[name] = {
+                **agent,
+                "source": "skills_directory",
+                "catalog_metadata": catalog_metadata,
+                # Add category from catalog or default to 'fda'
+                "category": catalog_metadata.get("category", "fda"),
+                "model": catalog_metadata.get("model", "opus"),
+                "review_dimensions": catalog_metadata.get("review_dimensions", []),
+                "languages": catalog_metadata.get("languages", []),
+            }
+
+        # Add all agents from universal catalog
+        for name, metadata in UNIVERSAL_AGENT_CATALOG.items():
+            if name not in self._universal_agents:
+                # Agent not in skills/ directory, use catalog metadata
+                self._universal_agents[name] = {
+                    "name": name,
+                    "source": "universal_catalog",
+                    "category": metadata["category"],
+                    "model": metadata["model"],
+                    "review_dimensions": metadata["review_dimensions"],
+                    "languages": metadata["languages"],
+                    "description": metadata["description"],
+                    "type": "universal",
+                }
+
+    def discover_all_agents(self) -> Dict[str, List[str]]:
+        """Discover agents from all sources.
+
+        Returns dict organized by category:
+            {
+                "fda": ["fda-quality-expert", "fda-software-ai-expert", ...],
+                "qa-sec": ["voltagent-qa-sec:code-reviewer", ...],
+                ...
+            }
+
+        Returns:
+            Dict mapping category to list of agent names.
+        """
+        self._ensure_universal_loaded()
+
+        # Organize by category
+        by_category: Dict[str, List[str]] = {}
+        for name, agent in self._universal_agents.items():
+            category = agent.get("category", "unknown")
+            if category not in by_category:
+                by_category[category] = []
+            by_category[category].append(name)
+
+        # Sort agents within each category
+        for category in by_category:
+            by_category[category].sort()
+
+        return by_category
+
+    def find_agents_by_review_dimension(self, dimension: str) -> List[Dict]:
+        """Find agents with a specific review dimension capability.
+
+        Review dimensions:
+            - code_quality: Code quality, best practices, bug detection
+            - security: Security audits, vulnerability analysis
+            - testing: Test automation, QA strategy, test coverage
+            - documentation: Technical writing, API docs, user guides
+            - performance: Performance optimization, bottleneck analysis
+            - compliance: Regulatory compliance, audit frameworks
+            - architecture: System design, architectural patterns
+            - operations: DevOps, deployment, incident response
+
+        Args:
+            dimension: Review dimension name.
+
+        Returns:
+            List of agent dicts with this review dimension, sorted by
+            relevance (primary dimension match > model tier).
+        """
+        self._ensure_universal_loaded()
+
+        if dimension not in REVIEW_DIMENSIONS:
+            logger.warning("Unknown review dimension: %s", dimension)
+            return []
+
+        matching_agents = []
+        for name, agent in self._universal_agents.items():
+            review_dims = agent.get("review_dimensions", [])
+            if isinstance(review_dims, list) and dimension in review_dims:
+                # Score by position in review_dimensions list (earlier = higher priority)
+                primary_score = 0 if review_dims[0] == dimension else 1
+                # Model tier scoring (opus=3, sonnet=2, haiku=1)
+                model = agent.get("model", "haiku")
+                model_score = {"opus": 3, "sonnet": 2, "haiku": 1}.get(model, 0)
+
+                matching_agents.append({
+                    **agent,
+                    "_relevance_score": (primary_score * 100) + model_score
+                })
+
+        # Sort by relevance (lower primary_score = better, higher model_score = better)
+        matching_agents.sort(key=lambda a: a["_relevance_score"], reverse=True)
+
+        # Remove temporary scoring field
+        for agent in matching_agents:
+            agent.pop("_relevance_score", None)
+
+        return matching_agents
+
+    def find_agents_by_language(self, language: str) -> List[Dict]:
+        """Find agents with expertise in a specific programming language.
+
+        Args:
+            language: Language name (python, typescript, javascript, rust, etc.).
+
+        Returns:
+            List of agent dicts supporting this language, sorted by model tier.
+        """
+        self._ensure_universal_loaded()
+
+        language_lower = language.lower()
+        matching_agents = []
+
+        for name, agent in self._universal_agents.items():
+            languages = agent.get("languages", [])
+            if isinstance(languages, list) and any(
+                language_lower == lang.lower() for lang in languages
+            ):
+                model = agent.get("model", "haiku")
+                model_score = {"opus": 3, "sonnet": 2, "haiku": 1}.get(model, 0)
+                matching_agents.append({
+                    **agent,
+                    "_model_score": model_score
+                })
+
+        # Sort by model tier (opus > sonnet > haiku)
+        matching_agents.sort(key=lambda a: a["_model_score"], reverse=True)
+
+        # Remove temporary scoring field
+        for agent in matching_agents:
+            agent.pop("_model_score", None)
+
+        return matching_agents
+
+    def find_agents_by_category(self, category: str) -> List[Dict]:
+        """Find all agents in a specific category.
+
+        Categories:
+            - fda: FDA regulatory agents
+            - qa-sec: QA and security agents
+            - lang: Language-specific agents
+            - infra: Infrastructure agents
+            - data-ai: Data and AI agents
+            - core-dev: Core development agents
+            - domains: Domain-specific agents
+            - meta: Meta-coordination agents
+            - biz: Business agents
+            - dev-exp: Developer experience agents
+            - research: Research agents
+            - plugins: Plugin agents
+
+        Args:
+            category: Category name.
+
+        Returns:
+            List of agent dicts in this category, sorted by name.
+        """
+        self._ensure_universal_loaded()
+
+        matching_agents = []
+        for name, agent in self._universal_agents.items():
+            if agent.get("category") == category:
+                matching_agents.append(agent)
+
+        # Sort by name
+        matching_agents.sort(key=lambda a: a["name"])
+
+        return matching_agents
+
+    def get_universal_agent(self, name: str) -> Optional[Dict]:
+        """Get a specific agent from the universal registry.
+
+        Args:
+            name: Agent name (e.g., 'fda-software-ai-expert' or
+                  'voltagent-qa-sec:code-reviewer').
+
+        Returns:
+            Agent definition dict or None.
+        """
+        self._ensure_universal_loaded()
+        return self._universal_agents.get(name)
+
+    def search_universal_agents(
+        self,
+        query: str,
+        review_dimension: str = "",
+        language: str = "",
+        category: str = "",
+    ) -> List[Dict]:
+        """Search universal agents with multiple filters.
+
+        Args:
+            query: Search query (matches name or description).
+            review_dimension: Optional review dimension filter.
+            language: Optional language filter.
+            category: Optional category filter.
+
+        Returns:
+            Matching agents sorted by relevance.
+        """
+        self._ensure_universal_loaded()
+
+        query_lower = query.lower()
+        results = []
+
+        for name, agent in self._universal_agents.items():
+            # Apply filters
+            if category and agent.get("category") != category:
+                continue
+
+            if review_dimension:
+                review_dims = agent.get("review_dimensions", [])
+                if review_dimension not in review_dims:
+                    continue
+
+            if language:
+                languages = agent.get("languages", [])
+                if not any(language.lower() == lang.lower() for lang in languages):
+                    continue
+
+            # Score by query match
+            score = 0
+            if query_lower in agent["name"].lower():
+                score += 10
+            if query_lower in agent.get("description", "").lower():
+                score += 5
+
+            if score > 0 or not query:
+                results.append((score, agent))
+
+        # Sort by score (descending)
+        results.sort(key=lambda x: x[0], reverse=True)
+
+        return [agent for _, agent in results]
+
+    def get_statistics(self) -> Dict:
+        """Get registry statistics for all agents.
+
+        Returns:
+            Statistics about universal agent registry.
+        """
+        self._ensure_universal_loaded()
+
+        # Get base stats from FDA agents
+        base_stats = super().get_statistics()
+
+        # Count universal agents by category
+        categories: Dict[str, int] = {}
+        by_model: Dict[str, int] = {}
+        by_review_dim: Dict[str, int] = {}
+        by_language: Dict[str, int] = {}
+
+        for agent in self._universal_agents.values():
+            cat = agent.get("category", "unknown")
+            categories[cat] = categories.get(cat, 0) + 1
+
+            model = agent.get("model", "unknown")
+            by_model[model] = by_model.get(model, 0) + 1
+
+            for dim in agent.get("review_dimensions", []):
+                by_review_dim[dim] = by_review_dim.get(dim, 0) + 1
+
+            for lang in agent.get("languages", []):
+                by_language[lang] = by_language.get(lang, 0) + 1
+
+        return {
+            **base_stats,
+            "total_universal_agents": len(self._universal_agents),
+            "agents_by_category": categories,
+            "agents_by_model": by_model,
+            "agents_by_review_dimension": by_review_dim,
+            "agents_by_language": by_language,
         }
 
 
