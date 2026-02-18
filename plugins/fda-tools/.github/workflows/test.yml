@@ -50,3 +50,64 @@ jobs:
         run: |
           pytest tests/ -v -m "api" --tb=short
         continue-on-error: true
+
+  openclaw-skill-test:
+    runs-on: ubuntu-latest
+    # Experimental: OpenClaw skill tests are structural validation only.
+    # They verify file structure, exports, and type definitions without
+    # requiring the @openclaw/sdk peer dependency or a running bridge server.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Install dependencies
+        working-directory: openclaw-skill
+        run: npm ci
+
+      - name: TypeScript type check
+        working-directory: openclaw-skill
+        run: npm run typecheck
+        continue-on-error: true
+
+      - name: Build
+        working-directory: openclaw-skill
+        run: npm run build
+        continue-on-error: true
+
+      - name: Run integration tests
+        working-directory: openclaw-skill
+        run: npm test
+
+  mypy-type-check:
+    runs-on: ubuntu-latest
+    # Type checking is advisory-only; failures do not block merges.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install mypy types-requests types-python-dateutil
+          pip install requests python-dateutil Jinja2
+          pip install pikepdf beautifulsoup4 lxml
+
+      - name: Run mypy (warning-only)
+        run: |
+          mypy plugins/fda-tools/lib/ plugins/fda-tools/scripts/ \
+            --config-file pyproject.toml \
+            --no-error-summary 2>&1 | head -100 || true
+          echo ""
+          echo "--- mypy summary ---"
+          mypy plugins/fda-tools/lib/ plugins/fda-tools/scripts/ \
+            --config-file pyproject.toml 2>&1 | tail -5 || true
