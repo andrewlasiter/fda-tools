@@ -51,6 +51,9 @@ dev = [
     "pre-commit>=3.0.0",
     "black>=23.0.0",
     "mypy>=1.0.0",
+    "types-requests>=2.28.0",
+    "types-python-dateutil>=2.8.0",
+    "types-beautifulsoup4>=4.12.0",
     "interrogate>=1.7.0",
 ]
 test = [
@@ -210,13 +213,55 @@ no_implicit_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = true
 warn_no_return = true
+# Disallow untyped defs in lib/ (stricter); scripts/ uses follow_imports = skip below
+disallow_untyped_defs = false
+check_untyped_defs = true
 exclude = [
     "venv",
     "build",
     "dist",
     "node_modules",
     "openclaw-skill",
+    "tests",
+    "demo_.*\\.py",
+    "test_.*\\.py",
 ]
+
+# -- Per-module overrides --
+
+# Library modules: stricter checking (these have the most type hints)
+[[tool.mypy.overrides]]
+module = "plugins.fda_tools.lib.*"
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_decorators = true
+
+# Scripts: relaxed checking (many scripts are standalone utilities)
+[[tool.mypy.overrides]]
+module = "plugins.fda_tools.scripts.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+# Test files: skip entirely
+[[tool.mypy.overrides]]
+module = "plugins.fda_tools.tests.*"
+ignore_errors = true
+
+# Third-party stubs
+[[tool.mypy.overrides]]
+module = [
+    "pikepdf",
+    "pikepdf.*",
+    "bs4",
+    "bs4.*",
+    "lxml",
+    "lxml.*",
+    "pandas",
+    "pandas.*",
+    "numpy",
+    "numpy.*",
+]
+ignore_missing_imports = true
 
 [tool.interrogate]
 ignore-init-method = true
