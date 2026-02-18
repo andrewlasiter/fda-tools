@@ -7,6 +7,7 @@ trend analysis, and cross-product-code comparison for structured 510(k) section
 data. Uses only Python standard library (no scikit-learn or numpy required).
 
 Core functions:
+    auto_select_similarity_method(text_a, text_b) -> str  (FDA-39)
     compute_similarity(text_a, text_b, method) -> float (0.0-1.0)
     pairwise_similarity_matrix(section_data, section_type, method, sample_size) -> dict
     analyze_temporal_trends(section_data, section_types) -> dict
@@ -14,6 +15,7 @@ Core functions:
 
 Usage:
     from section_analytics import (
+        auto_select_similarity_method,
         compute_similarity,
         pairwise_similarity_matrix,
         analyze_temporal_trends,
@@ -139,6 +141,69 @@ def _jaccard_similarity(text_a: str, text_b: str) -> float:
     return len(intersection) / len(union)
 
 
+def auto_select_similarity_method(text_a: str, text_b: str) -> str:
+    """Automatically select the best similarity method based on text characteristics.
+
+    Heuristic rules (FDA-39):
+        1. Short texts (<100 words on average) -> ``jaccard``
+           Rationale: Short texts have too few tokens for meaningful TF vectors;
+           Jaccard set-overlap is more robust with small vocabularies.
+
+        2. Long structured texts (>=100 words avg AND vocabulary diversity < 0.6)
+           -> ``sequence``
+           Rationale: Texts with repeated technical vocabulary (e.g., standards
+           citations, structured clinical reports) benefit from SequenceMatcher's
+           block-matching which captures structural ordering.
+
+        3. Mixed-length or high-diversity texts -> ``cosine``
+           Rationale: Cosine similarity on TF vectors handles length differences
+           gracefully and works well for content comparison across varied writing
+           styles.
+
+    Vocabulary diversity is defined as ``unique_tokens / total_tokens``.
+    A low ratio (<0.6) indicates repetitive, structured language.
+
+    Args:
+        text_a: First text string.
+        text_b: Second text string.
+
+    Returns:
+        One of 'jaccard', 'sequence', or 'cosine'.
+
+    Example:
+        >>> auto_select_similarity_method("short text", "another short text")
+        'jaccard'
+        >>> long_text = " ".join(["testing"] * 200)
+        >>> auto_select_similarity_method(long_text, long_text)
+        'sequence'
+    """
+    tokens_a = _tokenize(text_a)
+    tokens_b = _tokenize(text_b)
+
+    len_a = len(tokens_a)
+    len_b = len(tokens_b)
+
+    # Average word count across both texts
+    avg_words = (len_a + len_b) / 2.0
+
+    # Rule 1: Short texts -> jaccard
+    if avg_words < 100:
+        return "jaccard"
+
+    # Compute vocabulary diversity across the combined corpus
+    all_tokens = tokens_a + tokens_b
+    total = len(all_tokens)
+    unique = len(set(all_tokens))
+    diversity = unique / total if total > 0 else 0.0
+
+    # Rule 2: Long structured (low diversity) -> sequence
+    if diversity < 0.6:
+        return "sequence"
+
+    # Rule 3: Default -> cosine
+    return "cosine"
+
+
 def compute_similarity(
     text_a: str, text_b: str, method: str = "sequence"
 ) -> float:
@@ -165,6 +230,10 @@ def compute_similarity(
 
     method = method.lower()
 
+    # FDA-39: Auto-select method based on text characteristics
+    if method == "auto":
+        method = auto_select_similarity_method(text_a, text_b)
+
     if method == "sequence":
         return SequenceMatcher(None, text_a, text_b).ratio()
     elif method == "jaccard":
@@ -174,7 +243,7 @@ def compute_similarity(
     else:
         raise ValueError(
             f"Unknown similarity method '{method}'. "
-            f"Use 'sequence', 'jaccard', or 'cosine'."
+            f"Use 'sequence', 'jaccard', 'cosine', or 'auto'."
         )
 
 
@@ -726,8 +795,8 @@ def main():
     )
     parser.add_argument(
         "--method", default="sequence",
-        choices=["sequence", "jaccard", "cosine"],
-        help="Similarity method (default: sequence)"
+        choices=["sequence", "jaccard", "cosine", "auto"],
+        help="Similarity method (default: sequence). Use 'auto' for heuristic selection based on text characteristics."
     )
 
     args = parser.parse_args()
