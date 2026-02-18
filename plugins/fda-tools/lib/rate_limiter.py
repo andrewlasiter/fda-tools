@@ -428,6 +428,56 @@ def parse_retry_after(retry_after_header: Optional[str]) -> Optional[float]:
         return None
 
 
+# ------------------------------------------------------------------
+# Rate Limit Validation (Security Hardening - FDA-86)
+# ------------------------------------------------------------------
+
+# Valid rate limit periods for validation
+VALID_RATE_LIMIT_PERIODS = {"second", "minute", "hour", "day"}
+
+# Rate limit bounds
+MIN_RATE_LIMIT = 1
+MAX_RATE_LIMIT = 10000
+
+
+def validate_rate_limit(limit: int, period: str) -> None:
+    """Validate rate limit configuration parameters.
+
+    Ensures rate limit values are within acceptable bounds to prevent
+    misconfiguration that could lead to API abuse or denial of service.
+
+    Args:
+        limit: Number of requests allowed per period.
+               Must be between MIN_RATE_LIMIT (1) and MAX_RATE_LIMIT (10000).
+        period: Time period for the rate limit.
+                Must be one of: 'second', 'minute', 'hour', 'day'.
+
+    Raises:
+        ValueError: If limit is out of bounds or period is invalid.
+
+    Examples:
+        >>> validate_rate_limit(240, "minute")  # OK: standard FDA API limit
+        >>> validate_rate_limit(0, "minute")     # Raises ValueError
+        >>> validate_rate_limit(100, "week")     # Raises ValueError
+    """
+    if not isinstance(limit, int):
+        raise ValueError(
+            f"Rate limit must be an integer, got {type(limit).__name__}"
+        )
+
+    if not (MIN_RATE_LIMIT <= limit <= MAX_RATE_LIMIT):
+        raise ValueError(
+            f"Rate limit must be between {MIN_RATE_LIMIT} and {MAX_RATE_LIMIT}, "
+            f"got {limit}"
+        )
+
+    if period not in VALID_RATE_LIMIT_PERIODS:
+        raise ValueError(
+            f"Invalid rate limit period: '{period}'. "
+            f"Must be one of: {sorted(VALID_RATE_LIMIT_PERIODS)}"
+        )
+
+
 class RetryPolicy:
     """Retry policy for handling 429 (Too Many Requests) responses.
 
