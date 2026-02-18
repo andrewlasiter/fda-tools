@@ -148,17 +148,24 @@ def _get_or_create_bridge_key() -> str:
 
     # Generate new key on first startup
     new_key = secrets.token_hex(32)
+    # SECURITY (FDA-84): Never log the full key to prevent exposure in log files.
+    # Display only to stdout (interactive terminal) and mask in logs.
+    masked = f"{new_key[:4]}...{new_key[-4:]}"
     logger.info("=" * 60)
     logger.info("BRIDGE API KEY GENERATED (first startup)")
     logger.info("=" * 60)
-    logger.info(f"Key: {new_key}")
+    logger.info(f"Key (masked): {masked}")
     logger.info("")
     logger.info("Save this key -- it is required to authenticate API requests.")
     logger.info(f"Pass it in the '{API_KEY_HEADER_NAME}' header.")
     logger.info("")
     logger.info("To configure the OpenClaw skill client, set:")
-    logger.info(f'  FDA_BRIDGE_API_KEY="{new_key}"')
+    logger.info(f'  FDA_BRIDGE_API_KEY="<your-key>"')
     logger.info("=" * 60)
+    # Print the full key ONLY to stdout for the operator to capture.
+    # This avoids it appearing in structured log files.
+    print(f"\n  >>> BRIDGE API KEY: {new_key}\n")
+    print("  Copy this key now. It will NOT be shown again in logs.\n")
 
     # Attempt to store in keyring
     try:

@@ -28,6 +28,92 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
+# ============================================================
+# API Key Redaction (FDA-84)
+# ============================================================
+
+# Pattern matching strings that look like API keys (20+ alphanumeric chars)
+_API_KEY_PATTERN = re.compile(r'([a-zA-Z0-9_-]{20,})')
+
+
+def mask_api_key(key: str) -> str:
+    """Mask an API key for safe display, showing only first 4 and last 4 chars.
+
+    Args:
+        key: The API key string to mask.
+
+    Returns:
+        Masked string like 'abcd...wxyz' or 'REDACTED' for short keys.
+    """
+    if not key or len(key) < 8:
+        return "REDACTED"
+    return f"{key[:4]}...{key[-4:]}"
+
+
+class APIKeyRedactor(logging.Filter):
+    """Logging filter that redacts API key-like strings from log messages.
+
+    Scans log message strings for patterns that look like API keys
+    (20+ alphanumeric characters) and replaces them with masked versions.
+    This prevents accidental key exposure in log files and console output.
+
+    Usage:
+        Apply to logging handlers to automatically redact keys:
+            for handler in logging.root.handlers:
+                handler.addFilter(APIKeyRedactor())
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        """Redact API key patterns from the log record message.
+
+        Args:
+            record: The log record to filter.
+
+        Returns:
+            Always True (record is never suppressed, only modified).
+        """
+        if isinstance(record.msg, str):
+            record.msg = _API_KEY_PATTERN.sub(
+                lambda m: mask_api_key(m.group(1)),
+                record.msg,
+            )
+        # Also redact args if they contain strings
+        if record.args:
+            if isinstance(record.args, dict):
+                record.args = {
+                    k: (_API_KEY_PATTERN.sub(lambda m: mask_api_key(m.group(1)), v)
+                         if isinstance(v, str) else v)
+                    for k, v in record.args.items()
+                }
+            elif isinstance(record.args, tuple):
+                record.args = tuple(
+                    _API_KEY_PATTERN.sub(lambda m: mask_api_key(m.group(1)), a)
+                    if isinstance(a, str) else a
+                    for a in record.args
+                )
+        return True
+
+
+def install_api_key_redactor():
+    """Install the APIKeyRedactor filter on all root logging handlers.
+
+    Should be called early in application startup to ensure no handlers
+    can leak API keys. Safe to call multiple times (idempotent).
+    """
+    redactor = APIKeyRedactor()
+    # Add to root logger handlers
+    for handler in logging.root.handlers:
+        if not any(isinstance(f, APIKeyRedactor) for f in handler.filters):
+            handler.addFilter(redactor)
+    # Also add directly to root logger for any future handlers
+    if not any(isinstance(f, APIKeyRedactor) for f in logging.root.filters):
+        logging.root.addFilter(redactor)
+
+
+# Install redactor on module import to protect from earliest possible moment
+install_api_key_redactor()
+
 # Keyring service and account identifiers
 KEYRING_SERVICE = 'fda-tools-plugin'
 KEYRING_ACCOUNT_OPENFDA = 'openfda_api_key'
@@ -424,7 +510,8 @@ def main():
         print(f"Key saved to {SETTINGS_PATH} (restricted permissions).")
     print()
     print("Alternatively, you can set the environment variable (takes priority):")
-    print(f'  export OPENFDA_API_KEY="{api_key}"')
+    print(f'  export OPENFDA_API_KEY="{mask_api_key(api_key)}"')
+    print("  (Use the full key you entered above -- masked here for security)")
     print()
     print("Done!")
 
