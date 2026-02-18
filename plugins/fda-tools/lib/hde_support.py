@@ -23,6 +23,7 @@ Version: 1.0.0
 Date: 2026-02-17
 """
 
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 
@@ -484,14 +485,32 @@ class PrevalenceValidator:
         """
         Validate whether a disease/condition meets HDE prevalence threshold.
 
+        Per 21 CFR 814 Subpart H, HDE is for diseases/conditions affecting
+        fewer than 8,000 individuals per year in the United States.
+
+        EDGE CASE: Exactly 8,000 patients is NOT eligible (strict inequality).
+        The statute uses "fewer than 8,000" which means strictly less than.
+        If your disease affects exactly 8,000 patients, HDE pathway is not
+        available -- consider PMA or other pathways.
+
+        EDGE CASE: Prevalence data older than 5 years may trigger FDA requests
+        for updated data. Data older than 10 years is strongly discouraged.
+
+        EDGE CASE: Zero or negative prevalence values are technically valid
+        for the comparison but indicate data quality issues. Zero prevalence
+        trivially satisfies the threshold but FDA will question the clinical
+        need for a device with zero affected patients.
+
         Args:
             condition_name: Name of the disease or condition
-            estimated_prevalence: Estimated number of patients per year in US
+            estimated_prevalence: Number of affected patients per year in US
             data_sources: List of dicts with 'name', 'url', 'date' keys
             prevalence_year: Year the prevalence data was collected
 
         Returns:
-            Validation result dict with eligibility determination
+            Validation result dict with eligibility determination.
+            Key field: 'eligible' is True if < 8,000 (strict inequality
+            per regulation), False if >= 8,000.
         """
         current_year = datetime.now(timezone.utc).year
         data_sources = data_sources or []
@@ -1297,7 +1316,26 @@ def validate_hde_prevalence(
     sources: Optional[List[Dict[str, str]]] = None,
     year: Optional[int] = None,
 ) -> Dict[str, Any]:
-    """Validate disease prevalence for HDE eligibility."""
+    """
+    Validate disease prevalence for HDE eligibility.
+
+    Per 21 CFR 814 Subpart H, HDE is for diseases/conditions affecting
+    fewer than 8,000 individuals per year in the United States.
+
+    EDGE CASE: Exactly 8,000 patients is NOT eligible (strict inequality).
+    If your disease affects exactly 8,000 patients, HDE pathway is not
+    available -- consider PMA or other pathways.
+
+    Args:
+        condition: Name of the disease or condition
+        prevalence: Number of affected patients per year in US
+        sources: List of dicts with 'name', 'url', 'date' keys
+        year: Year the prevalence data was collected
+
+    Returns:
+        Validation result dict. Key field: 'eligible' is True if
+        prevalence < 8,000 (strict inequality), False if >= 8,000.
+    """
     validator = PrevalenceValidator()
     return validator.validate_prevalence(condition, prevalence, sources, year)
 

@@ -441,9 +441,18 @@ class SRNSRDetermination:
     3. Is purported to be for use supporting/sustaining human life
 
     'Serious risk' = risk of death, permanent impairment, or permanent damage.
+
+    EDGE CASE: Score boundary at SR_THRESHOLD (60).
+    A score of exactly 60 IS classified as Significant Risk (>=, not >).
+    For borderline scores (55-65), document the determination thoroughly
+    and consider erring on the side of SR for patient safety.
+
+    EDGE CASE: The 30-day FDA review clock for SR IDEs starts from FDA's
+    "date of receipt" per 21 CFR 812.30(a), NOT from the sponsor's
+    submission date. Use trackable delivery to establish receipt date.
     """
 
-    SR_THRESHOLD = 60  # Score >= 60 = SR
+    SR_THRESHOLD = 60  # Score >= 60 = SR (inclusive, per regulatory intent)
 
     def evaluate(
         self,
@@ -464,6 +473,19 @@ class SRNSRDetermination:
     ) -> Dict:
         """Evaluate SR/NSR determination for a device.
 
+        EDGE CASE: Score of exactly 60 IS classified as Significant Risk
+        (uses >= comparison, not >). For borderline scores (55-65),
+        thoroughly document the determination rationale and consider
+        erring on the side of SR for patient safety.
+
+        EDGE CASE: For SR devices, the 30-day FDA review clock starts
+        from FDA's "date of receipt" per 21 CFR 812.30(a), which may
+        differ from the sponsor's submission date. Always use trackable
+        delivery to establish a clear receipt date.
+
+        EDGE CASE: If the IRB disagrees with an NSR determination, the
+        sponsor may request FDA determination which is binding.
+
         Args:
             device_name: Device name.
             device_description: Device description text.
@@ -482,6 +504,7 @@ class SRNSRDetermination:
 
         Returns:
             SR/NSR determination with score, rationale, and risk factors.
+            Key field: 'is_significant_risk' is True if score >= 60.
         """
         risk_score = 0
         risk_factors = []
@@ -718,6 +741,14 @@ class IDESubmissionOutline:
         sponsor_name: str = "",
     ) -> Dict:
         """Generate an IDE submission outline.
+
+        EDGE CASE: For SR devices, the timeline includes a 30-day FDA
+        review period. This 30-day clock starts from FDA's "date of
+        receipt" per 21 CFR 812.30(a), NOT from the date the sponsor
+        submits. Use trackable delivery to establish receipt date.
+
+        EDGE CASE: If FDA issues a "Refuse to Accept" (RTA), the 30-day
+        clock resets entirely when the complete resubmission is received.
 
         Args:
             device_name: Name of the investigational device.
