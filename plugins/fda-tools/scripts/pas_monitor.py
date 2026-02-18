@@ -813,6 +813,612 @@ class PASMonitor:
         return alerts
 
     # ------------------------------------------------------------------
+    # Enhanced: Enrollment tracking (FDA-64)
+    # ------------------------------------------------------------------
+
+    def generate_enrollment_tracker(
+        self,
+        pma_number: str,
+        study_name: str = "",
+        target_enrollment: int = 0,
+        sites: Optional[List[Dict]] = None,
+    ) -> Dict:
+        """Generate an enrollment tracking template.
+
+        Args:
+            pma_number: PMA number.
+            study_name: Name of the post-approval study.
+            target_enrollment: Target number of subjects.
+            sites: Optional list of clinical sites.
+
+        Returns:
+            Enrollment tracker dict.
+        """
+        site_list = []
+        if sites:
+            for site in sites:
+                site_list.append({
+                    "site_id": site.get("site_id", ""),
+                    "site_name": site.get("site_name", ""),
+                    "principal_investigator": site.get("pi", ""),
+                    "irb_approval_date": site.get("irb_date", ""),
+                    "site_activation_date": site.get("activation_date", ""),
+                    "enrolled": site.get("enrolled", 0),
+                    "screened": site.get("screened", 0),
+                    "screen_failures": site.get("screen_failures", 0),
+                    "status": site.get("status", "NOT_ACTIVATED"),
+                })
+
+        total_enrolled = sum(s.get("enrolled", 0) for s in site_list)
+        enrollment_pct = (
+            round(total_enrolled / target_enrollment * 100, 1)
+            if target_enrollment > 0 else 0.0
+        )
+
+        return {
+            "document_type": "PAS Enrollment Tracker",
+            "pma_number": pma_number.upper(),
+            "study_name": study_name,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "enrollment_summary": {
+                "target_enrollment": target_enrollment,
+                "total_enrolled": total_enrolled,
+                "enrollment_pct": enrollment_pct,
+                "total_screened": sum(s.get("screened", 0) for s in site_list),
+                "total_screen_failures": sum(s.get("screen_failures", 0) for s in site_list),
+                "enrollment_rate_per_month": 0.0,  # To be calculated
+                "projected_completion_date": "",  # To be calculated
+            },
+            "sites": site_list,
+            "total_sites": len(site_list),
+            "active_sites": sum(1 for s in site_list if s.get("status") == "ACTIVE"),
+            "enrollment_milestones": [
+                {"pct": 25, "target_count": round(target_enrollment * 0.25), "achieved": total_enrolled >= target_enrollment * 0.25, "date_achieved": ""},
+                {"pct": 50, "target_count": round(target_enrollment * 0.50), "achieved": total_enrolled >= target_enrollment * 0.50, "date_achieved": ""},
+                {"pct": 75, "target_count": round(target_enrollment * 0.75), "achieved": total_enrolled >= target_enrollment * 0.75, "date_achieved": ""},
+                {"pct": 100, "target_count": target_enrollment, "achieved": total_enrolled >= target_enrollment, "date_achieved": ""},
+            ],
+            "enrollment_history": [],  # List of {"date": "", "cumulative_enrolled": 0}
+            "notes": "",
+        }
+
+    # ------------------------------------------------------------------
+    # Enhanced: Protocol deviation logger (FDA-64)
+    # ------------------------------------------------------------------
+
+    def create_protocol_deviation_log(
+        self,
+        pma_number: str,
+        study_name: str = "",
+    ) -> Dict:
+        """Create a protocol deviation logging template.
+
+        Args:
+            pma_number: PMA number.
+            study_name: Name of the study.
+
+        Returns:
+            Protocol deviation log template dict.
+        """
+        return {
+            "document_type": "Protocol Deviation Log",
+            "pma_number": pma_number.upper(),
+            "study_name": study_name,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "deviations": [],  # See deviation_template below
+            "deviation_template": {
+                "deviation_id": "",
+                "date_occurred": "",
+                "date_reported": "",
+                "site_id": "",
+                "subject_id": "",
+                "deviation_type": "",  # Major, Minor, Important
+                "category": "",  # Enrollment, Consent, Procedures, Data, Safety, Other
+                "description": "",
+                "root_cause": "",
+                "impact_on_subject_safety": "",  # None, Minimal, Moderate, Significant
+                "impact_on_data_integrity": "",  # None, Minimal, Moderate, Significant
+                "corrective_action": "",
+                "preventive_action": "",
+                "irb_notification_required": False,
+                "irb_notification_date": "",
+                "fda_notification_required": False,
+                "fda_notification_date": "",
+                "resolution_status": "",  # Open, In Progress, Resolved
+                "resolution_date": "",
+                "notes": "",
+            },
+            "summary_statistics": {
+                "total_deviations": 0,
+                "major_deviations": 0,
+                "minor_deviations": 0,
+                "important_deviations": 0,
+                "open_deviations": 0,
+                "resolved_deviations": 0,
+                "by_category": {},
+                "by_site": {},
+            },
+        }
+
+    def log_protocol_deviation(
+        self,
+        deviation_log: Dict,
+        deviation: Dict,
+    ) -> Dict:
+        """Add a protocol deviation to the log.
+
+        Args:
+            deviation_log: Existing protocol deviation log.
+            deviation: Deviation data dict.
+
+        Returns:
+            Updated deviation log.
+        """
+        deviations = deviation_log.setdefault("deviations", [])
+
+        # Auto-assign ID if not provided
+        if not deviation.get("deviation_id"):
+            deviation["deviation_id"] = f"PD-{len(deviations) + 1:04d}"
+
+        deviations.append(deviation)
+
+        # Update summary statistics
+        stats = deviation_log.setdefault("summary_statistics", {})
+        stats["total_deviations"] = len(deviations)
+        stats["major_deviations"] = sum(
+            1 for d in deviations if d.get("deviation_type") == "Major"
+        )
+        stats["minor_deviations"] = sum(
+            1 for d in deviations if d.get("deviation_type") == "Minor"
+        )
+        stats["important_deviations"] = sum(
+            1 for d in deviations if d.get("deviation_type") == "Important"
+        )
+        stats["open_deviations"] = sum(
+            1 for d in deviations if d.get("resolution_status") != "Resolved"
+        )
+        stats["resolved_deviations"] = sum(
+            1 for d in deviations if d.get("resolution_status") == "Resolved"
+        )
+
+        # By category
+        by_cat = {}
+        for d in deviations:
+            cat = d.get("category", "Other")
+            by_cat[cat] = by_cat.get(cat, 0) + 1
+        stats["by_category"] = by_cat
+
+        # By site
+        by_site = {}
+        for d in deviations:
+            site = d.get("site_id", "Unknown")
+            by_site[site] = by_site.get(site, 0) + 1
+        stats["by_site"] = by_site
+
+        return deviation_log
+
+    # ------------------------------------------------------------------
+    # Enhanced: Study completion criteria validator (FDA-64)
+    # ------------------------------------------------------------------
+
+    def validate_study_completion(
+        self,
+        pma_number: str,
+        study_data: Dict,
+    ) -> Dict:
+        """Validate whether a post-approval study meets completion criteria.
+
+        Args:
+            pma_number: PMA number.
+            study_data: Study data dict with enrollment and follow-up info.
+
+        Returns:
+            Completion validation result dict.
+        """
+        criteria = []
+        all_met = True
+
+        # Criterion 1: Enrollment target met
+        target = study_data.get("enrollment_target", 0)
+        enrolled = study_data.get("enrolled", 0)
+        enrollment_met = enrolled >= target if target > 0 else False
+        criteria.append({
+            "criterion": "enrollment_target",
+            "label": "Enrollment Target Met",
+            "required": True,
+            "met": enrollment_met,
+            "details": f"{enrolled}/{target} enrolled ({round(enrolled/target*100,1) if target>0 else 0}%)",
+        })
+        if not enrollment_met:
+            all_met = False
+
+        # Criterion 2: Minimum follow-up duration completed
+        min_followup_months = study_data.get("min_followup_months", 0)
+        followup_completed = study_data.get("followup_completed_months", 0)
+        followup_met = followup_completed >= min_followup_months if min_followup_months > 0 else False
+        criteria.append({
+            "criterion": "minimum_followup",
+            "label": "Minimum Follow-up Duration Completed",
+            "required": True,
+            "met": followup_met,
+            "details": f"{followup_completed}/{min_followup_months} months",
+        })
+        if not followup_met:
+            all_met = False
+
+        # Criterion 3: Follow-up rate acceptable (typically >= 80%)
+        followup_rate = study_data.get("followup_rate_pct", 0)
+        min_followup_rate = study_data.get("min_followup_rate_pct", 80)
+        followup_rate_met = followup_rate >= min_followup_rate
+        criteria.append({
+            "criterion": "followup_rate",
+            "label": "Acceptable Follow-up Rate",
+            "required": True,
+            "met": followup_rate_met,
+            "details": f"{followup_rate}% (minimum: {min_followup_rate}%)",
+        })
+        if not followup_rate_met:
+            all_met = False
+
+        # Criterion 4: Primary endpoints analyzed
+        endpoints_analyzed = study_data.get("primary_endpoints_analyzed", False)
+        criteria.append({
+            "criterion": "primary_endpoints",
+            "label": "Primary Endpoints Analyzed",
+            "required": True,
+            "met": endpoints_analyzed,
+            "details": "Primary endpoint analysis complete" if endpoints_analyzed else "Pending",
+        })
+        if not endpoints_analyzed:
+            all_met = False
+
+        # Criterion 5: Safety analysis complete
+        safety_analyzed = study_data.get("safety_analysis_complete", False)
+        criteria.append({
+            "criterion": "safety_analysis",
+            "label": "Safety Analysis Complete",
+            "required": True,
+            "met": safety_analyzed,
+            "details": "Safety analysis complete" if safety_analyzed else "Pending",
+        })
+        if not safety_analyzed:
+            all_met = False
+
+        # Criterion 6: No unresolved major protocol deviations
+        unresolved_major = study_data.get("unresolved_major_deviations", 0)
+        deviations_met = unresolved_major == 0
+        criteria.append({
+            "criterion": "protocol_deviations",
+            "label": "No Unresolved Major Protocol Deviations",
+            "required": True,
+            "met": deviations_met,
+            "details": f"{unresolved_major} unresolved major deviation(s)",
+        })
+        if not deviations_met:
+            all_met = False
+
+        return {
+            "document_type": "Study Completion Validation",
+            "pma_number": pma_number.upper(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "study_name": study_data.get("study_name", ""),
+            "all_criteria_met": all_met,
+            "criteria": criteria,
+            "total_criteria": len(criteria),
+            "criteria_met": sum(1 for c in criteria if c.get("met")),
+            "criteria_not_met": sum(1 for c in criteria if not c.get("met")),
+            "recommendation": (
+                "Study meets completion criteria. Proceed with final report preparation."
+                if all_met else
+                "Study does NOT meet all completion criteria. Address deficiencies before finalizing."
+            ),
+            "notes": "",
+        }
+
+    # ------------------------------------------------------------------
+    # Enhanced: Progress report generator (FDA-64)
+    # ------------------------------------------------------------------
+
+    def generate_progress_report(
+        self,
+        pma_number: str,
+        study_name: str = "",
+        enrollment_data: Optional[Dict] = None,
+        deviation_log: Optional[Dict] = None,
+        reporting_period_start: str = "",
+        reporting_period_end: str = "",
+    ) -> Dict:
+        """Generate a PAS progress report template.
+
+        Args:
+            pma_number: PMA number.
+            study_name: Name of the study.
+            enrollment_data: Optional enrollment tracker data.
+            deviation_log: Optional protocol deviation log.
+            reporting_period_start: Period start date.
+            reporting_period_end: Period end date.
+
+        Returns:
+            Progress report template dict.
+        """
+        # Pre-populate from enrollment data if available
+        enrollment_summary = {}
+        if enrollment_data:
+            es = enrollment_data.get("enrollment_summary", {})
+            enrollment_summary = {
+                "target": es.get("target_enrollment", 0),
+                "enrolled": es.get("total_enrolled", 0),
+                "pct": es.get("enrollment_pct", 0),
+                "active_sites": enrollment_data.get("active_sites", 0),
+            }
+
+        # Pre-populate from deviation log if available
+        deviation_summary = {}
+        if deviation_log:
+            ds = deviation_log.get("summary_statistics", {})
+            deviation_summary = {
+                "total": ds.get("total_deviations", 0),
+                "major": ds.get("major_deviations", 0),
+                "open": ds.get("open_deviations", 0),
+            }
+
+        return {
+            "document_type": "PAS Progress Report",
+            "pma_number": pma_number.upper(),
+            "study_name": study_name,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "reporting_period": {
+                "start": reporting_period_start,
+                "end": reporting_period_end,
+            },
+            "executive_summary": "",  # To be filled
+            "enrollment_status": enrollment_summary,
+            "safety_summary": {
+                "total_adverse_events": 0,
+                "serious_adverse_events": 0,
+                "device_related_events": 0,
+                "deaths": 0,
+                "safety_signal_detected": False,
+                "dsmb_recommendations": "",
+            },
+            "efficacy_summary": {
+                "primary_endpoint_interim": "",
+                "secondary_endpoints_interim": [],
+                "preliminary_results": "",
+            },
+            "protocol_deviations": deviation_summary,
+            "site_performance": {
+                "total_sites": 0,
+                "active_sites": enrollment_summary.get("active_sites", 0),
+                "closed_sites": 0,
+                "top_enrolling_sites": [],
+                "underperforming_sites": [],
+            },
+            "data_quality": {
+                "queries_generated": 0,
+                "queries_resolved": 0,
+                "query_resolution_rate_pct": 0.0,
+                "missing_data_rate_pct": 0.0,
+            },
+            "timeline_assessment": {
+                "on_track": None,  # True/False
+                "enrollment_projection": "",
+                "projected_completion": "",
+                "timeline_risks": [],
+            },
+            "next_period_plan": {
+                "objectives": [],
+                "milestones_targeted": [],
+                "resource_needs": [],
+            },
+            "notes": "",
+            "preparer": "",
+        }
+
+    # ------------------------------------------------------------------
+    # Enhanced: Final report outline generator (FDA-64)
+    # ------------------------------------------------------------------
+
+    def generate_final_report_outline(
+        self,
+        pma_number: str,
+        study_name: str = "",
+        _study_data: Optional[Dict] = None,
+    ) -> Dict:
+        """Generate a PAS final report outline template.
+
+        Args:
+            pma_number: PMA number.
+            study_name: Name of the study.
+            _study_data: Reserved for future use - pre-population data.
+
+        Returns:
+            Final report outline template dict.
+        """
+        return {
+            "document_type": "PAS Final Report Outline",
+            "pma_number": pma_number.upper(),
+            "study_name": study_name,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "sections": [
+                {
+                    "section_number": "1",
+                    "title": "Executive Summary",
+                    "description": "High-level summary of study objectives, design, and key findings",
+                    "content": "",
+                    "status": "NOT_STARTED",
+                },
+                {
+                    "section_number": "2",
+                    "title": "Study Background and Objectives",
+                    "description": "Device description, condition of approval, study objectives",
+                    "content": "",
+                    "status": "NOT_STARTED",
+                },
+                {
+                    "section_number": "3",
+                    "title": "Study Design and Methods",
+                    "description": "Study design, endpoints, sample size, statistical methods",
+                    "content": "",
+                    "status": "NOT_STARTED",
+                },
+                {
+                    "section_number": "4",
+                    "title": "Study Population",
+                    "description": "Enrollment summary, demographics, disposition",
+                    "content": "",
+                    "status": "NOT_STARTED",
+                },
+                {
+                    "section_number": "5",
+                    "title": "Safety Results",
+                    "description": "Adverse events, device-related events, deaths, serious AEs",
+                    "content": "",
+                    "status": "NOT_STARTED",
+                },
+                {
+                    "section_number": "6",
+                    "title": "Effectiveness Results",
+                    "description": "Primary and secondary endpoint results",
+                    "content": "",
+                    "status": "NOT_STARTED",
+                },
+                {
+                    "section_number": "7",
+                    "title": "Protocol Deviations",
+                    "description": "Summary of protocol deviations and their impact",
+                    "content": "",
+                    "status": "NOT_STARTED",
+                },
+                {
+                    "section_number": "8",
+                    "title": "Discussion",
+                    "description": "Interpretation of results, limitations, clinical significance",
+                    "content": "",
+                    "status": "NOT_STARTED",
+                },
+                {
+                    "section_number": "9",
+                    "title": "Conclusions",
+                    "description": "Study conclusions and impact on device benefit-risk profile",
+                    "content": "",
+                    "status": "NOT_STARTED",
+                },
+                {
+                    "section_number": "10",
+                    "title": "Appendices",
+                    "description": "Statistical analysis plan, case report forms, site list, etc.",
+                    "content": "",
+                    "status": "NOT_STARTED",
+                },
+            ],
+            "completion_status": {
+                "sections_completed": 0,
+                "sections_total": 10,
+                "pct_complete": 0.0,
+            },
+            "regulatory_requirements": {
+                "submission_type": "PAS Final Report",
+                "cfr_ref": "21 CFR 814.82",
+                "submission_deadline": "",
+                "fda_contact": "",
+            },
+            "review_sign_off": {
+                "clinical_lead": {"name": "", "date": "", "signed": False},
+                "biostatistician": {"name": "", "date": "", "signed": False},
+                "regulatory_lead": {"name": "", "date": "", "signed": False},
+                "medical_monitor": {"name": "", "date": "", "signed": False},
+                "quality_assurance": {"name": "", "date": "", "signed": False},
+            },
+            "notes": "",
+        }
+
+    # ------------------------------------------------------------------
+    # Enhanced: Milestone monitoring dashboard (FDA-64)
+    # ------------------------------------------------------------------
+
+    def generate_milestone_dashboard(
+        self,
+        pma_number: str,
+        refresh: bool = False,
+    ) -> Dict:
+        """Generate an enhanced milestone monitoring dashboard.
+
+        Combines PAS report data with additional tracking metrics.
+
+        Args:
+            pma_number: PMA number.
+            refresh: Force API refresh.
+
+        Returns:
+            Milestone dashboard dict.
+        """
+        # Generate base PAS report
+        report = self.generate_pas_report(pma_number, refresh=refresh)
+
+        if report.get("error"):
+            return report
+
+        milestones = report.get("milestones", [])
+
+        # Compute dashboard metrics
+        total = len(milestones)
+        completed = sum(1 for m in milestones if m.get("status") == "completed")
+        overdue = sum(1 for m in milestones if m.get("status") == "overdue")
+        upcoming = sum(1 for m in milestones if m.get("status") == "upcoming")
+        future = sum(1 for m in milestones if m.get("status") == "future")
+
+        # Calculate days to next milestone
+        days_to_next = None
+        next_milestone = None
+        now = datetime.now()
+        for m in milestones:
+            if m.get("status") in ("upcoming", "future"):
+                try:
+                    expected = datetime.strptime(m.get("expected_date", ""), "%Y-%m-%d")
+                    days_to_next = (expected - now).days
+                    next_milestone = m.get("label", "")
+                except (ValueError, TypeError):
+                    pass
+                break
+
+        # Critical path assessment
+        if overdue >= 3:
+            critical_path_status = "CRITICAL"
+        elif overdue >= 1:
+            critical_path_status = "AT_RISK"
+        elif upcoming >= 1:
+            critical_path_status = "ATTENTION_NEEDED"
+        else:
+            critical_path_status = "ON_TRACK"
+
+        dashboard = {
+            "document_type": "PAS Milestone Dashboard",
+            "pma_number": report.get("pma_number", ""),
+            "device_name": report.get("device_name", ""),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "metrics": {
+                "total_milestones": total,
+                "completed": completed,
+                "overdue": overdue,
+                "upcoming": upcoming,
+                "future": future,
+                "completion_pct": round(completed / total * 100, 1) if total > 0 else 0,
+            },
+            "next_milestone": {
+                "label": next_milestone,
+                "days_until": days_to_next,
+            },
+            "critical_path_status": critical_path_status,
+            "milestones": milestones,
+            "compliance": report.get("compliance", {}),
+            "alerts": report.get("alerts", []),
+            "pas_requirements": report.get("pas_requirements", []),
+        }
+
+        return dashboard
+
+    # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
 
@@ -949,10 +1555,20 @@ def main():
     parser.add_argument("--batch", help="Comma-separated PMA numbers")
     parser.add_argument("--milestones", action="store_true",
                         help="Show milestone timeline only")
+    parser.add_argument("--dashboard", action="store_true",
+                        help="Show milestone monitoring dashboard")
     parser.add_argument("--compliance", action="store_true",
                         help="Show compliance status only")
     parser.add_argument("--alerts", action="store_true",
                         help="Show alerts only")
+    parser.add_argument("--enrollment", action="store_true",
+                        help="Generate enrollment tracker template")
+    parser.add_argument("--progress-report", action="store_true",
+                        dest="progress_report",
+                        help="Generate progress report template")
+    parser.add_argument("--final-report", action="store_true",
+                        dest="final_report",
+                        help="Generate final report outline")
     parser.add_argument("--refresh", action="store_true",
                         help="Force API refresh")
     parser.add_argument("--output", "-o", help="Output JSON file path")
@@ -979,6 +1595,42 @@ def main():
             for pma, rep in reports.items():
                 print(_format_pas_report(rep))
                 print()
+
+    elif args.pma and args.dashboard:
+        result = monitor.generate_milestone_dashboard(args.pma, refresh=args.refresh)
+        if args.json:
+            print(json.dumps(result, indent=2, default=str))
+        else:
+            print(f"PAS Milestone Dashboard: {result.get('pma_number', 'N/A')}")
+            print(f"Device: {result.get('device_name', 'N/A')}")
+            print(f"Status: {result.get('critical_path_status', 'N/A')}")
+            metrics = result.get("metrics", {})
+            print(f"Progress: {metrics.get('completion_pct', 0)}% ({metrics.get('completed', 0)}/{metrics.get('total_milestones', 0)})")
+            print(f"Overdue: {metrics.get('overdue', 0)} | Upcoming: {metrics.get('upcoming', 0)}")
+            nm = result.get("next_milestone", {})
+            if nm.get("label"):
+                print(f"Next: {nm['label']} (in {nm.get('days_until', 'N/A')} days)")
+
+    elif args.pma and args.enrollment:
+        result = monitor.generate_enrollment_tracker(args.pma)
+        if args.json:
+            print(json.dumps(result, indent=2, default=str))
+        else:
+            print(json.dumps(result, indent=2, default=str))
+
+    elif args.pma and args.progress_report:
+        result = monitor.generate_progress_report(args.pma)
+        if args.json:
+            print(json.dumps(result, indent=2, default=str))
+        else:
+            print(json.dumps(result, indent=2, default=str))
+
+    elif args.pma and args.final_report:
+        result = monitor.generate_final_report_outline(args.pma)
+        if args.json:
+            print(json.dumps(result, indent=2, default=str))
+        else:
+            print(json.dumps(result, indent=2, default=str))
 
     elif args.pma:
         result = monitor.generate_pas_report(args.pma, refresh=args.refresh)
