@@ -217,8 +217,8 @@ If you don't have internal RA resources:
 ## 📁 Key Files Reference
 
 ### Production Code
-- `plugins/fda-predicate-assistant/lib/fda_enrichment.py`
-- `plugins/fda-predicate-assistant/lib/disclaimers.py`
+- `plugins/fda-tools/lib/fda_enrichment.py`
+- `plugins/fda-tools/lib/disclaimers.py`
 
 ### Test Suite
 - `tests/test_fda_enrichment.py`

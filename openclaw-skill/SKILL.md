@@ -281,7 +281,7 @@ The skill handles errors at multiple levels:
 
 3. Start the FDA Bridge Server:
    ```bash
-   cd /path/to/fda-predicate-assistant
+   cd /path/to/fda-tools
    python3 bridge/server.py
    ```
 

@@ -21,7 +21,7 @@ f = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
 if os.path.exists(f):
     d = json.load(open(f))
     for k, v in d.get('plugins', {}).items():
-        if k.startswith('fda-predicate-assistant@'):
+        if k.startswith('fda-tools@'):
             for e in v:
                 p = e.get('installPath', '')
                 if os.path.isdir(p):
@@ -61,7 +61,7 @@ From `$ARGUMENTS`, extract:
 python3 << 'PYEOF'
 import json, os, re, glob
 
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 projects_dir = os.path.expanduser('~/fda-510k-data/projects')
 if os.path.exists(settings_path):
     with open(settings_path) as f:
@@ -345,7 +345,7 @@ else:
                 with open(installed_plugins_path) as ipf:
                     installed_data = json.load(ipf)
                     for key, value in installed_data.get('plugins', {}).items():
-                        if key.startswith('fda-tools@') or key.startswith('fda-predicate-assistant@'):
+                        if key.startswith('fda-tools@') or key.startswith('fda-tools@'):
                             for entry in value:
                                 install_path = entry.get('installPath', '')
                                 if os.path.isdir(install_path):
@@ -447,7 +447,7 @@ if not plugin_root:
         with open(installed_plugins_path) as ipf:
             installed_data = json.load(ipf)
             for key, value in installed_data.get('plugins', {}).items():
-                if key.startswith('fda-tools@') or key.startswith('fda-predicate-assistant@'):
+                if key.startswith('fda-tools@') or key.startswith('fda-tools@'):
                     for entry in value:
                         install_path = entry.get('installPath', '')
                         if os.path.isdir(install_path):
@@ -462,7 +462,7 @@ if plugin_root:
 from combination_detector import CombinationProductDetector
 
 # Load device data from project
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 projects_dir = os.path.expanduser('~/fda-510k-data/projects')
 if os.path.exists(settings_path):
     with open(settings_path) as f:
@@ -609,7 +609,7 @@ if not plugin_root:
         with open(installed_plugins_path) as ipf:
             installed_data = json.load(ipf)
             for key, value in installed_data.get('plugins', {}).items():
-                if key.startswith('fda-tools@') or key.startswith('fda-predicate-assistant@'):
+                if key.startswith('fda-tools@') or key.startswith('fda-tools@'):
                     for entry in value:
                         install_path = entry.get('installPath', '')
                         if os.path.isdir(install_path):
@@ -628,7 +628,7 @@ with open(implantable_db_path) as f:
     implantable_db = json.load(f)
 
 # Load device profile
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 projects_dir = os.path.expanduser('~/fda-510k-data/projects')
 if os.path.exists(settings_path):
     with open(settings_path) as f:
@@ -1040,7 +1040,7 @@ If no `--artwork-dir` specified, include:
 python3 << 'PYEOF'
 import urllib.request, urllib.parse, json, os, re
 
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 api_key = os.environ.get('OPENFDA_API_KEY')
 if os.path.exists(settings_path):
     with open(settings_path) as f:
@@ -1399,7 +1399,7 @@ Generates FDA Form 3881 (Indications for Use) — **a MANDATORY RTA section requ
 ## FDA Form 3881 — Indications for Use
 
 ⚠ DRAFT — AI-generated regulatory document. Review with regulatory affairs team before submission.
-Generated: {date} | Project: {name} | Plugin: fda-predicate-assistant v5.22.0
+Generated: {date} | Project: {name} | Plugin: fda-tools v5.22.0
 
 ---
 
@@ -1469,7 +1469,7 @@ Generates reprocessing validation documentation for reusable medical devices.
 ## Reprocessing Validation
 
 ⚠ DRAFT — AI-generated regulatory prose. Review with regulatory affairs team before submission.
-Generated: {date} | Project: {name} | Plugin: fda-predicate-assistant v5.22.0
+Generated: {date} | Project: {name} | Plugin: fda-tools v5.22.0
 
 ### Reprocessing Overview
 
@@ -1545,7 +1545,7 @@ Generates combination product documentation for devices with drug or biological 
 ## Combination Product Documentation
 
 ⚠ DRAFT — AI-generated regulatory prose. Review with regulatory affairs team before submission.
-Generated: {date} | Project: {name} | Plugin: fda-predicate-assistant v5.22.0
+Generated: {date} | Project: {name} | Plugin: fda-tools v5.22.0
 
 ### Primary Mode of Action (PMOA) Determination
 
@@ -1738,7 +1738,7 @@ section marked as not applicable.
 3. **DRAFT disclaimer**: Every generated section starts with:
    ```
    ⚠ DRAFT — AI-generated regulatory prose. Review with regulatory affairs team before submission.
-   Generated: {date} | Project: {name} | Plugin: fda-predicate-assistant v5.22.0
+   Generated: {date} | Project: {name} | Plugin: fda-tools v5.22.0
    ```
 4. **Unverified claims**: Anything that cannot be substantiated from project data gets `[CITATION NEEDED]` or `[TODO: Company-specific — verify]`.
 5. **No fabrication**: Never invent test results, clinical data, or device specifications. If data isn't available, say so.

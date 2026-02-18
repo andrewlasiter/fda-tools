@@ -1724,7 +1724,7 @@ def enrich_with_confidence(device: Dict) -> Dict:
 **Recommended Structure:**
 
 ```
-plugins/fda-predicate-assistant/
+plugins/fda-tools/
 ├── lib/
 │   ├── fda_enrichment.py (EXPAND - all phases)
 │   │   ├── Phase 1: Data Integrity (lines 1-350) ← EXISTS

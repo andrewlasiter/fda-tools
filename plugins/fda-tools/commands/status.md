@@ -22,7 +22,7 @@ f = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
 if os.path.exists(f):
     d = json.load(open(f))
     for k, v in d.get('plugins', {}).items():
-        if k.startswith('fda-predicate-assistant@'):
+        if k.startswith('fda-tools@'):
             for e in v:
                 p = e.get('installPath', '')
                 if os.path.isdir(p):
@@ -41,7 +41,7 @@ Before running any checks, detect whether this is a first-time user by checking 
 ```bash
 python3 -c "
 import os
-settings = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings = os.path.expanduser('~/.claude/fda-tools.local.md')
 print('FIRST_RUN:' + ('true' if not os.path.exists(settings) else 'false'))
 "
 ```
@@ -79,7 +79,7 @@ python3 << 'PYEOF'
 import urllib.request, urllib.parse, json, os, re, time
 
 # Read settings
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 api_key = os.environ.get('OPENFDA_API_KEY')  # Env var takes priority (never enters chat)
 api_enabled = True
 if os.path.exists(settings_path):
@@ -137,7 +137,7 @@ ls -d ~/fda-510k-data/projects/*/ 2>/dev/null
 
 Also check settings for custom `projects_dir`:
 ```bash
-cat ~/.claude/fda-predicate-assistant.local.md 2>/dev/null
+cat ~/.claude/fda-tools.local.md 2>/dev/null
 ```
 
 For each project found, read its `query.json` to get metadata:

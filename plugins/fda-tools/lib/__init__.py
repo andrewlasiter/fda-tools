@@ -204,6 +204,108 @@ except ImportError:
         apply_logging_args = None
         reset_logging = None
 
+# HDE Support (FDA-44)
+try:
+    from lib.hde_support import (
+        HDESubmissionOutline,
+        PrevalenceValidator,
+        ProbableBenefitAnalyzer,
+        IRBApprovalTracker,
+        AnnualDistributionReport,
+        generate_hde_outline,
+        validate_hde_prevalence,
+        generate_probable_benefit_template,
+    )
+except ImportError:
+    try:
+        from hde_support import (
+            HDESubmissionOutline,
+            PrevalenceValidator,
+            ProbableBenefitAnalyzer,
+            IRBApprovalTracker,
+            AnnualDistributionReport,
+            generate_hde_outline,
+            validate_hde_prevalence,
+            generate_probable_benefit_template,
+        )
+    except ImportError:
+        HDESubmissionOutline = None
+        PrevalenceValidator = None
+        ProbableBenefitAnalyzer = None
+        IRBApprovalTracker = None
+        AnnualDistributionReport = None
+        generate_hde_outline = None
+        validate_hde_prevalence = None
+        generate_probable_benefit_template = None
+
+# RWE Integration (FDA-41)
+try:
+    from lib.rwe_integration import (
+        RWEDataSourceConnector,
+        RWDQualityAssessor,
+        RWESubmissionTemplate,
+        create_rwe_connector,
+        assess_rwd_quality,
+        generate_rwe_template,
+    )
+except ImportError:
+    try:
+        from rwe_integration import (
+            RWEDataSourceConnector,
+            RWDQualityAssessor,
+            RWESubmissionTemplate,
+            create_rwe_connector,
+            assess_rwd_quality,
+            generate_rwe_template,
+        )
+    except ImportError:
+        RWEDataSourceConnector = None
+        RWDQualityAssessor = None
+        RWESubmissionTemplate = None
+        create_rwe_connector = None
+        assess_rwd_quality = None
+        generate_rwe_template = None
+
+# De Novo Support (FDA-45)
+try:
+    from lib.de_novo_support import (
+        DeNovoSubmissionOutline,
+        SpecialControlsProposal,
+        DeNovoRiskAssessment,
+        BenefitRiskAnalysis,
+        PathwayDecisionTree,
+        PredicateSearchDocumentation,
+        generate_de_novo_outline,
+        generate_special_controls,
+        evaluate_pathway,
+        perform_benefit_risk_analysis,
+    )
+except ImportError:
+    try:
+        from de_novo_support import (
+            DeNovoSubmissionOutline,
+            SpecialControlsProposal,
+            DeNovoRiskAssessment,
+            BenefitRiskAnalysis,
+            PathwayDecisionTree,
+            PredicateSearchDocumentation,
+            generate_de_novo_outline,
+            generate_special_controls,
+            evaluate_pathway,
+            perform_benefit_risk_analysis,
+        )
+    except ImportError:
+        DeNovoSubmissionOutline = None
+        SpecialControlsProposal = None
+        DeNovoRiskAssessment = None
+        BenefitRiskAnalysis = None
+        PathwayDecisionTree = None
+        PredicateSearchDocumentation = None
+        generate_de_novo_outline = None
+        generate_special_controls = None
+        evaluate_pathway = None
+        perform_benefit_risk_analysis = None
+
 __all__ = [
     # Gap Analysis
     'GapAnalyzer',
@@ -250,4 +352,31 @@ __all__ = [
     'add_logging_args',
     'apply_logging_args',
     'reset_logging',
+    # HDE Support (FDA-44)
+    'HDESubmissionOutline',
+    'PrevalenceValidator',
+    'ProbableBenefitAnalyzer',
+    'IRBApprovalTracker',
+    'AnnualDistributionReport',
+    'generate_hde_outline',
+    'validate_hde_prevalence',
+    'generate_probable_benefit_template',
+    # RWE Integration (FDA-41)
+    'RWEDataSourceConnector',
+    'RWDQualityAssessor',
+    'RWESubmissionTemplate',
+    'create_rwe_connector',
+    'assess_rwd_quality',
+    'generate_rwe_template',
+    # De Novo Support (FDA-45)
+    'DeNovoSubmissionOutline',
+    'SpecialControlsProposal',
+    'DeNovoRiskAssessment',
+    'BenefitRiskAnalysis',
+    'PathwayDecisionTree',
+    'PredicateSearchDocumentation',
+    'generate_de_novo_outline',
+    'generate_special_controls',
+    'evaluate_pathway',
+    'perform_benefit_risk_analysis',
 ]

@@ -241,7 +241,7 @@ All enrichment features now meet professional RA standards:
 ## 📁 Files Modified
 
 **Primary Implementation File:**
-- `plugins/fda-predicate-assistant/commands/batchfetch.md` (1,900+ lines modified)
+- `plugins/fda-tools/commands/batchfetch.md` (1,900+ lines modified)
   - Lines 1061-1258: Fix 1 (Quality terminology)
   - Lines 1515-1750: Fix 3 (Clinical intelligence)
   - Lines 1560-1850: Fix 4 (Standards intelligence)

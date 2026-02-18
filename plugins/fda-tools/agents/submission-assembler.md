@@ -46,7 +46,7 @@ Before running this agent, check that required files exist. If files are missing
 3. At least one section draft file exists (e.g., `draft_device-description.md` in the project directory)
 
 **Check sequence:**
-1. Read `~/.claude/fda-predicate-assistant.local.md` for `projects_dir`
+1. Read `~/.claude/fda-tools.local.md` for `projects_dir`
 2. Verify `{projects_dir}/{project_name}/review.json` exists
 3. Verify `{projects_dir}/{project_name}/draft_*.md` files exist (flat files in project root)
 4. If review.json missing: output `"Required file review.json not found. Run /fda:review --project {name} first."`

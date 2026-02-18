@@ -635,7 +635,7 @@ def recommend_pathway(device_data):
 **Values:** `510k` (default) or `pma`
 
 **Usage:**
-/fda-predicate-assistant:batchfetch --pathway=pma --product-codes DQY --years 2020-2024 --enrich --full-auto
+/fda-tools:batchfetch --pathway=pma --product-codes DQY --years 2020-2024 --enrich --full-auto
 
 **Behavior:**
 - If `--pathway=510k`: Use existing 510(k) logic (default)
@@ -670,8 +670,8 @@ Generate comprehensive competitive intelligence for PMA pathway.
 
 ## Usage
 
-/fda-predicate-assistant:pma-intelligence --pma-number P170019
-/fda-predicate-assistant:pma-intelligence --product-code DQY --years 2020-2024
+/fda-tools:pma-intelligence --pma-number P170019
+/fda-tools:pma-intelligence --product-code DQY --years 2020-2024
 
 ## Steps
 

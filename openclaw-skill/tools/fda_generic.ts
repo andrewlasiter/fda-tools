@@ -52,26 +52,6 @@ const CONFIDENTIAL_COMMANDS = new Set([
 ]);
 
 /**
- * Commands that are safe for PUBLIC channels.
- */
-const PUBLIC_COMMANDS = new Set([
-  'validate',
-  'safety',
-  'warnings',
-  'trials',
-  'guidance',
-  'standards',
-  'udi',
-  'inspections',
-  'lineage',
-  'monitor',
-  'ask',
-  'calc',
-  'status',
-  'cache',
-]);
-
-/**
  * FDA Generic Command tool for executing any of the 68 available commands.
  *
  * @example
@@ -325,7 +305,7 @@ function formatBridgeError(
       return (
         `[CONNECTION ERROR] The FDA Bridge Server is not running.\n\n` +
         `To start it:\n` +
-        `  cd /path/to/fda-predicate-assistant\n` +
+        `  cd /path/to/fda-tools\n` +
         `  python3 bridge/server.py\n\n` +
         `The bridge server must be accessible at http://localhost:18790.`
       );

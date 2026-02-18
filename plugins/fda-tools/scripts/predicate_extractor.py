@@ -33,7 +33,7 @@ import pdfplumber
 # Import helpers for safe optional imports (FDA-17 / GAP-015)
 lib_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib')
 sys.path.insert(0, lib_path)
-from import_helpers import  # type: ignore safe_import_from
+from import_helpers import safe_import_from  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -46,10 +46,10 @@ KNOWN_PMA_NUMBERS = set()
 
 # Shared HTTP utilities
 try:
-    from fda_http import create_session, FDA_HEADERS
+    from fda_http import create_session, FDA_WEBSITE_HEADERS
 except ImportError:
     # Fallback if fda_http not on path
-    FDA_HEADERS = {
+    FDA_WEBSITE_HEADERS = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.5',
@@ -59,7 +59,7 @@ except ImportError:
     }
     def create_session(api_mode=False):
         session = requests.Session()
-        session.headers.update(FDA_HEADERS)
+        session.headers.update(FDA_WEBSITE_HEADERS)
         return session
 try:
     import orjson

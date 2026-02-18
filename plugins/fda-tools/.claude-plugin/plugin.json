@@ -5,7 +5,21 @@
   "author": {
     "name": "PredicateExtraction"
   },
-  "repository": "https://github.com/andrewlasiter/fda-predicate-assistant",
+  "repository": "https://github.com/andrewlasiter/fda-tools",
   "license": "MIT",
-  "keywords": ["fda", "510k", "pma", "ide", "de-novo", "medical-device", "predicate", "regulatory", "extraction", "data-management", "section-comparison", "pre-submission", "ssed"]
+  "keywords": [
+    "fda",
+    "510k",
+    "pma",
+    "ide",
+    "de-novo",
+    "medical-device",
+    "predicate",
+    "regulatory",
+    "extraction",
+    "data-management",
+    "section-comparison",
+    "pre-submission",
+    "ssed"
+  ]
 }

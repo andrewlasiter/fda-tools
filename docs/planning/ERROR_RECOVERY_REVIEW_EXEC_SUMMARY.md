@@ -267,7 +267,7 @@
 For RA professionals using this guide:
 
 **Question**: "My error code isn't listed in Scenarios 1-7"
-**Answer**: Check Priority 2 Recommended Scenarios. File issue with plugin team at: https://github.com/andrewlasiter/fda-predicate-assistant/issues
+**Answer**: Check Priority 2 Recommended Scenarios. File issue with plugin team at: https://github.com/andrewlasiter/fda-tools/issues
 
 **Question**: "Git checkout commands are failing"
 **Answer**: Use corrected syntax from Priority 1 fixes section above

@@ -164,7 +164,7 @@ Day 5 (Fri)    ████░░░░░░░░░  Sprint 3: Competitive In
 ## File Structure After Phase 3
 
 ```
-plugins/fda-predicate-assistant/
+plugins/fda-tools/
 ├── lib/
 │   ├── fda_enrichment.py           # MODIFIED: +3 new functions (500 lines → 750 lines)
 │   ├── disclaimers.py              # NO CHANGE (disclaimers already comprehensive)

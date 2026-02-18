@@ -25,7 +25,7 @@ If `--project NAME` is provided, check the project folder first for all data fil
 
 ```bash
 PROJECTS_DIR="~/fda-510k-data/projects"  # or from settings
-cat ~/.claude/fda-predicate-assistant.local.md 2>/dev/null
+cat ~/.claude/fda-tools.local.md 2>/dev/null
 ls "$PROJECTS_DIR/$PROJECT_NAME/output.csv" "$PROJECTS_DIR/$PROJECT_NAME/510k_download.csv" "$PROJECTS_DIR/$PROJECT_NAME/pdf_data.json" 2>/dev/null
 ```
 
@@ -67,7 +67,7 @@ python3 << 'PYEOF'
 import urllib.request, urllib.parse, json, os, re
 
 # Read settings
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 api_key = os.environ.get('OPENFDA_API_KEY')  # Env var takes priority (never enters chat)
 api_enabled = True
 if os.path.exists(settings_path):
@@ -317,7 +317,7 @@ python3 << 'PYEOF'
 import urllib.request, urllib.parse, json, os, re
 
 # Read settings
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 api_key = os.environ.get('OPENFDA_API_KEY')  # Env var takes priority (never enters chat)
 api_enabled = True
 if os.path.exists(settings_path):
@@ -525,7 +525,7 @@ From `$ARGUMENTS`, extract:
 python3 << 'PYEOF'
 import urllib.request, urllib.parse, json, os, re
 
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 api_key = os.environ.get('OPENFDA_API_KEY')
 api_enabled = True
 if os.path.exists(settings_path):
@@ -661,7 +661,7 @@ python3 << 'PYEOF'
 import urllib.request, urllib.parse, json, os, re
 
 # Standard API setup...
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 api_key = os.environ.get('OPENFDA_API_KEY')
 if os.path.exists(settings_path):
     with open(settings_path) as f:

@@ -465,14 +465,14 @@ After enrichment completes:
 
 ## 🔒 Data Security & API Key Management
 
-**API Key Storage:** Securely stored in `~/.claude/fda-predicate-assistant.local.md`
+**API Key Storage:** Securely stored in `~/.claude/fda-tools.local.md`
 **Git Exclusion:** Local settings file **NOT tracked** by git
 **Never Committed:** API keys never exposed in GitHub repository
 
 **Verification:**
 ```bash
 # API key location (local only, not in git)
-~/.claude/fda-predicate-assistant.local.md
+~/.claude/fda-tools.local.md
 
 # This file is .gitignored and will NEVER be committed
 ```
@@ -550,7 +550,7 @@ After enrichment completes:
 ### Immediate Actions
 
 1. **Update to Latest** - Pull latest changes from repository
-2. **Verify API Key** - Ensure API key stored in `~/.claude/fda-predicate-assistant.local.md`
+2. **Verify API Key** - Ensure API key stored in `~/.claude/fda-tools.local.md`
 3. **Test with Real Data** - Run enrichment on current project
 4. **Review Intelligence Report** - Read `intelligence_report.md` for strategic insights
 

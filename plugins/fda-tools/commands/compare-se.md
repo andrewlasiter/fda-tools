@@ -23,7 +23,7 @@ f = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
 if os.path.exists(f):
     d = json.load(open(f))
     for k, v in d.get('plugins', {}).items():
-        if k.startswith('fda-predicate-assistant@'):
+        if k.startswith('fda-tools@'):
             for e in v:
                 p = e.get('installPath', '')
                 if os.path.isdir(p):
@@ -258,7 +258,7 @@ python3 << 'PYEOF'
 import json, os, re
 
 projects_dir = os.path.expanduser('~/fda-510k-data/projects')
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 if os.path.exists(settings_path):
     with open(settings_path) as f:
         m = re.search(r'projects_dir:\s*(.+)', f.read())
@@ -568,7 +568,7 @@ Add a 5-second delay between downloads if fetching multiple PDFs.
 python3 << 'PYEOF'
 import urllib.request, urllib.parse, json, os, re
 
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 api_key = os.environ.get('OPENFDA_API_KEY')  # Env var takes priority (never enters chat)
 api_enabled = True
 if os.path.exists(settings_path):

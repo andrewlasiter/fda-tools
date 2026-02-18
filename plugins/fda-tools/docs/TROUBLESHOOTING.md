@@ -52,10 +52,10 @@ Solutions to common problems and error messages.
 
 **Problem:** Command exists but not executing
 
-**Cause:** Plugin naming changed from `fda-predicate-assistant` to `fda-tools`
+**Cause:** Plugin naming changed from `fda-tools` to `fda-tools`
 
 **Solution:**
-- Old: `/fda-predicate-assistant:command`
+- Old: `/fda-tools:command`
 - New: `/fda-tools:command`
 
 See [MIGRATION_NOTICE.md](../MIGRATION_NOTICE.md) for full migration guide.
@@ -920,7 +920,7 @@ Shows:
 
 ### Support Channels
 
-- **GitHub Issues:** https://github.com/andrewlasiter/fda-predicate-assistant/issues
+- **GitHub Issues:** https://github.com/andrewlasiter/fda-tools/issues
 - **Documentation:** `~/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/docs/`
 
 ### Debug Mode
@@ -953,4 +953,4 @@ export FDA_DEBUG=1
    - Output of `/fda-tools:status`
    - System info (OS, Python version)
 
-4. **Submit to:** https://github.com/andrewlasiter/fda-predicate-assistant/issues
+4. **Submit to:** https://github.com/andrewlasiter/fda-tools/issues

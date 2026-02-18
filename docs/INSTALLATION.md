@@ -83,7 +83,7 @@ Clone the repository:
 
 ```bash
 cd ~/.claude/plugins/marketplaces/
-git clone https://github.com/andrewlasiter/fda-predicate-assistant fda-tools
+git clone https://github.com/andrewlasiter/fda-tools fda-tools
 ```
 
 ### Step 3: Verify Plugin Installation
@@ -267,26 +267,111 @@ Add these to your shell profile (`~/.bashrc`, `~/.zshrc`, etc.) to persist acros
 
 ### Settings File
 
-Create a local settings file for persistent configuration:
+The plugin stores persistent configuration in `~/.claude/fda-tools.local.md`. This file uses
+YAML frontmatter format (key-value pairs between `---` delimiters) followed by optional
+Markdown documentation.
+
+Create or edit the settings file:
 
 ```bash
 mkdir -p ~/.claude/
 nano ~/.claude/fda-tools.local.md
 ```
 
-Example settings:
+Or use the built-in command to create one with defaults:
+
+```
+/fda-tools:configure --show
+```
+
+#### Settings Schema Reference
+
+The table below documents every supported settings field, its type, default value, and
+description. Fields are parsed via regex (`key:\s*value`) from the YAML frontmatter block.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `projects_dir` | path | `~/fda-510k-data/projects` | Root directory for all project folders. Each extraction query creates a subfolder here. |
+| `batchfetch_dir` | path | `~/fda-510k-data/batchfetch` | Directory containing BatchFetch output (510k_download.csv, merged_data.csv). |
+| `extraction_dir` | path | `~/fda-510k-data/extraction` | Directory containing extraction output (output.csv, pdf_data.json). |
+| `pdf_storage_dir` | path | `~/fda-510k-data/batchfetch/510ks` | Where downloaded 510(k) summary PDFs are stored. |
+| `data_dir` | path | `~/fda-510k-data/extraction` | Where FDA database files (pmn*.txt, pma.txt, foiaclass.txt) are stored. |
+| `extraction_script` | string | `predicate_extractor.py` | Extraction script name (bundled in plugin). |
+| `batchfetch_script` | string | `batchfetch.py` | Batch fetch script name (bundled in plugin). |
+| `ocr_mode` | enum | `smart` | OCR processing mode. Values: `smart` (auto-detect), `always`, `never`. |
+| `batch_size` | integer | `100` | Number of PDFs to process per batch. |
+| `workers` | integer | `4` | Number of parallel processing workers. Adjust based on CPU cores. |
+| `cache_days` | integer | `5` | Days to cache FDA database files before re-downloading. |
+| `default_year` | integer or null | `null` | Default year filter for extractions. `null` means all years. |
+| `default_product_code` | string or null | `null` | Default product code filter for extractions. |
+| `openfda_api_key` | string or null | `null` | openFDA API key for higher rate limits (120K/day vs 1K/day). Set via env var `OPENFDA_API_KEY` or this field. Never paste in chat. |
+| `openfda_enabled` | boolean | `true` | Enable/disable openFDA API calls. Set `false` for offline-only mode. |
+| `exclusion_list` | path | `~/fda-510k-data/exclusion_list.json` | Path to device exclusion list JSON (used by `/fda:review`). |
+| `auto_review` | boolean | `false` | If `true`, `/fda:review` auto-accepts predicates scoring 80+ and auto-rejects below 20. |
+| `webhook_url` | string or null | `null` | Default webhook URL for `/fda:monitor` alert POST delivery. |
+| `alert_severity_threshold` | enum | `info` | Minimum alert severity to deliver. Values: `info`, `warning`, `critical`. |
+| `alert_frequency` | enum | `immediate` | Alert delivery timing. Values: `immediate`, `daily`, `weekly`. |
+| `standards_dir` | path or null | `null` | Directory containing local standards PDFs (ISO, IEC, ASTM). Enables `/fda:standards --index`. |
+
+**Type definitions:**
+- **path**: Filesystem path, supports `~` expansion (e.g., `~/fda-510k-data/projects`).
+- **enum**: Must be one of the listed values.
+- **boolean**: `true` or `false` (case-insensitive).
+- **integer**: Whole number (e.g., `100`, `4`, `5`).
+- **string or null**: Text value, or `null` to unset.
+
+#### Example Settings File
 
 ```markdown
+---
+projects_dir: ~/fda-510k-data/projects
+batchfetch_dir: ~/fda-510k-data/batchfetch
+extraction_dir: ~/fda-510k-data/extraction
+pdf_storage_dir: ~/fda-510k-data/batchfetch/510ks
+data_dir: ~/fda-510k-data/extraction
+extraction_script: predicate_extractor.py
+batchfetch_script: batchfetch.py
+ocr_mode: smart
+batch_size: 100
+workers: 4
+cache_days: 5
+default_year: null
+default_product_code: null
+openfda_api_key: null
+openfda_enabled: true
+exclusion_list: ~/fda-510k-data/exclusion_list.json
+auto_review: false
+webhook_url: null
+alert_severity_threshold: info
+alert_frequency: immediate
+standards_dir: null
+---
+
 # FDA Tools Local Settings
 
-data_directory: ~/fda-510k-data
-default_product_codes: [DQY, OVE, FRO]
-auto_cache: true
-cache_ttl: 86400
-max_concurrent_downloads: 5
-pdf_timeout: 300
-api_timeout: 30
+This file stores your preferences for the FDA 510(k) pipeline.
+Edit values in the YAML frontmatter block above.
+Run `/fda-tools:configure --show` to see current effective values.
 ```
+
+#### Settings Resolution Order
+
+Settings are resolved with the following priority (highest first):
+
+1. **Command-line arguments** (e.g., `--data-dir /path`)
+2. **Environment variables** (e.g., `FDA_DATA_DIR`, `OPENFDA_API_KEY`)
+3. **Settings file** (`~/.claude/fda-tools.local.md`)
+4. **Built-in defaults**
+
+#### Validation Rules
+
+When setting values via `/fda-tools:configure --set KEY VALUE`:
+
+- **Path fields**: The directory must exist or be creatable.
+- **Enum fields**: The value must match one of the allowed values.
+- **Boolean fields**: Must be `true` or `false`.
+- **Integer fields**: Must be a valid whole number.
+- **`openfda_api_key`**: Never accepted in chat. Use env var or edit the file directly.
 
 ### Plugin Configuration
 
@@ -557,7 +642,7 @@ For best performance:
 
 ### Support Channels
 
-- **GitHub Issues**: [Report bugs](https://github.com/andrewlasiter/fda-predicate-assistant/issues)
+- **GitHub Issues**: [Report bugs](https://github.com/andrewlasiter/fda-tools/issues)
 - **Documentation**: All docs in `docs/` directory
 - **Ask Claude**: Use `/fda-510k-knowledge` expert for regulatory questions
 
@@ -611,8 +696,8 @@ Create a Dockerfile:
 FROM python:3.11-slim
 
 WORKDIR /app
-RUN git clone https://github.com/andrewlasiter/fda-predicate-assistant
-WORKDIR /app/fda-predicate-assistant/plugins/fda-tools
+RUN git clone https://github.com/andrewlasiter/fda-tools
+WORKDIR /app/fda-tools/plugins/fda-tools
 RUN pip install -r requirements.txt
 
 ENV FDA_DATA_DIR=/data

@@ -44,6 +44,9 @@ SCRIPT_DIR = Path(__file__).parent
 PLUGIN_ROOT = SCRIPT_DIR.parent
 LIB_DIR = PLUGIN_ROOT / 'lib'
 sys.path.insert(0, str(LIB_DIR))
+sys.path.insert(0, str(SCRIPT_DIR))  # For subprocess_utils
+
+from subprocess_utils import run_subprocess  # type: ignore
 
 
 class DeviceStandardsGenerator:
@@ -220,15 +223,20 @@ class DeviceStandardsGenerator:
                 f'--no-enrich'
             ]
 
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=600  # 10 minute timeout
+            result = run_subprocess(
+                cmd=cmd,
+                step_name=f"batchfetch_{product_code}",
+                timeout_seconds=600,
+                cwd=str(PLUGIN_ROOT),
+                verbose=False
             )
 
-            if result.returncode != 0:
-                print(f"  ⚠️  BatchFetch failed: {result.stderr}")
+            if result["status"] != "success":
+                if result["status"] == "timeout":
+                    print(f"  ⏱️  Timeout downloading {product_code}")
+                else:
+                    error_msg = result.get("error", "Unknown error")
+                    print(f"  ⚠️  BatchFetch failed: {error_msg}")
                 return []
 
             # Find downloaded PDFs
@@ -238,8 +246,6 @@ class DeviceStandardsGenerator:
                 print(f"  ✅ Downloaded {len(pdfs)} PDFs")
                 return [str(p) for p in pdfs]
 
-        except subprocess.TimeoutExpired:
-            print(f"  ⏱️  Timeout downloading {product_code}")
         except Exception as e:
             print(f"  ❌ Error: {e}")
 
@@ -279,14 +285,15 @@ class DeviceStandardsGenerator:
         """Extract text content from PDF file"""
         try:
             # Try pdftotext first (fastest)
-            result = subprocess.run(
-                ['pdftotext', pdf_path, '-'],
-                capture_output=True,
-                text=True,
-                timeout=30
+            result = run_subprocess(
+                cmd=['pdftotext', pdf_path, '-'],
+                step_name="pdftotext",
+                timeout_seconds=30,
+                cwd=str(Path(pdf_path).parent),
+                verbose=False
             )
-            if result.returncode == 0:
-                return result.stdout
+            if result["status"] == "success":
+                return result["output"]
         except (OSError, subprocess.TimeoutExpired, subprocess.SubprocessError) as exc:
             # pdftotext not available or failed — try Python fallback
             print(f"  DEBUG: pdftotext failed for {pdf_path}: {exc}",

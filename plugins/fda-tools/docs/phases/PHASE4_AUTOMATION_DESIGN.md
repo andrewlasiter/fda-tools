@@ -515,7 +515,7 @@ def test_gap_analysis_end_to_end():
 
 #### New Command: `/fda:auto-gap-analysis`
 
-**Command File:** `plugins/fda-predicate-assistant/commands/auto-gap-analysis.md`
+**Command File:** `plugins/fda-tools/commands/auto-gap-analysis.md`
 
 ```markdown
 ---
@@ -545,7 +545,7 @@ and standards gaps in 510(k) project.
 
 #### Integration with Batchfetch
 
-**Modified:** `plugins/fda-predicate-assistant/commands/batchfetch.md`
+**Modified:** `plugins/fda-tools/commands/batchfetch.md`
 
 **Add flag:** `--gap-analysis`
 
@@ -1299,7 +1299,7 @@ def test_smart_recommendations_end_to_end():
 
 #### New Command: `/fda:smart-predicates`
 
-**Command File:** `plugins/fda-predicate-assistant/commands/smart-predicates.md`
+**Command File:** `plugins/fda-tools/commands/smart-predicates.md`
 
 ```markdown
 ---
@@ -1337,7 +1337,7 @@ ML-powered predicate selection based on 6-dimensional similarity scoring.
 
 #### Integration with Batchfetch
 
-**Modified:** `plugins/fda-predicate-assistant/commands/batchfetch.md`
+**Modified:** `plugins/fda-tools/commands/batchfetch.md`
 
 **Add flag:** `--smart-recommend`
 

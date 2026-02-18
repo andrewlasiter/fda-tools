@@ -573,13 +573,13 @@ FDA's RTA guidance includes predicate validation:
 
 ### 10.3 Internal References
 
-7. `/home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-predicate-assistant/references/fda-predicate-criteria-2014.md`
+7. `/home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/references/fda-predicate-criteria-2014.md`
 
-8. `/home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-predicate-assistant/references/confidence-scoring.md`
+8. `/home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/references/confidence-scoring.md`
 
-9. `/home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-predicate-assistant/references/predicate-analysis-framework.md`
+9. `/home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/references/predicate-analysis-framework.md`
 
-10. `/home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-predicate-assistant/references/predicate-lineage.md`
+10. `/home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/references/predicate-lineage.md`
 
 ---
 

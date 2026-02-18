@@ -1,0 +1,284 @@
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fda-tools"
+version = "5.36.0"
+description = "AI-powered tools for FDA medical device regulatory work (510k submissions)"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [
+    {name = "Andrew Lasiter", email = "andrew@example.com"},
+]
+keywords = [
+    "FDA",
+    "medical devices",
+    "510k",
+    "regulatory affairs",
+    "PMA",
+    "predicate",
+    "clinical",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Healthcare Industry",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+]
+
+dependencies = [
+    "requests>=2.28.0",
+    "python-dateutil>=2.8.2",
+    "Jinja2>=3.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-timeout>=2.1.0",
+    "pytest-mock>=3.10.0",
+    "ruff>=0.5.0",
+    "pre-commit>=3.0.0",
+    "black>=23.0.0",
+    "mypy>=1.0.0",
+    "types-requests>=2.28.0",
+    "types-python-dateutil>=2.8.0",
+    "types-beautifulsoup4>=4.12.0",
+    "interrogate>=1.7.0",
+]
+test = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-timeout>=2.1.0",
+    "pytest-mock>=3.10.0",
+]
+
+[tool.setuptools]
+# FDA-55: Explicit package discovery so that `pip install -e .` makes
+# scripts/, lib/, and tests/ importable as proper Python packages.
+# This eliminates the need for sys.path.insert() hacks in test files.
+
+[tool.setuptools.packages.find]
+where = ["plugins/fda-tools"]
+include = ["scripts*", "lib*", "tests*", "bridge*"]
+
+[tool.ruff]
+# Python 3.9+ compatibility
+target-version = "py39"
+line-length = 100
+
+# Include paths to lint
+include = ["*.py", "pyproject.toml"]
+
+# Exclude paths
+exclude = [
+    ".git",
+    ".venv",
+    "venv",
+    "env",
+    "ENV",
+    "build",
+    "dist",
+    ".eggs",
+    "*.egg-info",
+    "__pycache__",
+    ".pytest_cache",
+    ".tox",
+    "htmlcov",
+    "node_modules",
+    "openclaw-skill",
+]
+
+[tool.ruff.lint]
+# Enable rule categories
+select = [
+    "F",      # Pyflakes (undefined names, unused imports, etc)
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "I",      # isort (import sorting)
+    "N",      # pep8-naming
+    "C",      # McCabe complexity
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear
+    "A",      # flake8-builtins
+    "C4",     # flake8-comprehensions
+    "ISC",    # flake8-implicit-str-concat
+    "PIE",    # flake8-pie
+    "PT",     # flake8-pytest-style
+    "RUF",    # Ruff-specific rules
+    "SIM",    # flake8-simplify
+    "PERF",   # Perflint (performance)
+    "LOG",    # flake8-logging-format
+    "D",      # pydocstyle (docstring formatting)
+]
+
+# Disable specific rules that conflict with project style
+ignore = [
+    "E501",   # Line too long (handled by formatter)
+    "D100",   # Missing module docstring (optional for private modules)
+    "D104",   # Missing docstring in public package
+    "D203",   # 1 blank line required before class docstring (conflicts with D211)
+    "D213",   # Multi-line docstring summary should start on next line (conflicts with D212)
+    "C901",   # Function is too complex (McCabe, informational only)
+    "ISC001", # Implicit string concatenation (conflicts with formatter)
+]
+
+# Pylint-style complexity limits
+[tool.ruff.lint.mccabe]
+max-complexity = 15
+
+# isort configuration (via ruff)
+[tool.ruff.lint.isort]
+known-first-party = ["fda_api_client", "fda_data_store", "cache_integrity"]
+known-third-party = ["requests", "pytest", "jinja2"]
+multi-line-mode = 3  # Vertical hanging indent
+include-trailing-comma = true
+
+# pydocstyle configuration (via ruff)
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+# per-file-ignores
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "D100",
+    "D101",
+    "D102",
+    "D103",
+    "F841",   # Unused variable (common in test setup)
+]
+"**/conftest.py" = [
+    "D100",
+]
+"openclaw-skill/**" = [
+    "F",
+    "E",
+    "W",
+]
+
+[tool.ruff.format]
+# Code formatting settings
+line-length = 100
+quote-style = "double"
+indent-width = 4
+skip-magic-trailing-comma = false
+
+[tool.pytest.ini_options]
+testpaths = ["plugins/fda-tools/tests", "tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short --strict-markers --cov=plugins --cov-report=term-missing:skip-covered"
+markers = [
+    "phase1: Phase 1 Data Integrity tests",
+    "phase2: Phase 2 Intelligence Layer tests",
+    "workflow: End-to-end workflow tests",
+    "integrity: Data integrity and provenance tests",
+    "slow: Tests that make real API calls (deselect with -m 'not slow')",
+    "api: Tests that require API access",
+    "api_contract: Quarterly API contract tests for fixture staleness (FDA-56)",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["plugins/fda-tools/lib", "plugins/fda-tools/scripts"]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*/__pycache__/*",
+    "*/site-packages/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+# Disallow untyped defs in lib/ (stricter); scripts/ uses follow_imports = skip below
+disallow_untyped_defs = false
+check_untyped_defs = true
+exclude = [
+    "venv",
+    "build",
+    "dist",
+    "node_modules",
+    "openclaw-skill",
+    "tests",
+    "demo_.*\\.py",
+    "test_.*\\.py",
+]
+
+# -- Per-module overrides --
+
+# Library modules: stricter checking (these have the most type hints)
+[[tool.mypy.overrides]]
+module = "plugins.fda_tools.lib.*"
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+disallow_untyped_decorators = true
+
+# Scripts: relaxed checking (many scripts are standalone utilities)
+[[tool.mypy.overrides]]
+module = "plugins.fda_tools.scripts.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+# Test files: skip entirely
+[[tool.mypy.overrides]]
+module = "plugins.fda_tools.tests.*"
+ignore_errors = true
+
+# Third-party stubs
+[[tool.mypy.overrides]]
+module = [
+    "pikepdf",
+    "pikepdf.*",
+    "bs4",
+    "bs4.*",
+    "lxml",
+    "lxml.*",
+    "pandas",
+    "pandas.*",
+    "numpy",
+    "numpy.*",
+]
+ignore_missing_imports = true
+
+[tool.interrogate]
+ignore-init-method = true
+ignore-init-module = true
+ignore-nested-functions = true
+ignore-nested-classes = true
+ignore-private = true
+exclude = ["tests", "build", "docs", "openclaw-skill"]
+fail-under = 75
+verbose = 0

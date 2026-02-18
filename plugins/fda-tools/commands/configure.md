@@ -21,7 +21,7 @@ f = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
 if os.path.exists(f):
     d = json.load(open(f))
     for k, v in d.get('plugins', {}).items():
-        if k.startswith('fda-predicate-assistant@'):
+        if k.startswith('fda-tools@'):
             for e in v:
                 p = e.get('installPath', '')
                 if os.path.isdir(p):
@@ -36,7 +36,7 @@ You are managing configuration settings for the FDA predicate extraction pipelin
 
 ## Settings File Location
 
-Settings are stored in: `~/.claude/fda-predicate-assistant.local.md`
+Settings are stored in: `~/.claude/fda-tools.local.md`
 
 ## Available Settings
 
@@ -70,7 +70,7 @@ Settings are stored in: `~/.claude/fda-predicate-assistant.local.md`
 
 If `$ARGUMENTS` is `--show` or empty, read and display the current settings:
 
-Read the settings file at `~/.claude/fda-predicate-assistant.local.md`. If it doesn't exist, report defaults and offer to create one.
+Read the settings file at `~/.claude/fda-tools.local.md`. If it doesn't exist, report defaults and offer to create one.
 
 Also report on bundled scripts:
 ```
@@ -99,7 +99,7 @@ Option 1 — Environment variable (recommended for CLI users):
   Then restart your terminal or run: source ~/.bashrc
 
 Option 2 — Settings file (recommended for Claude Desktop users):
-  Edit ~/.claude/fda-predicate-assistant.local.md directly:
+  Edit ~/.claude/fda-tools.local.md directly:
     openfda_api_key: your-key-here
 
 Option 3 — Setup script (interactive, outside Claude):
@@ -119,7 +119,7 @@ import os, re
 api_key = os.environ.get('OPENFDA_API_KEY')
 source = 'environment variable' if api_key else None
 if not api_key:
-    settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+    settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
     if os.path.exists(settings_path):
         with open(settings_path) as f:
             content = f.read()
@@ -145,7 +145,7 @@ python3 << 'PYEOF'
 import urllib.request, urllib.parse, json, os, re, time
 
 # Read settings for API key
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 api_key = os.environ.get('OPENFDA_API_KEY')  # Env var takes priority (never enters chat)
 api_enabled = True
 if os.path.exists(settings_path):
@@ -328,7 +328,7 @@ If `$ARGUMENTS` is `--show-exclusions`, read and display the current exclusion l
 python3 << 'PYEOF'
 import json, os, re
 
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 exclusion_path = os.path.expanduser('~/fda-510k-data/exclusion_list.json')
 
 if os.path.exists(settings_path):
@@ -369,7 +369,7 @@ from datetime import datetime
 knumber = "KNUMBER"  # Replace
 reason = "REASON"    # Replace
 
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 exclusion_path = os.path.expanduser('~/fda-510k-data/exclusion_list.json')
 
 if os.path.exists(settings_path):
@@ -414,7 +414,7 @@ If confirmed:
 python3 << 'PYEOF'
 import json, os, re
 
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 exclusion_path = os.path.expanduser('~/fda-510k-data/exclusion_list.json')
 
 if os.path.exists(settings_path):

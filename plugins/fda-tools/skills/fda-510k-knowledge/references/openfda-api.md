@@ -13,7 +13,7 @@ Centralized reference for the primary openFDA Device API endpoints. All commands
 
 ## Settings Integration
 
-Commands should read API settings from `~/.claude/fda-predicate-assistant.local.md`:
+Commands should read API settings from `~/.claude/fda-tools.local.md`:
 
 ```yaml
 openfda_api_key: null       # Optional API key for higher rate limits
@@ -25,7 +25,7 @@ openfda_enabled: true       # Set to false for offline-only mode
 # Read API key: environment variable takes priority (never enters chat),
 # then fall back to settings file, then no key (lower rate limit)
 import os, re
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 api_key = os.environ.get('OPENFDA_API_KEY')  # Env var takes priority (never enters chat)
 api_enabled = True
 if os.path.exists(settings_path):
@@ -62,7 +62,7 @@ def fda_api(endpoint, search, limit=10, count_field=None, sort=None, skip=0):
         dict with 'results' list or 'error' string
     """
     # Read settings — env var takes priority (never enters chat)
-    settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+    settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
     api_key = os.environ.get('OPENFDA_API_KEY')
     api_enabled = True
     if os.path.exists(settings_path):

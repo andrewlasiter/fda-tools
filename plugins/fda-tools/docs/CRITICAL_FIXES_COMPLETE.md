@@ -79,7 +79,7 @@ to use FDA Recognized Consensus Standards Database and /fda:test-plan command.
 ```bash
 grep -r "standards_biocompat\|standards_electrical\|standards_sterile\|standards_software" \
   --include="*.md" RELEASE_ANNOUNCEMENT.md IMPLEMENTATION_COMPLETE.md \
-  TESTING_COMPLETE_FINAL_SUMMARY.md plugins/fda-predicate-assistant/commands/batchfetch.md
+  TESTING_COMPLETE_FINAL_SUMMARY.md plugins/fda-tools/commands/batchfetch.md
 
 # Result: No matches found (verified clean)
 ```
@@ -288,8 +288,8 @@ pytest tests/test_fda_enrichment.py -v
 
 3. **Commit changes:**
    ```bash
-   git add plugins/fda-predicate-assistant/commands/batchfetch.md
-   git add plugins/fda-predicate-assistant/lib/fda_enrichment.py
+   git add plugins/fda-tools/commands/batchfetch.md
+   git add plugins/fda-tools/lib/fda_enrichment.py
    git add RELEASE_ANNOUNCEMENT.md
    git add IMPLEMENTATION_COMPLETE.md
    git add TESTING_COMPLETE_FINAL_SUMMARY.md

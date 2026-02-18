@@ -36,7 +36,7 @@
 
 #### RA-3: True Integration Tests
 
-**Deliverable:** `plugins/fda-predicate-assistant/lib/fda_enrichment.py`
+**Deliverable:** `plugins/fda-tools/lib/fda_enrichment.py`
 - **Lines of Code:** 520
 - **Functions Extracted:** 12 production functions
 - **Class:** `FDAEnrichment` with Phase 1 & 2 methods
@@ -90,7 +90,7 @@
 
 ### Phase 2: Disclaimer Implementation (RA-6) ✅ COMPLETE
 
-**Deliverable:** `plugins/fda-predicate-assistant/lib/disclaimers.py`
+**Deliverable:** `plugins/fda-tools/lib/disclaimers.py`
 - **Lines of Code:** 330
 - **Functions:** 8 disclaimer generation functions
 - **Coverage:** CSV, HTML, Markdown, JSON formats
@@ -171,8 +171,8 @@
 ## File Deliverables Summary
 
 ### Production Code
-- ✅ `plugins/fda-predicate-assistant/lib/fda_enrichment.py` (520 lines)
-- ✅ `plugins/fda-predicate-assistant/lib/disclaimers.py` (330 lines)
+- ✅ `plugins/fda-tools/lib/fda_enrichment.py` (520 lines)
+- ✅ `plugins/fda-tools/lib/disclaimers.py` (330 lines)
 
 ### Test Suite
 - ✅ `tests/test_fda_enrichment.py` (460 lines)

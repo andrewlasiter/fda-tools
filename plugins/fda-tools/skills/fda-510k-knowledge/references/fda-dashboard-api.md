@@ -6,7 +6,7 @@ The FDA Data Dashboard API (DDAPI) provides programmatic access to FDA inspectio
 
 **Credentials required.** Register at the OII Unified Logon application to receive an `Authorization-User` (email) and `Authorization-Key` (FDA-generated).
 
-Store credentials in `~/.claude/fda-predicate-assistant.local.md`:
+Store credentials in `~/.claude/fda-tools.local.md`:
 
 ```yaml
 ---

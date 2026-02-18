@@ -121,7 +121,7 @@ export const fdaToolsSkill: Skill = {
           console.warn(
             '[FDA Tools] WARNING: Bridge server not running at http://localhost:18790.\n' +
               '[FDA Tools] Tools will not work until the bridge is started.\n' +
-              '[FDA Tools] Start with: cd fda-predicate-assistant && python3 bridge/server.py'
+              '[FDA Tools] Start with: cd fda-tools && python3 bridge/server.py'
           );
         } else {
           console.warn(

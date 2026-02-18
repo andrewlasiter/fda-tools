@@ -750,7 +750,7 @@ Predicted FDA review time: 127.3 days
 - `smart_recommendations`: **ON** if device profile exists, **OFF** otherwise
 - `gap_mitigation_planning`: **OFF** by default (opt-in for detailed mitigation suggestions)
 
-**User Preferences File:** `~/.claude/fda-predicate-assistant.local.md`
+**User Preferences File:** `~/.claude/fda-tools.local.md`
 ```yaml
 phase3:
   maude_peer_comparison: true

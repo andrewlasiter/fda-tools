@@ -28,7 +28,6 @@ import json
 import os
 import re
 import statistics
-import subprocess
 import sys
 import time
 from collections import Counter, defaultdict
@@ -45,6 +44,7 @@ from section_analytics import (
     analyze_temporal_trends,
     cross_product_compare,
 )
+from subprocess_utils import run_subprocess  # type: ignore
 from trend_visualization import (  # type: ignore
     generate_ascii_chart,
     generate_svg_chart,
@@ -1107,8 +1107,8 @@ def main():
     parser.add_argument("--similarity", action="store_true",
                         help="Compute pairwise text similarity for each section type")
     parser.add_argument("--similarity-method", dest="similarity_method",
-                        default="cosine", choices=["sequence", "jaccard", "cosine"],
-                        help="Similarity method (default: cosine)")
+                        default="cosine", choices=["sequence", "jaccard", "cosine", "auto"],
+                        help="Similarity method (default: cosine). Use 'auto' for heuristic selection based on text characteristics (FDA-39).")
     parser.add_argument("--similarity-sample", dest="similarity_sample", type=int,
                         default=30,
                         help="Max devices for similarity matrix (default: 30, for performance)")
@@ -1178,21 +1178,21 @@ def main():
         if build_script.exists() and cache_dir.exists():
             if verbose:
                 print("No structured cache found. Auto-building from extraction cache...")
-            try:
-                subprocess.run(
-                    [sys.executable, str(build_script), "--cache-dir", str(cache_dir)],
-                    capture_output=True, text=True, timeout=300,
-                    cwd=str(build_script.parent),
-                )
+
+            cmd = [sys.executable, str(build_script), "--cache-dir", str(cache_dir)]
+            result = run_subprocess(
+                cmd=cmd,
+                step_name="build_structured_cache",
+                timeout_seconds=300,
+                cwd=str(build_script.parent),
+                verbose=verbose
+            )
+
+            if result["status"] == "success":
                 cache = load_structured_cache()
-            except subprocess.TimeoutExpired:
-                if verbose:
-                    print("Auto-build timed out after 300 seconds.")
-                    print("  Suggestion: Check that extraction cache files exist in "
-                          f"{cache_dir} and try running build_structured_cache.py manually.")
-            except OSError as e:
-                if verbose:
-                    print(f"Auto-build failed: {e}")
+            elif result["status"] == "timeout" and verbose:
+                print("  Suggestion: Check that extraction cache files exist in "
+                      f"{cache_dir} and try running build_structured_cache.py manually.")
 
         if not cache:
             print("Error: No structured cache found. Run build_structured_cache.py first.")
@@ -1250,7 +1250,7 @@ def main():
     outliers = detect_outliers(section_data, section_types)
 
     # Generate output path
-    code_label = ",".join(all_product_codes) if multi_code_mode else primary_product_code
+    _code_label = ",".join(all_product_codes) if multi_code_mode else primary_product_code
     if not args.output:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_dir = Path(os.path.expanduser(f"~/fda-510k-data/projects/section_comparison_{primary_product_code}_{timestamp}"))
@@ -1307,7 +1307,7 @@ def main():
                         description=f"  Computing similarity for {section_type}..."
                     )
 
-                    def progress_callback(current: int, total: int, message: str):
+                    def progress_callback(current: int, _total: int, message: str):
                         if progress_bar:
                             progress_bar.update(current, message)
 

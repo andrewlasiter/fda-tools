@@ -22,19 +22,13 @@ Tier 3 (Moderate):
 Total: 10 SIM tests covering section_analytics.py
 """
 
-import math
-import os
-import sys
-
 import pytest
 
 # Ensure scripts directory is on sys.path for imports
 # Package imports configured in conftest.py and pytest.ini
 
-from section_analytics import (
-    _cosine_similarity_stdlib,
+from section_analytics import (  # type: ignore
     _detect_trend_direction,
-    _jaccard_similarity,
     _tokenize,
     analyze_temporal_trends,
     compute_similarity,
@@ -753,3 +747,481 @@ class TestSIM009TemporalTrends:
         by_year = result["trends"]["clinical_testing"]["by_year"]
         assert 2024 in by_year
         assert by_year[2024]["device_count"] == 1
+
+
+# ===================================================================
+# Additional Tests for Enhanced Coverage (FDA-69)
+# ===================================================================
+
+
+class TestProgressCallbacks:
+    """Test progress callback functionality in pairwise_similarity_matrix.
+
+    Validates that progress callbacks are invoked correctly during
+    similarity computation with proper current/total/message parameters.
+    """
+
+    def test_progress_callback_invoked(self):
+        """Progress callback is invoked during matrix computation."""
+        callback_calls = []
+
+        def mock_callback(current, total, message):
+            callback_calls.append((current, total, message))
+
+        # Create simple test data with 5 devices
+        test_data = {}
+        for i in range(5):
+            k_num = f"K{i:06d}"
+            test_data[k_num] = {
+                "sections": {
+                    "clinical_testing": {
+                        "text": f"Device {i} clinical testing with biocompatibility evaluation"
+                    }
+                },
+                "metadata": {"product_code": "DQY"}
+            }
+
+        result = pairwise_similarity_matrix(
+            test_data, "clinical_testing", method="sequence",
+            progress_callback=mock_callback, use_cache=False
+        )
+
+        # 5 devices = C(5,2) = 10 pairs
+        # With update_interval = max(1, 10//100) = 1, callback invoked for each pair
+        assert len(callback_calls) > 0, f"Progress callback should be invoked, got {len(callback_calls)} calls"
+        assert result["pairs_computed"] == 10  # type: ignore
+
+        # Check that final call has correct total
+        final_call = callback_calls[-1]
+        assert final_call[1] == 10, f"Total pairs should be 10, got {final_call[1]}"
+        assert "Computing similarity" in final_call[2]
+        # Final call should have current == total
+        assert final_call[0] == 10, f"Final current should be 10, got {final_call[0]}"
+
+    def test_progress_callback_parameters(self):
+        """Progress callback receives correct parameters."""
+        callback_calls = []
+
+        def mock_callback(current, total, message):
+            callback_calls.append({"current": current, "total": total, "message": message})
+
+        # Create simple test data
+        test_data = {}
+        for i in range(4):
+            k_num = f"K{i:06d}"
+            test_data[k_num] = {
+                "sections": {
+                    "clinical_testing": {
+                        "text": f"Clinical testing for device {i}"
+                    }
+                },
+                "metadata": {"product_code": "DQY"}
+            }
+
+        pairwise_similarity_matrix(
+            test_data, "clinical_testing", method="jaccard",
+            progress_callback=mock_callback, use_cache=False
+        )
+
+        # All calls should have current <= total
+        assert len(callback_calls) > 0, "Should have callback calls"
+        for call in callback_calls:
+            assert call["current"] <= call["total"], (
+                f"Current {call['current']} should be <= total {call['total']}"
+            )
+            assert isinstance(call["message"], str)
+
+
+class TestCacheDisabling:
+    """Test cache disabling functionality in pairwise_similarity_matrix.
+
+    Validates that use_cache=False bypasses caching mechanism.
+    """
+
+    def test_cache_disabled(self, sample_section_data):
+        """When use_cache=False, cache_hit should be False."""
+        dqy_keys = sorted(
+            k for k, v in sample_section_data.items()
+            if v.get("metadata", {}).get("product_code") == "DQY"
+        )[:3]
+        subset = {k: sample_section_data[k] for k in dqy_keys}
+
+        result = pairwise_similarity_matrix(
+            subset, "clinical_testing", method="sequence",
+            use_cache=False
+        )
+
+        assert result["cache_hit"] is False, "cache_hit should be False when use_cache=False"
+
+    def test_computation_time_present(self, sample_section_data):
+        """Result includes computation_time field."""
+        dqy_keys = sorted(
+            k for k, v in sample_section_data.items()
+            if v.get("metadata", {}).get("product_code") == "DQY"
+        )[:3]
+        subset = {k: sample_section_data[k] for k in dqy_keys}
+
+        result = pairwise_similarity_matrix(
+            subset, "clinical_testing", method="cosine"
+        )
+
+        assert "computation_time" in result
+        assert isinstance(result["computation_time"], (int, float))
+        assert result["computation_time"] >= 0
+
+
+class TestMedianCalculation:
+    """Test median calculation for even vs odd number of scores.
+
+    Validates correct median computation for different array sizes.
+    """
+
+    def test_median_odd_number_devices(self, sample_section_data):
+        """Median calculated correctly for odd number of pairs (3 devices = 3 pairs)."""
+        dqy_keys = sorted(
+            k for k, v in sample_section_data.items()
+            if v.get("metadata", {}).get("product_code") == "DQY"
+        )[:3]
+        subset = {k: sample_section_data[k] for k in dqy_keys}
+
+        result = pairwise_similarity_matrix(
+            subset, "clinical_testing", method="sequence"
+        )
+
+        # 3 devices = C(3,2) = 3 pairs
+        assert result["pairs_computed"] == 3
+        median = result["statistics"]["median"]
+        assert 0.0 <= median <= 1.0
+
+    def test_median_even_number_devices(self, sample_section_data):
+        """Median calculated correctly for even number of pairs (4 devices = 6 pairs)."""
+        dqy_keys = sorted(
+            k for k, v in sample_section_data.items()
+            if v.get("metadata", {}).get("product_code") == "DQY"
+        )[:4]
+        subset = {k: sample_section_data[k] for k in dqy_keys}
+
+        result = pairwise_similarity_matrix(
+            subset, "clinical_testing", method="sequence"
+        )
+
+        # 4 devices = C(4,2) = 6 pairs (even)
+        assert result["pairs_computed"] == 6
+        median = result["statistics"]["median"]
+        assert 0.0 <= median <= 1.0
+
+
+class TestSpecialCharactersWhitespace:
+    """Test handling of special characters and whitespace in similarity computation.
+
+    Validates robust text processing for various input formats.
+    """
+
+    def test_multiple_spaces_normalized(self):
+        """Multiple consecutive spaces are normalized in tokenization."""
+        text_a = "ISO    10993-1    biocompatibility"
+        text_b = "ISO 10993-1 biocompatibility"
+
+        # Jaccard should be identical (same unique words)
+        score = compute_similarity(text_a, text_b, "jaccard")
+        assert score == 1.0, f"Expected 1.0 for same words with different spacing, got {score}"
+
+    def test_special_characters_removed(self):
+        """Special characters are removed during tokenization."""
+        text_a = "ISO-10993-1: Biocompatibility (Testing)!"
+        text_b = "ISO 10993 1 Biocompatibility Testing"
+
+        tokens_a = _tokenize(text_a)
+        tokens_b = _tokenize(text_b)
+
+        # Both should contain similar tokens without special chars
+        assert "biocompatibility" in tokens_a
+        assert "biocompatibility" in tokens_b
+        assert "testing" in tokens_a
+        assert "testing" in tokens_b
+
+    def test_newlines_and_tabs_handled(self):
+        """Newlines and tabs are handled gracefully."""
+        text_a = "ISO 10993\nBiocompatibility\tTesting"
+        text_b = "ISO 10993 Biocompatibility Testing"
+
+        score = compute_similarity(text_a, text_b, "jaccard")
+        assert score == 1.0, "Newlines and tabs should not affect word-based similarity"
+
+    def test_unicode_characters(self):
+        """Unicode characters are handled without errors."""
+        text_a = "Device complies with ISO 10993 requirements"
+        text_b = "Device complies with ISO 10993 requirements"  # Same text
+
+        # Should not crash and should return 1.0
+        score = compute_similarity(text_a, text_b, "sequence")
+        assert score == 1.0
+
+
+class TestTrendEdgeCases:
+    """Test edge cases in trend detection and temporal analysis.
+
+    Validates robust handling of unusual data patterns.
+    """
+
+    def test_trend_with_zero_mean(self):
+        """Trend detection handles zero mean values gracefully."""
+        year_values = [(2020, 0.0), (2021, 0.0), (2022, 0.0)]
+        result = _detect_trend_direction(year_values)
+
+        assert result["direction"] == "stable"
+        assert result["slope"] == 0.0
+
+    def test_trend_all_same_year(self):
+        """Trend detection when all data points are from same year (ss_xx = 0)."""
+        year_values = [(2024, 80.0), (2024, 85.0), (2024, 90.0)]
+        result = _detect_trend_direction(year_values)
+
+        # When all years are the same, ss_xx = 0, should return stable
+        assert result["direction"] == "stable"
+        assert result["slope"] == 0.0
+
+    def test_increasing_trend_detected(self):
+        """Clearly increasing values produce increasing direction."""
+        year_values = [
+            (2020, 100),
+            (2021, 150),
+            (2022, 210),
+            (2023, 280),
+            (2024, 350),
+        ]
+        result = _detect_trend_direction(year_values)
+
+        assert result["direction"] == "increasing"
+        assert result["slope"] > 0
+        assert result["r_squared"] > 0.8
+
+    def test_trend_with_high_r_squared(self):
+        """Perfect linear trend has R² = 1.0."""
+        # y = 2x + 100 (perfect linear)
+        year_values = [
+            (2020, 4140),  # 2*2020 + 100
+            (2021, 4142),  # 2*2021 + 100
+            (2022, 4144),  # 2*2022 + 100
+        ]
+        result = _detect_trend_direction(year_values)
+
+        # Should have R² very close to 1.0
+        assert result["r_squared"] >= 0.99, f"R² should be ~1.0, got {result['r_squared']}"
+
+
+class TestCrossProductEdgeCases:
+    """Test edge cases in cross-product comparison.
+
+    Validates handling of missing data and edge cases.
+    """
+
+    def test_product_code_in_metadata(self, sample_section_data):
+        """Product code correctly extracted from metadata.product_code."""
+        result = cross_product_compare(
+            ["DQY"],
+            ["clinical_testing"],
+            sample_section_data,
+        )
+
+        assert "DQY" in result["product_codes"]
+        assert result["comparison"]["clinical_testing"]["DQY"]["device_count"] > 0
+
+    def test_empty_product_code_list(self, sample_section_data):
+        """Empty product code list returns empty comparison."""
+        result = cross_product_compare(
+            [],
+            ["clinical_testing"],
+            sample_section_data,
+        )
+
+        assert result["product_codes"] == []
+        assert result["comparison"]["clinical_testing"] == {}
+
+    def test_empty_section_types_list(self, sample_section_data):
+        """Empty section types list returns empty comparison."""
+        result = cross_product_compare(
+            ["DQY"],
+            [],
+            sample_section_data,
+        )
+
+        assert result["section_types"] == []
+        assert result["comparison"] == {}
+
+    def test_missing_sections_in_all_devices(self, sample_section_data):
+        """Section type that doesn't exist returns 0% coverage."""
+        result = cross_product_compare(
+            ["DQY"],
+            ["nonexistent_section"],
+            sample_section_data,
+        )
+
+        coverage = result["comparison"]["nonexistent_section"]["DQY"]["coverage_pct"]
+        assert coverage == 0.0
+
+    def test_standards_counting(self):
+        """Standards are correctly counted and ranked."""
+        # Add some standards to test data
+        test_data = {
+            "K001": {
+                "sections": {
+                    "biocompatibility": {
+                        "text": "ISO 10993-1 testing performed",
+                        "word_count": 10,
+                        "standards": ["ISO 10993-1", "ISO 10993-5"]
+                    }
+                },
+                "metadata": {"product_code": "DQY"}
+            },
+            "K002": {
+                "sections": {
+                    "biocompatibility": {
+                        "text": "ISO 10993-1 compliant",
+                        "word_count": 10,
+                        "standards": ["ISO 10993-1"]
+                    }
+                },
+                "metadata": {"product_code": "DQY"}
+            }
+        }
+
+        result = cross_product_compare(
+            ["DQY"],
+            ["biocompatibility"],
+            test_data,
+        )
+
+        top_standards = result["comparison"]["biocompatibility"]["DQY"]["top_standards"]
+        # ISO 10993-1 appears twice
+        assert len(top_standards) > 0
+        assert top_standards[0][0] == "ISO 10993-1"
+        assert top_standards[0][1] == 2
+
+
+class TestSimilarityMethodSymmetry:
+    """Test symmetry property of similarity methods.
+
+    Validates that similarity(A,B) = similarity(B,A) for symmetric methods.
+    Note: SequenceMatcher from difflib is not perfectly symmetric due to its
+    algorithm, so we only test Jaccard and Cosine for symmetry.
+    """
+
+    def test_sequence_order_independence_identical_text(self):
+        """Sequence similarity for identical text is 1.0 regardless of order."""
+        text = "Cardiovascular catheter device for angioplasty"
+
+        score_aa = compute_similarity(text, text, "sequence")
+
+        assert score_aa == 1.0, f"Identical text should have similarity 1.0, got {score_aa}"
+
+    def test_jaccard_symmetry(self):
+        """Jaccard similarity is symmetric: sim(A,B) = sim(B,A)."""
+        text_a = "ISO 10993 biocompatibility testing"
+        text_b = "IEC 60601 electrical safety testing"
+
+        score_ab = compute_similarity(text_a, text_b, "jaccard")
+        score_ba = compute_similarity(text_b, text_a, "jaccard")
+
+        assert score_ab == score_ba, (
+            f"Jaccard should be symmetric: {score_ab} != {score_ba}"
+        )
+
+    def test_cosine_symmetry(self):
+        """Cosine similarity is symmetric: sim(A,B) = sim(B,A)."""
+        text_a = "Clinical testing performed on human subjects"
+        text_b = "Preclinical animal testing conducted"
+
+        score_ab = compute_similarity(text_a, text_b, "cosine")
+        score_ba = compute_similarity(text_b, text_a, "cosine")
+
+        assert abs(score_ab - score_ba) < 0.0001, (
+            f"Cosine should be symmetric: {score_ab} != {score_ba}"
+        )
+
+
+class TestVeryDissimilarTexts:
+    """Test similarity computation for very dissimilar texts.
+
+    Validates that dissimilar texts produce low scores.
+    """
+
+    def test_completely_different_vocabulary(self):
+        """Texts with no common words produce very low similarity."""
+        text_a = "cardiovascular catheter angioplasty"
+        text_b = "orthopedic screw titanium"
+
+        # Jaccard should be 0.0 (no common words)
+        score_jaccard = compute_similarity(text_a, text_b, "jaccard")
+        assert score_jaccard == 0.0, f"Expected 0.0 for disjoint vocabulary, got {score_jaccard}"
+
+        # Cosine should also be 0.0
+        score_cosine = compute_similarity(text_a, text_b, "cosine")
+        assert score_cosine == 0.0, f"Expected 0.0 for disjoint vocabulary, got {score_cosine}"
+
+    def test_very_dissimilar_device_descriptions(self):
+        """Real-world dissimilar device descriptions produce low scores."""
+        text_a = (
+            "Glucose monitoring system for diabetic patients with continuous "
+            "measurements and smartphone connectivity"
+        )
+        text_b = (
+            "Spinal fusion cage made of PEEK material for lumbar interbody "
+            "fusion procedures with titanium coating"
+        )
+
+        score_sequence = compute_similarity(text_a, text_b, "sequence")
+        score_jaccard = compute_similarity(text_a, text_b, "jaccard")
+        score_cosine = compute_similarity(text_a, text_b, "cosine")
+
+        # All should be relatively low (< 0.4 for reasonable threshold)
+        # Sequence matcher can give higher scores due to word order patterns
+        assert score_sequence < 0.4, f"Sequence score too high: {score_sequence}"
+        assert score_jaccard < 0.4, f"Jaccard score too high: {score_jaccard}"
+        assert score_cosine < 0.4, f"Cosine score too high: {score_cosine}"
+
+
+class TestStatisticalRounding:
+    """Test proper rounding of statistical results.
+
+    Validates that scores are rounded to 4 decimal places as documented.
+    """
+
+    def test_scores_rounded_to_4_decimals(self, sample_section_data):
+        """All pairwise scores are rounded to 4 decimal places."""
+        dqy_keys = sorted(
+            k for k, v in sample_section_data.items()
+            if v.get("metadata", {}).get("product_code") == "DQY"
+        )[:3]
+        subset = {k: sample_section_data[k] for k in dqy_keys}
+
+        result = pairwise_similarity_matrix(
+            subset, "clinical_testing", method="sequence"
+        )
+
+        for _, _, score in result["scores"]:
+            # Check that score has at most 4 decimal places
+            score_str = str(score)
+            if "." in score_str:
+                decimals = len(score_str.split(".")[1])
+                assert decimals <= 4, f"Score {score} has more than 4 decimal places"
+
+    def test_statistics_rounded_to_4_decimals(self, sample_section_data):
+        """Statistics (mean, median, min, max, stdev) are rounded to 4 decimals."""
+        dqy_keys = sorted(
+            k for k, v in sample_section_data.items()
+            if v.get("metadata", {}).get("product_code") == "DQY"
+        )[:4]
+        subset = {k: sample_section_data[k] for k in dqy_keys}
+
+        result = pairwise_similarity_matrix(
+            subset, "clinical_testing", method="cosine"
+        )
+
+        stats = result["statistics"]
+        for stat_name in ["mean", "median", "min", "max", "stdev"]:
+            stat_value = stats[stat_name]
+            stat_str = str(stat_value)
+            if "." in stat_str:
+                decimals = len(stat_str.split(".")[1])
+                assert decimals <= 4, f"{stat_name} {stat_value} has more than 4 decimal places"

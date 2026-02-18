@@ -35,7 +35,7 @@ Before starting, verify that the project has sufficient data. If required files 
 - `query.json` — Project metadata with product code
 
 **Check sequence:**
-1. Read `~/.claude/fda-predicate-assistant.local.md` for `projects_dir`
+1. Read `~/.claude/fda-tools.local.md` for `projects_dir`
 2. Look in `{projects_dir}/{project_name}/` for the required files
 3. If none found: output `"Required project data not found. Run these commands first:"`
    - `"/fda:extract both --project {name}"` — to extract predicate data

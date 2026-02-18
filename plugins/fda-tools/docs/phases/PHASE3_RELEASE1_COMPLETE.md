@@ -66,7 +66,7 @@ K245678,8 events,54 peers,12 median,35th percentile,GOOD,"Below median (8 vs 12 
 
 ### Files Modified (3)
 
-#### 1. `plugins/fda-predicate-assistant/lib/fda_enrichment.py`
+#### 1. `plugins/fda-tools/lib/fda_enrichment.py`
 **Changes:**
 - Updated module header: "Phase 1, 2 & 3" (line 2)
 - Updated version: 3.0.0 (line 9)
@@ -82,7 +82,7 @@ K245678,8 events,54 peers,12 median,35th percentile,GOOD,"Below median (8 vs 12 
 
 **Lines Added:** ~170 (method + integration + header)
 
-#### 2. `plugins/fda-predicate-assistant/commands/batchfetch.md`
+#### 2. `plugins/fda-tools/commands/batchfetch.md`
 **Changes:**
 - Updated enricher initialization: `api_version="3.0.0"` (line 963)
 - Added Phase 3 column documentation (lines 1555-1562, 8 lines)
@@ -368,8 +368,8 @@ All Phase 3 features are research tools, NOT regulatory advice. Every output inc
 ## Git Commit Summary
 
 **Files Changed:**
-1. `plugins/fda-predicate-assistant/lib/fda_enrichment.py` (+170 lines)
-2. `plugins/fda-predicate-assistant/commands/batchfetch.md` (+16 lines)
+1. `plugins/fda-tools/lib/fda_enrichment.py` (+170 lines)
+2. `plugins/fda-tools/commands/batchfetch.md` (+16 lines)
 3. `PHASE3_RELEASE1_COMPLETE.md` (new file)
 
 **Total:** 3 files changed, +186 lines, 0 deletions

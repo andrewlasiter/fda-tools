@@ -341,8 +341,8 @@ See [MIGRATION_NOTICE.md](MIGRATION_NOTICE.md) for the plugin rename (fda-predic
 ## Support
 
 - **Documentation**: [ERROR_RECOVERY.md](docs/ERROR_RECOVERY.md)
-- **Issues**: https://github.com/andrewlasiter/fda-predicate-assistant/issues
-- **Plugin Repository**: https://github.com/andrewlasiter/fda-predicate-assistant
+- **Issues**: https://github.com/andrewlasiter/fda-tools/issues
+- **Plugin Repository**: https://github.com/andrewlasiter/fda-tools
 
 ---
 
@@ -436,7 +436,7 @@ None identified.
 If you encounter issues during upgrade:
 1. Check ERROR_RECOVERY.md for your error scenario
 2. Run diagnostic test: `python3 tests/test_prestar_integration.py`
-3. Report at: https://github.com/andrewlasiter/fda-predicate-assistant/issues
+3. Report at: https://github.com/andrewlasiter/fda-tools/issues
 ```
 
 ---

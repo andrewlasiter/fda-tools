@@ -76,7 +76,7 @@ The XML generation maps your project data to **143 FDA form fields**:
 
 Get the latest eSTAR template from FDA:
 - **nIVD eSTAR v6.1**: https://www.fda.gov/medical-devices/premarket-submissions-selecting-and-preparing-correct-submission/estar-submission-program
-- Plugin includes templates in: `plugins/fda-predicate-assistant/estar/`
+- Plugin includes templates in: `plugins/fda-tools/estar/`
 
 ### Import Process (Adobe Acrobat Required)
 

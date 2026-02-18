@@ -16,7 +16,7 @@ Priority 2 integrated Regulatory Affairs (RA) professional oversight throughout 
 
 ### 1. Modified `research.md` Command
 
-**File:** `plugins/fda-predicate-assistant/commands/research.md`
+**File:** `plugins/fda-tools/commands/research.md`
 
 **New Step Added: Step 7 — RA Professional Review of Recommendations**
 
@@ -49,7 +49,7 @@ Added after Step 6 (IFU Landscape), before competitive analysis (now Step 8).
 
 ### 2. Modified `review.md` Command
 
-**File:** `plugins/fda-predicate-assistant/commands/review.md`
+**File:** `plugins/fda-tools/commands/review.md`
 
 **New Step Added: Step 5 — RA Professional Final Review**
 
@@ -94,7 +94,7 @@ Added after Step 4 (user decisions + audit logging), before Step 6 (write output
 
 ### 3. Enhanced `ra-professional-advisor.md` Agent
 
-**File:** `plugins/fda-predicate-assistant/agents/ra-professional-advisor.md`
+**File:** `plugins/fda-tools/agents/ra-professional-advisor.md`
 
 **Major Additions:**
 
@@ -380,7 +380,7 @@ Professional Sign-Off:
 ## Files Modified
 
 ```
-plugins/fda-predicate-assistant/
+plugins/fda-tools/
 ├── commands/
 │   ├── research.md                         [Modified: +145 lines]
 │   │   └── Step 7: RA Professional Review [NEW]

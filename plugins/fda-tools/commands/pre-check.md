@@ -21,7 +21,7 @@ f = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
 if os.path.exists(f):
     d = json.load(open(f))
     for k, v in d.get('plugins', {}).items():
-        if k.startswith('fda-predicate-assistant@'):
+        if k.startswith('fda-tools@'):
             for e in v:
                 p = e.get('installPath', '')
                 if os.path.isdir(p):
@@ -65,7 +65,7 @@ From `$ARGUMENTS`, extract:
 ```bash
 PROJECTS_DIR=$(python3 -c "
 import os, re
-settings = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings = os.path.expanduser('~/.claude/fda-tools.local.md')
 if os.path.exists(settings):
     with open(settings) as f:
         m = re.search(r'projects_dir:\s*(.+)', f.read())
@@ -143,7 +143,7 @@ Using the product code, query openFDA for classification data:
 python3 << 'PYEOF'
 import urllib.request, urllib.parse, json, os, re
 
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 api_key = os.environ.get('OPENFDA_API_KEY')
 api_enabled = True
 if os.path.exists(settings_path):

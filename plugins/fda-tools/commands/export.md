@@ -21,7 +21,7 @@ f = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
 if os.path.exists(f):
     d = json.load(open(f))
     for k, v in d.get('plugins', {}).items():
-        if k.startswith('fda-predicate-assistant@'):
+        if k.startswith('fda-tools@'):
             for e in v:
                 p = e.get('installPath', '')
                 if os.path.isdir(p):
@@ -60,7 +60,7 @@ From `$ARGUMENTS`, extract:
 python3 << 'PYEOF'
 import json, os, re
 
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 projects_dir = os.path.expanduser('~/fda-510k-data/projects')
 if os.path.exists(settings_path):
     with open(settings_path) as f:
@@ -168,7 +168,7 @@ python3 << 'PYEOF'
 import json, os, re, shutil, zipfile
 from datetime import datetime
 
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 projects_dir = os.path.expanduser('~/fda-510k-data/projects')
 if os.path.exists(settings_path):
     with open(settings_path) as f:
@@ -282,7 +282,7 @@ if not plugin_root:
         with open(installed_plugins_path) as ipf:
             installed_data = json.load(ipf)
             for key, value in installed_data.get('plugins', {}).items():
-                if key.startswith('fda-tools@') or key.startswith('fda-predicate-assistant@'):
+                if key.startswith('fda-tools@') or key.startswith('fda-tools@'):
                     for entry in value:
                         install_path = entry.get('installPath', '')
                         if os.path.isdir(install_path):
@@ -297,7 +297,7 @@ if plugin_root:
 from ecopy_exporter import eCopyExporter
 
 # Load project path
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 projects_dir = os.path.expanduser('~/fda-510k-data/projects')
 if os.path.exists(settings_path):
     with open(settings_path) as f:
@@ -492,7 +492,7 @@ from pathlib import Path
 
 # Load project path
 import re
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 projects_dir = os.path.expanduser('~/fda-510k-data/projects')
 if os.path.exists(settings_path):
     with open(settings_path) as f:

@@ -154,7 +154,7 @@ You should reference these when advising:
 ## Your Task Now
 
 Review the current Phase 1 & 2 implementation in:
-- `/home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-predicate-assistant/commands/batchfetch.md` (lines 1059-1870)
+- `/home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/commands/batchfetch.md` (lines 1059-1870)
 
 For each of the 6 issues identified:
 1. Assess severity and regulatory impact

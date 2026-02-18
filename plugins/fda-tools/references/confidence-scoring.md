@@ -123,7 +123,7 @@ Flags with severity CRITICAL or HIGH should be displayed prominently with a warn
 
 Users can maintain a local exclusion list of device numbers they want to automatically flag or skip during review. Managed via `/fda:configure --add-exclusion K123456 "reason"`.
 
-**File location**: Configurable via `exclusion_list` setting in `~/.claude/fda-predicate-assistant.local.md`. Default: `~/fda-510k-data/exclusion_list.json`.
+**File location**: Configurable via `exclusion_list` setting in `~/.claude/fda-tools.local.md`. Default: `~/fda-510k-data/exclusion_list.json`.
 
 **JSON format**:
 

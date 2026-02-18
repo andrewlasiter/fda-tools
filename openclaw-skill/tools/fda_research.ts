@@ -184,7 +184,7 @@ function formatBridgeError(error: BridgeClientError, command: string): string {
       return (
         `[CONNECTION ERROR] The FDA Bridge Server is not running.\n\n` +
         `To start it:\n` +
-        `  cd /path/to/fda-predicate-assistant\n` +
+        `  cd /path/to/fda-tools\n` +
         `  python3 bridge/server.py\n\n` +
         `The bridge server must be running on http://localhost:18790 ` +
         `for FDA tools to work.`

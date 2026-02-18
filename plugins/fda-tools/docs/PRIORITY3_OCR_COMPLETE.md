@@ -16,7 +16,7 @@ Priority 3 enhanced extraction quality for image-based PDFs and expanded section
 
 ### 1. Expanded Section Patterns (section-patterns.md)
 
-**File:** `plugins/fda-predicate-assistant/references/section-patterns.md`
+**File:** `plugins/fda-tools/references/section-patterns.md`
 
 **Added 15 New Section Types:**
 
@@ -44,7 +44,7 @@ Priority 3 enhanced extraction quality for image-based PDFs and expanded section
 
 ### 2. Enhanced build_structured_cache.py
 
-**File:** `plugins/fda-predicate-assistant/scripts/build_structured_cache.py`
+**File:** `plugins/fda-tools/scripts/build_structured_cache.py`
 
 #### A. Added Tier 2 OCR Correction (Lines 103-146)
 
@@ -491,7 +491,7 @@ print(f"High-quality extractions: {len(high_quality)}")
 ## Files Modified
 
 ```
-plugins/fda-predicate-assistant/
+plugins/fda-tools/
 ├── references/
 │   └── section-patterns.md                 [Modified: +180 lines]
 │       ├── 15 new section patterns         [NEW]

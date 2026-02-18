@@ -21,7 +21,7 @@ f = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
 if os.path.exists(f):
     d = json.load(open(f))
     for k, v in d.get('plugins', {}).items():
-        if k.startswith('fda-predicate-assistant@'):
+        if k.startswith('fda-tools@'):
             for e in v:
                 p = e.get('installPath', '')
                 if os.path.isdir(p):
@@ -79,7 +79,7 @@ Parse `$ARGUMENTS` for the subcommand and flags:
 Check settings and auto-detect the data layout:
 
 ```bash
-cat ~/.claude/fda-predicate-assistant.local.md 2>/dev/null
+cat ~/.claude/fda-tools.local.md 2>/dev/null
 ```
 
 ### Standard Layout Detection
@@ -114,7 +114,7 @@ The pipeline expects this directory structure:
 | `merge_outputs.py` | No | Simple CSV merge (inline Python below) |
 | `Test69a_final_ocr_smart_v2.py` | No | Use bundled `predicate_extractor.py` instead |
 
-Paths are resolved from settings (`~/.claude/fda-predicate-assistant.local.md`):
+Paths are resolved from settings (`~/.claude/fda-tools.local.md`):
 - `repo_dir` — from `extraction_dir` setting (default: `~/fda-510k-data/extraction`)
 - `pdf_dir` — from `pdf_dir` setting (default: `~/fda-510k-data/pdfs`)
 
@@ -125,7 +125,7 @@ python3 -c "
 import os, re
 
 # Resolve paths from settings
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 repo = os.path.expanduser('~/fda-510k-data/extraction')
 dl = os.path.expanduser('~/fda-510k-data/pdfs')
 if os.path.exists(settings_path):

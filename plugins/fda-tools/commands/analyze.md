@@ -26,7 +26,7 @@ You are analyzing FDA 510(k) data from across the full pipeline. Multiple data s
 | `pmn*.txt` | `~/fda-510k-data/extraction/` or `fda_data/` | FDA 510(k) database flat files |
 | `foiaclass.txt` | `~/fda-510k-data/batchfetch/fda_data/` | FDA device classification data |
 
-**Note:** FDA database files may also be in configurable `--data-dir` locations. Check `~/.claude/fda-predicate-assistant.local.md` for configured paths.
+**Note:** FDA database files may also be in configurable `--data-dir` locations. Check `~/.claude/fda-tools.local.md` for configured paths.
 
 ## Project Support
 
@@ -195,7 +195,7 @@ When analyzing predicate relationships, add adverse event context from the API:
 python3 << 'PYEOF'
 import urllib.request, urllib.parse, json, os, re
 
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 api_key = os.environ.get('OPENFDA_API_KEY')  # Env var takes priority (never enters chat)
 api_enabled = True
 if os.path.exists(settings_path):

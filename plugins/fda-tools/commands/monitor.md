@@ -21,7 +21,7 @@ f = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
 if os.path.exists(f):
     d = json.load(open(f))
     for k, v in d.get('plugins', {}).items():
-        if k.startswith('fda-predicate-assistant@'):
+        if k.startswith('fda-tools@'):
             for e in v:
                 p = e.get('installPath', '')
                 if os.path.isdir(p):
@@ -194,7 +194,7 @@ python3 << 'PYEOF'
 import urllib.request, urllib.parse, json, os, re, time
 from datetime import datetime, timedelta
 
-settings_path = os.path.expanduser('~/.claude/fda-predicate-assistant.local.md')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
 api_key = os.environ.get('OPENFDA_API_KEY')
 if os.path.exists(settings_path):
     with open(settings_path) as f:
@@ -342,7 +342,7 @@ If `--cron` is set, always use `--method stdout --cron` regardless of `--notify`
 
 ```json
 {
-  "source": "fda-predicate-assistant-monitor",
+  "source": "fda-tools-monitor",
   "version": "4.8.0",
   "timestamp": "2026-02-07T12:00:00Z",
   "alert_count": 3,

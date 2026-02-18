@@ -29,10 +29,16 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
+from typing import Dict, Optional
+
+# Add parent directory to path for lib imports
+_parent_dir = Path(__file__).parent.parent
+if str(_parent_dir) not in sys.path:
+    sys.path.insert(0, str(_parent_dir))
 
 # Import cache integrity module (GAP-011)
 try:
-    from cache_integrity import (
+    from cache_integrity import (  # type: ignore
         integrity_read,
         integrity_write,
         verify_checksum,
@@ -41,6 +47,27 @@ try:
     _INTEGRITY_AVAILABLE = True
 except ImportError:
     _INTEGRITY_AVAILABLE = False
+    integrity_read = None  # type: ignore
+    integrity_write = None  # type: ignore
+    verify_checksum = None  # type: ignore
+    invalidate_corrupt_file = None  # type: ignore
+
+# Import rate limiter (FDA-20)
+try:
+    from lib.rate_limiter import RateLimiter, RetryPolicy  # type: ignore
+    _RATE_LIMITER_AVAILABLE = True
+except ImportError:
+    _RATE_LIMITER_AVAILABLE = False
+    RateLimiter = None  # type: ignore
+    RetryPolicy = None  # type: ignore
+
+# Import cross-process rate limiter (FDA-12)
+try:
+    from lib.cross_process_rate_limiter import CrossProcessRateLimiter  # type: ignore
+    _CROSS_PROCESS_LIMITER_AVAILABLE = True
+except ImportError:
+    _CROSS_PROCESS_LIMITER_AVAILABLE = False
+    CrossProcessRateLimiter = None  # type: ignore
 
 
 # Module logger (FDA-18 / GAP-014)
@@ -53,10 +80,14 @@ _cache_logger = logging.getLogger("fda.cache_integrity")
 CACHE_TTL = 7 * 24 * 60 * 60
 
 # Max retries for transient failures
-MAX_RETRIES = 3
+MAX_RETRIES = 5  # Increased from 3 to 5 for better 429 handling
 
-# Base backoff in seconds
+# Base backoff in seconds (for legacy fallback)
 BASE_BACKOFF = 1.0
+
+# Rate limit defaults
+UNAUTHENTICATED_RATE_LIMIT = 240  # requests per minute
+AUTHENTICATED_RATE_LIMIT = 1000   # requests per minute
 
 # API base URL
 BASE_URL = "https://api.fda.gov/device"
@@ -70,14 +101,29 @@ except Exception:
 
 
 class FDAClient:
-    """Centralized openFDA API client with caching and retry."""
+    """Centralized openFDA API client with caching, retry, and rate limiting.
 
-    def __init__(self, cache_dir=None, api_key=None):
+    Features:
+    - LRU caching with 7-day TTL
+    - SHA-256 integrity verification (GAP-011)
+    - Thread-safe token bucket rate limiting (FDA-20)
+    - Exponential backoff with retry (FDA-20)
+    - Rate limit header inspection and warnings (FDA-20)
+    """
+
+    def __init__(
+        self,
+        cache_dir: Optional[str] = None,
+        api_key: Optional[str] = None,
+        rate_limit_override: Optional[int] = None,
+    ):
         """Initialize the FDA API client.
 
         Args:
             cache_dir: Directory for API response cache. Default: ~/fda-510k-data/api_cache/
             api_key: openFDA API key. If not provided, reads from env/settings.
+            rate_limit_override: Override rate limit (requests per minute).
+                Default: 240 (unauthenticated) or 1000 (with API key).
         """
         self.api_key = api_key or self._load_api_key()
         self.cache_dir = Path(cache_dir or os.path.expanduser("~/fda-510k-data/api_cache"))
@@ -85,6 +131,51 @@ class FDAClient:
         self.enabled = self._check_enabled()
         self._stats = {"hits": 0, "misses": 0, "errors": 0, "corruptions": 0}
         self._audit_events = []  # In-memory audit log for cache integrity events
+
+        # Initialize rate limiter (FDA-20)
+        if _RATE_LIMITER_AVAILABLE:
+            # Determine rate limit based on API key presence
+            if rate_limit_override:
+                rate_limit = rate_limit_override
+            elif self.api_key:
+                rate_limit = AUTHENTICATED_RATE_LIMIT
+            else:
+                rate_limit = UNAUTHENTICATED_RATE_LIMIT
+
+            self._rate_limiter = RateLimiter(requests_per_minute=rate_limit)  # type: ignore
+            self._retry_policy = RetryPolicy(  # type: ignore
+                max_attempts=MAX_RETRIES,
+                base_delay=1.0,
+                max_delay=60.0,
+                jitter=True,
+            )
+            logger.info(
+                "Rate limiting enabled: %d req/min (API key: %s)",
+                rate_limit,
+                "yes" if self.api_key else "no",
+            )
+        else:
+            self._rate_limiter = None
+            self._retry_policy = None
+            logger.warning(
+                "Rate limiter not available (lib.rate_limiter not imported). "
+                "Running without rate limiting."
+            )
+
+        # Initialize cross-process rate limiter (FDA-12)
+        if _CROSS_PROCESS_LIMITER_AVAILABLE:
+            self._cross_process_limiter = CrossProcessRateLimiter(
+                has_api_key=bool(self.api_key),
+            )
+            logger.info(
+                "Cross-process rate limiting enabled (FDA-12): %d req/min",
+                self._cross_process_limiter.requests_per_minute,
+            )
+        else:
+            self._cross_process_limiter = None
+            logger.debug(
+                "Cross-process rate limiter not available (lib.cross_process_rate_limiter not imported)."
+            )
 
     def _audit_logger(self, event):
         """Audit callback for cache integrity events.
@@ -141,7 +232,7 @@ class FDAClient:
 
         if _INTEGRITY_AVAILABLE:
             # Use integrity-verified read with TTL check
-            data = integrity_read(
+            data = integrity_read(  # type: ignore
                 cache_file,
                 ttl_seconds=CACHE_TTL,
                 audit_logger=self._audit_logger,
@@ -179,7 +270,7 @@ class FDAClient:
         cache_file = self.cache_dir / f"{cache_key}.json"
 
         if _INTEGRITY_AVAILABLE:
-            integrity_write(
+            integrity_write(  # type: ignore
                 cache_file, data, audit_logger=self._audit_logger
             )
         else:
@@ -190,10 +281,23 @@ class FDAClient:
             except OSError:
                 pass  # Cache write failures are non-fatal
 
-    def _request(self, endpoint, params):
-        """Make an API request with retry and exponential backoff.
+    def _request(self, endpoint: str, params: Dict[str, str]) -> Dict:
+        """Make an API request with rate limiting, retry, and exponential backoff.
 
-        Returns parsed JSON data or None on failure.
+        Implements:
+        - Rate limiting (token bucket, configurable 240 or 1000 req/min)
+        - Cache-first lookup
+        - Exponential backoff with jitter
+        - 429 (Rate Limit) detection and handling
+        - Rate limit header parsing and warnings
+        - Comprehensive error logging
+
+        Args:
+            endpoint: API endpoint (e.g., '510k', 'classification')
+            params: Query parameters dict
+
+        Returns:
+            Parsed JSON response dict, or error dict with 'degraded': True
         """
         if not self.enabled:
             return {"error": "API disabled", "degraded": True}
@@ -205,6 +309,31 @@ class FDAClient:
             return cached
 
         self._stats["misses"] += 1
+
+        # FDA-12: Cross-process rate limit check (file-based lock)
+        if self._cross_process_limiter:
+            xp_acquired = self._cross_process_limiter.acquire(timeout=120.0)
+            if not xp_acquired:
+                self._stats["errors"] += 1
+                logger.error(
+                    "Cross-process rate limit timeout (120s) - "
+                    "too many concurrent FDA API processes"
+                )
+                return {
+                    "error": "Cross-process rate limit timeout after 120s",
+                    "degraded": True,
+                }
+
+        # Acquire rate limit token (blocks if necessary)
+        if self._rate_limiter:
+            acquired = self._rate_limiter.acquire(tokens=1, timeout=120.0)
+            if not acquired:
+                self._stats["errors"] += 1
+                logger.error("Rate limit acquisition timeout (120s) - API may be overloaded")
+                return {
+                    "error": "Rate limit acquisition timeout after 120s",
+                    "degraded": True,
+                }
 
         # Add API key if available
         if self.api_key:
@@ -222,36 +351,126 @@ class FDAClient:
         for attempt in range(MAX_RETRIES):
             try:
                 with urllib.request.urlopen(req, timeout=15) as resp:
+                    # Parse response
                     data = json.loads(resp.read())
+
+                    # Update rate limiter from response headers
+                    if self._rate_limiter:
+                        # urllib.request.urlopen returns http.client.HTTPResponse
+                        # Headers accessible via .headers (HTTPMessage object)
+                        headers_dict = dict(resp.headers)
+                        self._rate_limiter.update_from_headers(headers_dict)
+
+                    # Cache and return
                     self._set_cached(key, data)
                     return data
+
             except urllib.error.HTTPError as e:
+                # Parse headers from HTTPError (has .headers attribute)
+                error_headers = dict(e.headers) if hasattr(e, "headers") else {}
+
                 if e.code == 404:
                     # Not found is a valid response, cache it
                     result = {"results": [], "meta": {"results": {"total": 0}}}
                     self._set_cached(key, result)
                     return result
+
                 elif e.code == 429:
-                    # Rate limited -- wait longer
-                    wait = BASE_BACKOFF * (2 ** attempt) * 2
-                    time.sleep(wait)
+                    # Rate limited -- use retry policy
+                    logger.warning(
+                        "Rate limit exceeded (429) on attempt %d/%d for %s",
+                        attempt + 1,
+                        MAX_RETRIES,
+                        endpoint,
+                    )
+
+                    # Update rate limiter with headers (may contain X-RateLimit-* info)
+                    if self._rate_limiter and error_headers:
+                        self._rate_limiter.update_from_headers(error_headers)
+
+                    # Calculate retry delay
+                    if self._retry_policy:
+                        retry_delay = self._retry_policy.get_retry_delay(attempt, error_headers)
+                    else:
+                        # Fallback to simple exponential backoff
+                        retry_delay = BASE_BACKOFF * (2 ** attempt) * 2
+
+                    if retry_delay is None:
+                        # Max retries reached
+                        logger.error(
+                            "Max retries exceeded after 429 rate limit for %s",
+                            endpoint,
+                        )
+                        break
+
+                    logger.info("Waiting %.2fs before retry (429 rate limit)", retry_delay)
+                    time.sleep(retry_delay)
                     last_error = e
+
                 elif e.code >= 500:
                     # Server error -- retry with backoff
-                    wait = BASE_BACKOFF * (2 ** attempt)
-                    time.sleep(wait)
+                    logger.warning(
+                        "Server error %d on attempt %d/%d for %s: %s",
+                        e.code,
+                        attempt + 1,
+                        MAX_RETRIES,
+                        endpoint,
+                        e.reason,
+                    )
+
+                    if self._retry_policy:
+                        retry_delay = self._retry_policy.get_retry_delay(attempt)
+                    else:
+                        retry_delay = BASE_BACKOFF * (2 ** attempt)
+
+                    if retry_delay is None:
+                        break
+
+                    logger.info("Waiting %.2fs before retry (server error)", retry_delay)
+                    time.sleep(retry_delay)
                     last_error = e
+
                 else:
                     # Client error (400, 403, etc.) -- don't retry
                     self._stats["errors"] += 1
+                    logger.error(
+                        "Client error %d for %s: %s",
+                        e.code,
+                        endpoint,
+                        e.reason,
+                    )
                     return {"error": f"HTTP {e.code}: {e.reason}", "degraded": True}
+
             except Exception as e:
-                wait = BASE_BACKOFF * (2 ** attempt)
-                time.sleep(wait)
+                # Network error, timeout, etc. -- retry
+                logger.warning(
+                    "Request error on attempt %d/%d for %s: %s",
+                    attempt + 1,
+                    MAX_RETRIES,
+                    endpoint,
+                    str(e),
+                )
+
+                if self._retry_policy:
+                    retry_delay = self._retry_policy.get_retry_delay(attempt)
+                else:
+                    retry_delay = BASE_BACKOFF * (2 ** attempt)
+
+                if retry_delay is None:
+                    break
+
+                logger.info("Waiting %.2fs before retry (request error)", retry_delay)
+                time.sleep(retry_delay)
                 last_error = e
 
         # All retries exhausted
         self._stats["errors"] += 1
+        logger.error(
+            "API request failed after %d retries for %s: %s",
+            MAX_RETRIES,
+            endpoint,
+            last_error,
+        )
         return {
             "error": f"API unavailable after {MAX_RETRIES} retries: {last_error}",
             "degraded": True,
@@ -461,7 +680,7 @@ class FDAClient:
         # Try cache first if enabled
         if use_cache and cache_file.exists():
             if _INTEGRITY_AVAILABLE:
-                data = integrity_read(
+                data = integrity_read(  # type: ignore
                     cache_file,
                     ttl_seconds=product_code_ttl,
                     audit_logger=self._audit_logger,
@@ -517,7 +736,9 @@ class FDAClient:
         # Cache results with integrity envelope
         cache_data = {"codes": codes_list, "total": len(codes_list)}
         if _INTEGRITY_AVAILABLE:
-            integrity_write(cache_file, cache_data, audit_logger=self._audit_logger)
+            integrity_write(  # type: ignore
+                cache_file, cache_data, audit_logger=self._audit_logger
+            )
         else:
             try:
                 with open(cache_file, "w") as f:
@@ -591,8 +812,8 @@ class FDAClient:
 
     # --- Cache Management ---
 
-    def cache_stats(self):
-        """Return cache statistics including integrity metrics."""
+    def cache_stats(self) -> Dict:
+        """Return cache statistics including integrity and rate limiting metrics."""
         cache_files = list(self.cache_dir.glob("*.json"))
         total_size = sum(f.stat().st_size for f in cache_files)
         expired = 0
@@ -604,7 +825,7 @@ class FDAClient:
         for f in cache_files:
             try:
                 if _INTEGRITY_AVAILABLE:
-                    is_valid, reason = verify_checksum(f)
+                    is_valid, reason = verify_checksum(f)  # type: ignore
                     if reason == "valid":
                         integrity_verified += 1
                     elif reason == "legacy_format":
@@ -639,7 +860,51 @@ class FDAClient:
             "legacy_format": legacy_format,
             "corrupt_detected": corrupt,
         }
+
+        # Add rate limiting stats (FDA-20)
+        if self._rate_limiter:
+            stats["rate_limiting"] = self._rate_limiter.get_stats()
+
+        # FDA-13: Add PMA SSED cache size info if available
+        try:
+            pma_cache_dir = Path(os.path.expanduser("~/fda-510k-data/pma_cache"))
+            if pma_cache_dir.exists():
+                pma_pdf_size = sum(
+                    f.stat().st_size for f in pma_cache_dir.rglob("*.pdf")
+                )
+                pma_pdf_count = sum(1 for _ in pma_cache_dir.rglob("*.pdf"))
+                stats["pma_ssed_cache"] = {
+                    "pdf_count": pma_pdf_count,
+                    "total_size_mb": round(pma_pdf_size / (1024 * 1024), 2),
+                }
+        except OSError:
+            pass  # Non-fatal: PMA cache stats are supplementary
+
+        # FDA-12: Add cross-process rate limit status
+        if self._cross_process_limiter:
+            stats["cross_process_rate_limit"] = self._cross_process_limiter.get_status()
+
         return stats
+
+    def rate_limit_stats(self) -> Optional[Dict]:
+        """Get rate limiter statistics.
+
+        Returns:
+            Dictionary with rate limiting stats, or None if rate limiter not available.
+            Includes:
+            - total_requests: Total API requests made
+            - total_waits: Number of times requests had to wait for tokens
+            - total_wait_time_seconds: Cumulative wait time
+            - avg_wait_time_seconds: Average wait time per blocked request
+            - wait_percentage: Percentage of requests that had to wait
+            - rate_limit_warnings: Number of "approaching limit" warnings
+            - dynamic_adjustments: Number of times rate limit was adjusted
+            - current_tokens: Current token bucket level
+            - requests_per_minute: Configured rate limit
+        """
+        if self._rate_limiter:
+            return self._rate_limiter.get_stats()
+        return None
 
     def clear_cache(self, category=None):
         """Clear cached API responses.
@@ -687,6 +952,8 @@ def main():
     parser.add_argument("--lookup", help="Look up a device number (K/P/DEN)")
     parser.add_argument("--classify", help="Classify a product code")
     parser.add_argument("--get-all-codes", action="store_true", help="Enumerate all FDA product codes")
+    parser.add_argument("--health-check", action="store_true", dest="health_check",
+                        help="Run health check including cross-process rate limit status (FDA-12)")
     args = parser.parse_args()
 
     client = FDAClient()
@@ -710,11 +977,46 @@ def main():
 
     elif args.stats:
         stats = client.cache_stats()
+        print("=" * 60)
+        print("CACHE STATISTICS")
+        print("=" * 60)
         print(f"Cache directory: {stats['cache_dir']}")
         print(f"Files: {stats['total_files']} ({stats['valid']} valid, {stats['expired']} expired)")
         print(f"Size: {stats['total_size_mb']} MB")
         print(f"Integrity: {stats['integrity_verified']} verified, "
               f"{stats['legacy_format']} legacy, {stats['corrupt_detected']} corrupt")
+        print(f"Session: {stats['session_hits']} hits, {stats['session_misses']} misses, "
+              f"{stats['session_errors']} errors")
+
+        # Show rate limiting stats if available
+        if "rate_limiting" in stats:
+            rl = stats["rate_limiting"]
+            print("\n" + "=" * 60)
+            print("RATE LIMITING STATISTICS (FDA-20)")
+            print("=" * 60)
+            print(f"Rate limit: {rl['requests_per_minute']} req/min")
+            print(f"Total requests: {rl['total_requests']}")
+            print(f"Requests blocked: {rl['total_waits']} ({rl['wait_percentage']:.1f}%)")
+            if rl['total_waits'] > 0:
+                print(f"Average wait time: {rl['avg_wait_time_seconds']:.3f}s")
+                print(f"Total wait time: {rl['total_wait_time_seconds']:.1f}s")
+            print(f"Rate limit warnings: {rl['rate_limit_warnings']}")
+            print(f"Current tokens: {rl['current_tokens']:.1f} / {rl['requests_per_minute']}")
+
+        # FDA-12: Show cross-process rate limit status
+        if "cross_process_rate_limit" in stats:
+            xp = stats["cross_process_rate_limit"]
+            print("\n" + "=" * 60)
+            print("CROSS-PROCESS RATE LIMITING (FDA-12)")
+            print("=" * 60)
+            print(f"Requests in last minute: {xp.get('requests_last_minute', 'N/A')}")
+            print(f"Rate limit: {xp.get('requests_per_minute', 'N/A')} req/min")
+            print(f"Utilization: {xp.get('utilization_percent', 'N/A')}%")
+            print(f"Available: {xp.get('available', 'N/A')} requests")
+            print(f"State file: {xp.get('state_file', 'N/A')}")
+            print(f"Lock file: {xp.get('lock_file', 'N/A')}")
+            print(f"Current PID: {xp.get('pid', 'N/A')}")
+        print("=" * 60)
 
     elif args.clear:
         count = client.clear_cache()
@@ -743,6 +1045,55 @@ def main():
         codes = client.get_all_product_codes()
         for code in codes:
             print(code)
+
+    elif args.health_check:
+        # FDA-12: Health check with cross-process rate limit status
+        print("=" * 60)
+        print("FDA API CLIENT HEALTH CHECK")
+        print("=" * 60)
+
+        # API connectivity
+        print("\n[API Connectivity]")
+        print(f"  API enabled: {client.enabled}")
+        print(f"  API key: {'configured' if client.api_key else 'not configured'}")
+
+        # Cache stats
+        cache = client.cache_stats()
+        print(f"\n[Cache]")
+        print(f"  Directory: {cache['cache_dir']}")
+        print(f"  Files: {cache['total_files']} ({cache['valid']} valid)")
+        print(f"  Size: {cache['total_size_mb']} MB")
+
+        # In-process rate limiter
+        print(f"\n[In-Process Rate Limiter (FDA-20)]")
+        if client._rate_limiter:
+            rl = client._rate_limiter.get_stats()
+            print(f"  Status: active")
+            print(f"  Rate limit: {rl['requests_per_minute']} req/min")
+            print(f"  Tokens available: {rl['current_tokens']:.0f}")
+        else:
+            print(f"  Status: not available")
+
+        # Cross-process rate limiter
+        print(f"\n[Cross-Process Rate Limiter (FDA-12)]")
+        if client._cross_process_limiter:
+            health = client._cross_process_limiter.health_check()
+            status = health["status"]
+            print(f"  Status: {'healthy' if health['healthy'] else 'unhealthy'}")
+            print(f"  Requests in window: {status.get('requests_last_minute', 'N/A')}"
+                  f" / {status.get('requests_per_minute', 'N/A')}")
+            print(f"  Utilization: {status.get('utilization_percent', 'N/A')}%")
+            print(f"  Available: {status.get('available', 'N/A')} requests")
+            print(f"  Lock file: {health['lock_exists']}")
+            print(f"  State file: {health['state_exists']} "
+                  f"(readable: {health['state_readable']})")
+            if health["warnings"]:
+                for w in health["warnings"]:
+                    print(f"  WARNING: {w}")
+        else:
+            print(f"  Status: not available")
+
+        print("\n" + "=" * 60)
 
 
 if __name__ == "__main__":

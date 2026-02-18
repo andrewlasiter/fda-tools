@@ -181,7 +181,7 @@ git tag -l | grep v5.25.1
 ### Step 7: Create GitHub Release
 **Time**: 5 minutes | **Risk**: LOW
 
-1. Go to: https://github.com/andrewlasiter/fda-predicate-assistant/releases
+1. Go to: https://github.com/andrewlasiter/fda-tools/releases
 2. Click "Draft a new release"
 3. Tag version: `v5.25.1`
 4. Release title: `v5.25.1: Critical Security and Compliance Fixes`
@@ -303,7 +303,7 @@ git push origin master
 For issues during release:
 - **Lead**: Claude Code Deployment Engineering
 - **Backup**: Quality Assurance Team
-- **Repository**: https://github.com/andrewlasiter/fda-predicate-assistant
+- **Repository**: https://github.com/andrewlasiter/fda-tools
 
 ---
 

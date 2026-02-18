@@ -92,7 +92,7 @@ This project uses a two-stage pipeline for FDA 510(k) predicate analysis:
 
 ### Key Data Locations
 
-**All data directories are configurable** via `~/.claude/fda-predicate-assistant.local.md`. Run `/fda:configure --show` to see current paths.
+**All data directories are configurable** via `~/.claude/fda-tools.local.md`. Run `/fda:configure --show` to see current paths.
 
 | Data | Default Path | Settings Key |
 |------|-------------|-------------|
@@ -106,7 +106,7 @@ This project uses a two-stage pipeline for FDA 510(k) predicate analysis:
 
 **Before running any command:**
 1. **Resolve plugin root** — Run the plugin root resolution snippet from `references/path-resolution.md` to set `$FDA_PLUGIN_ROOT` (reads `~/.claude/plugins/installed_plugins.json`)
-2. **Read user settings** — Read `~/.claude/fda-predicate-assistant.local.md` for configured data paths
+2. **Read user settings** — Read `~/.claude/fda-tools.local.md` for configured data paths
 3. If a path is not set in settings, use the defaults above. If data is not found at the configured path, check the default path before reporting "not found".
 
 When answering questions about specific devices, check these data sources for real information before relying solely on general knowledge.
@@ -241,7 +241,7 @@ The plugin integrates with all 7 openFDA Device API endpoints for real-time data
 ### Configuration
 - **API key**: Optional. Without key: 1K requests/day. With key: 120K/day.
   - **Priority 1**: Environment variable `OPENFDA_API_KEY` (recommended — never enters chat history)
-  - **Priority 2**: Settings file `~/.claude/fda-predicate-assistant.local.md` field `openfda_api_key`
+  - **Priority 2**: Settings file `~/.claude/fda-tools.local.md` field `openfda_api_key`
   - **Never paste your API key into chat** — use `/fda:configure --setup-key` for safe setup instructions
 - **Kill switch**: `openfda_enabled: false` disables all API calls for offline environments.
 - **Fallback**: All commands fall back to flat files (pmn*.txt, foiaclass.txt) when the API is unavailable.
