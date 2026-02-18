@@ -1,4 +1,11 @@
 {
+  "_fixture_meta": {
+    "api_schema_version": "1.0.0",
+    "created_at": "2026-02-15",
+    "last_validated": "2026-02-17",
+    "source": "Derived from openFDA /device/510k responses",
+    "update_procedure": "Run `pytest -m api_contract` to validate fixture structure against live API. If fields have changed, update fixtures and bump api_schema_version."
+  },
   "DQY": {
     "last_checked": "2026-02-15T10:00:00+00:00",
     "clearance_count": 147,

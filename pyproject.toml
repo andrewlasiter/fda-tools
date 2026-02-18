@@ -63,6 +63,15 @@ test = [
     "pytest-mock>=3.10.0",
 ]
 
+[tool.setuptools]
+# FDA-55: Explicit package discovery so that `pip install -e .` makes
+# scripts/, lib/, and tests/ importable as proper Python packages.
+# This eliminates the need for sys.path.insert() hacks in test files.
+
+[tool.setuptools.packages.find]
+where = ["plugins/fda-tools"]
+include = ["scripts*", "lib*", "tests*", "bridge*"]
+
 [tool.ruff]
 # Python 3.9+ compatibility
 target-version = "py39"
@@ -177,6 +186,7 @@ markers = [
     "integrity: Data integrity and provenance tests",
     "slow: Tests that make real API calls (deselect with -m 'not slow')",
     "api: Tests that require API access",
+    "api_contract: Quarterly API contract tests for fixture staleness (FDA-56)",
 ]
 filterwarnings = [
     "ignore::DeprecationWarning",

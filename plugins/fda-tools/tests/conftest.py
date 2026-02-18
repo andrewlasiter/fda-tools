@@ -4,6 +4,15 @@ Shared pytest fixtures for FDA Tools Quick Wins test suite.
 Provides reusable fixtures for temporary project directories, sample
 fingerprints, mock API responses, section data, and mock FDA clients.
 All fixtures operate offline without network access.
+
+Path resolution strategy (FDA-55):
+    This conftest.py resolves paths relative to its own filesystem location
+    so that tests work regardless of CWD, pytest-xdist parallelism, or IDE
+    test runner invocation.  The primary mechanism is pytest.ini's
+    ``pythonpath = . scripts lib tests`` setting; the sys.path fallback
+    below exists only to support edge-case environments where pytest.ini
+    is not honoured (e.g. bare ``python -m pytest`` from an unexpected
+    directory).
 """
 
 import json
@@ -12,25 +21,45 @@ from pathlib import Path
 
 import pytest
 
-# Add parent directory to Python path for proper package imports
-# This enables importing from scripts/, lib/, and tests/ as packages
-PROJECT_ROOT = Path(__file__).parent.parent.resolve()
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+# ---------------------------------------------------------------------------
+# Portable path resolution (FDA-55)
+# ---------------------------------------------------------------------------
+# Resolve directories relative to *this file*, not relative to CWD.
+# This makes the test suite work from any working directory and with
+# pytest-xdist (which may spawn workers with a different CWD).
 
-# Define directory paths
 TESTS_DIR = Path(__file__).parent.resolve()
+PROJECT_ROOT = TESTS_DIR.parent.resolve()           # plugins/fda-tools
 FIXTURES_DIR = TESTS_DIR / "fixtures"
+SCRIPTS_DIR = PROJECT_ROOT / "scripts"
+LIB_DIR = PROJECT_ROOT / "lib"
+
+# Ensure all package roots are on sys.path (idempotent).
+# Order: PROJECT_ROOT first so that ``import scripts.xxx`` and
+# ``import lib.xxx`` both work; then the individual dirs so that bare
+# ``import xxx`` also resolves for legacy test files.
+for _dir in (PROJECT_ROOT, SCRIPTS_DIR, LIB_DIR, TESTS_DIR):
+    _dir_str = str(_dir)
+    if _dir_str not in sys.path:
+        sys.path.insert(0, _dir_str)
 
 # Import from tests package (using proper package import)
 from tests.mocks.mock_fda_client import MockFDAClient
 
 
 def _load_fixture(filename):
-    """Load a JSON fixture file from the fixtures directory."""
+    """Load a JSON fixture file from the fixtures directory.
+
+    Automatically strips the ``_fixture_meta`` key (FDA-56) so that test
+    code sees only the payload data.
+    """
     filepath = FIXTURES_DIR / filename
     with open(filepath) as f:
-        return json.load(f)
+        data = json.load(f)
+    # Strip fixture metadata (FDA-56) so tests see only payload data
+    if isinstance(data, dict):
+        data.pop("_fixture_meta", None)
+    return data
 
 
 # ---------------------------------------------------------------------------
@@ -223,3 +252,37 @@ def mock_fda_client_with_recalls(sample_api_responses):
                           results=resp["results"])
     client.set_recalls("DQY", meta_total=4)  # Increased from baseline of 2
     return client
+
+
+# ---------------------------------------------------------------------------
+# Portable Path Fixtures (FDA-55)
+# ---------------------------------------------------------------------------
+# These fixtures provide absolute paths resolved from this file's location,
+# making tests CWD-independent and compatible with pytest-xdist and IDEs.
+
+
+@pytest.fixture
+def plugin_root():
+    """Return the absolute path to the plugin root (plugins/fda-tools/).
+
+    Use this instead of computing paths from os.getcwd().
+    """
+    return PROJECT_ROOT
+
+
+@pytest.fixture
+def scripts_dir():
+    """Return the absolute path to the scripts directory."""
+    return SCRIPTS_DIR
+
+
+@pytest.fixture
+def lib_dir():
+    """Return the absolute path to the lib directory."""
+    return LIB_DIR
+
+
+@pytest.fixture
+def fixtures_dir():
+    """Return the absolute path to the test fixtures directory."""
+    return FIXTURES_DIR
