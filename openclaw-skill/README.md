@@ -75,7 +75,7 @@ npm run build
 ### Step 3: Start the FDA Bridge Server
 
 ```bash
-cd /path/to/fda-predicate-assistant
+cd /path/to/fda-tools
 python3 bridge/server.py
 ```
 
@@ -272,7 +272,7 @@ The FDA Bridge Server must be running on `http://localhost:18790`.
 curl http://localhost:18790/health
 
 # Start if not running
-cd /path/to/fda-predicate-assistant
+cd /path/to/fda-tools
 python3 bridge/server.py
 ```
 

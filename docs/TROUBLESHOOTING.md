@@ -304,7 +304,7 @@ cat ~/fda-510k-data/logs/extraction.log
 **Incomplete enrichment**:
 ```bash
 # Use full-auto mode for complete enrichment
-/fda-predicate-assistant:batchfetch --product-codes DQY --years 2024 --enrich --full-auto
+/fda-tools:batchfetch --product-codes DQY --years 2024 --enrich --full-auto
 ```
 
 **Parsing errors**:
@@ -343,7 +343,7 @@ cat ~/fda-510k-data/logs/extraction.log
 4. **Use batch mode with delays**:
    ```bash
    # Automatically throttles requests
-   /fda-predicate-assistant:batchfetch --product-codes DQY --rate-limit
+   /fda-tools:batchfetch --product-codes DQY --rate-limit
    ```
 
 5. **Reduce concurrent requests**:
@@ -730,7 +730,7 @@ tail -100 ~/fda-510k-data/logs/fda-tools.log >> diagnostics.txt
    - [README.md](../README.md)
 
 2. **Search existing issues**:
-   - https://github.com/andrewlasiter/fda-predicate-assistant/issues
+   - https://github.com/andrewlasiter/fda-tools/issues
 
 3. **Ask Claude**:
    ```
@@ -739,7 +739,7 @@ tail -100 ~/fda-510k-data/logs/fda-tools.log >> diagnostics.txt
    ```
 
 4. **Report bug**:
-   - https://github.com/andrewlasiter/fda-predicate-assistant/issues/new
+   - https://github.com/andrewlasiter/fda-tools/issues/new
    - Include diagnostic information
    - Describe steps to reproduce
 

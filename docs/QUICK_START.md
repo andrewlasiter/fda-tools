@@ -84,7 +84,7 @@ Extract clearance data for analysis:
 With full enrichment (MAUDE, recalls, clinical data):
 
 ```
-/fda-predicate-assistant:batchfetch --product-codes DQY --years 2024 --enrich --full-auto
+/fda-tools:batchfetch --product-codes DQY --years 2024 --enrich --full-auto
 ```
 
 ### Generate eSTAR XML
@@ -185,7 +185,7 @@ Check adverse events for a product code:
 Check recall history:
 
 ```
-/fda-predicate-assistant:batchfetch --product-codes DQY --years 2020-2024 --enrich
+/fda-tools:batchfetch --product-codes DQY --years 2020-2024 --enrich
 ```
 
 The enrichment includes:
@@ -498,7 +498,7 @@ See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for more solutions.
 
 ## Support
 
-- **GitHub Issues**: [Report a bug](https://github.com/andrewlasiter/fda-predicate-assistant/issues)
+- **GitHub Issues**: [Report a bug](https://github.com/andrewlasiter/fda-tools/issues)
 - **Documentation**: `/home/linux/.claude/plugins/marketplaces/fda-tools/docs/`
 - **Plugin Version**: 5.36.0
 
@@ -511,7 +511,7 @@ Here's a complete workflow for a new coronary catheter device:
 /fda:research --product-code DQY --device "coronary catheter" --years 2022-2024
 
 # 2. Extract detailed data with enrichment
-/fda-predicate-assistant:batchfetch --product-codes DQY --years 2022-2024 --enrich --full-auto
+/fda-tools:batchfetch --product-codes DQY --years 2022-2024 --enrich --full-auto
 
 # 3. Analyze safety profile
 /fda:safety --product-code DQY --comparison peer
