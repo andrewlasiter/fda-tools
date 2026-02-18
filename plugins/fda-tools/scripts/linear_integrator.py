@@ -450,7 +450,7 @@ class LinearIntegrator:
 
     @with_retry(max_attempts=3, initial_delay=2.0)
     def _create_linear_issue(self, issue: LinearIssue) -> str:
-        """Create Linear issue via MCP tool with retry logic.
+        """Create Linear issue via GraphQL API with retry logic.
 
         Args:
             issue: LinearIssue to create
@@ -458,30 +458,70 @@ class LinearIntegrator:
         Returns:
             Created issue ID
         """
-        try:
-            # Use ToolSearch to load Linear MCP tools if not already loaded
-            from mcp__plugin_linear_linear__create_issue import mcp__plugin_linear_linear__create_issue
-        except ImportError:
-            # Tools need to be loaded via ToolSearch first
-            logger.warning("Linear MCP tools not loaded - using simulation mode")
+        import os
+        import requests
+
+        api_key = os.getenv("LINEAR_API_KEY")
+        if not api_key:
+            logger.warning("LINEAR_API_KEY not set - using simulation mode")
             return f"FDA-{hash(issue.title) % 1000:03d}"
 
         try:
             # Apply rate limiting and circuit breaker
             with linear_rate_limiter:
-                result = linear_circuit_breaker.call(
-                    mcp__plugin_linear_linear__create_issue,
-                    title=issue.title,
-                    description=issue.description,
-                    team=issue.team,
-                    priority=self._map_priority(issue.priority),
-                    labels=issue.labels,
-                    assignee=issue.assignee if issue.assignee else None,
-                )
+                def create_via_api():
+                    # Linear GraphQL mutation
+                    mutation = """
+                    mutation CreateIssue($input: IssueCreateInput!) {
+                        issueCreate(input: $input) {
+                            success
+                            issue {
+                                id
+                                identifier
+                                title
+                            }
+                        }
+                    }
+                    """
 
-            issue_id = result.get("identifier") or result.get("id")
-            logger.info("Created Linear issue: %s", issue_id)
-            return issue_id
+                    variables = {
+                        "input": {
+                            "title": issue.title,
+                            "description": issue.description,
+                            "teamId": issue.team,
+                            "priority": self._map_priority(issue.priority),
+                            "labelIds": issue.labels if issue.labels else [],
+                        }
+                    }
+
+                    # Add assignee if provided
+                    if issue.assignee:
+                        variables["input"]["assigneeId"] = issue.assignee
+
+                    response = requests.post(
+                        "https://api.linear.app/graphql",
+                        headers={
+                            "Authorization": api_key,
+                            "Content-Type": "application/json",
+                        },
+                        json={"query": mutation, "variables": variables},
+                        timeout=30,
+                    )
+                    response.raise_for_status()
+                    return response.json()
+
+                result = linear_circuit_breaker.call(create_via_api)
+
+            # Extract issue identifier
+            issue_data = result.get("data", {}).get("issueCreate", {}).get("issue", {})
+            issue_id = issue_data.get("identifier") or issue_data.get("id")
+
+            if issue_id:
+                logger.info("Created Linear issue: %s", issue_id)
+                return issue_id
+            else:
+                logger.error("Linear API returned no issue ID: %s", result)
+                return f"FDA-{hash(issue.title) % 1000:03d}"
 
         except Exception as e:
             logger.error("Failed to create Linear issue: %s", e)
@@ -489,7 +529,7 @@ class LinearIntegrator:
             return f"FDA-{hash(issue.title) % 1000:03d}"
 
     def _fetch_linear_issue(self, issue_id: str) -> Dict:
-        """Fetch Linear issue via MCP tool.
+        """Fetch Linear issue via GraphQL API.
 
         Args:
             issue_id: Issue ID to fetch
@@ -497,33 +537,73 @@ class LinearIntegrator:
         Returns:
             Linear issue dict
         """
-        try:
-            from mcp__plugin_linear_linear__get_issue import mcp__plugin_linear_linear__get_issue
-        except ImportError:
-            logger.warning("Linear MCP tools not loaded - using simulation mode")
+        import os
+        import requests
+
+        api_key = os.getenv("LINEAR_API_KEY")
+        if not api_key:
+            logger.warning("LINEAR_API_KEY not set - using simulation mode")
             return {
                 "id": issue_id,
+                "identifier": issue_id,
                 "title": "Sample issue",
                 "description": "Sample description",
-                "labels": [],
-                "comments": [],
+                "labels": {"nodes": []},
             }
 
         try:
-            # Fetch issue via Linear MCP tool
-            result = mcp__plugin_linear_linear__get_issue(issueId=issue_id)
-            logger.info("Fetched Linear issue: %s", issue_id)
-            return result
+            # Linear GraphQL query
+            query = """
+            query GetIssue($id: String!) {
+                issue(id: $id) {
+                    id
+                    identifier
+                    title
+                    description
+                    priority
+                    labels {
+                        nodes {
+                            id
+                            name
+                        }
+                    }
+                    assignee {
+                        id
+                        name
+                    }
+                }
+            }
+            """
+
+            response = requests.post(
+                "https://api.linear.app/graphql",
+                headers={
+                    "Authorization": api_key,
+                    "Content-Type": "application/json",
+                },
+                json={"query": query, "variables": {"id": issue_id}},
+                timeout=30,
+            )
+            response.raise_for_status()
+            result = response.json()
+
+            issue_data = result.get("data", {}).get("issue")
+            if issue_data:
+                logger.info("Fetched Linear issue: %s", issue_id)
+                return issue_data
+            else:
+                logger.error("Linear API returned no issue data: %s", result)
+                raise ValueError("No issue data returned")
 
         except Exception as e:
             logger.error("Failed to fetch Linear issue %s: %s", issue_id, e)
             # Fall back to simulation
             return {
                 "id": issue_id,
+                "identifier": issue_id,
                 "title": "Sample issue",
                 "description": "Sample description",
-                "labels": [],
-                "comments": [],
+                "labels": {"nodes": []},
             }
 
     def _update_linear_issue(
@@ -533,7 +613,7 @@ class LinearIntegrator:
         delegate: Optional[str] = None,
         reviewers: Optional[List[str]] = None
     ):
-        """Update Linear issue with agent assignments.
+        """Update Linear issue with agent assignments via GraphQL API.
 
         Args:
             issue_id: Issue ID to update
@@ -541,10 +621,12 @@ class LinearIntegrator:
             delegate: Delegate to set
             reviewers: Reviewers to set
         """
-        try:
-            from mcp__plugin_linear_linear__update_issue import mcp__plugin_linear_linear__update_issue
-        except ImportError:
-            logger.warning("Linear MCP tools not loaded - using simulation mode")
+        import os
+        import requests
+
+        api_key = os.getenv("LINEAR_API_KEY")
+        if not api_key:
+            logger.warning("LINEAR_API_KEY not set - using simulation mode")
             logger.info(
                 "Would update Linear issue %s: assignee=%s, delegate=%s, reviewers=%d",
                 issue_id, assignee, delegate, len(reviewers or [])
@@ -552,13 +634,37 @@ class LinearIntegrator:
             return
 
         try:
-            # Update issue via Linear MCP tool
-            updates = {}
-
+            # Update issue via Linear GraphQL API
             if assignee:
-                updates["assignee"] = assignee
+                mutation = """
+                mutation UpdateIssue($id: String!, $input: IssueUpdateInput!) {
+                    issueUpdate(id: $id, input: $input) {
+                        success
+                        issue {
+                            id
+                            identifier
+                        }
+                    }
+                }
+                """
 
-            # Add delegate and reviewers as comment for now
+                variables = {
+                    "id": issue_id,
+                    "input": {"assigneeId": assignee}
+                }
+
+                response = requests.post(
+                    "https://api.linear.app/graphql",
+                    headers={
+                        "Authorization": api_key,
+                        "Content-Type": "application/json",
+                    },
+                    json={"query": mutation, "variables": variables},
+                    timeout=30,
+                )
+                response.raise_for_status()
+
+            # Add delegate and reviewers as comment
             # (Linear custom fields would require additional setup)
             if delegate or reviewers:
                 comment_parts = []
@@ -571,19 +677,37 @@ class LinearIntegrator:
 
                 # Add comment with assignments
                 try:
-                    from mcp__plugin_linear_linear__create_comment import mcp__plugin_linear_linear__create_comment
-                    mcp__plugin_linear_linear__create_comment(
-                        issueId=issue_id,
-                        body=comment_body,
-                    )
-                except (ImportError, Exception) as e:
-                    logger.warning("Could not add assignment comment: %s", e)
+                    comment_mutation = """
+                    mutation CreateComment($input: CommentCreateInput!) {
+                        commentCreate(input: $input) {
+                            success
+                            comment {
+                                id
+                            }
+                        }
+                    }
+                    """
 
-            if updates:
-                mcp__plugin_linear_linear__update_issue(
-                    issueId=issue_id,
-                    **updates
-                )
+                    variables = {
+                        "input": {
+                            "issueId": issue_id,
+                            "body": comment_body,
+                        }
+                    }
+
+                    response = requests.post(
+                        "https://api.linear.app/graphql",
+                        headers={
+                            "Authorization": api_key,
+                            "Content-Type": "application/json",
+                        },
+                        json={"query": comment_mutation, "variables": variables},
+                        timeout=30,
+                    )
+                    response.raise_for_status()
+
+                except Exception as e:
+                    logger.warning("Could not add assignment comment: %s", e)
 
             logger.info("Updated Linear issue: %s", issue_id)
 
