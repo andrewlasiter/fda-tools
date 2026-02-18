@@ -16,7 +16,12 @@ Solutions to common problems and error messages.
    - [/fda-tools:pre-check](#fda-toolspre-check-low-sri-score)
    - [/fda-tools:update-data (v5.26.0)](#fda-toolsupdate-data-issues-v5260)
    - [/fda-tools:compare-sections (v5.26.0)](#fda-toolscompare-sections-issues-v5260)
-7. [Diagnostic Commands](#diagnostic-commands)
+7. [Agent Registry Failures](#agent-registry-failures)
+8. [ClinicalTrials.gov API Failures](#clinicaltrialsgov-api-failures)
+9. [PMA Supplement Analysis Failures](#pma-supplement-analysis-failures)
+10. [Bridge Server Failures](#bridge-server-failures)
+11. [Preventive Maintenance](#preventive-maintenance)
+12. [Diagnostic Commands](#diagnostic-commands)
 
 ---
 
@@ -841,6 +846,516 @@ See [MIGRATION_NOTICE.md](../MIGRATION_NOTICE.md) for full migration guide.
      ...
    ```
    Product codes in brackets indicate enrichment working
+
+---
+
+## Agent Registry Failures
+
+### Error: "Skills directory not found"
+
+**Cause:** The agent registry cannot locate the skills directory. This happens when `SKILLS_DIR` is not set, points to an invalid path, or the skills directory was moved or deleted.
+
+**Recovery:**
+
+1. **Check the default skills path:**
+   ```bash
+   ls -la ~/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/skills/
+   ```
+   Should show 18+ agent subdirectories (e.g., `fda-regulatory-strategy-expert/`, `fda-clinical-expert/`).
+
+2. **Verify the agent registry resolves the path correctly:**
+   ```bash
+   python3 -c "
+   from pathlib import Path
+   skills = Path.home() / '.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/skills'
+   print(f'Exists: {skills.exists()}')
+   print(f'Agent count: {len([d for d in skills.iterdir() if d.is_dir() and not d.name.startswith(\".\")])}')
+   "
+   ```
+
+3. **If the directory is missing, reinstall the plugin:**
+   ```bash
+   claude plugin install fda-tools
+   ```
+
+4. **Run the skills validator:**
+   ```bash
+   python3 ~/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/scripts/validate_skills.py
+   ```
+
+### Error: "Invalid agent.yaml syntax"
+
+**Cause:** Malformed YAML in an agent definition file. Common issues include tabs instead of spaces, unclosed quotes, or invalid UTF-8 characters.
+
+**Recovery:**
+
+1. **Identify the broken file:**
+   ```bash
+   python3 -c "
+   import yaml, sys
+   from pathlib import Path
+   skills = Path.home() / '.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/skills'
+   for agent_dir in sorted(skills.iterdir()):
+       yaml_file = agent_dir / 'agent.yaml'
+       if yaml_file.exists():
+           try:
+               yaml.safe_load(yaml_file.read_text())
+               print(f'  OK: {agent_dir.name}')
+           except yaml.YAMLError as e:
+               print(f'  BROKEN: {agent_dir.name} -- {e}', file=sys.stderr)
+   "
+   ```
+
+2. **Common YAML fixes:**
+   - Replace tabs with 2 spaces
+   - Ensure all strings with colons are quoted: `description: "My: value"`
+   - Remove trailing whitespace on lines with multiline strings
+   - Verify UTF-8 encoding: `file agent.yaml` should show "UTF-8 Unicode text"
+
+3. **Validate after fixing:**
+   ```bash
+   python3 -c "import yaml; yaml.safe_load(open('agent.yaml'))"
+   ```
+
+### Error: "SKILL.md not found for agent"
+
+**Cause:** An agent subdirectory exists but is missing its `SKILL.md` definition file.
+
+**Recovery:**
+
+1. **List agents missing SKILL.md:**
+   ```bash
+   for dir in ~/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/skills/*/; do
+     if [ ! -f "$dir/SKILL.md" ]; then
+       echo "MISSING: $dir"
+     fi
+   done
+   ```
+
+2. **If an agent directory has agent.yaml but no SKILL.md:**
+   - The registry silently skips it (by design)
+   - Check git status: `git -C ~/.claude/plugins/marketplaces/fda-tools/ status`
+   - Restore from git: `git -C ~/.claude/plugins/marketplaces/fda-tools/ checkout -- plugins/fda-tools/skills/`
+
+### Error: "Path traversal attempt blocked"
+
+**Cause:** The agent registry detected a symlink or `..` sequence attempting to escape the skills directory boundary. This is a security protection (FDA-83).
+
+**Recovery:**
+
+1. **This is working as intended.** The registry blocks any path that resolves outside the skills base directory.
+
+2. **Check for suspicious symlinks:**
+   ```bash
+   find ~/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/skills/ -type l
+   ```
+
+3. **Remove any symlinks found:**
+   ```bash
+   find ~/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/skills/ -type l -delete
+   ```
+
+4. **If a legitimate agent was blocked, check its path:**
+   ```bash
+   realpath ~/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/skills/<agent-name>
+   ```
+   The resolved path must be within the `skills/` directory.
+
+### Error: "Circular dependency detected"
+
+**Cause:** Two or more agents reference each other in their dependency chains, creating an unresolvable cycle.
+
+**Recovery:**
+
+1. **Identify the cycle:**
+   ```bash
+   python3 ~/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/scripts/agent_registry.py validate
+   ```
+
+2. **Review agent SKILL.md files for cross-references.**
+
+3. **Break the cycle** by removing one direction of the dependency in the less critical agent's definition.
+
+---
+
+## ClinicalTrials.gov API Failures
+
+### Error: "Request timeout after 15 seconds"
+
+**Cause:** The ClinicalTrials.gov API did not respond within the configured timeout window. This is common during peak hours or API maintenance.
+
+**Recovery:**
+
+1. **Check API availability:**
+   ```bash
+   curl -s -o /dev/null -w "HTTP %{http_code} in %{time_total}s\n" \
+     "https://clinicaltrials.gov/api/v2/studies?pageSize=1&format=json"
+   ```
+   Expected: `HTTP 200` in under 5 seconds.
+
+2. **Increase timeout (if consistently slow):**
+   ```python
+   from ide_pathway_support import ClinicalTrialsIntegration
+   ct = ClinicalTrialsIntegration(request_timeout=30)  # default is 15s
+   ```
+
+3. **The retry logic (FDA-89) automatically retries timeouts:**
+   - Attempt 1: immediate
+   - Attempt 2: wait ~2 seconds
+   - Attempt 3: wait ~4 seconds
+   - If all 3 fail, the error dict is returned (no exception raised)
+
+4. **Check ClinicalTrials.gov status page:**
+   - Visit: https://clinicaltrials.gov
+   - If the site itself is down, wait and retry later
+
+### Error: "429 Too Many Requests"
+
+**Cause:** ClinicalTrials.gov rate limit exceeded. The API enforces request quotas per IP address.
+
+**Recovery:**
+
+1. **The retry logic handles this automatically (FDA-89):**
+   - Reads the `Retry-After` response header
+   - Waits the specified number of seconds (capped at 120s)
+   - Retries up to 3 times total
+   - Logs a warning: `"ClinicalTrials.gov rate limit hit (429)"`
+
+2. **If rate limiting persists after retries:**
+   - Reduce search frequency
+   - Add delays between searches:
+     ```python
+     import time
+     ct = ClinicalTrialsIntegration()
+     for device in device_list:
+         result = ct.search_device_studies(device)
+         time.sleep(2)  # 2-second delay between requests
+     ```
+   - Batch searches during off-peak hours (evenings, weekends US time)
+
+3. **Check current rate limit status:**
+   ```bash
+   curl -s -D - -o /dev/null "https://clinicaltrials.gov/api/v2/studies?pageSize=1&format=json" 2>&1 | grep -i "rate\|retry\|limit"
+   ```
+
+### Error: "HTTP 404 Not Found" (for study details)
+
+**Cause:** The NCT ID does not exist or the study was removed from ClinicalTrials.gov.
+
+**Recovery:**
+
+1. **This is a client error (4xx) -- NOT retried by design.**
+
+2. **Verify the NCT ID format:**
+   - Must match pattern: `NCT` followed by 8 digits (e.g., `NCT12345678`)
+   - Check: `echo "NCT12345678" | grep -E '^NCT[0-9]{8}$'`
+
+3. **Search the web interface:**
+   - Visit: `https://clinicaltrials.gov/study/NCT12345678`
+   - If the study was removed, it will show "No Study Found"
+
+4. **Try searching by keyword instead:**
+   ```python
+   ct = ClinicalTrialsIntegration()
+   results = ct.search_device_studies("your device name")
+   ```
+
+### Error: "HTTP 5xx Server Error"
+
+**Cause:** ClinicalTrials.gov server-side failure. These are transient and automatically retried.
+
+**Recovery:**
+
+1. **Automatic retry handles this (FDA-89):**
+   - 500, 502, 503, 504 errors are retried with exponential backoff
+   - Wait times: ~2s, ~4s, ~8s (capped at 10s)
+   - After 3 failures, returns an error dict (does not raise)
+
+2. **If persistent, check API status:**
+   ```bash
+   curl -v "https://clinicaltrials.gov/api/v2/studies?pageSize=1&format=json" 2>&1 | tail -5
+   ```
+
+3. **Increase retry count for known unstable periods:**
+   ```python
+   ct = ClinicalTrialsIntegration(max_retries=5)
+   ```
+
+### Error: "Malformed JSON response"
+
+**Cause:** The API returned non-JSON content (e.g., HTML error page). This is NOT retried because the response was received successfully but contained unexpected content.
+
+**Recovery:**
+
+1. **Check what the API is actually returning:**
+   ```bash
+   curl -s "https://clinicaltrials.gov/api/v2/studies?pageSize=1&format=json" | head -c 200
+   ```
+   Should start with `{`. If it starts with `<html>`, the API may be in maintenance mode.
+
+2. **Wait and retry manually** -- this usually resolves within minutes.
+
+---
+
+## PMA Supplement Analysis Failures
+
+### Error: "Insufficient data for classification"
+
+**Cause:** The PMA supplement classifier could not determine the supplement type because the change description was too vague or missing required context.
+
+**Recovery:**
+
+1. **Provide a more detailed change description:**
+   ```python
+   from pma_supplement_enhanced import SupplementTypeClassifier
+   classifier = SupplementTypeClassifier()
+   # Too vague:
+   # result = classifier.classify("minor change")
+   # Better:
+   result = classifier.classify("Manufacturing site relocation for sterilization process from Plant A to Plant B with validated EO sterilization")
+   ```
+
+2. **Include key context keywords:**
+   - Manufacturing: "manufacturing site", "process change", "supplier change"
+   - Labeling: "labeling update", "IFU change", "new indication"
+   - Design: "design modification", "material change", "dimensions"
+   - Clinical: "clinical data", "new clinical study", "post-market data"
+
+3. **Use the decision tree for guided classification:**
+   ```python
+   from pma_supplement_enhanced import SupplementDecisionTree
+   tree = SupplementDecisionTree()
+   result = tree.evaluate(
+       change_description="new sterilization site",
+       has_clinical_data=False,
+       is_design_change=False,
+   )
+   ```
+
+### Error: "PMA number not found"
+
+**Cause:** The specified PMA number does not exist in the openFDA database or has an invalid format.
+
+**Recovery:**
+
+1. **Verify PMA number format:** `P` followed by 6 digits (e.g., `P170019`)
+
+2. **Search for the PMA:**
+   ```bash
+   curl -s "https://api.fda.gov/device/pma.json?search=pma_number:P170019&limit=1" | python3 -m json.tool
+   ```
+
+3. **Check if it is a supplement number** (format: `P170019/S001`) -- the base PMA number excludes the supplement suffix.
+
+### Error: "Threshold edge case - manual review recommended"
+
+**Cause:** The change impact score falls near the boundary between supplement types, making automated classification unreliable.
+
+**Recovery:**
+
+1. **Review the detailed scoring breakdown:**
+   ```python
+   from pma_supplement_enhanced import ChangeImpactAssessor
+   assessor = ChangeImpactAssessor()
+   impact = assessor.assess_impact(
+       change_type="manufacturing_site",
+       affected_components=["sterilization"],
+       has_performance_data=True,
+   )
+   print(f"Score: {impact['impact_score']}")
+   print(f"Category: {impact['impact_category']}")
+   print(f"Details: {impact['scoring_details']}")
+   ```
+
+2. **When the score is borderline, consult these resources:**
+   - 21 CFR 814.39(a)-(f) for supplement type definitions
+   - FDA Guidance: "Modifications to Devices Subject to PMA" (2020)
+   - Consider a Pre-Submission (Q-Sub) for FDA guidance on the correct supplement type
+
+3. **This is an expected safety feature** -- the tool flags uncertainty rather than making a potentially incorrect automated decision.
+
+---
+
+## Bridge Server Failures
+
+### Error: "Address already in use (port 18790)"
+
+**Cause:** Another process is already bound to the bridge server port (default: 18790). This can happen if a previous server instance did not shut down cleanly.
+
+**Recovery:**
+
+1. **Find the process using the port:**
+   ```bash
+   lsof -i :18790
+   # or
+   ss -tlnp | grep 18790
+   ```
+
+2. **Kill the stale process:**
+   ```bash
+   kill $(lsof -t -i :18790)
+   ```
+
+3. **If the port is used by another service, change the bridge port:**
+   ```bash
+   export FDA_BRIDGE_PORT=18791
+   ```
+
+4. **Restart the bridge server:**
+   ```bash
+   python3 ~/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/bridge/server.py
+   ```
+
+### Error: "Connection refused" (bridge server)
+
+**Cause:** The bridge server is not running or crashed during operation.
+
+**Recovery:**
+
+1. **Check if the server is running:**
+   ```bash
+   curl -s http://127.0.0.1:18790/health
+   ```
+   Expected: JSON response with `"status": "healthy"` and uptime information.
+
+2. **Start the server if not running:**
+   ```bash
+   cd ~/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/bridge/
+   python3 server.py &
+   ```
+
+3. **Check for import errors (missing dependencies):**
+   ```bash
+   python3 -c "import fastapi, uvicorn, pydantic; print('Dependencies OK')"
+   ```
+   If imports fail:
+   ```bash
+   pip install -r ~/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/bridge/requirements.txt
+   ```
+
+4. **Check the server logs for crash details:**
+   ```bash
+   tail -n 50 ~/.claude/logs/fda-bridge.log
+   ```
+
+### Error: "401 Unauthorized" or "Invalid API Key"
+
+**Cause:** The bridge server requires API key authentication (via `X-API-Key` header). The key is stored in the OS keyring and generated on first startup.
+
+**Recovery:**
+
+1. **The `/health` endpoint does NOT require authentication** -- use it to confirm the server is running.
+
+2. **Retrieve the current API key:**
+   ```bash
+   python3 -c "
+   try:
+       import keyring
+       key = keyring.get_password('fda-tools-bridge', 'api-key')
+       print(f'Key exists: {key is not None}')
+       if key:
+           print(f'Key prefix: {key[:8]}...')
+   except Exception as e:
+       print(f'Keyring error: {e}')
+   "
+   ```
+
+3. **If the keyring is inaccessible (headless server):**
+   ```bash
+   export FDA_BRIDGE_API_KEY="your-generated-key"
+   ```
+
+4. **Regenerate the key (resets all clients):**
+   ```bash
+   python3 ~/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/scripts/setup_api_key.py --reset bridge
+   ```
+
+### Error: "Session expired" or "Session not found"
+
+**Cause:** Bridge server sessions are stored in memory and lost when the server restarts. Sessions also expire after inactivity.
+
+**Recovery:**
+
+1. **Create a new session:**
+   ```bash
+   curl -s -X POST http://127.0.0.1:18790/session \
+     -H "X-API-Key: YOUR_KEY" \
+     -H "Content-Type: application/json" \
+     -d '{"project": "my_device"}'
+   ```
+
+2. **List active sessions:**
+   ```bash
+   curl -s http://127.0.0.1:18790/sessions -H "X-API-Key: YOUR_KEY"
+   ```
+
+3. **For persistent sessions, note:** The current implementation uses in-memory storage. Sessions do not survive server restarts. This is documented in the server source code as a known limitation.
+
+### Error: "Rate limit exceeded" (bridge server)
+
+**Cause:** The bridge server enforces rate limits (default: 60 requests/minute general, 30 requests/minute for execute).
+
+**Recovery:**
+
+1. **Wait and retry.** Rate limits reset each minute.
+
+2. **Increase rate limits (development only):**
+   ```bash
+   export FDA_BRIDGE_RATE_LIMIT="120/minute"
+   export FDA_BRIDGE_RATE_LIMIT_EXECUTE="60/minute"
+   ```
+
+3. **Check if `slowapi` is installed** (rate limiting is optional):
+   ```bash
+   python3 -c "import slowapi; print('Rate limiting active')" 2>/dev/null || echo "Rate limiting disabled (slowapi not installed)"
+   ```
+
+---
+
+## Preventive Maintenance
+
+### Health Check Script
+
+Run the automated health check to verify all components:
+
+```bash
+bash ~/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/scripts/health_check.sh
+```
+
+This checks:
+- Skills directory and agent count
+- Python dependencies
+- ClinicalTrials.gov API connectivity
+- openFDA API connectivity
+- Bridge server status
+- Disk space for data directory
+
+### Log Monitoring
+
+Monitor for recurring issues:
+
+```bash
+# Check for recent errors
+grep -i "error\|failed\|exception" ~/.claude/logs/fda-tools.log | tail -20
+
+# Check for rate limiting events
+grep -i "rate.limit\|429\|too.many" ~/.claude/logs/fda-tools.log | tail -10
+
+# Check retry activity (FDA-89)
+grep -i "retrying\|retry\|backoff" ~/.claude/logs/fda-tools.log | tail -10
+```
+
+### Backup Procedures
+
+Protect project data:
+
+```bash
+# Backup all project data
+tar -czf ~/fda-backup-$(date +%Y%m%d).tar.gz ~/fda-510k-data/projects/
+
+# Backup plugin configuration
+cp ~/.claude/settings.local.json ~/fda-backup-settings.json
+```
 
 ---
 
