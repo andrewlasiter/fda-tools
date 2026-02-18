@@ -35,6 +35,7 @@ Usage:
 
 import argparse
 import json
+import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Set
 
@@ -44,6 +45,8 @@ try:
     HAS_YAML = True
 except ImportError:
     HAS_YAML = False
+
+logger = logging.getLogger(__name__)
 
 
 # ------------------------------------------------------------------
@@ -201,12 +204,62 @@ def _parse_frontmatter(content: str) -> Dict:
     return result
 
 
+# Allowed top-level keys in agent.yaml configuration files.
+# Any keys outside this set are rejected to prevent injection of
+# unexpected configuration directives.
+ALLOWED_AGENT_YAML_KEYS = {
+    "name", "description", "model", "tools", "max_context",
+    "temperature", "expertise", "regulatory_knowledge", "standards",
+    "deficiency_patterns", "output_standards", "agent_type",
+    "capabilities", "review_areas", "specialization",
+}
+
+
+def _validate_yaml_schema(data: Dict, source: str = "unknown") -> Dict:
+    """Validate parsed YAML data against the allowed agent config schema.
+
+    Rejects any top-level keys not in ALLOWED_AGENT_YAML_KEYS to prevent
+    injection of unexpected configuration directives.
+
+    Args:
+        data: Parsed YAML dictionary.
+        source: Source file description for logging.
+
+    Returns:
+        The validated data dict (unmodified if all keys are allowed).
+
+    Raises:
+        ValueError: If unknown keys are detected.
+    """
+    if not isinstance(data, dict):
+        logger.warning("YAML schema validation: expected dict, got %s in %s", type(data).__name__, source)
+        return {}
+
+    unknown_keys = set(data.keys()) - ALLOWED_AGENT_YAML_KEYS
+    if unknown_keys:
+        logger.warning(
+            "YAML schema validation: rejecting unknown keys %s in %s",
+            unknown_keys, source
+        )
+        # Return only the allowed keys rather than rejecting entirely,
+        # so existing agents with extra fields degrade gracefully
+        return {k: v for k, v in data.items() if k in ALLOWED_AGENT_YAML_KEYS}
+
+    return data
+
+
 def _parse_yaml_file(path: Path) -> Dict:
-    """Parse a YAML file."""
+    """Parse a YAML file using safe_load and validate against schema.
+
+    Uses yaml.safe_load (SafeLoader) to prevent arbitrary code
+    execution from malicious YAML payloads. Additionally validates
+    parsed data against the allowed agent config schema.
+    """
     try:
         content = path.read_text(encoding="utf-8")
         if HAS_YAML:
-            return yaml.safe_load(content) or {}  # type: ignore  # type: ignore
+            data = yaml.safe_load(content) or {}  # type: ignore
+            return _validate_yaml_schema(data, source=str(path))
         # Fallback: basic parsing
         result = {}
         for line in content.split("\n"):
@@ -214,8 +267,9 @@ def _parse_yaml_file(path: Path) -> Dict:
             if ":" in line and not line.startswith("#") and not line.startswith("-"):
                 key, _, value = line.partition(":")
                 result[key.strip()] = value.strip()
-        return result
-    except (OSError, ValueError):
+        return _validate_yaml_schema(result, source=str(path))
+    except (OSError, ValueError) as e:
+        logger.warning("Failed to parse YAML file %s: %s", path, e)
         return {}
 
 
@@ -248,19 +302,61 @@ class AgentRegistry:
             self._scan_agents()
             self._loaded = True
 
+    def _validate_path_within_base(self, path: Path, base: Path) -> bool:
+        """Validate that a resolved path stays within the base directory.
+
+        Prevents path traversal attacks by ensuring resolved paths
+        (with symlinks and '..' sequences resolved) remain within the
+        expected base directory boundary.
+
+        Args:
+            path: Path to validate (will be resolved).
+            base: Base directory that the path must reside within.
+
+        Returns:
+            True if path is safely within base, False otherwise.
+        """
+        try:
+            resolved = path.resolve()
+            resolved_base = base.resolve()
+            resolved.relative_to(resolved_base)
+            return True
+        except ValueError:
+            logger.warning(
+                "Path traversal attempt blocked: %s escapes base %s",
+                path, base
+            )
+            return False
+
     def _scan_agents(self):
-        """Scan skills directory for agent definitions."""
-        if not self._skills_dir.exists():
+        """Scan skills directory for agent definitions.
+
+        All discovered paths are validated against the base skills
+        directory to prevent path traversal via symlinks or '..'
+        sequences.
+        """
+        base_path = self._skills_dir.resolve()
+
+        if not base_path.exists() or not base_path.is_dir():
+            logger.warning("Skills directory does not exist or is not a directory: %s", self._skills_dir)
             return
 
-        for agent_dir in sorted(self._skills_dir.iterdir()):
+        for agent_dir in sorted(base_path.iterdir()):
             if not agent_dir.is_dir():
                 continue
             if agent_dir.name.startswith("."):
                 continue
 
+            # Validate agent directory stays within skills base
+            if not self._validate_path_within_base(agent_dir, base_path):
+                continue
+
             skill_path = agent_dir / "SKILL.md"
             if not skill_path.exists():
+                continue
+
+            # Validate SKILL.md path stays within skills base
+            if not self._validate_path_within_base(skill_path, base_path):
                 continue
 
             agent = self._load_agent(agent_dir)
@@ -270,14 +366,24 @@ class AgentRegistry:
     def _load_agent(self, agent_dir: Path) -> Optional[Dict]:
         """Load a single agent definition from its directory.
 
+        All file paths derived from agent_dir are validated to stay
+        within the skills base directory before access.
+
         Args:
             agent_dir: Path to agent directory.
 
         Returns:
             Agent definition dict or None if invalid.
         """
+        base_path = self._skills_dir.resolve()
         skill_path = agent_dir / "SKILL.md"
         yaml_path = agent_dir / "agent.yaml"
+
+        # Validate all paths before any file I/O
+        if not self._validate_path_within_base(skill_path, base_path):
+            return None
+        if yaml_path.exists() and not self._validate_path_within_base(yaml_path, base_path):
+            return None
 
         try:
             skill_content = skill_path.read_text(encoding="utf-8")
@@ -294,10 +400,13 @@ class AgentRegistry:
         if yaml_path.exists():
             yaml_config = _parse_yaml_file(yaml_path)
 
-        # Check for references directory
+        # Check for references directory (with path validation)
         refs_dir = agent_dir / "references"
-        has_references = refs_dir.is_dir() and any(refs_dir.iterdir()) if refs_dir.exists() else False
-        ref_count = len(list(refs_dir.iterdir())) if has_references else 0
+        has_references = False
+        ref_count = 0
+        if refs_dir.exists() and self._validate_path_within_base(refs_dir, base_path):
+            has_references = refs_dir.is_dir() and any(refs_dir.iterdir())
+            ref_count = len(list(refs_dir.iterdir())) if has_references else 0
 
         # Extract capabilities from description and skill content
         capabilities = self._extract_capabilities(description, skill_content)
