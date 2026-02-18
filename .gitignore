@@ -80,3 +80,12 @@ node_modules/
 archives/
 *.tar.gz
 *.zip
+
+# E2E Test Suite (kept private for now)
+tests/test_e2e_*.py
+tests/fixtures/seed_data_*.json
+tests/utils/e2e_helpers.py
+tests/utils/regulatory_validators.py
+E2E_TEST_IMPLEMENTATION_STATUS.md
+E2E_IMPLEMENTATION_COMPLETE.md
+COMPREHENSIVE_PLUGIN_REVIEW.md
