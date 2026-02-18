@@ -41,6 +41,10 @@ jobs:
           pip install pytest pytest-cov
           pip install pikepdf beautifulsoup4 lxml
 
+      - name: Validate skills
+        run: |
+          python3 scripts/validate_skills.py --verbose
+
       - name: Run offline tests
         run: |
           pytest tests/ -v -m "not api" --tb=short
