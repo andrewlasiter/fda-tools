@@ -41,9 +41,94 @@ except ImportError:
     BeautifulSoup = None
 
 try:
-    from lxml import etree  # type: ignore
+    from lxml import etree as _lxml_etree  # type: ignore  # noqa: F401
+    # SECURITY: Never use _lxml_etree.fromstring/parse directly on untrusted input.
+    # Use safe_fromstring() / safe_parse() below instead.
 except ImportError:
-    etree = None  # type: ignore
+    _lxml_etree = None  # type: ignore
+
+# defusedxml provides XXE-safe parsing (blocks entity expansion, DTD loading)
+try:
+    import defusedxml.lxml as _defused_lxml  # type: ignore
+    _HAS_DEFUSEDXML = True
+except ImportError:
+    _defused_lxml = None
+    _HAS_DEFUSEDXML = False
+
+# Backward-compatible alias used for XMLSyntaxError exception handling
+# and XMLSchema (which operates on already-parsed trusted data)
+etree = _lxml_etree  # type: ignore
+
+
+def safe_fromstring(xml_bytes):
+    """Parse XML from bytes/string using defusedxml (XXE-safe).
+
+    Falls back to lxml with manually disabled DTD/entities if defusedxml
+    is not installed (with a warning).
+
+    Args:
+        xml_bytes: XML content as bytes or str (will be encoded to UTF-8 if str).
+
+    Returns:
+        Parsed lxml Element.
+
+    Raises:
+        lxml.etree.XMLSyntaxError: If XML is malformed.
+        ImportError: If neither defusedxml nor lxml is available.
+    """
+    if isinstance(xml_bytes, str):
+        xml_bytes = xml_bytes.encode('utf-8')
+
+    if _HAS_DEFUSEDXML:
+        return _defused_lxml.fromstring(xml_bytes)
+
+    # Fallback: manually configure a safe parser
+    if _lxml_etree is not None:
+        logger.warning(
+            "defusedxml not installed -- using manual XXE mitigation. "
+            "Install defusedxml for full protection: pip install defusedxml"
+        )
+        parser = _lxml_etree.XMLParser(
+            resolve_entities=False,
+            no_network=True,
+            dtd_validation=False,
+            load_dtd=False,
+        )
+        return _lxml_etree.fromstring(xml_bytes, parser=parser)
+
+    raise ImportError("Neither defusedxml nor lxml is available")
+
+
+def safe_parse(source):
+    """Parse XML from a file-like object or path using defusedxml (XXE-safe).
+
+    Args:
+        source: File path (str/Path) or file-like object.
+
+    Returns:
+        Parsed lxml ElementTree.
+
+    Raises:
+        lxml.etree.XMLSyntaxError: If XML is malformed.
+        ImportError: If neither defusedxml nor lxml is available.
+    """
+    if _HAS_DEFUSEDXML:
+        return _defused_lxml.parse(source)
+
+    if _lxml_etree is not None:
+        logger.warning(
+            "defusedxml not installed -- using manual XXE mitigation. "
+            "Install defusedxml for full protection: pip install defusedxml"
+        )
+        parser = _lxml_etree.XMLParser(
+            resolve_entities=False,
+            no_network=True,
+            dtd_validation=False,
+            load_dtd=False,
+        )
+        return _lxml_etree.parse(source, parser=parser)
+
+    raise ImportError("Neither defusedxml nor lxml is available")
 
 # Configure logging
 logging.basicConfig(
@@ -490,8 +575,8 @@ def _validate_xml_structure(xml_string: str, template_type: str) -> Tuple[bool, 
     errors = []
 
     try:
-        # Parse XML to check well-formedness
-        doc = etree.fromstring(xml_string.encode('utf-8'))  # type: ignore
+        # Parse XML to check well-formedness (XXE-safe)
+        doc = safe_fromstring(xml_string)  # type: ignore
 
         # Validate XFA structure
         if doc.tag != "{http://www.xfa.org/schema/xfa-data/1.0/}datasets":
@@ -608,12 +693,12 @@ def _validate_xml_against_xsd(xml_string: str, template_type: str) -> Tuple[Opti
         return (None, [])
 
     try:
-        # Parse XML document
-        doc = etree.fromstring(xml_string.encode('utf-8'))  # type: ignore
+        # Parse XML document (XXE-safe)
+        doc = safe_fromstring(xml_string)  # type: ignore
 
-        # Load and parse XSD schema
+        # Load and parse XSD schema (trusted local file, but still use safe parser)
         with open(schema_path, 'rb') as f:
-            schema_doc = etree.parse(f)  # type: ignore
+            schema_doc = safe_parse(f)  # type: ignore
             schema = etree.XMLSchema(schema_doc)  # type: ignore
 
         # Validate against schema
@@ -808,6 +893,8 @@ def check_dependencies():
         missing.append("beautifulsoup4>=4.12.0")
     if etree is None:
         missing.append("lxml>=4.9.0")
+    if not _HAS_DEFUSEDXML:
+        missing.append("defusedxml>=0.7.1")
     if missing:
         print(f"ERROR: Missing dependencies: {', '.join(missing)}")
         print(f"Install with: pip install {' '.join(missing)}")
