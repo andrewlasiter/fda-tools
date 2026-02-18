@@ -23,7 +23,7 @@ Thank you for your interest in contributing to FDA Tools! This document provides
 ### Clone the Repository
 
 ```bash
-git clone https://github.com/andrewlasiter/fda-predicate-assistant.git
+git clone https://github.com/andrewlasiter/fda-tools.git
 cd fda-tools
 ```
 

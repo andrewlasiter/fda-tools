@@ -64,8 +64,8 @@ See the [full documentation](./plugins/fda-tools/README.md) for commands, agents
 
 - **Installation**: `claude plugin install fda-tools@fda-tools`
 - **Version**: 5.36.0
-- **Repository**: [GitHub](https://github.com/andrewlasiter/fda-predicate-assistant)
-- **Issues**: [Report a bug](https://github.com/andrewlasiter/fda-predicate-assistant/issues)
+- **Repository**: [GitHub](https://github.com/andrewlasiter/fda-tools)
+- **Issues**: [Report a bug](https://github.com/andrewlasiter/fda-tools/issues)
 - **License**: MIT
 
 ## License

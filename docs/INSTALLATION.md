@@ -83,7 +83,7 @@ Clone the repository:
 
 ```bash
 cd ~/.claude/plugins/marketplaces/
-git clone https://github.com/andrewlasiter/fda-predicate-assistant fda-tools
+git clone https://github.com/andrewlasiter/fda-tools fda-tools
 ```
 
 ### Step 3: Verify Plugin Installation
@@ -557,7 +557,7 @@ For best performance:
 
 ### Support Channels
 
-- **GitHub Issues**: [Report bugs](https://github.com/andrewlasiter/fda-predicate-assistant/issues)
+- **GitHub Issues**: [Report bugs](https://github.com/andrewlasiter/fda-tools/issues)
 - **Documentation**: All docs in `docs/` directory
 - **Ask Claude**: Use `/fda-510k-knowledge` expert for regulatory questions
 
@@ -611,8 +611,8 @@ Create a Dockerfile:
 FROM python:3.11-slim
 
 WORKDIR /app
-RUN git clone https://github.com/andrewlasiter/fda-predicate-assistant
-WORKDIR /app/fda-predicate-assistant/plugins/fda-tools
+RUN git clone https://github.com/andrewlasiter/fda-tools
+WORKDIR /app/fda-tools/plugins/fda-tools
 RUN pip install -r requirements.txt
 
 ENV FDA_DATA_DIR=/data
