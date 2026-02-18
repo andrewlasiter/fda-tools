@@ -40,7 +40,6 @@ from fda_api_client import FDAClient
 from fda_data_store import get_projects_dir, load_manifest, save_manifest
 from subprocess_utils import run_subprocess  # type: ignore
 
-
 def _load_fingerprint(
     project_dir: str, product_code: str
 ) -> Optional[Dict[str, Any]]:

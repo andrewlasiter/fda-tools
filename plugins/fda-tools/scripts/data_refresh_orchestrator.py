@@ -921,7 +921,7 @@ def _print_report(result: Dict) -> None:
         print(f"  Schedule:    {summary.get('schedule', 'manual')}")
         print(f"  Candidates:  {summary.get('total_candidates', 0)}")
         tiers = summary.get("tiers", {})
-        for tier_name, tier_data in tiers.items():
+        for _tier_name, tier_data in tiers.items():
             print(f"    {tier_data['label']}: {tier_data['count']} items")
     elif status == "completed":
         summary = result.get("summary", {})

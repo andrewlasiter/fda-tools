@@ -57,6 +57,15 @@ except ImportError:
         session.headers.update(FDA_WEBSITE_HEADERS)
         return session
 
+# FDA-12: Cross-process rate limiter
+try:
+    _lib_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lib")
+    sys.path.insert(0, _lib_dir)
+    from cross_process_rate_limiter import CrossProcessRateLimiter  # type: ignore
+    _CROSS_PROCESS_LIMITER_AVAILABLE = True
+except ImportError:
+    _CROSS_PROCESS_LIMITER_AVAILABLE = False
+
 # Initialize colorama
 init(autoreset=True)
 

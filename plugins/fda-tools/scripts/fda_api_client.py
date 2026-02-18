@@ -61,6 +61,14 @@ except ImportError:
     RateLimiter = None  # type: ignore
     RetryPolicy = None  # type: ignore
 
+# Import cross-process rate limiter (FDA-12)
+try:
+    from lib.cross_process_rate_limiter import CrossProcessRateLimiter  # type: ignore
+    _CROSS_PROCESS_LIMITER_AVAILABLE = True
+except ImportError:
+    _CROSS_PROCESS_LIMITER_AVAILABLE = False
+    CrossProcessRateLimiter = None  # type: ignore
+
 
 # Module logger (FDA-18 / GAP-014)
 logger = logging.getLogger(__name__)
@@ -152,6 +160,21 @@ class FDAClient:
             logger.warning(
                 "Rate limiter not available (lib.rate_limiter not imported). "
                 "Running without rate limiting."
+            )
+
+        # Initialize cross-process rate limiter (FDA-12)
+        if _CROSS_PROCESS_LIMITER_AVAILABLE:
+            self._cross_process_limiter = CrossProcessRateLimiter(
+                has_api_key=bool(self.api_key),
+            )
+            logger.info(
+                "Cross-process rate limiting enabled (FDA-12): %d req/min",
+                self._cross_process_limiter.requests_per_minute,
+            )
+        else:
+            self._cross_process_limiter = None
+            logger.debug(
+                "Cross-process rate limiter not available (lib.cross_process_rate_limiter not imported)."
             )
 
     def _audit_logger(self, event):
@@ -286,6 +309,20 @@ class FDAClient:
             return cached
 
         self._stats["misses"] += 1
+
+        # FDA-12: Cross-process rate limit check (file-based lock)
+        if self._cross_process_limiter:
+            xp_acquired = self._cross_process_limiter.acquire(timeout=120.0)
+            if not xp_acquired:
+                self._stats["errors"] += 1
+                logger.error(
+                    "Cross-process rate limit timeout (120s) - "
+                    "too many concurrent FDA API processes"
+                )
+                return {
+                    "error": "Cross-process rate limit timeout after 120s",
+                    "degraded": True,
+                }
 
         # Acquire rate limit token (blocks if necessary)
         if self._rate_limiter:
@@ -828,6 +865,25 @@ class FDAClient:
         if self._rate_limiter:
             stats["rate_limiting"] = self._rate_limiter.get_stats()
 
+        # FDA-13: Add PMA SSED cache size info if available
+        try:
+            pma_cache_dir = Path(os.path.expanduser("~/fda-510k-data/pma_cache"))
+            if pma_cache_dir.exists():
+                pma_pdf_size = sum(
+                    f.stat().st_size for f in pma_cache_dir.rglob("*.pdf")
+                )
+                pma_pdf_count = sum(1 for _ in pma_cache_dir.rglob("*.pdf"))
+                stats["pma_ssed_cache"] = {
+                    "pdf_count": pma_pdf_count,
+                    "total_size_mb": round(pma_pdf_size / (1024 * 1024), 2),
+                }
+        except OSError:
+            pass  # Non-fatal: PMA cache stats are supplementary
+
+        # FDA-12: Add cross-process rate limit status
+        if self._cross_process_limiter:
+            stats["cross_process_rate_limit"] = self._cross_process_limiter.get_status()
+
         return stats
 
     def rate_limit_stats(self) -> Optional[Dict]:
@@ -896,6 +952,8 @@ def main():
     parser.add_argument("--lookup", help="Look up a device number (K/P/DEN)")
     parser.add_argument("--classify", help="Classify a product code")
     parser.add_argument("--get-all-codes", action="store_true", help="Enumerate all FDA product codes")
+    parser.add_argument("--health-check", action="store_true", dest="health_check",
+                        help="Run health check including cross-process rate limit status (FDA-12)")
     args = parser.parse_args()
 
     client = FDAClient()
@@ -944,6 +1002,20 @@ def main():
                 print(f"Total wait time: {rl['total_wait_time_seconds']:.1f}s")
             print(f"Rate limit warnings: {rl['rate_limit_warnings']}")
             print(f"Current tokens: {rl['current_tokens']:.1f} / {rl['requests_per_minute']}")
+
+        # FDA-12: Show cross-process rate limit status
+        if "cross_process_rate_limit" in stats:
+            xp = stats["cross_process_rate_limit"]
+            print("\n" + "=" * 60)
+            print("CROSS-PROCESS RATE LIMITING (FDA-12)")
+            print("=" * 60)
+            print(f"Requests in last minute: {xp.get('requests_last_minute', 'N/A')}")
+            print(f"Rate limit: {xp.get('requests_per_minute', 'N/A')} req/min")
+            print(f"Utilization: {xp.get('utilization_percent', 'N/A')}%")
+            print(f"Available: {xp.get('available', 'N/A')} requests")
+            print(f"State file: {xp.get('state_file', 'N/A')}")
+            print(f"Lock file: {xp.get('lock_file', 'N/A')}")
+            print(f"Current PID: {xp.get('pid', 'N/A')}")
         print("=" * 60)
 
     elif args.clear:
@@ -973,6 +1045,55 @@ def main():
         codes = client.get_all_product_codes()
         for code in codes:
             print(code)
+
+    elif args.health_check:
+        # FDA-12: Health check with cross-process rate limit status
+        print("=" * 60)
+        print("FDA API CLIENT HEALTH CHECK")
+        print("=" * 60)
+
+        # API connectivity
+        print("\n[API Connectivity]")
+        print(f"  API enabled: {client.enabled}")
+        print(f"  API key: {'configured' if client.api_key else 'not configured'}")
+
+        # Cache stats
+        cache = client.cache_stats()
+        print(f"\n[Cache]")
+        print(f"  Directory: {cache['cache_dir']}")
+        print(f"  Files: {cache['total_files']} ({cache['valid']} valid)")
+        print(f"  Size: {cache['total_size_mb']} MB")
+
+        # In-process rate limiter
+        print(f"\n[In-Process Rate Limiter (FDA-20)]")
+        if client._rate_limiter:
+            rl = client._rate_limiter.get_stats()
+            print(f"  Status: active")
+            print(f"  Rate limit: {rl['requests_per_minute']} req/min")
+            print(f"  Tokens available: {rl['current_tokens']:.0f}")
+        else:
+            print(f"  Status: not available")
+
+        # Cross-process rate limiter
+        print(f"\n[Cross-Process Rate Limiter (FDA-12)]")
+        if client._cross_process_limiter:
+            health = client._cross_process_limiter.health_check()
+            status = health["status"]
+            print(f"  Status: {'healthy' if health['healthy'] else 'unhealthy'}")
+            print(f"  Requests in window: {status.get('requests_last_minute', 'N/A')}"
+                  f" / {status.get('requests_per_minute', 'N/A')}")
+            print(f"  Utilization: {status.get('utilization_percent', 'N/A')}%")
+            print(f"  Available: {status.get('available', 'N/A')} requests")
+            print(f"  Lock file: {health['lock_exists']}")
+            print(f"  State file: {health['state_exists']} "
+                  f"(readable: {health['state_readable']})")
+            if health["warnings"]:
+                for w in health["warnings"]:
+                    print(f"  WARNING: {w}")
+        else:
+            print(f"  Status: not available")
+
+        print("\n" + "=" * 60)
 
 
 if __name__ == "__main__":
