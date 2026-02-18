@@ -100,6 +100,25 @@ To get an API key:
 2. Sign up for free
 3. Copy your API key
 
+#### Settings File Schema
+
+The settings file at `~/.claude/fda-tools.local.md` uses YAML frontmatter format. An example
+file with all supported fields and documentation is available at:
+
+```
+plugins/fda-tools/docs/fda-tools.local.example.md
+```
+
+Copy it to get started:
+
+```bash
+cp ~/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/docs/fda-tools.local.example.md \
+   ~/.claude/fda-tools.local.md
+```
+
+See the [main INSTALLATION.md](../../../docs/INSTALLATION.md#settings-schema-reference) for
+the complete settings schema reference with types, defaults, and validation rules.
+
 ### 3. Install Python Dependencies (Optional)
 
 For batch scripts and data pipeline:
