@@ -29,6 +29,7 @@ from pma_supplement_enhanced import (
     DECISION_TREE,
     PACKAGE_SECTIONS,
     CLASSIFICATION_PATTERNS,
+    REGULATORY_DISCLAIMER,
 )
 
 
@@ -487,6 +488,95 @@ class TestConstants:
         for stype in SUPPLEMENT_TYPES:
             assert stype in PACKAGE_SECTIONS, f"Missing package sections for {stype}"
             assert len(PACKAGE_SECTIONS[stype]) > 0
+
+
+# ==================================================================
+# Regulatory Disclaimer Tests (FDA-87)
+# ==================================================================
+
+class TestRegulatoryDisclaimers:
+    """Tests for FDA-87: Regulatory disclaimers on heuristic scoring."""
+
+    def test_regulatory_disclaimer_constant_exists(self):
+        """REGULATORY_DISCLAIMER constant should be defined."""
+        assert REGULATORY_DISCLAIMER is not None
+        assert len(REGULATORY_DISCLAIMER.strip()) > 100
+        assert "HEURISTIC ESTIMATE" in REGULATORY_DISCLAIMER
+        assert "regulatory affairs professionals" in REGULATORY_DISCLAIMER.lower()
+
+    def test_classifier_result_includes_disclaimer(self):
+        """Classification results should include disclaimer field."""
+        classifier = SupplementTypeClassifier()
+        result = classifier.classify("180-day supplement for design change")
+        assert "disclaimer" in result
+        assert "HEURISTIC ESTIMATE" in result["disclaimer"]
+
+    def test_classifier_heuristic_fallback_includes_disclaimer(self):
+        """Heuristic fallback results should include disclaimer field."""
+        classifier = SupplementTypeClassifier()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            result = classifier.classify("some vague change text here")
+        assert "disclaimer" in result
+
+    def test_impact_assessor_result_includes_disclaimer(self):
+        """Impact assessment results should include disclaimer field."""
+        assessor = ChangeImpactAssessor()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            result = assessor.assess_impact(change_type="design_change")
+        assert "disclaimer" in result
+        assert "HEURISTIC ESTIMATE" in result["disclaimer"]
+
+    def test_low_confidence_emits_warning(self):
+        """Low confidence classification should emit runtime warning."""
+        classifier = SupplementTypeClassifier()
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            # Use ambiguous text likely to produce low confidence
+            classifier.classify("some vague change")
+            # Should have at least one warning about low confidence or heuristic
+            warning_messages = [str(warning.message) for warning in w]
+            assert any(
+                "heuristic" in msg.lower() or "confidence" in msg.lower()
+                for msg in warning_messages
+            ), f"Expected low-confidence warning, got: {warning_messages}"
+
+    def test_critical_impact_emits_warning(self):
+        """CRITICAL impact score should emit runtime warning."""
+        assessor = ChangeImpactAssessor()
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            assessor.assess_impact(
+                change_type="design_change",
+                affected_components=[
+                    "materials", "biocompatibility",
+                    "mechanism_of_action", "sterilization",
+                ],
+            )
+            warning_messages = [str(warning.message) for warning in w]
+            assert any(
+                "CRITICAL" in msg or "heuristic" in msg.lower()
+                for msg in warning_messages
+            ), f"Expected CRITICAL warning, got: {warning_messages}"
+
+    def test_package_generator_disclaimer_present(self):
+        """Package generator output should include disclaimer."""
+        generator = SupplementPackageGenerator()
+        result = generator.generate(supplement_type="180_day")
+        assert "disclaimer" in result
+        assert "AI-generated" in result["disclaimer"] or "verification" in result["disclaimer"].lower()
+
+    def test_disclaimer_in_json_output(self):
+        """JSON output should include disclaimer field."""
+        classifier = SupplementTypeClassifier()
+        result = classifier.classify("180-day supplement")
+        json_str = json.dumps(result, indent=2)
+        parsed = json.loads(json_str)
+        assert "disclaimer" in parsed
+
+
+import warnings
 
 
 if __name__ == "__main__":

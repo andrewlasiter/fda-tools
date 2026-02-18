@@ -4,6 +4,15 @@ PMA Supplement Support Enhancement (FDA-65) -- Advanced supplement type
 classification, decision tree, change impact assessment, and package generation
 per 21 CFR 814.39.
 
+REGULATORY DISCLAIMER:
+All scores, classifications, and recommendations produced by this module are
+HEURISTIC ESTIMATES based on historical patterns and keyword analysis. They
+should NOT be used as the sole basis for regulatory decisions. Actual FDA
+supplement type determination depends on device-specific characteristics,
+current FDA policy, and detailed risk assessment by qualified personnel.
+ALWAYS consult with qualified regulatory affairs professionals and consider
+submitting a Pre-Submission (Q-Submission) to FDA for official guidance.
+
 Extends supplement_tracker.py with:
   1. Enhanced supplement type classifier (>=95% accuracy target)
   2. Supplement decision tree (which type for which change)
@@ -56,9 +65,29 @@ Usage:
 import argparse
 import json
 import re
+import sys
+import warnings
 from collections import OrderedDict
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
+
+
+# ------------------------------------------------------------------
+# REGULATORY DISCLAIMER
+# ------------------------------------------------------------------
+
+REGULATORY_DISCLAIMER = """
+REGULATORY DISCLAIMER:
+This score is a HEURISTIC ESTIMATE based on historical patterns and should
+NOT be used as the sole basis for regulatory decisions. Actual FDA
+classification may differ based on:
+- Specific device characteristics not captured in this model
+- Current FDA policy and precedent
+- Detailed risk assessment by qualified personnel
+
+ALWAYS consult with qualified regulatory affairs professionals and consider
+submitting a Pre-Submission (Q-Submission) to FDA for official guidance.
+"""
 
 
 # ------------------------------------------------------------------
@@ -461,11 +490,21 @@ class SupplementTypeClassifier:
       1. Regex pattern matching with priority weights
       2. Contextual modifiers (clinical data presence, risk signals)
       3. Confidence scoring with thresholds
+
+    REGULATORY DISCLAIMER:
+    Classification results are HEURISTIC ESTIMATES based on keyword pattern
+    matching against historical data. They should NOT be used as the sole
+    basis for regulatory decisions. Actual FDA supplement type determination
+    depends on device-specific characteristics, current FDA policy, and
+    professional risk assessment. Always consult qualified RA professionals.
     """
 
     CONFIDENCE_HIGH = 0.85
     CONFIDENCE_MEDIUM = 0.60
     CONFIDENCE_LOW = 0.40
+
+    # Threshold below which a runtime warning is emitted
+    LOW_CONFIDENCE_WARNING_THRESHOLD = 0.50
 
     def __init__(self):
         """Initialize classifier with compiled patterns."""
@@ -482,6 +521,10 @@ class SupplementTypeClassifier:
     ) -> Dict[str, Any]:
         """Classify a change description into a supplement type.
 
+        REGULATORY DISCLAIMER: This classification is a heuristic estimate.
+        It should NOT be used as the sole basis for regulatory decisions.
+        Always consult qualified regulatory affairs professionals.
+
         Args:
             change_description: Free-text description of the PMA change.
             has_clinical_data: Whether clinical data supports the change.
@@ -491,8 +534,8 @@ class SupplementTypeClassifier:
             is_labeling_change: Explicit flag for labeling changes.
 
         Returns:
-            Classification result with type, confidence, rationale, and
-            alternative types considered.
+            Classification result with type, confidence, rationale,
+            alternative types considered, and regulatory disclaimer.
         """
         if not change_description or not change_description.strip():
             return {
@@ -565,6 +608,17 @@ class SupplementTypeClassifier:
             })
 
         type_def = SUPPLEMENT_TYPES.get(best_type, {})  # type: ignore
+
+        # Emit runtime warning for low-confidence classifications
+        if confidence < self.LOW_CONFIDENCE_WARNING_THRESHOLD:
+            warnings.warn(
+                f"Low confidence ({confidence:.1%}) for PMA supplement classification "
+                f"as '{type_def.get('label', best_type)}'. "
+                f"This heuristic estimate should be verified by a qualified "
+                f"regulatory affairs professional before any regulatory action.",
+                stacklevel=2,
+            )
+
         return {
             "supplement_type": best_type,
             "label": type_def.get("label", best_type),
@@ -577,10 +631,15 @@ class SupplementTypeClassifier:
             "rationale": self._build_rationale(best_type, matched_patterns.get(best_type, [])),
             "alternatives": alternatives,
             "matched_patterns": len(matched_patterns.get(best_type, [])),
+            "disclaimer": REGULATORY_DISCLAIMER.strip(),
         }
 
     def _heuristic_classify(self, text: str, has_clinical: bool) -> Dict:
-        """Fallback heuristic classification when no patterns match."""
+        """Fallback heuristic classification when no patterns match.
+
+        REGULATORY DISCLAIMER: This is a low-confidence heuristic fallback.
+        Results should be verified by qualified regulatory professionals.
+        """
         # Simple keyword presence check
         if any(kw in text for kw in ("label", "ifu", "instructions")):
             stype = "real_time"
@@ -594,6 +653,15 @@ class SupplementTypeClassifier:
             stype = "180_day"  # Conservative default
 
         type_def = SUPPLEMENT_TYPES.get(stype, {})
+
+        # Always warn for heuristic fallback -- these are inherently low-confidence
+        warnings.warn(
+            f"Heuristic fallback classification to '{type_def.get('label', stype)}' "
+            f"(confidence: 35%). No strong regulatory patterns matched. "
+            f"Consult a qualified regulatory affairs professional.",
+            stacklevel=3,
+        )
+
         return {
             "supplement_type": stype,
             "label": type_def.get("label", stype),
@@ -603,9 +671,13 @@ class SupplementTypeClassifier:
             "confidence": 0.35,
             "confidence_label": "LOW",
             "score": 0.0,
-            "rationale": f"Heuristic classification based on keyword analysis. Consider consulting RA professional.",
+            "rationale": (
+                "Heuristic classification based on keyword analysis. "
+                "Consider consulting RA professional."
+            ),
             "alternatives": [],
             "matched_patterns": 0,
+            "disclaimer": REGULATORY_DISCLAIMER.strip(),
         }
 
     def _build_rationale(self, stype: str, patterns: List[str]) -> str:
@@ -907,6 +979,13 @@ class ChangeImpactAssessor:
     - Risk level of the change
     - Required data packages
     - Estimated timeline and cost impact
+
+    REGULATORY DISCLAIMER:
+    Impact scores and risk levels are HEURISTIC ESTIMATES derived from
+    weighted scoring models. They do NOT replace professional regulatory
+    assessment. Actual regulatory burden depends on device-specific factors,
+    current FDA guidance, and reviewer discretion. Always consult qualified
+    regulatory affairs professionals before making regulatory decisions.
     """
 
     def __init__(self):
@@ -924,6 +1003,10 @@ class ChangeImpactAssessor:
     ) -> Dict:
         """Assess the regulatory impact of a proposed change.
 
+        REGULATORY DISCLAIMER: Impact scores are heuristic estimates.
+        They should NOT be used as the sole basis for regulatory decisions.
+        Always consult qualified regulatory affairs professionals.
+
         Args:
             change_type: Primary change category (design_change, manufacturing_change,
                         labeling_change, indication_change).
@@ -934,8 +1017,8 @@ class ChangeImpactAssessor:
             change_description: Free-text description for additional analysis.
 
         Returns:
-            Impact assessment with scores, risk level, required data, and
-            estimated timeline.
+            Impact assessment with scores, risk level, required data,
+            estimated timeline, and regulatory disclaimer.
         """
         if change_type not in self._categories:
             change_type = self._infer_change_type(change_description)
@@ -998,6 +1081,16 @@ class ChangeImpactAssessor:
 
         type_def = SUPPLEMENT_TYPES.get(supplement_type, {})
 
+        # Emit runtime warning for high-impact (CRITICAL) scores
+        if risk_level == "CRITICAL":
+            warnings.warn(
+                f"CRITICAL impact score ({total_score}) for change type "
+                f"'{change_type}'. This heuristic assessment suggests a "
+                f"Panel-Track Supplement may be required. Consult qualified "
+                f"regulatory affairs professionals for definitive determination.",
+                stacklevel=2,
+            )
+
         return {
             "change_type": change_type,
             "impact_score": total_score,
@@ -1013,6 +1106,7 @@ class ChangeImpactAssessor:
             "required_documentation": required_docs,
             "estimated_timeline": timeline,
             "assessment_date": datetime.now(timezone.utc).isoformat(),
+            "disclaimer": REGULATORY_DISCLAIMER.strip(),
         }
 
     def _infer_change_type(self, description: str) -> str:
@@ -1429,7 +1523,9 @@ def _format_classification(result: Dict) -> str:
         for alt in alts:
             lines.append(f"  - {alt['label']} (confidence: {alt['confidence']:.1%})")
 
-    lines.extend(["", "=" * 60])
+    lines.extend(["", "-" * 60])
+    lines.append(REGULATORY_DISCLAIMER.strip())
+    lines.extend(["=" * 60])
     return "\n".join(lines)
 
 
@@ -1468,7 +1564,9 @@ def _format_impact(result: Dict) -> str:
         for doc in docs:
             lines.append(f"  [{doc['priority']}] {doc['document']}")
 
-    lines.extend(["", "=" * 60])
+    lines.extend(["", "-" * 60])
+    lines.append(REGULATORY_DISCLAIMER.strip())
+    lines.extend(["=" * 60])
     return "\n".join(lines)
 
 
@@ -1511,6 +1609,10 @@ def main():
     package_p.add_argument("--json", action="store_true")
 
     args = parser.parse_args()
+
+    # Print disclaimer to stderr for all scoring commands
+    if args.command in ("classify", "decide", "impact"):
+        print(REGULATORY_DISCLAIMER, file=sys.stderr)
 
     if args.command == "classify":
         classifier = SupplementTypeClassifier()

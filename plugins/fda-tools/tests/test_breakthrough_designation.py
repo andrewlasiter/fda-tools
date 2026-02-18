@@ -33,6 +33,7 @@ from breakthrough_designation import (  # type: ignore
     CONDITION_CATEGORIES,
     SPRINT_REVIEW_MILESTONES,
     INTERACTIVE_REVIEW_SECTIONS,
+    REGULATORY_DISCLAIMER,
     BreakthroughDesignation,
 )
 
@@ -508,3 +509,36 @@ class TestPersistence:
         loaded = bt.load_template("test_tracker")
         assert loaded is not None
         assert loaded["device_name"] == "CardioAssist Pro"
+
+
+# ============================================================
+# Test: Regulatory Disclaimers (FDA-87)
+# ============================================================
+
+class TestRegulatoryDisclaimers:
+    """Test FDA-87: Regulatory disclaimers on Breakthrough designation outputs."""
+
+    def test_regulatory_disclaimer_constant_exists(self):
+        """REGULATORY_DISCLAIMER constant should be defined."""
+        assert REGULATORY_DISCLAIMER is not None
+        assert len(REGULATORY_DISCLAIMER.strip()) > 100
+        assert "PLANNING AND RESEARCH" in REGULATORY_DISCLAIMER
+        assert "regulatory affairs professionals" in REGULATORY_DISCLAIMER.lower()
+
+    def test_designation_summary_includes_disclaimer(self, bt, sample_request):
+        """Designation summary should include regulatory disclaimer."""
+        summary = bt.generate_designation_summary(sample_request)
+        assert "REGULATORY DISCLAIMER" in summary
+        assert "PLANNING AND RESEARCH" in summary
+
+    def test_tracker_summary_includes_disclaimer(self, bt, sample_tracker):
+        """Tracker summary should include regulatory disclaimer."""
+        summary = bt.generate_tracker_summary(sample_tracker)
+        assert "REGULATORY DISCLAIMER" in summary
+        assert "PLANNING AND RESEARCH" in summary
+
+    def test_disclaimer_warns_against_sole_reliance(self):
+        """Disclaimer should warn against using as sole basis for decisions."""
+        assert "NOT" in REGULATORY_DISCLAIMER
+        assert "sole basis" in REGULATORY_DISCLAIMER.lower() or \
+               "without independent review" in REGULATORY_DISCLAIMER.lower()
