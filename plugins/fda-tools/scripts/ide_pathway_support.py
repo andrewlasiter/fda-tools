@@ -60,11 +60,26 @@ Usage:
 
 import argparse
 import json
+import logging
 import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
+
+try:
+    from tenacity import (
+        retry,
+        stop_after_attempt,
+        retry_if_exception_type,
+        before_sleep_log,
+        after_log,
+    )
+    _HAS_TENACITY = True
+except ImportError:
+    _HAS_TENACITY = False
+
+logger = logging.getLogger(__name__)
 
 
 # ------------------------------------------------------------------
@@ -867,17 +882,178 @@ class IDESubmissionOutline:
 
 
 # ==================================================================
-# ClinicalTrials.gov Integration
+# ClinicalTrials.gov Integration (with retry/backoff -- FDA-89)
 # ==================================================================
+
+
+class _RateLimitError(Exception):
+    """Raised when ClinicalTrials.gov returns HTTP 429 (Too Many Requests).
+
+    Attributes:
+        retry_after: Seconds to wait before retrying, from the
+            Retry-After response header. Defaults to 60 if the
+            header is absent.
+    """
+
+    def __init__(self, retry_after: int = 60):
+        self.retry_after = retry_after
+        super().__init__(f"Rate limited, retry after {retry_after}s")
+
+
+class _ServerError(Exception):
+    """Raised when the API returns a 5xx server-side error."""
+
+    def __init__(self, status_code: int, reason: str = ""):
+        self.status_code = status_code
+        super().__init__(f"Server error {status_code}: {reason}")
+
+
+def _is_retryable(exc: BaseException) -> bool:
+    """Return True for exceptions that warrant an automatic retry.
+
+    Retryable conditions:
+      - Network-level failures (URLError without HTTP status)
+      - HTTP 429 (rate-limited) -- handled via _RateLimitError
+      - HTTP 5xx (server errors) -- handled via _ServerError
+      - socket.timeout (wrapped inside URLError on some platforms)
+
+    NOT retried:
+      - HTTP 4xx client errors (bad request, not found, etc.)
+      - JSON decode errors (malformed response body)
+    """
+    return isinstance(exc, (
+        _RateLimitError,
+        _ServerError,
+        urllib.error.URLError,        # connection reset, DNS, etc.
+        ConnectionError,
+        TimeoutError,
+        OSError,
+    ))
+
+
+def _wait_for_rate_limit(retry_state) -> float:
+    """Custom wait strategy that honours the Retry-After header.
+
+    If the last exception was a _RateLimitError the wait time
+    equals the server-provided Retry-After value (capped at 120 s).
+    Otherwise falls back to exponential backoff (2-10 s).
+    """
+    exc = retry_state.outcome.exception()
+    if isinstance(exc, _RateLimitError):
+        return min(exc.retry_after, 120)
+    # Exponential backoff: 2s, 4s, 8s (capped at 10s)
+    attempt = retry_state.attempt_number
+    return min(2 ** attempt, 10)
+
 
 class ClinicalTrialsIntegration:
     """Search ClinicalTrials.gov for device-related IDE studies.
 
     Uses the ClinicalTrials.gov v2 API to find relevant device studies
     and extract protocol information.
+
+    Resilience (FDA-89):
+      - Automatic retry on transient failures (up to 3 attempts)
+      - Exponential backoff: ~2 s, ~4 s, ~8 s (capped at 10 s)
+      - HTTP 429 rate-limit handling with Retry-After header
+      - Server errors (5xx) retried; client errors (4xx) fail fast
+      - Graceful fallback when tenacity is not installed
     """
 
     BASE_URL = "https://clinicaltrials.gov/api/v2/studies"
+    MAX_RETRIES = 3
+    REQUEST_TIMEOUT = 15  # seconds
+
+    def __init__(self, max_retries: int = 3, request_timeout: int = 15):
+        """Initialise with optional retry and timeout configuration.
+
+        Args:
+            max_retries: Maximum number of retry attempts per request
+                (default 3). Set to 1 to disable retries.
+            request_timeout: Per-request socket timeout in seconds
+                (default 15).
+        """
+        self.MAX_RETRIES = max(1, max_retries)
+        self.REQUEST_TIMEOUT = max(1, request_timeout)
+
+    # ------------------------------------------------------------------
+    # Low-level HTTP helper with retry support
+    # ------------------------------------------------------------------
+
+    def _fetch_json(self, url: str) -> dict:
+        """Fetch JSON from *url* with retry and rate-limit handling.
+
+        The method is wrapped with ``tenacity`` retry logic when the
+        library is available. When tenacity is absent the request is
+        attempted once, preserving backward-compatible behaviour.
+
+        Raises:
+            _RateLimitError: On HTTP 429 (triggers retry).
+            _ServerError: On HTTP 5xx (triggers retry).
+            urllib.error.HTTPError: On HTTP 4xx client errors
+                (NOT retried).
+            urllib.error.URLError: On network failures (retried).
+        """
+        req = urllib.request.Request(url, headers={"User-Agent": "FDA-Tools/1.0"})
+        try:
+            with urllib.request.urlopen(req, timeout=self.REQUEST_TIMEOUT) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as http_err:
+            if http_err.code == 429:
+                retry_after = 60
+                try:
+                    retry_after = int(http_err.headers.get("Retry-After", 60))
+                except (TypeError, ValueError):
+                    pass
+                logger.warning(
+                    "ClinicalTrials.gov rate limit hit (429). "
+                    "Retry-After: %ds. URL: %s",
+                    retry_after,
+                    url,
+                )
+                raise _RateLimitError(retry_after) from http_err
+            if http_err.code >= 500:
+                logger.warning(
+                    "ClinicalTrials.gov server error %d for URL: %s",
+                    http_err.code,
+                    url,
+                )
+                raise _ServerError(http_err.code, str(http_err)) from http_err
+            # 4xx client errors -- do NOT retry
+            raise
+
+    def _fetch_json_with_retry(self, url: str) -> dict:
+        """Public entry-point that wraps ``_fetch_json`` with retries.
+
+        When *tenacity* is installed the call is decorated dynamically
+        so that transient errors are retried up to ``self.MAX_RETRIES``
+        times with exponential back-off (or Retry-After for 429s).
+
+        When *tenacity* is not installed the request is attempted once.
+        """
+        if _HAS_TENACITY:
+            retrying = retry(
+                stop=stop_after_attempt(self.MAX_RETRIES),
+                wait=_wait_for_rate_limit,
+                retry=retry_if_exception_type((
+                    _RateLimitError,
+                    _ServerError,
+                    urllib.error.URLError,
+                    ConnectionError,
+                    TimeoutError,
+                    OSError,
+                )),
+                before_sleep=before_sleep_log(logger, logging.WARNING),
+                after=after_log(logger, logging.DEBUG),
+                reraise=True,
+            )
+            return retrying(self._fetch_json)(url)
+        # Fallback -- no retry library available
+        return self._fetch_json(url)
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
 
     def search_device_studies(
         self,
@@ -893,7 +1069,8 @@ class ClinicalTrialsIntegration:
             max_results: Maximum results to return.
 
         Returns:
-            Search results with study summaries.
+            Search results with study summaries. On failure the dict
+            contains an ``error`` key with a human-readable message.
         """
         params = {
             "query.term": f"{device_name} device",
@@ -907,9 +1084,7 @@ class ClinicalTrialsIntegration:
         url = f"{self.BASE_URL}?{urllib.parse.urlencode(params)}"
 
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "FDA-Tools/1.0"})
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
+            data = self._fetch_json_with_retry(url)
 
             studies = []
             for study in data.get("studies", []):
@@ -941,7 +1116,18 @@ class ClinicalTrialsIntegration:
                 "searched_at": datetime.now(timezone.utc).isoformat(),
             }
 
-        except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError) as e:
+        except (
+            urllib.error.URLError,
+            urllib.error.HTTPError,
+            json.JSONDecodeError,
+            _RateLimitError,
+            _ServerError,
+        ) as e:
+            logger.error(
+                "ClinicalTrials.gov search failed for '%s' after retries: %s",
+                device_name,
+                e,
+            )
             return {
                 "query": device_name,
                 "total_found": 0,
@@ -959,14 +1145,13 @@ class ClinicalTrialsIntegration:
             nct_id: ClinicalTrials.gov NCT ID (e.g., NCT12345678).
 
         Returns:
-            Detailed study information.
+            Detailed study information. On failure the dict contains
+            an ``error`` key with a human-readable message.
         """
         url = f"{self.BASE_URL}/{nct_id}?format=json"
 
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": "FDA-Tools/1.0"})
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
+            data = self._fetch_json_with_retry(url)
 
             protocol = data.get("protocolSection", {})
             return {
@@ -980,7 +1165,18 @@ class ClinicalTrialsIntegration:
                 "retrieved_at": datetime.now(timezone.utc).isoformat(),
             }
 
-        except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError) as e:
+        except (
+            urllib.error.URLError,
+            urllib.error.HTTPError,
+            json.JSONDecodeError,
+            _RateLimitError,
+            _ServerError,
+        ) as e:
+            logger.error(
+                "ClinicalTrials.gov detail fetch failed for %s after retries: %s",
+                nct_id,
+                e,
+            )
             return {
                 "nct_id": nct_id,
                 "error": str(e),

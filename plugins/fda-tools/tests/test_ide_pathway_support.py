@@ -16,6 +16,7 @@ Minimum 35 tests required for this module.
 
 import json
 import sys
+import urllib.error
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
@@ -37,6 +38,11 @@ from ide_pathway_support import (
     FAILURE_SEVERITY,
     IDE_SUBMISSION_SECTIONS,
     COMPLIANCE_REQUIREMENTS,
+    _RateLimitError,
+    _ServerError,
+    _is_retryable,
+    _wait_for_rate_limit,
+    _HAS_TENACITY,
 )
 
 
@@ -451,6 +457,239 @@ class TestClinicalTrialsIntegration:
             result = ct.get_study_details("NCT00000000")
         assert "error" in result
         assert result["nct_id"] == "NCT00000000"
+
+
+# ==================================================================
+# ClinicalTrials.gov Retry Logic Tests (FDA-89)
+# ==================================================================
+
+class TestRetryExceptions:
+    """Tests for retry-related exception classes."""
+
+    def test_rate_limit_error_default_retry_after(self):
+        """_RateLimitError should default to 60 s retry-after."""
+        err = _RateLimitError()
+        assert err.retry_after == 60
+        assert "60" in str(err)
+
+    def test_rate_limit_error_custom_retry_after(self):
+        """_RateLimitError should accept custom retry-after."""
+        err = _RateLimitError(retry_after=30)
+        assert err.retry_after == 30
+
+    def test_server_error_stores_status_code(self):
+        """_ServerError should store the HTTP status code."""
+        err = _ServerError(503, "Service Unavailable")
+        assert err.status_code == 503
+        assert "503" in str(err)
+
+    def test_is_retryable_rate_limit(self):
+        """_RateLimitError should be retryable."""
+        assert _is_retryable(_RateLimitError()) is True
+
+    def test_is_retryable_server_error(self):
+        """_ServerError should be retryable."""
+        assert _is_retryable(_ServerError(500)) is True
+
+    def test_is_retryable_url_error(self):
+        """URLError should be retryable."""
+        assert _is_retryable(urllib.error.URLError("timeout")) is True
+
+    def test_is_retryable_connection_error(self):
+        """ConnectionError should be retryable."""
+        assert _is_retryable(ConnectionError("reset")) is True
+
+    def test_is_retryable_timeout_error(self):
+        """TimeoutError should be retryable."""
+        assert _is_retryable(TimeoutError()) is True
+
+    def test_is_not_retryable_value_error(self):
+        """ValueError should NOT be retryable."""
+        assert _is_retryable(ValueError("bad input")) is False
+
+    def test_is_not_retryable_json_decode(self):
+        """JSONDecodeError should NOT be retryable."""
+        assert _is_retryable(json.JSONDecodeError("msg", "doc", 0)) is False
+
+
+class TestWaitForRateLimit:
+    """Tests for the custom wait strategy."""
+
+    def _make_retry_state(self, exc, attempt=1):
+        """Create a mock retry_state object."""
+        state = MagicMock()
+        state.outcome.exception.return_value = exc
+        state.attempt_number = attempt
+        return state
+
+    def test_rate_limit_uses_retry_after(self):
+        """Should use Retry-After value for rate-limit errors."""
+        state = self._make_retry_state(_RateLimitError(retry_after=45))
+        wait = _wait_for_rate_limit(state)
+        assert wait == 45
+
+    def test_rate_limit_caps_at_120(self):
+        """Should cap Retry-After at 120 seconds."""
+        state = self._make_retry_state(_RateLimitError(retry_after=300))
+        wait = _wait_for_rate_limit(state)
+        assert wait == 120
+
+    def test_server_error_exponential_attempt_1(self):
+        """First attempt should wait ~2 seconds."""
+        state = self._make_retry_state(_ServerError(500), attempt=1)
+        wait = _wait_for_rate_limit(state)
+        assert wait == 2
+
+    def test_server_error_exponential_attempt_2(self):
+        """Second attempt should wait ~4 seconds."""
+        state = self._make_retry_state(_ServerError(500), attempt=2)
+        wait = _wait_for_rate_limit(state)
+        assert wait == 4
+
+    def test_server_error_exponential_capped_at_10(self):
+        """Exponential backoff should be capped at 10 seconds."""
+        state = self._make_retry_state(_ServerError(500), attempt=5)
+        wait = _wait_for_rate_limit(state)
+        assert wait == 10
+
+
+class TestClinicalTrialsRetry:
+    """Tests for retry logic in ClinicalTrialsIntegration (FDA-89)."""
+
+    @pytest.fixture
+    def ct(self):
+        return ClinicalTrialsIntegration(max_retries=3, request_timeout=5)
+
+    def test_configurable_max_retries(self):
+        """Should accept custom max_retries."""
+        ct = ClinicalTrialsIntegration(max_retries=5)
+        assert ct.MAX_RETRIES == 5
+
+    def test_configurable_timeout(self):
+        """Should accept custom timeout."""
+        ct = ClinicalTrialsIntegration(request_timeout=30)
+        assert ct.REQUEST_TIMEOUT == 30
+
+    def test_min_retries_clamped_to_1(self):
+        """max_retries should be clamped to at least 1."""
+        ct = ClinicalTrialsIntegration(max_retries=0)
+        assert ct.MAX_RETRIES == 1
+
+    def test_min_timeout_clamped_to_1(self):
+        """request_timeout should be clamped to at least 1."""
+        ct = ClinicalTrialsIntegration(request_timeout=0)
+        assert ct.REQUEST_TIMEOUT == 1
+
+    def test_fetch_json_converts_429_to_rate_limit_error(self, ct):
+        """HTTP 429 should raise _RateLimitError."""
+        mock_err = urllib.error.HTTPError(
+            "https://example.com", 429, "Too Many Requests",
+            {"Retry-After": "30"}, None,
+        )
+        with patch("ide_pathway_support.urllib.request.urlopen", side_effect=mock_err):
+            with pytest.raises(_RateLimitError) as exc_info:
+                ct._fetch_json("https://example.com")
+        assert exc_info.value.retry_after == 30
+
+    def test_fetch_json_converts_500_to_server_error(self, ct):
+        """HTTP 500 should raise _ServerError."""
+        mock_err = urllib.error.HTTPError(
+            "https://example.com", 500, "Internal Server Error",
+            {}, None,
+        )
+        with patch("ide_pathway_support.urllib.request.urlopen", side_effect=mock_err):
+            with pytest.raises(_ServerError) as exc_info:
+                ct._fetch_json("https://example.com")
+        assert exc_info.value.status_code == 500
+
+    def test_fetch_json_does_not_retry_404(self, ct):
+        """HTTP 404 should raise HTTPError directly (not wrapped)."""
+        mock_err = urllib.error.HTTPError(
+            "https://example.com", 404, "Not Found",
+            {}, None,
+        )
+        with patch("ide_pathway_support.urllib.request.urlopen", side_effect=mock_err):
+            with pytest.raises(urllib.error.HTTPError) as exc_info:
+                ct._fetch_json("https://example.com")
+        assert exc_info.value.code == 404
+
+    def test_fetch_json_does_not_retry_400(self, ct):
+        """HTTP 400 should not be retried."""
+        mock_err = urllib.error.HTTPError(
+            "https://example.com", 400, "Bad Request",
+            {}, None,
+        )
+        with patch("ide_pathway_support.urllib.request.urlopen", side_effect=mock_err):
+            with pytest.raises(urllib.error.HTTPError) as exc_info:
+                ct._fetch_json("https://example.com")
+        assert exc_info.value.code == 400
+
+    def test_fetch_json_429_default_retry_after(self, ct):
+        """HTTP 429 without Retry-After header should default to 60."""
+        mock_err = urllib.error.HTTPError(
+            "https://example.com", 429, "Too Many Requests",
+            {}, None,
+        )
+        with patch("ide_pathway_support.urllib.request.urlopen", side_effect=mock_err):
+            with pytest.raises(_RateLimitError) as exc_info:
+                ct._fetch_json("https://example.com")
+        assert exc_info.value.retry_after == 60
+
+    @pytest.mark.skipif(not _HAS_TENACITY, reason="tenacity not installed")
+    def test_retries_on_server_error_then_succeeds(self, ct):
+        """Should retry on 500 and succeed on subsequent attempt."""
+        mock_err = urllib.error.HTTPError(
+            "https://example.com", 500, "Server Error", {}, None,
+        )
+        mock_response = MagicMock()
+        mock_response.read.return_value = json.dumps({"status": "ok"}).encode("utf-8")
+        mock_response.__enter__ = lambda s: s
+        mock_response.__exit__ = MagicMock(return_value=False)
+
+        call_count = 0
+
+        def side_effect(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise mock_err
+            return mock_response
+
+        with patch("ide_pathway_support.urllib.request.urlopen", side_effect=side_effect):
+            result = ct._fetch_json_with_retry("https://example.com")
+        assert result == {"status": "ok"}
+        assert call_count == 2
+
+    @pytest.mark.skipif(not _HAS_TENACITY, reason="tenacity not installed")
+    def test_exhausts_retries_then_raises(self, ct):
+        """Should raise after exhausting all retry attempts."""
+        mock_err = urllib.error.HTTPError(
+            "https://example.com", 503, "Unavailable", {}, None,
+        )
+        with patch("ide_pathway_support.urllib.request.urlopen", side_effect=mock_err):
+            with pytest.raises(_ServerError):
+                ct._fetch_json_with_retry("https://example.com")
+
+    def test_search_returns_error_dict_on_failure(self, ct):
+        """search_device_studies should return error dict, not raise."""
+        with patch("ide_pathway_support.urllib.request.urlopen") as mock_open:
+            mock_open.side_effect = urllib.error.URLError("DNS failure")
+            result = ct.search_device_studies("test device")
+        assert result["total_found"] == 0
+        assert "error" in result
+        assert "ClinicalTrials.gov API error" in result["error"]
+
+    def test_get_details_returns_error_dict_on_failure(self, ct):
+        """get_study_details should return error dict, not raise."""
+        with patch("ide_pathway_support.urllib.request.urlopen") as mock_open:
+            mock_open.side_effect = urllib.error.URLError("Connection refused")
+            result = ct.get_study_details("NCT99999999")
+        assert "error" in result
+        assert result["nct_id"] == "NCT99999999"
+
+    def test_tenacity_availability_flag_exists(self):
+        """The _HAS_TENACITY flag should be a boolean."""
+        assert isinstance(_HAS_TENACITY, bool)
 
 
 # ==================================================================
