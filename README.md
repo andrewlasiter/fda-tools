@@ -57,6 +57,9 @@ See the [full documentation](./plugins/fda-tools/README.md) for commands, agents
 - **[Quick Start Guide](docs/QUICK_START.md)** - Get started in 5 minutes with essential commands and workflows
 - **[Installation Guide](docs/INSTALLATION.md)** - Complete setup instructions, dependencies, and configuration
 - **[Troubleshooting Guide](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+- **[Linear Integration](plugins/fda-tools/docs/LINEAR_INTEGRATION.md)** - Setup guide for Linear MCP integration and automated issue creation
+- **[FDA Examples](plugins/fda-tools/docs/FDA_EXAMPLES.md)** - FDA-specific workflow examples (510(k), PMA, MAUDE analysis)
+- **[Orchestrator Architecture](plugins/fda-tools/ORCHESTRATOR_ARCHITECTURE.md)** - Multi-agent orchestration system architecture
 - **[Changelog](CHANGELOG.md)** - Release history and version updates
 - **[Full Plugin Documentation](./plugins/fda-tools/README.md)** - Detailed command reference and advanced features
 

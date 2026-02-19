@@ -22,6 +22,18 @@ Solutions to common problems and error messages.
 10. [Bridge Server Failures](#bridge-server-failures)
 11. [Preventive Maintenance](#preventive-maintenance)
 12. [Diagnostic Commands](#diagnostic-commands)
+13. [Linear API Issues](#linear-api-issues)
+    - [Linear API Rate Limit Exceeded](#linear-api-rate-limit-exceeded)
+    - [Linear Authentication Failed](#linear-authentication-failed)
+    - [Linear Custom Fields Not Found](#linear-custom-fields-not-found)
+    - [Linear Issue Creation Failed](#linear-issue-creation-failed)
+    - [Linear Circuit Breaker Triggered](#linear-circuit-breaker-triggered)
+14. [Orchestrator Agent Selection Issues](#orchestrator-agent-selection-issues)
+    - [No Agents Selected for Task](#no-agents-selected-for-task)
+    - [Agent Registry Load Failed](#agent-registry-load-failed)
+    - [Wrong Agents Assigned](#wrong-agents-assigned)
+    - [Execution Coordinator Failures](#execution-coordinator-failures)
+    - [Performance Optimization](#performance-optimization)
 
 ---
 
@@ -1411,6 +1423,320 @@ Shows:
 
 ---
 
+## Linear API Issues
+
+### Linear API Rate Limit Exceeded
+
+**Problem:** "429 Too Many Requests" from Linear API
+
+**Cause:** Exceeded 100 requests/minute rate limit
+
+**Solutions:**
+
+1. **Built-in rate limiter** (automatically enforced):
+   ```python
+   # Rate limiter in linear_integrator.py limits to 100 calls/min
+   linear_rate_limiter = RateLimiter(calls_per_minute=100)
+   ```
+
+2. **Process in smaller batches:**
+   ```bash
+   python3 $FDA_PLUGIN_ROOT/scripts/universal_orchestrator.py batch \
+     --issues "FDA-92,FDA-93,FDA-94" \
+     --batch-size 10  # Process 10 at a time
+   ```
+
+3. **Wait for cooldown:**
+   - Circuit breaker triggers after 5 failures
+   - 60-second recovery timeout
+   - Automatic retry with exponential backoff
+
+### Linear Authentication Failed
+
+**Problem:** "Invalid API key" or "Unauthorized" errors
+
+**Solutions:**
+
+1. **Verify API key:**
+   ```bash
+   echo $LINEAR_API_KEY
+   ```
+   Should start with `lin_api_`
+
+2. **Check API key permissions:**
+   - Go to https://linear.app/settings/api
+   - Verify key has **write** permissions
+   - Regenerate if needed
+
+3. **Test authentication:**
+   ```bash
+   python3 $FDA_PLUGIN_ROOT/scripts/test_linear_auth.py
+   ```
+
+4. **Check environment variable:**
+   ```bash
+   # Add to ~/.bashrc or ~/.zshrc
+   export LINEAR_API_KEY="lin_api_your_key_here"
+   source ~/.bashrc
+   ```
+
+### Linear Custom Fields Not Found
+
+**Problem:** "Delegate field not found" or "Reviewers field missing"
+
+**Cause:** Custom fields not created in Linear workspace
+
+**Solutions:**
+
+1. **Create delegate field:**
+   - Go to Linear → Settings → Custom Fields
+   - Click "Create custom field"
+   - Name: `delegate`
+   - Type: `User` (single select)
+   - Teams: Select "FDA tools" team
+
+2. **Create reviewers field:**
+   - Name: `reviewers`
+   - Type: `User` (multi-select)
+   - Teams: Select "FDA tools" team
+
+3. **Verify fields exist:**
+   ```bash
+   curl https://api.linear.app/graphql \
+     -H "Authorization: $LINEAR_API_KEY" \
+     -d '{"query": "{ teams { nodes { id name customFields { nodes { name type } } } } }"}'
+   ```
+
+### Linear Issue Creation Failed
+
+**Problem:** "Failed to create Linear issue" with GraphQL error
+
+**Solutions:**
+
+1. **Check team ID:**
+   ```bash
+   echo $LINEAR_TEAM_ID
+   ```
+   Should be a UUID like `5e4df6d3-2006-4e51-b862-b65ba71bff04`
+
+2. **Verify project exists:**
+   ```bash
+   /linear:list_projects
+   ```
+
+3. **Check issue title length:**
+   - Maximum: 255 characters
+   - If title too long, truncate or summarize
+
+4. **Validate priority value:**
+   - Must be 0-4 (0=None, 1=Urgent, 2=High, 3=Normal, 4=Low)
+
+5. **Check description markdown:**
+   - Linear supports GitHub-flavored markdown
+   - Avoid unsupported HTML tags
+
+### Linear Circuit Breaker Triggered
+
+**Problem:** "Circuit breaker open - service unavailable"
+
+**Cause:** 5+ consecutive Linear API failures
+
+**Solutions:**
+
+1. **Wait for recovery:**
+   - Circuit breaker opens after 5 failures
+   - 60-second recovery timeout
+   - Automatically retries after cooldown
+
+2. **Check Linear API status:**
+   - Visit https://linear.app/status
+   - Check for ongoing incidents
+
+3. **Manual circuit breaker reset:**
+   ```python
+   from linear_integrator import linear_circuit_breaker
+   linear_circuit_breaker.reset()
+   ```
+
+4. **Increase failure threshold** (if needed):
+   ```python
+   # In linear_integrator.py
+   linear_circuit_breaker = CircuitBreaker(
+       failure_threshold=10,  # Increase from 5
+       recovery_timeout=120   # Increase from 60s
+   )
+   ```
+
+---
+
+## Orchestrator Agent Selection Issues
+
+### No Agents Selected for Task
+
+**Problem:** "No suitable agents found for task"
+
+**Cause:** Task description too vague or domain not recognized
+
+**Solutions:**
+
+1. **Improve task description:**
+   ```bash
+   # Bad:
+   --task "Fix the bug"
+
+   # Good:
+   --task "Fix authentication vulnerability in FastAPI endpoint - SQL injection risk in user login"
+   ```
+
+2. **Add language/framework hints:**
+   ```bash
+   --task "Review authentication system (Python, FastAPI, PostgreSQL)"
+   ```
+
+3. **Specify review dimensions:**
+   ```bash
+   --task "Security audit focusing on authentication, authorization, and input validation"
+   ```
+
+4. **Increase max agents:**
+   ```bash
+   --max-agents 15  # Default is 10
+   ```
+
+### Agent Registry Load Failed
+
+**Problem:** "Failed to load agent registry" or "AgentRegistry import error"
+
+**Solutions:**
+
+1. **Verify registry file exists:**
+   ```bash
+   ls -la $FDA_PLUGIN_ROOT/scripts/agent_registry.py
+   ```
+
+2. **Check Python syntax:**
+   ```bash
+   python3 -m py_compile $FDA_PLUGIN_ROOT/scripts/agent_registry.py
+   ```
+
+3. **Reinstall plugin:**
+   ```bash
+   claude plugin reinstall fda-tools@fda-tools
+   ```
+
+4. **Manual registry update:**
+   ```bash
+   cd $FDA_PLUGIN_ROOT
+   git pull origin master
+   ```
+
+### Wrong Agents Assigned
+
+**Problem:** Agents don't match task type (e.g., frontend agent for backend task)
+
+**Cause:** Task classification inaccurate
+
+**Solutions:**
+
+1. **Be specific in task description:**
+   ```bash
+   # Specify "backend" or "frontend" explicitly
+   --task "Backend API security review for FastAPI endpoints"
+   ```
+
+2. **List file paths explicitly:**
+   ```bash
+   --files "api/auth.py,api/db.py,models/user.py"
+   # Helps detect Python backend context
+   ```
+
+3. **Override agent selection:**
+   - Edit `task_analyzer.py` detection patterns
+   - Add custom keywords for your domain
+
+4. **Use batch mode with manual assignment:**
+   ```bash
+   python3 $FDA_PLUGIN_ROOT/scripts/universal_orchestrator.py assign \
+     --issue "FDA-102" \
+     --task "Security review" \
+     --agent "security-auditor"  # Force specific agent
+   ```
+
+### Execution Coordinator Failures
+
+**Problem:** "Phase execution failed" or "Agent invocation error"
+
+**Cause:** Individual agent failures during multi-phase execution
+
+**Solutions:**
+
+1. **Check agent simulation:**
+   - The orchestrator currently uses simulated agent execution
+   - Real Task tool integration pending
+
+2. **Review error logs:**
+   ```bash
+   tail -n 50 ~/.claude/logs/orchestrator.log | grep ERROR
+   ```
+
+3. **Enable debug mode:**
+   ```bash
+   export FDA_DEBUG=1
+   python3 $FDA_PLUGIN_ROOT/scripts/universal_orchestrator.py execute \
+     --task "..." \
+     --files "..." \
+     --debug
+   ```
+
+4. **Reduce team size:**
+   ```bash
+   --max-agents 5  # Smaller teams = fewer failure points
+   ```
+
+### Performance Optimization
+
+**Problem:** Orchestrator too slow for large files or complex reviews
+
+**Solutions:**
+
+1. **Limit file scope:**
+   ```bash
+   # Instead of:
+   --files "**/*.py"  # All Python files
+
+   # Use:
+   --files "api/*.py,models/*.py"  # Specific directories
+   ```
+
+2. **Process in batches:**
+   ```bash
+   # Split large reviews into smaller chunks
+   python3 $FDA_PLUGIN_ROOT/scripts/universal_orchestrator.py review \
+     --task "Security audit - Phase 1: Authentication" \
+     --files "api/auth.py,api/oauth.py" \
+     --max-agents 8
+
+   # Then Phase 2, Phase 3, etc.
+   ```
+
+3. **Use caching:**
+   - Agent registry cached for 24 hours
+   - Task profiles cached during batch operations
+
+4. **Parallelize independent reviews:**
+   ```bash
+   # Run multiple orchestrators in parallel (different files)
+   python3 $FDA_PLUGIN_ROOT/scripts/universal_orchestrator.py review \
+     --task "API security review" \
+     --files "api/*.py" &
+
+   python3 $FDA_PLUGIN_ROOT/scripts/universal_orchestrator.py review \
+     --task "Database security review" \
+     --files "models/*.py" &
+   ```
+
+---
+
 ## Getting Additional Help
 
 ### Built-in Help
@@ -1430,6 +1756,9 @@ Shows:
 
 - **Quick Start:** [QUICK_START.md](QUICK_START.md)
 - **Installation:** [INSTALLATION.md](INSTALLATION.md)
+- **Linear Integration:** [LINEAR_INTEGRATION.md](LINEAR_INTEGRATION.md)
+- **FDA Examples:** [FDA_EXAMPLES.md](FDA_EXAMPLES.md)
+- **Orchestrator Architecture:** [../ORCHESTRATOR_ARCHITECTURE.md](../ORCHESTRATOR_ARCHITECTURE.md)
 - **Command Reference:** [README.md](../README.md)
 - **Migration Guide:** [MIGRATION_NOTICE.md](../MIGRATION_NOTICE.md)
 
