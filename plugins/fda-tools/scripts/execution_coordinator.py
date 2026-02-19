@@ -235,7 +235,7 @@ class ExecutionCoordinator:
         )
 
     def execute_plan(self, plan: ExecutionPlan) -> AggregatedFindings:
-        """Execute the complete execution plan.
+        """Execute the complete execution plan with error handling.
 
         This is a simulation. In production, this would invoke agents
         using the Task tool and aggregate real results.
@@ -249,18 +249,48 @@ class ExecutionCoordinator:
         logger.info("Executing plan with %d phases", len(plan.phases))
 
         all_findings: List[Finding] = []
+        failed_phases = []
 
         for phase in plan.phases:
             logger.info("Executing phase %d: %s", phase.phase, phase.name)
 
-            phase_findings = self._execute_phase(phase)
-            all_findings.extend(phase_findings)
+            try:
+                phase_findings = self._execute_phase(phase)
+                all_findings.extend(phase_findings)
+                logger.info("Phase %d completed: %d findings", phase.phase, len(phase_findings))
+            except Exception as e:
+                logger.error(
+                    "Phase %d (%s) failed: %s - continuing with partial results",
+                    phase.phase,
+                    phase.name,
+                    e,
+                    exc_info=True
+                )
+                failed_phases.append({
+                    "phase": phase.phase,
+                    "name": phase.name,
+                    "error": str(e),
+                    "agents": phase.assigned_agents
+                })
+                # Continue with remaining phases for graceful degradation
 
-        # Aggregate findings
-        return self._aggregate_findings(all_findings)
+        # Aggregate findings with failed phase information
+        results = self._aggregate_findings(all_findings)
+
+        # Add warning if some phases failed
+        if failed_phases:
+            logger.warning(
+                "Execution completed with %d failed phases (out of %d total)",
+                len(failed_phases),
+                len(plan.phases)
+            )
+            for failed in failed_phases:
+                logger.warning("  Failed: Phase %d (%s) - %s", failed["phase"], failed["name"], failed["error"])
+
+        return results
 
     def _execute_phase(self, phase: ExecutionPhase) -> List[Finding]:
-        """Execute a single phase.
+        """Execute a single phase with per-agent error handling.
 
         In production, this would:
         1. Invoke agents using Task tool
@@ -276,15 +306,46 @@ class ExecutionCoordinator:
             List of findings from this phase
         """
         findings = []
+        failed_agents = []
 
         for agent_name in phase.assigned_agents:
             logger.info("  Invoking agent: %s", agent_name)
 
-            # Simulate agent invocation
-            # In production: result = self._invoke_agent(agent_name, phase)
-            agent_findings = self._simulate_agent_findings(agent_name, phase.phase)
+            try:
+                # Simulate agent invocation
+                # In production: result = self._invoke_agent(agent_name, phase)
+                agent_findings = self._simulate_agent_findings(agent_name, phase.phase)
 
-            findings.extend(agent_findings)
+                findings.extend(agent_findings)
+                logger.debug("  Agent %s returned %d findings", agent_name, len(agent_findings))
+
+            except Exception as e:
+                logger.error(
+                    "  Agent %s failed in phase %d: %s - continuing with other agents",
+                    agent_name,
+                    phase.phase,
+                    e,
+                    exc_info=True
+                )
+                failed_agents.append(agent_name)
+                # Continue with next agent for graceful degradation
+
+        # Log summary
+        if failed_agents:
+            logger.warning(
+                "Phase %d completed with %d/%d agents successful (%d findings)",
+                phase.phase,
+                len(phase.assigned_agents) - len(failed_agents),
+                len(phase.assigned_agents),
+                len(findings)
+            )
+        else:
+            logger.info(
+                "Phase %d completed successfully: all %d agents returned %d findings",
+                phase.phase,
+                len(phase.assigned_agents),
+                len(findings)
+            )
 
         return findings
 
