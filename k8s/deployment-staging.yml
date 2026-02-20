@@ -1,0 +1,266 @@
+# Kubernetes Deployment for FDA Tools - Staging Environment
+# Deploy with: kubectl apply -f k8s/deployment-staging.yml
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fda-tools-staging
+  labels:
+    environment: staging
+    app: fda-tools
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fda-tools-config
+  namespace: fda-tools-staging
+data:
+  ENVIRONMENT: "staging"
+  LOG_LEVEL: "DEBUG"
+  LOG_FORMAT: "json"
+  FDA_ENABLE_ENRICHMENT: "true"
+  FDA_ENABLE_CACHING: "true"
+  PYTHONUNBUFFERED: "1"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: fda-tools-secrets
+  namespace: fda-tools-staging
+type: Opaque
+stringData:
+  # These should be created separately via kubectl or external secret management
+  GEMINI_API_KEY: ""
+  OPENFDA_API_KEY: ""
+  ANTHROPIC_API_KEY: ""
+  DATABASE_URL: ""
+  REDIS_URL: ""
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fda-tools
+  namespace: fda-tools-staging
+  labels:
+    app: fda-tools
+    environment: staging
+    version: latest
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: fda-tools
+      environment: staging
+  template:
+    metadata:
+      labels:
+        app: fda-tools
+        environment: staging
+        version: latest
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: fda-tools-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+
+      containers:
+      - name: fda-tools
+        image: ghcr.io/your-org/fda-tools:latest
+        imagePullPolicy: Always
+
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        - name: bridge
+          containerPort: 18790
+          protocol: TCP
+
+        envFrom:
+        - configMapRef:
+            name: fda-tools-config
+        - secretRef:
+            name: fda-tools-secrets
+
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+
+        livenessProbe:
+          exec:
+            command:
+            - python
+            - /app/plugins/fda-tools/scripts/health_check.py
+            - --skip-network
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+
+        readinessProbe:
+          exec:
+            command:
+            - python
+            - /app/plugins/fda-tools/scripts/health_check.py
+            - --skip-network
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: cache
+          mountPath: /cache
+        - name: logs
+          mountPath: /logs
+        - name: config
+          mountPath: /config
+          readOnly: true
+
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: fda-tools-data
+      - name: cache
+        emptyDir:
+          sizeLimit: 5Gi
+      - name: logs
+        emptyDir:
+          sizeLimit: 1Gi
+      - name: config
+        configMap:
+          name: fda-tools-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fda-tools
+  namespace: fda-tools-staging
+  labels:
+    app: fda-tools
+    environment: staging
+spec:
+  type: LoadBalancer
+  selector:
+    app: fda-tools
+    environment: staging
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+    protocol: TCP
+  - name: bridge
+    port: 18790
+    targetPort: 18790
+    protocol: TCP
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fda-tools-data
+  namespace: fda-tools-staging
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: fast-ssd
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fda-tools-sa
+  namespace: fda-tools-staging
+  labels:
+    app: fda-tools
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: fda-tools-pdb
+  namespace: fda-tools-staging
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: fda-tools
+      environment: staging
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: fda-tools-hpa
+  namespace: fda-tools-staging
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: fda-tools
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fda-tools-ingress
+  namespace: fda-tools-staging
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+spec:
+  tls:
+  - hosts:
+    - staging-fda-tools.example.com
+    secretName: fda-tools-tls
+  rules:
+  - host: staging-fda-tools.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: fda-tools
+            port:
+              number: 80

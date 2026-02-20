@@ -1,0 +1,111 @@
+# FDA Tools - Emergency Rollback
+# Manual workflow for rolling back deployments to previous versions
+# Use with extreme caution in production
+
+name: Emergency Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to rollback'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      target_version:
+        description: 'Version to rollback to (e.g., 5.36.0 or "previous")'
+        required: true
+        type: string
+        default: 'previous'
+      reason:
+        description: 'Reason for rollback'
+        required: true
+        type: string
+      skip_health_check:
+        description: 'Skip health checks after rollback'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  PYTHON_VERSION: '3.11'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  validate:
+    name: Validate Rollback Request
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      target_version: ${{ steps.version.outputs.target_version }}
+      current_version: ${{ steps.version.outputs.current_version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate environment
+        env:
+          ENVIRONMENT: ${{ github.event.inputs.environment }}
+        run: |
+          if [ "${ENVIRONMENT}" != "staging" ] && [ "${ENVIRONMENT}" != "production" ]; then
+            echo "::error::Invalid environment: ${ENVIRONMENT}"
+            exit 1
+          fi
+
+          if [ "${ENVIRONMENT}" == "production" ]; then
+            echo "::warning::PRODUCTION ROLLBACK REQUESTED - Proceed with caution!"
+          fi
+
+      - name: Determine target version
+        id: version
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.target_version }}
+        run: |
+          git fetch --tags
+          if [ "${INPUT_VERSION}" == "previous" ]; then
+            CURRENT_TAG=$(git tag --sort=-version:refname | head -1)
+            TARGET_TAG=$(git tag --sort=-version:refname | head -2 | tail -1)
+            CURRENT_VERSION="${CURRENT_TAG#v}"
+            TARGET_VERSION="${TARGET_TAG#v}"
+          else
+            TARGET_VERSION="${INPUT_VERSION}"
+            if ! git tag | grep -q "^v${TARGET_VERSION}$"; then
+              echo "::error::Tag v${TARGET_VERSION} does not exist"
+              exit 1
+            fi
+            CURRENT_TAG=$(git tag --sort=-version:refname | head -1)
+            CURRENT_VERSION="${CURRENT_TAG#v}"
+          fi
+          echo "current_version=${CURRENT_VERSION}" >> $GITHUB_OUTPUT
+          echo "target_version=${TARGET_VERSION}" >> $GITHUB_OUTPUT
+
+  rollback:
+    name: Execute Rollback
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: validate
+    environment:
+      name: ${{ github.event.inputs.environment }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Execute rollback
+        env:
+          ENVIRONMENT: ${{ github.event.inputs.environment }}
+          TARGET_VERSION: ${{ needs.validate.outputs.target_version }}
+          REASON: ${{ github.event.inputs.reason }}
+        run: |
+          echo "Rollback to ${TARGET_VERSION} in ${ENVIRONMENT}"
+          echo "Reason: ${REASON}"

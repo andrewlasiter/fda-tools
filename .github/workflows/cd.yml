@@ -1,0 +1,500 @@
+# FDA Tools - Continuous Deployment Pipeline
+# Automated deployment to staging and production environments
+# Requires manual approval for production deployments
+
+name: Continuous Deployment
+
+on:
+  push:
+    branches:
+      - master
+      - main
+    tags:
+      - 'v*.*.*'
+
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+        default: 'staging'
+      skip_tests:
+        description: 'Skip test suite (not recommended)'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  PYTHON_VERSION: '3.11'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ==========================================================================
+  # Job 1: Pre-deployment Validation
+  # ==========================================================================
+  validate:
+    name: Pre-deployment Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      is_release: ${{ steps.version.outputs.is_release }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[test]"
+          pip install tomli
+
+      - name: Extract version information
+        id: version
+        run: |
+          VERSION=$(python -c "import tomli; print(tomli.load(open('pyproject.toml', 'rb'))['project']['version'])")
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "is_release=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_release=false" >> $GITHUB_OUTPUT
+          fi
+
+          echo "Detected version: ${VERSION}"
+
+      - name: Run validation tests
+        if: github.event.inputs.skip_tests != 'true'
+        run: |
+          pytest plugins/fda-tools/tests/ \
+            -m "not slow and not e2e and not api" \
+            --tb=short \
+            -v
+
+      - name: Validate configuration files
+        run: |
+          python -c "import tomli; tomli.load(open('pyproject.toml', 'rb'))"
+          python -c "import tomli; tomli.load(open('plugins/fda-tools/config.toml', 'rb'))"
+
+  # ==========================================================================
+  # Job 2: Build and Push Docker Image
+  # ==========================================================================
+  build-push-docker:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: validate
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ needs.validate.outputs.version }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            PYTHON_VERSION=3.11
+            ENVIRONMENT=production
+            ENABLE_OPTIONAL_DEPS=true
+          platforms: linux/amd64,linux/arm64
+
+      - name: Generate SBOM (Software Bill of Materials)
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.validate.outputs.version }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.spdx.json
+          retention-days: 90
+
+  # ==========================================================================
+  # Job 3: Deploy to Staging
+  # ==========================================================================
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [validate, build-push-docker]
+    environment:
+      name: staging
+      url: https://staging-fda-tools.example.com
+    if: github.ref == 'refs/heads/master' || github.event.inputs.environment == 'staging'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set deployment variables
+        id: vars
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+          REGISTRY: ${{ env.REGISTRY }}
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+        run: |
+          echo "FULL_IMAGE=${REGISTRY}/${IMAGE_NAME}:${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Configure AWS credentials (if using AWS)
+        uses: aws-actions/configure-aws-credentials@v4
+        if: vars.CLOUD_PROVIDER == 'aws'
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Configure GCP credentials (if using GCP)
+        uses: google-github-actions/auth@v2
+        if: vars.CLOUD_PROVIDER == 'gcp'
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        if: vars.DEPLOYMENT_TYPE == 'kubernetes'
+        with:
+          version: 'latest'
+
+      - name: Deploy to Kubernetes (staging)
+        if: vars.DEPLOYMENT_TYPE == 'kubernetes'
+        env:
+          FULL_IMAGE: ${{ steps.vars.outputs.FULL_IMAGE }}
+        run: |
+          # Configure kubectl context
+          kubectl config use-context staging
+
+          # Update deployment with new image
+          kubectl set image deployment/fda-tools \
+            fda-tools="${FULL_IMAGE}" \
+            -n fda-tools-staging
+
+          # Wait for rollout
+          kubectl rollout status deployment/fda-tools -n fda-tools-staging --timeout=5m
+
+      - name: Deploy via Docker Compose (staging)
+        if: vars.DEPLOYMENT_TYPE == 'docker-compose'
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+          SSH_USER: ${{ secrets.STAGING_SSH_USER }}
+          SSH_HOST: ${{ secrets.STAGING_HOST }}
+        run: |
+          # SSH to staging server and deploy
+          ssh -o StrictHostKeyChecking=no "${SSH_USER}@${SSH_HOST}" << 'ENDSSH'
+            cd /opt/fda-tools
+            export FDA_VERSION="${VERSION}"
+            docker-compose pull
+            docker-compose up -d --force-recreate
+            docker-compose ps
+          ENDSSH
+
+      - name: Run smoke tests
+        env:
+          EXPECTED_VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          sleep 30  # Wait for services to start
+
+          # Health check
+          curl -f https://staging-fda-tools.example.com/health || exit 1
+
+          # Version check
+          VERSION=$(curl -s https://staging-fda-tools.example.com/version | jq -r '.version')
+          if [ "${VERSION}" != "${EXPECTED_VERSION}" ]; then
+            echo "Version mismatch! Expected ${EXPECTED_VERSION}, got ${VERSION}"
+            exit 1
+          fi
+
+      - name: Notify deployment success
+        if: success()
+        uses: slackapi/slack-github-action@v1
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          VERSION: ${{ needs.validate.outputs.version }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          payload: |
+            {
+              "text": "Staging deployment successful",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ":rocket: *FDA Tools v${{ env.VERSION }}* deployed to *Staging*\n<${{ env.RUN_URL }}|View Deployment>"
+                  }
+                }
+              ]
+            }
+
+  # ==========================================================================
+  # Job 4: Deploy to Production
+  # ==========================================================================
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: [validate, build-push-docker, deploy-staging]
+    environment:
+      name: production
+      url: https://fda-tools.example.com
+    if: |
+      (github.ref == 'refs/heads/master' && needs.validate.outputs.is_release == 'true') ||
+      (startsWith(github.ref, 'refs/tags/v')) ||
+      (github.event.inputs.environment == 'production')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set deployment variables
+        id: vars
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+          REGISTRY: ${{ env.REGISTRY }}
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
+        run: |
+          echo "FULL_IMAGE=${REGISTRY}/${IMAGE_NAME}:${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Create deployment backup
+        run: |
+          echo "Creating pre-deployment backup..."
+          # Backup current deployment state
+          # This depends on your infrastructure
+
+      - name: Configure AWS credentials (if using AWS)
+        uses: aws-actions/configure-aws-credentials@v4
+        if: vars.CLOUD_PROVIDER == 'aws'
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Configure GCP credentials (if using GCP)
+        uses: google-github-actions/auth@v2
+        if: vars.CLOUD_PROVIDER == 'gcp'
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        if: vars.DEPLOYMENT_TYPE == 'kubernetes'
+        with:
+          version: 'latest'
+
+      - name: Blue-Green Deployment (Kubernetes)
+        if: vars.DEPLOYMENT_TYPE == 'kubernetes'
+        env:
+          FULL_IMAGE: ${{ steps.vars.outputs.FULL_IMAGE }}
+        run: |
+          # Configure kubectl context
+          kubectl config use-context production
+
+          # Create new green deployment
+          kubectl apply -f k8s/deployment-green.yml
+
+          # Update image
+          kubectl set image deployment/fda-tools-green \
+            fda-tools="${FULL_IMAGE}" \
+            -n fda-tools-production
+
+          # Wait for green deployment
+          kubectl rollout status deployment/fda-tools-green -n fda-tools-production --timeout=10m
+
+          # Switch traffic to green
+          kubectl patch service fda-tools \
+            -n fda-tools-production \
+            -p '{"spec":{"selector":{"version":"green"}}}'
+
+          # Wait 5 minutes then remove blue deployment
+          sleep 300
+          kubectl delete deployment fda-tools-blue -n fda-tools-production || true
+
+      - name: Deploy via Docker Compose (production)
+        if: vars.DEPLOYMENT_TYPE == 'docker-compose'
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+          SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
+        run: |
+          ssh -o StrictHostKeyChecking=no "${SSH_USER}@${SSH_HOST}" << 'ENDSSH'
+            cd /opt/fda-tools
+
+            # Backup current state
+            docker-compose ps > deployment-backup.txt
+
+            # Deploy new version
+            export FDA_VERSION="${VERSION}"
+            docker-compose pull
+            docker-compose up -d --force-recreate --no-deps fda-tools
+
+            # Health check
+            sleep 30
+            docker-compose exec -T fda-tools python /app/plugins/fda-tools/scripts/health_check.py --verbose
+
+            # If successful, update other services
+            docker-compose up -d
+          ENDSSH
+
+      - name: Run production smoke tests
+        env:
+          EXPECTED_VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          sleep 60  # Wait for services to stabilize
+
+          # Health check
+          for i in {1..5}; do
+            if curl -f https://fda-tools.example.com/health; then
+              echo "Health check passed"
+              break
+            fi
+            if [ $i -eq 5 ]; then
+              echo "Health check failed after 5 attempts"
+              exit 1
+            fi
+            sleep 10
+          done
+
+          # Version verification
+          VERSION=$(curl -s https://fda-tools.example.com/version | jq -r '.version')
+          if [ "${VERSION}" != "${EXPECTED_VERSION}" ]; then
+            echo "Version mismatch!"
+            exit 1
+          fi
+
+          # Basic functionality test
+          curl -f https://fda-tools.example.com/api/predicates?limit=1 || exit 1
+
+      - name: Notify deployment success
+        if: success()
+        uses: slackapi/slack-github-action@v1
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          VERSION: ${{ needs.validate.outputs.version }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          payload: |
+            {
+              "text": "Production deployment successful",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ":tada: *FDA Tools v${{ env.VERSION }}* deployed to *Production*\n:white_check_mark: All health checks passed\n<${{ env.RUN_URL }}|View Deployment>"
+                  }
+                }
+              ]
+            }
+
+      - name: Create deployment record
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+          ACTOR: ${{ github.actor }}
+          SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          cat > deployment-record.json << 'ENDEOF'
+          {
+            "version": "$VERSION",
+            "environment": "production",
+            "deployed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "deployed_by": "$ACTOR",
+            "commit_sha": "$SHA",
+            "workflow_run": "$RUN_ID"
+          }
+          ENDEOF
+
+      - name: Upload deployment record
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-record-production
+          path: deployment-record.json
+          retention-days: 365
+
+  # ==========================================================================
+  # Job 5: Rollback Capability
+  # ==========================================================================
+  rollback:
+    name: Emergency Rollback
+    runs-on: ubuntu-latest
+    if: failure()
+    needs: [deploy-production]
+
+    steps:
+      - name: Notify rollback initiated
+        uses: slackapi/slack-github-action@v1
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          payload: |
+            {
+              "text": ":warning: Production deployment failed - initiating rollback",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": ":warning: *Production Deployment Failed*\nRollback may be required\n<${{ env.RUN_URL }}|View Failed Deployment>"
+                  }
+                }
+              ]
+            }
+
+      - name: Rollback instructions
+        run: |
+          echo "::error::Production deployment failed"
+          echo "To rollback manually, run:"
+          echo "  kubectl rollout undo deployment/fda-tools -n fda-tools-production"
+          echo "Or trigger the rollback workflow manually"

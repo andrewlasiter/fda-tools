@@ -1,0 +1,415 @@
+# Kubernetes Deployment for FDA Tools - Production Environment
+# Blue-Green deployment strategy
+# Deploy with: kubectl apply -f k8s/deployment-production.yml
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fda-tools-production
+  labels:
+    environment: production
+    app: fda-tools
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fda-tools-config
+  namespace: fda-tools-production
+data:
+  ENVIRONMENT: "production"
+  LOG_LEVEL: "WARNING"
+  LOG_FORMAT: "json"
+  FDA_ENABLE_ENRICHMENT: "true"
+  FDA_ENABLE_CACHING: "true"
+  PYTHONUNBUFFERED: "1"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: fda-tools-secrets
+  namespace: fda-tools-production
+type: Opaque
+stringData:
+  # Managed by external secret management (AWS Secrets Manager, HashiCorp Vault, etc.)
+  GEMINI_API_KEY: ""
+  OPENFDA_API_KEY: ""
+  ANTHROPIC_API_KEY: ""
+  DATABASE_URL: ""
+  REDIS_URL: ""
+
+---
+# Blue Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fda-tools-blue
+  namespace: fda-tools-production
+  labels:
+    app: fda-tools
+    environment: production
+    version: blue
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: fda-tools
+      environment: production
+      version: blue
+  template:
+    metadata:
+      labels:
+        app: fda-tools
+        environment: production
+        version: blue
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: fda-tools-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - fda-tools
+            topologyKey: kubernetes.io/hostname
+
+      containers:
+      - name: fda-tools
+        image: ghcr.io/your-org/fda-tools:5.36.0
+        imagePullPolicy: IfNotPresent
+
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        - name: bridge
+          containerPort: 18790
+          protocol: TCP
+
+        envFrom:
+        - configMapRef:
+            name: fda-tools-config
+        - secretRef:
+            name: fda-tools-secrets
+
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "8Gi"
+            cpu: "4000m"
+
+        livenessProbe:
+          exec:
+            command:
+            - python
+            - /app/plugins/fda-tools/scripts/health_check.py
+            - --skip-network
+          initialDelaySeconds: 90
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+
+        readinessProbe:
+          exec:
+            command:
+            - python
+            - /app/plugins/fda-tools/scripts/health_check.py
+            - --skip-network
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: cache
+          mountPath: /cache
+        - name: logs
+          mountPath: /logs
+
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: fda-tools-data
+      - name: cache
+        emptyDir:
+          sizeLimit: 10Gi
+      - name: logs
+        emptyDir:
+          sizeLimit: 2Gi
+
+---
+# Green Deployment (initially zero replicas)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fda-tools-green
+  namespace: fda-tools-production
+  labels:
+    app: fda-tools
+    environment: production
+    version: green
+spec:
+  replicas: 0
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: fda-tools
+      environment: production
+      version: green
+  template:
+    metadata:
+      labels:
+        app: fda-tools
+        environment: production
+        version: green
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+    spec:
+      serviceAccountName: fda-tools-sa
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - fda-tools
+            topologyKey: kubernetes.io/hostname
+
+      containers:
+      - name: fda-tools
+        image: ghcr.io/your-org/fda-tools:latest
+        imagePullPolicy: Always
+
+        ports:
+        - name: http
+          containerPort: 8080
+        - name: bridge
+          containerPort: 18790
+
+        envFrom:
+        - configMapRef:
+            name: fda-tools-config
+        - secretRef:
+            name: fda-tools-secrets
+
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "8Gi"
+            cpu: "4000m"
+
+        livenessProbe:
+          exec:
+            command:
+            - python
+            - /app/plugins/fda-tools/scripts/health_check.py
+            - --skip-network
+          initialDelaySeconds: 90
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+
+        readinessProbe:
+          exec:
+            command:
+            - python
+            - /app/plugins/fda-tools/scripts/health_check.py
+            - --skip-network
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: cache
+          mountPath: /cache
+        - name: logs
+          mountPath: /logs
+
+      volumes:
+      - name: data
+          persistentVolumeClaim:
+            claimName: fda-tools-data
+      - name: cache
+        emptyDir:
+          sizeLimit: 10Gi
+      - name: logs
+        emptyDir:
+          sizeLimit: 2Gi
+
+---
+# Service points to blue deployment by default
+apiVersion: v1
+kind: Service
+metadata:
+  name: fda-tools
+  namespace: fda-tools-production
+  labels:
+    app: fda-tools
+    environment: production
+spec:
+  type: LoadBalancer
+  selector:
+    app: fda-tools
+    environment: production
+    version: blue  # Switch to green during deployment
+  ports:
+  - name: http
+    port: 80
+    targetPort: 8080
+    protocol: TCP
+  - name: bridge
+    port: 18790
+    targetPort: 18790
+    protocol: TCP
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fda-tools-data
+  namespace: fda-tools-production
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 200Gi
+  storageClassName: fast-ssd
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fda-tools-sa
+  namespace: fda-tools-production
+  labels:
+    app: fda-tools
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: fda-tools-pdb
+  namespace: fda-tools-production
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: fda-tools
+      environment: production
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: fda-tools-hpa-blue
+  namespace: fda-tools-production
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: fda-tools-blue
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+      - type: Pods
+        value: 4
+        periodSeconds: 15
+      selectPolicy: Max
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fda-tools-ingress
+  namespace: fda-tools-production
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+spec:
+  tls:
+  - hosts:
+    - fda-tools.example.com
+    secretName: fda-tools-prod-tls
+  rules:
+  - host: fda-tools.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: fda-tools
+            port:
+              number: 80
