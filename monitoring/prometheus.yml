@@ -14,8 +14,8 @@ global:
 #           - alertmanager:9093
 
 # Load rules once and periodically evaluate them
-# rule_files:
-#   - "alerts.yml"
+rule_files:
+  - "alerts.yml"
 
 scrape_configs:
   # Prometheus self-monitoring

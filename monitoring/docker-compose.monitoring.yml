@@ -1,0 +1,331 @@
+version: '3.8'
+
+# FDA Tools Monitoring Stack
+# Comprehensive monitoring with Prometheus, Grafana, Alertmanager, and exporters
+# Use: docker-compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+
+services:
+  # ============================================================================
+  # Prometheus - Metrics collection and storage
+  # ============================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: fda-tools-prometheus
+    hostname: prometheus
+    restart: unless-stopped
+
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-30d}'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+
+    networks:
+      - fda-network
+
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+    security_opt:
+      - no-new-privileges:true
+
+  # ============================================================================
+  # Grafana - Metrics visualization and dashboards
+  # ============================================================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: fda-tools-grafana
+    hostname: grafana
+    restart: unless-stopped
+
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_SERVER_ROOT_URL=http://localhost:${GRAFANA_PORT:-3000}
+      - GF_INSTALL_PLUGINS=
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+
+    networks:
+      - fda-network
+
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+
+    depends_on:
+      - prometheus
+
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+
+    security_opt:
+      - no-new-privileges:true
+
+  # ============================================================================
+  # Alertmanager - Alert routing and notification (optional)
+  # ============================================================================
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: fda-tools-alertmanager
+    hostname: alertmanager
+    restart: unless-stopped
+    profiles:
+      - alerting
+
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
+
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+
+    networks:
+      - fda-network
+
+    ports:
+      - "${ALERTMANAGER_PORT:-9093}:9093"
+
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+    security_opt:
+      - no-new-privileges:true
+
+  # ============================================================================
+  # Node Exporter - Host metrics (CPU, memory, disk, network)
+  # ============================================================================
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: fda-tools-node-exporter
+    hostname: node-exporter
+    restart: unless-stopped
+    profiles:
+      - exporters
+
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+
+    networks:
+      - fda-network
+
+    ports:
+      - "9100:9100"
+
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+
+    security_opt:
+      - no-new-privileges:true
+
+  # ============================================================================
+  # cAdvisor - Container metrics
+  # ============================================================================
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: fda-tools-cadvisor
+    hostname: cadvisor
+    restart: unless-stopped
+    profiles:
+      - exporters
+
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+
+    networks:
+      - fda-network
+
+    ports:
+      - "8081:8080"
+
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+    security_opt:
+      - no-new-privileges:true
+
+  # ============================================================================
+  # Postgres Exporter - PostgreSQL metrics (if using database)
+  # ============================================================================
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: fda-tools-postgres-exporter
+    hostname: postgres-exporter
+    restart: unless-stopped
+    profiles:
+      - database
+      - exporters
+
+    environment:
+      - DATA_SOURCE_NAME=postgresql://${POSTGRES_USER:-fdatools}:${POSTGRES_PASSWORD:-changeme}@postgres:5432/${POSTGRES_DB:-fda_tools}?sslmode=disable
+
+    networks:
+      - fda-network
+
+    ports:
+      - "9187:9187"
+
+    depends_on:
+      - postgres
+
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+
+    security_opt:
+      - no-new-privileges:true
+
+  # ============================================================================
+  # Redis Exporter - Redis metrics (if using cache)
+  # ============================================================================
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: fda-tools-redis-exporter
+    hostname: redis-exporter
+    restart: unless-stopped
+    profiles:
+      - cache
+      - exporters
+
+    environment:
+      - REDIS_ADDR=redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+
+    networks:
+      - fda-network
+
+    ports:
+      - "9121:9121"
+
+    depends_on:
+      - redis
+
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+
+    security_opt:
+      - no-new-privileges:true
+
+# ============================================================================
+# Networks
+# ============================================================================
+networks:
+  fda-network:
+    external: true
+
+# ============================================================================
+# Volumes
+# ============================================================================
+volumes:
+  prometheus-data:
+    name: fda-tools-prometheus-data
+    driver: local
+
+  grafana-data:
+    name: fda-tools-grafana-data
+    driver: local
+
+  alertmanager-data:
+    name: fda-tools-alertmanager-data
+    driver: local
+
+# ============================================================================
+# Usage Examples:
+# ============================================================================
+# Start core monitoring (Prometheus + Grafana):
+#   docker-compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+#
+# Start with alerting:
+#   docker-compose -f docker-compose.yml -f docker-compose.monitoring.yml --profile alerting up -d
+#
+# Start with all exporters:
+#   docker-compose -f docker-compose.yml -f docker-compose.monitoring.yml --profile exporters up -d
+#
+# Access Grafana: http://localhost:3000 (default: admin/admin)
+# Access Prometheus: http://localhost:9090
+# Access Alertmanager: http://localhost:9093
+#
+# View metrics from FDA Tools:
+#   curl http://localhost:8080/metrics
+#
+# Check Prometheus targets:
+#   http://localhost:9090/targets
+#
+# Import dashboards in Grafana:
+#   - FDA Tools Overview: monitoring/grafana/dashboards/fda-tools-overview.json
+#   - SLO Dashboard: monitoring/grafana/dashboards/fda-tools-slo.json
+# ============================================================================

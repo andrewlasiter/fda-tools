@@ -1,0 +1,310 @@
+# Prometheus Alerting Rules for FDA Tools
+# These rules define when to trigger alerts based on metrics
+
+groups:
+  - name: fda_tools_availability
+    interval: 30s
+    rules:
+      - alert: ServiceDown
+        expr: up{job="fda-tools"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          component: service
+        annotations:
+          summary: "FDA Tools service is down"
+          description: "The FDA Tools service has been down for more than 1 minute."
+
+      - alert: HighErrorRate
+        expr: |
+          (
+            rate(fda_requests_errors_total[5m])
+            / rate(fda_requests_total[5m])
+          ) * 100 > 5
+        for: 5m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanize }}% (threshold: 5%)"
+
+      - alert: ElevatedErrorRate
+        expr: |
+          (
+            rate(fda_requests_errors_total[5m])
+            / rate(fda_requests_total[5m])
+          ) * 100 > 2
+        for: 10m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "Elevated error rate"
+          description: "Error rate is {{ $value | humanize }}% (threshold: 2%)"
+
+  - name: fda_tools_performance
+    interval: 30s
+    rules:
+      - alert: HighLatencyP95
+        expr: |
+          histogram_quantile(0.95,
+            rate(fda_request_duration_seconds_bucket[5m])
+          ) > 1.5
+        for: 5m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "High API latency (P95)"
+          description: "95th percentile latency is {{ $value | humanize }}s (threshold: 1.5s)"
+
+      - alert: ElevatedLatencyP95
+        expr: |
+          histogram_quantile(0.95,
+            rate(fda_request_duration_seconds_bucket[5m])
+          ) > 0.75
+        for: 10m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "Elevated API latency (P95)"
+          description: "95th percentile latency is {{ $value | humanize }}s (threshold: 0.75s)"
+
+      - alert: HighLatencyP99
+        expr: |
+          histogram_quantile(0.99,
+            rate(fda_request_duration_seconds_bucket[5m])
+          ) > 2.0
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "High API latency (P99)"
+          description: "99th percentile latency is {{ $value | humanize }}s (threshold: 2.0s)"
+
+  - name: fda_tools_resources
+    interval: 30s
+    rules:
+      - alert: HighCPUUsage
+        expr: fda_cpu_usage_percent > 95
+        for: 5m
+        labels:
+          severity: critical
+          component: resources
+        annotations:
+          summary: "Critical CPU usage"
+          description: "CPU usage is {{ $value | humanize }}% (threshold: 95%)"
+
+      - alert: ElevatedCPUUsage
+        expr: fda_cpu_usage_percent > 80
+        for: 15m
+        labels:
+          severity: warning
+          component: resources
+        annotations:
+          summary: "Elevated CPU usage"
+          description: "CPU usage is {{ $value | humanize }}% (threshold: 80%)"
+
+      - alert: HighMemoryUsage
+        expr: fda_memory_usage_percent > 90
+        for: 5m
+        labels:
+          severity: critical
+          component: resources
+        annotations:
+          summary: "Critical memory usage"
+          description: "Memory usage is {{ $value | humanize }}% (threshold: 90%)"
+
+      - alert: ElevatedMemoryUsage
+        expr: fda_memory_usage_percent > 75
+        for: 15m
+        labels:
+          severity: warning
+          component: resources
+        annotations:
+          summary: "Elevated memory usage"
+          description: "Memory usage is {{ $value | humanize }}% (threshold: 75%)"
+
+      - alert: HighDiskUsage
+        expr: fda_disk_usage_percent > 95
+        for: 5m
+        labels:
+          severity: critical
+          component: resources
+        annotations:
+          summary: "Critical disk usage"
+          description: "Disk usage is {{ $value | humanize }}% (threshold: 95%)"
+
+      - alert: ElevatedDiskUsage
+        expr: fda_disk_usage_percent > 85
+        for: 30m
+        labels:
+          severity: warning
+          component: resources
+        annotations:
+          summary: "Elevated disk usage"
+          description: "Disk usage is {{ $value | humanize }}% (threshold: 85%)"
+
+  - name: fda_tools_cache
+    interval: 30s
+    rules:
+      - alert: LowCacheHitRate
+        expr: |
+          (
+            rate(fda_cache_hits_total[5m])
+            / (rate(fda_cache_hits_total[5m]) + rate(fda_cache_misses_total[5m]))
+          ) * 100 < 50
+        for: 15m
+        labels:
+          severity: critical
+          component: cache
+        annotations:
+          summary: "Critical cache hit rate"
+          description: "Cache hit rate is {{ $value | humanize }}% (threshold: 50%)"
+
+      - alert: SuboptimalCacheHitRate
+        expr: |
+          (
+            rate(fda_cache_hits_total[5m])
+            / (rate(fda_cache_hits_total[5m]) + rate(fda_cache_misses_total[5m]))
+          ) * 100 < 70
+        for: 30m
+        labels:
+          severity: warning
+          component: cache
+        annotations:
+          summary: "Suboptimal cache hit rate"
+          description: "Cache hit rate is {{ $value | humanize }}% (threshold: 70%)"
+
+  - name: fda_tools_external_apis
+    interval: 30s
+    rules:
+      - alert: HighExternalAPIErrorRate
+        expr: |
+          (
+            rate(fda_external_api_errors_total[5m])
+            / rate(fda_external_api_calls_total[5m])
+          ) * 100 > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: external_api
+        annotations:
+          summary: "High external API error rate"
+          description: "External API error rate is {{ $value | humanize }}% for {{ $labels.api }}"
+
+      - alert: SlowExternalAPIResponse
+        expr: |
+          histogram_quantile(0.95,
+            rate(fda_external_api_duration_seconds_bucket[5m])
+          ) > 10
+        for: 10m
+        labels:
+          severity: warning
+          component: external_api
+        annotations:
+          summary: "Slow external API response"
+          description: "External API P95 latency is {{ $value | humanize }}s for {{ $labels.api }}"
+
+  - name: fda_tools_rate_limiting
+    interval: 30s
+    rules:
+      - alert: FrequentRateLimitWaits
+        expr: rate(fda_rate_limit_waits_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: rate_limiter
+        annotations:
+          summary: "Frequent rate limit waits"
+          description: "Rate limiting is being hit frequently ({{ $value | humanize }} waits/sec)"
+
+  - name: fda_tools_health
+    interval: 30s
+    rules:
+      - alert: ComponentUnhealthy
+        expr: fda_component_health == 0
+        for: 2m
+        labels:
+          severity: warning
+          component: health_check
+        annotations:
+          summary: "Component health check failing"
+          description: "Component {{ $labels.component }} is unhealthy"
+
+      - alert: ServiceUnhealthy
+        expr: fda_health_status == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: health_check
+        annotations:
+          summary: "Service health check failing"
+          description: "Overall service health is unhealthy"
+
+  - name: fda_tools_slo
+    interval: 1m
+    rules:
+      - alert: SLOViolation_Availability
+        expr: |
+          (
+            1 - (
+              rate(fda_requests_errors_total[5m])
+              / rate(fda_requests_total[5m])
+            )
+          ) * 100 < 99.9
+        for: 10m
+        labels:
+          severity: critical
+          component: slo
+          slo: availability
+        annotations:
+          summary: "SLO violation: Availability"
+          description: "Availability is {{ $value | humanize }}% (SLO: 99.9%)"
+
+      - alert: ErrorBudgetExhausted
+        expr: |
+          (
+            1 - (
+              sum(increase(fda_requests_errors_total[30d]))
+              / sum(increase(fda_requests_total[30d]))
+            )
+          ) * 100 < 99.9
+        for: 1h
+        labels:
+          severity: warning
+          component: slo
+          slo: error_budget
+        annotations:
+          summary: "Error budget exhausted"
+          description: "30-day error budget has been exhausted. Consider freezing feature releases."
+
+  - name: fda_tools_background_jobs
+    interval: 30s
+    rules:
+      - alert: HighBackgroundJobQueueDepth
+        expr: fda_background_jobs_queued > 100
+        for: 10m
+        labels:
+          severity: warning
+          component: background_jobs
+        annotations:
+          summary: "High background job queue depth"
+          description: "{{ $value }} jobs queued (threshold: 100)"
+
+      - alert: HighBackgroundJobFailureRate
+        expr: |
+          (
+            rate(fda_background_jobs_failed_total[5m])
+            / (rate(fda_background_jobs_completed_total[5m]) + rate(fda_background_jobs_failed_total[5m]))
+          ) * 100 > 5
+        for: 10m
+        labels:
+          severity: warning
+          component: background_jobs
+        annotations:
+          summary: "High background job failure rate"
+          description: "Background job failure rate is {{ $value | humanize }}%"

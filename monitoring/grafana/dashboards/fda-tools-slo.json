@@ -1,0 +1,230 @@
+{
+  "dashboard": {
+    "title": "FDA Tools - SLO & Error Budget",
+    "tags": ["fda-tools", "slo", "reliability"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "1m",
+    "panels": [
+      {
+        "id": 1,
+        "title": "SLO Compliance - Overall",
+        "type": "stat",
+        "gridPos": {"h": 6, "w": 24, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "(1 - (sum(increase(fda_requests_errors_total[30d])) / sum(increase(fda_requests_total[30d])))) * 100",
+            "refId": "A",
+            "legendFormat": "30-Day Availability"
+          }
+        ],
+        "options": {
+          "graphMode": "area",
+          "colorMode": "background",
+          "textMode": "value_and_name"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "decimals": 3,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": null, "color": "red"},
+                {"value": 99.9, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Error Budget Remaining (30 days)",
+        "type": "gauge",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 6},
+        "targets": [
+          {
+            "expr": "((sum(increase(fda_requests_total[30d])) * 0.001) - sum(increase(fda_requests_errors_total[30d]))) / (sum(increase(fda_requests_total[30d])) * 0.001) * 100",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": null, "color": "red"},
+                {"value": 10, "color": "yellow"},
+                {"value": 50, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "Error Budget Burn Rate",
+        "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 6},
+        "targets": [
+          {
+            "expr": "(rate(fda_requests_errors_total[1h]) / rate(fda_requests_total[1h])) / 0.001",
+            "legendFormat": "1h burn rate",
+            "refId": "A"
+          },
+          {
+            "expr": "(rate(fda_requests_errors_total[6h]) / rate(fda_requests_total[6h])) / 0.001",
+            "legendFormat": "6h burn rate",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "custom": {
+              "lineWidth": 2
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "API Latency SLO - P95",
+        "type": "timeseries",
+        "gridPos": {"h": 6, "w": 12, "x": 0, "y": 14},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(fda_request_duration_seconds_bucket[5m])) * 1000",
+            "legendFormat": "P95 Latency",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": null, "color": "green"},
+                {"value": 500, "color": "red"}
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "options": {
+          "tooltip": {
+            "mode": "multi"
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "API Latency SLO - P99",
+        "type": "timeseries",
+        "gridPos": {"h": 6, "w": 12, "x": 12, "y": 14},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.99, rate(fda_request_duration_seconds_bucket[5m])) * 1000",
+            "legendFormat": "P99 Latency",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": null, "color": "green"},
+                {"value": 1000, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "Cache Hit Rate SLO",
+        "type": "timeseries",
+        "gridPos": {"h": 6, "w": 24, "x": 0, "y": 20},
+        "targets": [
+          {
+            "expr": "(rate(fda_cache_hits_total[5m]) / (rate(fda_cache_hits_total[5m]) + rate(fda_cache_misses_total[5m]))) * 100",
+            "legendFormat": "Cache Hit Rate",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": null, "color": "red"},
+                {"value": 80, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "SLI Summary",
+        "type": "table",
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 26},
+        "targets": [
+          {
+            "expr": "(1 - (rate(fda_requests_errors_total[5m]) / rate(fda_requests_total[5m]))) * 100",
+            "refId": "A",
+            "format": "table",
+            "instant": true
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(fda_request_duration_seconds_bucket[5m])) * 1000",
+            "refId": "B",
+            "format": "table",
+            "instant": true
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(fda_request_duration_seconds_bucket[5m])) * 1000",
+            "refId": "C",
+            "format": "table",
+            "instant": true
+          },
+          {
+            "expr": "(rate(fda_cache_hits_total[5m]) / (rate(fda_cache_hits_total[5m]) + rate(fda_cache_misses_total[5m]))) * 100",
+            "refId": "D",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "transformations": [
+          {
+            "id": "merge",
+            "options": {}
+          }
+        ],
+        "fieldConfig": {
+          "overrides": []
+        }
+      }
+    ],
+    "annotations": {
+      "list": [
+        {
+          "datasource": "Prometheus",
+          "enable": true,
+          "expr": "ALERTS{alertname=~\".*SLO.*\", severity=\"critical\"}",
+          "iconColor": "red",
+          "name": "SLO Violations",
+          "tagKeys": "alertname,severity"
+        }
+      ]
+    }
+  }
+}
