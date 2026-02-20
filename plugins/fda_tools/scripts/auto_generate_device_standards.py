@@ -36,7 +36,6 @@ from pathlib import Path
 from typing import Dict, List, Set, Tuple
 from collections import Counter, defaultdict
 from datetime import datetime
-import subprocess
 import tempfile
 
 # Add lib directory to path
@@ -293,7 +292,7 @@ class DeviceStandardsGenerator:
             )
             if result["status"] == "success":
                 return result["output"]
-        except (OSError, subprocess.TimeoutExpired, subprocess.SubprocessError) as exc:
+        except (OSError, Exception) as exc:
             # pdftotext not available or failed — try Python fallback
             print(f"  DEBUG: pdftotext failed for {pdf_path}: {exc}",
                   file=sys.stderr)

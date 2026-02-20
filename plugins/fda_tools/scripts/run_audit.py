@@ -25,7 +25,6 @@ Requirements:
 import argparse
 import json
 import os
-import subprocess
 import sys
 import tempfile
 import urllib.request
@@ -33,6 +32,8 @@ import urllib.parse
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Tuple, Any
+
+from fda_tools.lib.subprocess_helpers import run_command, SubprocessTimeoutError
 
 class AuditRunner:
     """Automated audit data collector for enrichment verification."""
@@ -148,14 +149,28 @@ class AuditRunner:
         return results
 
     def _run_enrichment(self, product_code: str, output_dir: str) -> Tuple[bool, str]:
-        """Run enrichment command and return success status and CSV path."""
+        """Run enrichment command and return success status and CSV path.
+
+        NOTE: This method attempts to run a Claude Code skill command via subprocess,
+        which won't work. This needs refactoring to call the actual Python functions
+        directly instead of trying to invoke skill commands.
+        """
+        # FIXME: Cannot invoke Claude Code skills via subprocess
+        # This should call batchfetch Python functions directly
         cmd = [
             'bash', '-c',
             f'cd {output_dir} && /fda-tools:batchfetch --product-codes {product_code} --years 2024 --enrich --full-auto'
         ]
 
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+            # Note: bash must be added to allowlist for this to work
+            result = run_command(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=300,
+                allowlist=['bash']  # Override allowlist for this specific use case
+            )
             csv_path = os.path.join(output_dir, '510k_download_enriched.csv')
             return os.path.exists(csv_path), csv_path
         except Exception as e:

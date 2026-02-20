@@ -20,10 +20,11 @@ Date: 2026-02-14
 import os
 import sys
 import json
-import subprocess
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 from datetime import datetime
+
+from fda_tools.lib.subprocess_helpers import run_command, SubprocessTimeoutError
 
 
 class eCopyExporter:
@@ -252,14 +253,14 @@ class eCopyExporter:
             True if pandoc is available, False otherwise
         """
         try:
-            result = subprocess.run(
+            result = run_command(
                 ["pandoc", "--version"],
                 capture_output=True,
                 text=True,
                 timeout=5,
             )
             return result.returncode == 0
-        except (FileNotFoundError, subprocess.TimeoutExpired, OSError, Exception):
+        except (FileNotFoundError, SubprocessTimeoutError, OSError, Exception):
             # Gracefully handle any subprocess errors
             return False
 
@@ -393,7 +394,7 @@ class eCopyExporter:
             "--metadata", f"date={datetime.now().strftime('%Y-%m-%d')}",
         ]
 
-        result = subprocess.run(
+        result = run_command(
             cmd,
             capture_output=True,
             text=True,

@@ -46,6 +46,17 @@ repos:
         files: ^scripts/.*\.py$
         exclude: ^tests/
 
+  # Subprocess usage enforcement (FDA-129)
+  - repo: local
+    hooks:
+      - id: subprocess-linter
+        name: Subprocess Usage Linter
+        entry: python3 scripts/lint_subprocess_usage.py
+        language: system
+        types: [python]
+        exclude: ^(tests/|scripts/lint_subprocess_usage\.py|lib/subprocess_helpers\.py|lib/subprocess_utils\.py)$
+        verbose: true
+
   # JSON validation
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0

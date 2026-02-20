@@ -14,7 +14,6 @@ This module orchestrates:
 
 import json
 import logging
-import subprocess
 import sys
 import time
 from pathlib import Path
