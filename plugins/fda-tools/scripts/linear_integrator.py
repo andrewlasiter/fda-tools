@@ -461,7 +461,15 @@ class LinearIntegrator:
         import os
         import requests
 
-        api_key = os.getenv("LINEAR_API_KEY")
+        # Try secure_config first (FDA-182)
+        api_key = None
+        try:
+            from lib.secure_config import get_api_key  # type: ignore
+            api_key = get_api_key('linear')
+        except ImportError:
+            # Fallback to environment variable
+            api_key = os.getenv("LINEAR_API_KEY")
+
         if not api_key:
             logger.warning("LINEAR_API_KEY not set - using simulation mode")
             return f"FDA-{hash(issue.title) % 1000:03d}"
@@ -540,7 +548,15 @@ class LinearIntegrator:
         import os
         import requests
 
-        api_key = os.getenv("LINEAR_API_KEY")
+        # Try secure_config first (FDA-182)
+        api_key = None
+        try:
+            from lib.secure_config import get_api_key  # type: ignore
+            api_key = get_api_key('linear')
+        except ImportError:
+            # Fallback to environment variable
+            api_key = os.getenv("LINEAR_API_KEY")
+
         if not api_key:
             logger.warning("LINEAR_API_KEY not set - using simulation mode")
             return {
@@ -624,7 +640,15 @@ class LinearIntegrator:
         import os
         import requests
 
-        api_key = os.getenv("LINEAR_API_KEY")
+        # Try secure_config first (FDA-182)
+        api_key = None
+        try:
+            from lib.secure_config import get_api_key  # type: ignore
+            api_key = get_api_key('linear')
+        except ImportError:
+            # Fallback to environment variable
+            api_key = os.getenv("LINEAR_API_KEY")
+
         if not api_key:
             logger.warning("LINEAR_API_KEY not set - using simulation mode")
             logger.info(

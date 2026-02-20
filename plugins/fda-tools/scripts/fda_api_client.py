@@ -189,17 +189,32 @@ class FDAClient:
             self._stats["corruptions"] += 1
 
     def _load_api_key(self):
-        """Load API key from environment or settings file."""
+        """Load API key from environment, keyring, or settings file.
+
+        Uses centralized secure_config module (FDA-182) for keyring support.
+        Falls back to legacy behavior if secure_config is not available.
+        """
+        # Try secure_config first (FDA-182)
+        try:
+            from lib.secure_config import get_api_key  # type: ignore
+            key = get_api_key('openfda')
+            if key:
+                return key
+        except ImportError:
+            logger.debug("secure_config not available, using legacy API key loading")
+
+        # Legacy fallback: environment variable
         key = os.environ.get("OPENFDA_API_KEY")
         if key:
             return key
 
+        # Legacy fallback: settings file
         settings_path = os.path.expanduser("~/.claude/fda-tools.local.md")
         if os.path.exists(settings_path):
             with open(settings_path) as f:
                 content = f.read()
             m = re.search(r"openfda_api_key:\s*(\S+)", content)
-            if m and m.group(1) != "null":
+            if m and m.group(1) not in ("null", "keyring"):
                 return m.group(1)
         return None
 
