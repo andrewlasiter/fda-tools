@@ -1,0 +1,266 @@
+# Alertmanager Configuration for FDA Tools
+# FDA-190 (DEVOPS-004) - Production Monitoring and Observability
+#
+# Notification channels:
+# - critical: PagerDuty (immediate notification)
+# - warning: Slack (team notification)
+# - info: Email (daily digest)
+
+global:
+  resolve_timeout: 5m
+  slack_api_url: '<slack-webhook-url>'
+  pagerduty_url: 'https://events.pagerduty.com/v2/enqueue'
+
+# Route configuration
+route:
+  # Default receiver (fallback)
+  receiver: 'default-receiver'
+
+  # Group alerts by service and severity
+  group_by: ['service', 'severity', 'alertname']
+
+  # Wait 30s before sending initial notification
+  # (allows grouping of related alerts)
+  group_wait: 30s
+
+  # Wait 5m before sending notification about new alerts
+  # added to a group for which initial notification was sent
+  group_interval: 5m
+
+  # Wait 4h before re-sending notification about same alert
+  repeat_interval: 4h
+
+  # Child routes (more specific routing)
+  routes:
+    # ========================================================================
+    # CRITICAL ALERTS → PagerDuty
+    # ========================================================================
+    - match:
+        severity: critical
+      receiver: 'pagerduty-critical'
+      group_wait: 10s
+      group_interval: 5m
+      repeat_interval: 1h
+      continue: true  # Also send to Slack
+
+    # ========================================================================
+    # WARNING ALERTS → Slack
+    # ========================================================================
+    - match:
+        severity: warning
+      receiver: 'slack-warnings'
+      group_wait: 30s
+      group_interval: 10m
+      repeat_interval: 4h
+
+    # ========================================================================
+    # INFO ALERTS → Email (daily digest)
+    # ========================================================================
+    - match:
+        severity: info
+      receiver: 'email-digest'
+      group_wait: 5m
+      group_interval: 1h
+      repeat_interval: 24h
+
+    # ========================================================================
+    # SLO VIOLATION ALERTS → PagerDuty + Slack
+    # ========================================================================
+    - match_re:
+        slo: '.*'
+      receiver: 'pagerduty-slo'
+      group_wait: 5s
+      group_interval: 5m
+      repeat_interval: 30m
+      continue: true
+
+    # ========================================================================
+    # ERROR BUDGET ALERTS → Executive team
+    # ========================================================================
+    - match:
+        slo: availability
+      receiver: 'error-budget-alerts'
+      group_wait: 5s
+      group_interval: 15m
+      repeat_interval: 1h
+
+# Inhibition rules (suppress redundant alerts)
+inhibit_rules:
+  # Suppress warning if critical is firing for same service
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['service', 'alertname']
+
+  # Suppress individual endpoint errors if service is down
+  - source_match:
+      alertname: 'FDAToolsServiceDown'
+    target_match_re:
+      alertname: 'FDATools(HighErrorRate|HighLatency).*'
+    equal: ['service']
+
+  # Suppress cache alerts if memory is critical
+  - source_match:
+      alertname: 'FDAToolsCriticalMemoryUsage'
+    target_match:
+      alertname: 'FDAToolsLowCacheHitRate'
+    equal: ['service']
+
+# Receivers (notification channels)
+receivers:
+  # ==========================================================================
+  # Default receiver (fallback)
+  # ==========================================================================
+  - name: 'default-receiver'
+    email_configs:
+      - to: 'sre-team@example.com'
+        from: 'alerts@fda-tools.example.com'
+        smarthost: 'smtp.example.com:587'
+        auth_username: 'alerts@fda-tools.example.com'
+        auth_password: '<smtp-password>'
+        headers:
+          Subject: '[FDA Tools] {{ .GroupLabels.alertname }}'
+
+  # ==========================================================================
+  # PagerDuty for CRITICAL alerts
+  # ==========================================================================
+  - name: 'pagerduty-critical'
+    pagerduty_configs:
+      - service_key: '<pagerduty-integration-key-critical>'
+        description: |
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          {{ .Annotations.description }}
+          {{ end }}
+        details:
+          firing: '{{ .Alerts.Firing | len }}'
+          resolved: '{{ .Alerts.Resolved | len }}'
+          severity: '{{ .GroupLabels.severity }}'
+          service: '{{ .GroupLabels.service }}'
+        links:
+          - href: '{{ .Annotations.runbook_url }}'
+            text: 'Runbook'
+          - href: '{{ .Annotations.dashboard_url }}'
+            text: 'Dashboard'
+
+  # ==========================================================================
+  # PagerDuty for SLO violations
+  # ==========================================================================
+  - name: 'pagerduty-slo'
+    pagerduty_configs:
+      - service_key: '<pagerduty-integration-key-slo>'
+        description: |
+          SLO VIOLATION: {{ .GroupLabels.slo }}
+          {{ range .Alerts }}
+          {{ .Annotations.summary }}
+          {{ end }}
+        severity: 'critical'
+
+  # ==========================================================================
+  # Slack for WARNING alerts
+  # ==========================================================================
+  - name: 'slack-warnings'
+    slack_configs:
+      - channel: '#fda-tools-alerts'
+        username: 'FDA Tools Monitor'
+        icon_emoji: ':warning:'
+        title: 'FDA Tools Warning Alert'
+        text: |
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Severity:* {{ .Labels.severity }}
+          *Description:*
+          {{ .Annotations.description }}
+          {{ if .Annotations.runbook_url }}
+          *Runbook:* {{ .Annotations.runbook_url }}
+          {{ end }}
+          {{ end }}
+        color: 'warning'
+        send_resolved: true
+
+  # ==========================================================================
+  # Slack for CRITICAL alerts (in addition to PagerDuty)
+  # ==========================================================================
+  - name: 'slack-critical'
+    slack_configs:
+      - channel: '#fda-tools-incidents'
+        username: 'FDA Tools Monitor'
+        icon_emoji: ':fire:'
+        title: 'FDA Tools CRITICAL Alert'
+        text: |
+          {{ range .Alerts }}
+          *CRITICAL:* {{ .Annotations.summary }}
+          *Description:*
+          {{ .Annotations.description }}
+          *Runbook:* {{ .Annotations.runbook_url }}
+          {{ end }}
+        color: 'danger'
+        send_resolved: true
+
+  # ==========================================================================
+  # Email digest for INFO alerts
+  # ==========================================================================
+  - name: 'email-digest'
+    email_configs:
+      - to: 'fda-tools-team@example.com'
+        from: 'alerts@fda-tools.example.com'
+        smarthost: 'smtp.example.com:587'
+        auth_username: 'alerts@fda-tools.example.com'
+        auth_password: '<smtp-password>'
+        headers:
+          Subject: '[FDA Tools] Daily Alert Digest'
+        html: |
+          <h2>FDA Tools Alert Digest</h2>
+          <p>The following informational alerts were triggered:</p>
+          <ul>
+          {{ range .Alerts }}
+          <li>
+            <strong>{{ .Annotations.summary }}</strong><br>
+            {{ .Annotations.description }}
+          </li>
+          {{ end }}
+          </ul>
+
+  # ==========================================================================
+  # Error budget alerts (executive team)
+  # ==========================================================================
+  - name: 'error-budget-alerts'
+    email_configs:
+      - to: 'sre-team@example.com, engineering-leads@example.com'
+        from: 'alerts@fda-tools.example.com'
+        smarthost: 'smtp.example.com:587'
+        auth_username: 'alerts@fda-tools.example.com'
+        auth_password: '<smtp-password>'
+        headers:
+          Subject: '[FDA Tools] ERROR BUDGET ALERT'
+        html: |
+          <h2 style="color: red;">FDA Tools Error Budget Alert</h2>
+          {{ range .Alerts }}
+          <p><strong>{{ .Annotations.summary }}</strong></p>
+          <pre>{{ .Annotations.description }}</pre>
+          {{ end }}
+
+    slack_configs:
+      - channel: '#fda-tools-slo'
+        username: 'FDA Tools SLO Monitor'
+        icon_emoji: ':rotating_light:'
+        title: 'ERROR BUDGET ALERT'
+        text: |
+          {{ range .Alerts }}
+          {{ .Annotations.description }}
+          {{ end }}
+        color: 'danger'
+
+    pagerduty_configs:
+      - service_key: '<pagerduty-integration-key-slo>'
+        description: |
+          ERROR BUDGET ALERT
+          {{ range .Alerts }}
+          {{ .Annotations.description }}
+          {{ end }}
+        severity: 'critical'
+
+# Templates for notifications
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
