@@ -1,0 +1,65 @@
+# GitHub Dependabot Configuration for FDA Tools Plugin
+#
+# Purpose: Automated dependency vulnerability scanning and updates
+# Compliance: 21 CFR 820.70(i) - Software validation requires up-to-date dependencies
+# Schedule: Weekly automated PRs for security updates
+#
+# Created: 2026-02-20 (FDA-112)
+# Reference: https://docs.github.com/en/code-security/dependabot
+
+version: 2
+updates:
+  # Monitor Python dependencies
+  - package-ecosystem: "pip"
+    directory: "/plugins/fda_tools/scripts"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "andrewlasiter"
+    labels:
+      - "dependencies"
+      - "security"
+      - "automated"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    # Group updates by type for easier review
+    groups:
+      security-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "security"
+      minor-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    # Ignore major version updates (require manual review)
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # Monitor GitHub Actions dependencies
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "andrewlasiter"
+    labels:
+      - "dependencies"
+      - "ci/cd"
+      - "automated"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
