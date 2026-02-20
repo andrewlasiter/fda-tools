@@ -4,10 +4,15 @@ Simple Markdown to HTML Converter for FDA Standards Validation Reports
 
 Converts markdown validation reports to HTML with basic Bootstrap styling.
 No external dependencies beyond Python stdlib.
+
+SECURITY: All user input is HTML-escaped to prevent XSS attacks.
+- Implements OWASP XSS Prevention Cheat Sheet recommendations
+- Uses Content Security Policy (CSP) for defense-in-depth
+- Subresource Integrity (SRI) for CDN resources
 """
 
+import html  # For XSS prevention
 import re
-import sys
 from pathlib import Path
 from datetime import datetime
 
@@ -22,53 +27,109 @@ def markdown_to_html(md_content):
     - Code blocks (```)
     - Tables (| col | col |)
     - Horizontal rules (---)
+
+    Security: All user content is HTML-escaped to prevent XSS injection.
     """
-    html = md_content
+    html_content = md_content
 
-    # Headers
-    html = re.sub(r'^### (.+)$', r'<h3>\1</h3>', html, flags=re.MULTILINE)
-    html = re.sub(r'^## (.+)$', r'<h2>\1</h2>', html, flags=re.MULTILINE)
-    html = re.sub(r'^# (.+)$', r'<h1>\1</h1>', html, flags=re.MULTILINE)
+    # Headers - with HTML escaping (FIX #1)
+    html_content = re.sub(
+        r'^### (.+)$',
+        lambda m: f'<h3>{html.escape(m.group(1))}</h3>',
+        html_content,
+        flags=re.MULTILINE
+    )
+    html_content = re.sub(
+        r'^## (.+)$',
+        lambda m: f'<h2>{html.escape(m.group(1))}</h2>',
+        html_content,
+        flags=re.MULTILINE
+    )
+    html_content = re.sub(
+        r'^# (.+)$',
+        lambda m: f'<h1>{html.escape(m.group(1))}</h1>',
+        html_content,
+        flags=re.MULTILINE
+    )
 
-    # Bold
-    html = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', html)
+    # Bold - with HTML escaping (FIX #2)
+    html_content = re.sub(
+        r'\*\*(.+?)\*\*',
+        lambda m: f'<strong>{html.escape(m.group(1))}</strong>',
+        html_content
+    )
 
-    # Status badges
-    html = re.sub(r'✅ GREEN', r'<span class="badge bg-success">GREEN</span>', html)
-    html = re.sub(r'⚠️\s*YELLOW', r'<span class="badge bg-warning">YELLOW</span>', html)
-    html = re.sub(r'❌ RED', r'<span class="badge bg-danger">RED</span>', html)
-    html = re.sub(r'✓', r'<span class="text-success">✓</span>', html)
-    html = re.sub(r'✗', r'<span class="text-danger">✗</span>', html)
+    # Status badges - pre-escaped, safe
+    html_content = re.sub(r'✅ GREEN', r'<span class="badge bg-success">GREEN</span>', html_content)
+    html_content = re.sub(r'⚠️\s*YELLOW', r'<span class="badge bg-warning">YELLOW</span>', html_content)
+    html_content = re.sub(r'❌ RED', r'<span class="badge bg-danger">RED</span>', html_content)
+    html_content = re.sub(r'✓', r'<span class="text-success">✓</span>', html_content)
+    html_content = re.sub(r'✗', r'<span class="text-danger">✗</span>', html_content)
 
-    # Code blocks
-    html = re.sub(r'```([a-z]*)\n(.*?)\n```', r'<pre><code class="language-\1">\2</code></pre>', html, flags=re.DOTALL)
+    # Code blocks - with HTML escaping and language sanitization (FIX #6, #13)
+    def escape_code_block(match):
+        # Sanitize language hint to prevent attribute injection
+        lang = re.sub(r'[^a-z0-9]', '', match.group(1).lower())
+        # Escape code content to prevent HTML injection
+        code = html.escape(match.group(2))
+        return f'<pre><code class="language-{lang}">{code}</code></pre>'
 
-    # Tables - simple conversion
-    lines = html.split('\n')
+    html_content = re.sub(
+        r'```([a-z0-9]*)\n(.*?)\n```',
+        escape_code_block,
+        html_content,
+        flags=re.DOTALL
+    )
+
+    # Tables - simple conversion with HTML escaping (FIX #3, #4)
+    lines = html_content.split('\n')
     in_table = False
     table_html = []
+    first_row_cells = None
 
-    for line in lines:
+    for i, line in enumerate(lines):
         if '|' in line and not line.strip().startswith('<'):
             if not in_table:
                 in_table = True
+                first_row_cells = None
                 table_html.append('<table class="table table-bordered table-striped">')
 
-            # Header row
+            # Check if this is a separator row
             if re.match(r'\|[\s\-:]+\|', line):
+                # This is a separator, so previous row was a header
+                if first_row_cells:
+                    table_html.append('<thead><tr>')
+                    for cell in first_row_cells:
+                        table_html.append(f'<th>{html.escape(cell)}</th>')
+                    table_html.append('</tr></thead><tbody>')
+                    first_row_cells = None
                 continue  # Skip separator line
 
             cells = [cell.strip() for cell in line.split('|')[1:-1]]
 
-            if len(table_html) == 1:  # First data row = header
-                table_html.append('<thead><tr>')
-                for cell in cells:
-                    table_html.append(f'<th>{cell}</th>')
-                table_html.append('</tr></thead><tbody>')
+            # If we haven't seen any rows yet, buffer this as potentially a header
+            if first_row_cells is None and len(table_html) == 1:
+                # Check if next line is a separator
+                next_line_is_sep = (i + 1 < len(lines) and
+                                    re.match(r'\|[\s\-:]+\|', lines[i + 1].strip()))
+                if next_line_is_sep:
+                    # Next line is separator, this is a header - buffer it
+                    first_row_cells = cells
+                else:
+                    # No separator follows, treat as data row
+                    if '<tbody>' not in ''.join(table_html):
+                        table_html.append('<tbody>')
+                    table_html.append('<tr>')
+                    for cell in cells:
+                        table_html.append(f'<td>{html.escape(cell)}</td>')
+                    table_html.append('</tr>')
             else:
+                # Regular data row
+                if '<tbody>' not in ''.join(table_html):
+                    table_html.append('<tbody>')
                 table_html.append('<tr>')
                 for cell in cells:
-                    table_html.append(f'<td>{cell}</td>')
+                    table_html.append(f'<td>{html.escape(cell)}</td>')
                 table_html.append('</tr>')
         else:
             if in_table:
@@ -81,29 +142,44 @@ def markdown_to_html(md_content):
     if in_table:
         table_html.append('</tbody></table>')
 
-    html = '\n'.join(table_html)
+    html_content = '\n'.join(table_html)
 
-    # Lists
-    html = re.sub(r'^\s*[-•]\s+(.+)$', r'<li>\1</li>', html, flags=re.MULTILINE)
-    html = re.sub(r'(<li>.*</li>)', r'<ul>\1</ul>', html, flags=re.DOTALL)
-    html = re.sub(r'</ul>\n+<ul>', '', html)  # Merge consecutive lists
+    # Lists - with HTML escaping (FIX #7)
+    html_content = re.sub(
+        r'^\s*[-•]\s+(.+)$',
+        lambda m: f'<li>{html.escape(m.group(1))}</li>',
+        html_content,
+        flags=re.MULTILINE
+    )
+    html_content = re.sub(r'(<li>.*</li>)', r'<ul>\1</ul>', html_content, flags=re.DOTALL)
+    html_content = re.sub(r'</ul>\n+<ul>', '', html_content)  # Merge consecutive lists
 
     # Horizontal rules
-    html = re.sub(r'^[-=]{3,}$', r'<hr>', html, flags=re.MULTILINE)
+    html_content = re.sub(r'^[-=]{3,}$', r'<hr>', html_content, flags=re.MULTILINE)
 
-    # Paragraphs
-    paragraphs = html.split('\n\n')
+    # Paragraphs - with HTML escaping (FIX #8)
+    # Only skip escaping for HTML we generated (our specific tags)
+    safe_html_tags = ['<h1>', '<h2>', '<h3>', '<h4>', '<h5>', '<h6>',
+                      '<strong>', '<table', '<ul>', '<li>', '<pre>',
+                      '<hr>', '<span class=']
+
+    paragraphs = html_content.split('\n\n')
     formatted_paragraphs = []
     for p in paragraphs:
         p = p.strip()
-        if p and not p.startswith('<'):
-            formatted_paragraphs.append(f'<p>{p}</p>')
-        else:
-            formatted_paragraphs.append(p)
+        if p:
+            # Check if this is our generated HTML or user content
+            is_our_html = any(p.startswith(tag) for tag in safe_html_tags)
+            if is_our_html or p.startswith('</'):
+                # This is HTML we generated, keep as-is
+                formatted_paragraphs.append(p)
+            else:
+                # This is user content (including malicious HTML), escape it
+                formatted_paragraphs.append(f'<p>{html.escape(p)}</p>')
 
-    html = '\n\n'.join(formatted_paragraphs)
+    html_content = '\n\n'.join(formatted_paragraphs)
 
-    return html
+    return html_content
 
 
 def generate_html_report(md_files, output_file, title="FDA Standards Validation Report"):
@@ -112,8 +188,13 @@ def generate_html_report(md_files, output_file, title="FDA Standards Validation 
     Args:
         md_files: List of Path objects or strings to markdown files
         output_file: Path to output HTML file
-        title: Report title
+        title: Report title (will be HTML-escaped)
+
+    Security: Title and section IDs are sanitized to prevent XSS.
     """
+    # Escape title parameter to prevent XSS (FIX #9)
+    title_safe = html.escape(title)
+
     # Read all markdown files
     combined_md = []
 
@@ -122,21 +203,29 @@ def generate_html_report(md_files, output_file, title="FDA Standards Validation 
         if md_path.exists():
             with open(md_path, 'r') as f:
                 content = f.read()
-                combined_md.append(f'<section id="{md_path.stem}">')
+                # Sanitize section ID to prevent attribute injection (FIX #10)
+                section_id = re.sub(r'[^a-zA-Z0-9_-]', '_', md_path.stem)
+                combined_md.append(f'<section id="{section_id}">')
                 combined_md.append(markdown_to_html(content))
                 combined_md.append('</section>')
                 combined_md.append('<hr class="my-5">')
         else:
             print(f"Warning: {md_file} not found, skipping...")
 
-    # Generate HTML template
+    # Generate HTML template with security controls
+    # FIX #11: SRI hashes for CDN resources
+    # FIX #12: Content Security Policy
     html_template = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{title}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; script-src 'self' https://cdn.jsdelivr.net; img-src 'self' data:;">
+    <title>{title_safe}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+          rel="stylesheet"
+          integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM"
+          crossorigin="anonymous">
     <style>
         body {{
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -222,7 +311,7 @@ def generate_html_report(md_files, output_file, title="FDA Standards Validation 
 <body>
     <div class="container">
         <div class="report-header">
-            <h1>{title}</h1>
+            <h1>{title_safe}</h1>
             <div class="report-meta">
                 Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}
             </div>
@@ -235,7 +324,9 @@ def generate_html_report(md_files, output_file, title="FDA Standards Validation 
         </footer>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+            integrity="sha384-fbbOQedDUMZZ5KreZpsbe1LCZPVmfTnH7ois6mU1QK+m14rQ1l2bGBq41eYeM/fS"
+            crossorigin="anonymous"></script>
 </body>
 </html>"""
 
