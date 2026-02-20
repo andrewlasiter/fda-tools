@@ -107,6 +107,68 @@ This writes `import_data.json` to the project directory containing:
 - **sections**: Narrative text for device description, SE discussion, performance, etc.
 - **raw_fields**: All XFA field paths and values (for debugging)
 
+## Step 3.5: Validate JSON Schema
+
+Validate the extracted data structure using the manifest validator:
+
+```bash
+python3 << 'PYEOF'
+import os, sys, json
+
+# Add lib directory to path
+plugin_root = os.environ.get('FDA_PLUGIN_ROOT', '')
+if plugin_root:
+    sys.path.insert(0, os.path.join(plugin_root, 'lib'))
+
+try:
+    from manifest_validator import validate_manifest, ValidationError
+except ImportError:
+    print("WARNING: manifest_validator not available, skipping schema validation")
+    sys.exit(0)
+
+# Load import_data.json
+projects_dir = os.path.expanduser('~/fda-510k-data/projects')
+settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
+if os.path.exists(settings_path):
+    with open(settings_path) as f:
+        import re
+        m = re.search(r'projects_dir:\s*(.+)', f.read())
+        if m:
+            projects_dir = os.path.expanduser(m.group(1).strip())
+
+project = "PROJECT_NAME"  # Replace
+import_file = os.path.join(projects_dir, project, 'import_data.json')
+
+if not os.path.exists(import_file):
+    print(f"ERROR: import_data.json not found at {import_file}")
+    sys.exit(1)
+
+with open(import_file) as f:
+    data = json.load(f)
+
+# Validate schema
+try:
+    is_valid, errors = validate_manifest(data, strict=False)
+    if is_valid:
+        print("✓ JSON schema validation passed")
+    else:
+        print(f"⚠ JSON schema validation warnings ({len(errors)}):")
+        for err in errors[:5]:  # Show first 5 errors
+            print(f"  - {err}")
+        if len(errors) > 5:
+            print(f"  ... and {len(errors) - 5} more")
+except Exception as e:
+    print(f"ERROR during validation: {e}")
+    sys.exit(1)
+PYEOF
+```
+
+This ensures the imported data matches the expected schema structure and helps catch:
+- Missing required fields
+- Type mismatches (e.g., string instead of array)
+- Invalid date formats
+- Additional properties not in schema
+
 ## Step 4: Validate Imported Data (if --validate)
 
 If `--validate` was specified, cross-check extracted data against openFDA:
