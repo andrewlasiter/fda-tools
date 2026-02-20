@@ -172,8 +172,13 @@ class ExternalDataSource(ABC):
         except OSError as e:
             print(f"Warning: Failed to write cache file {cache_file}: {e}", file=sys.stderr)
 
-    def _http_get(self, url: str, timeout: int = 15) -> Optional[Dict]:
+    def _http_get(self, url: str, timeout: int = 15, extra_headers: Optional[Dict[str, str]] = None) -> Optional[Dict]:
         """Make an HTTP GET request with error handling.
+
+        Args:
+            url: URL to fetch
+            timeout: Request timeout in seconds
+            extra_headers: Optional additional headers to include
 
         Returns:
             Parsed JSON response or None on failure.
@@ -185,6 +190,8 @@ class ExternalDataSource(ABC):
             "User-Agent": f"FDA-Tools-Plugin/{HUB_VERSION}",
             "Accept": "application/json",
         }
+        if extra_headers:
+            headers.update(extra_headers)
         req = urllib.request.Request(url, headers=headers)
 
         try:
@@ -337,12 +344,13 @@ class PubMedSource(ExternalDataSource):
             "retmax": str(min(max_results, 20)),
             "retmode": "json",
         }
-        if self.api_key:
-            params["api_key"] = self.api_key
 
-        cache_key = self._cache_key(
-            {k: v for k, v in params.items() if k != "api_key"}
-        )
+        # FDA-106: API key passed in header, not URL (security fix)
+        headers = {}
+        if self.api_key:
+            headers["api_key"] = self.api_key
+
+        cache_key = self._cache_key(params)
         cached = self._get_cached(cache_key)
         if cached is not None:
             cached["_from_cache"] = True
@@ -353,7 +361,7 @@ class PubMedSource(ExternalDataSource):
             f"{self.base_url}/esearch.fcgi?"
             f"{urllib.parse.urlencode(params)}"
         )
-        search_result = self._http_get(search_url)
+        search_result = self._http_get(search_url, extra_headers=headers)
 
         if search_result is None or search_result.get("error"):
             return {
@@ -408,14 +416,17 @@ class PubMedSource(ExternalDataSource):
             "id": ",".join(pmids),
             "retmode": "json",
         }
+
+        # FDA-106: API key passed in header, not URL (security fix)
+        headers = {}
         if self.api_key:
-            params["api_key"] = self.api_key
+            headers["api_key"] = self.api_key
 
         url = (
             f"{self.base_url}/esummary.fcgi?"
             f"{urllib.parse.urlencode(params)}"
         )
-        raw = self._http_get(url)
+        raw = self._http_get(url, extra_headers=headers)
 
         if raw is None or raw.get("error"):
             return [{"pmid": pmid, "error": "Failed to fetch"} for pmid in pmids]
