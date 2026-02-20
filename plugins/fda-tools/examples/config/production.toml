@@ -1,0 +1,183 @@
+# FDA Tools Production Environment Configuration
+# Deploy as system config in production environments
+
+[general]
+plugin_name = "fda-tools"
+plugin_version = "5.32.0"
+environment = "production"
+
+[paths]
+# Production paths
+base_dir = "~/.claude/fda-510k-data"
+cache_dir = "~/.claude/fda-510k-data/cache"
+projects_dir = "~/.claude/fda-510k-data/projects"
+output_dir = "~/.claude/fda-510k-data/output"
+logs_dir = "~/.claude/fda-510k-data/logs"
+temp_dir = "~/.claude/fda-510k-data/temp"
+backup_dir = "~/.claude/fda-510k-data/backups"
+
+[api]
+# Production FDA APIs
+openfda_base_url = "https://api.fda.gov"
+openfda_device_endpoint = "https://api.fda.gov/device"
+openfda_rate_limit_unauthenticated = 240
+openfda_rate_limit_authenticated = 1000
+openfda_timeout = 30
+
+fda_accessdata_base_url = "https://www.accessdata.fda.gov"
+fda_cdrh_docs_base_url = "https://www.accessdata.fda.gov/cdrh_docs"
+fda_website_timeout = 60
+
+pubmed_base_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
+pubmed_rate_limit = 3
+pubmed_timeout = 30
+
+[http]
+# Production HTTP settings
+user_agent_override = ""
+honest_ua_only = false
+max_retries = 5
+base_backoff = 1.0
+max_backoff = 120.0
+connection_pool_size = 10
+verify_ssl = true
+
+[cache]
+# Production cache settings
+default_ttl = 604800  # 7 days
+max_cache_size_mb = 5000  # 5 GB
+enable_integrity_checks = true
+atomic_writes = true
+compression_enabled = false
+
+# Cache TTLs
+ttl_510k = 2592000        # 30 days
+ttl_classification = 2592000
+ttl_recall = 86400        # 1 day
+ttl_maude = 86400
+ttl_pma = 2592000
+ttl_literature = 2592000
+ttl_similarity = 604800   # 7 days
+
+[rate_limiting]
+# Production rate limiting
+enable_cross_process = true
+enable_thread_safe = true
+lock_timeout = 30
+cleanup_interval = 300
+
+rate_limit_openfda = 240
+rate_limit_pubmed = 3
+rate_limit_pdf_download = 2  # 30s delay between PDFs
+rate_limit_website = 60
+
+[logging]
+# Production logging (minimal verbosity)
+level = "WARNING"
+format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+date_format = "%Y-%m-%d %H:%M:%S"
+log_to_file = true
+log_to_console = false  # No console logging in production
+log_file_max_bytes = 10485760  # 10 MB
+log_file_backup_count = 10
+redact_api_keys = true
+redact_phi = true
+
+# Component-specific levels
+log_level_api = "WARNING"
+log_level_cache = "WARNING"
+log_level_http = "ERROR"
+log_level_audit = "INFO"
+
+[audit]
+# Production audit logging (21 CFR Part 11 compliance)
+enable_audit_logging = true
+audit_log_dir = "~/.claude/fda-510k-data/logs/audit"
+sequential_numbering = true
+include_user_identity = true
+include_before_after = true
+include_failed_attempts = true
+audit_log_retention_days = 2555  # 7 years (FDA requirement)
+encrypt_audit_logs = false  # Enable if encryption keys configured
+
+[security]
+# Production security settings
+keyring_service = "fda-tools-plugin"
+enable_keyring = true
+api_key_redaction = true
+validate_file_paths = true
+max_path_depth = 10
+allowed_file_extensions = [".json", ".txt", ".md", ".csv", ".pdf", ".xml", ".html"]
+sanitize_html_output = true
+
+[features]
+# Production features (conservative)
+enable_enrichment = true
+enable_intelligence = true
+enable_clinical_detection = true
+enable_standards_matching = true
+enable_predicate_validation = true
+enable_maude_comparison = true
+enable_literature_search = true
+enable_pma_intelligence = true
+enable_similarity_caching = true
+enable_pdf_ocr = false  # Disabled unless tesseract installed
+enable_experimental = false  # No experimental features in production
+
+[pdf_processing]
+# Production PDF processing
+pdf_download_delay = 30  # Respect FDA servers
+pdf_max_size_mb = 50
+pdf_timeout = 120
+enable_ocr = false
+ocr_language = "eng"
+
+[output]
+# Production output settings
+default_format = "markdown"
+pretty_print_json = false  # Compact JSON in production
+csv_delimiter = ","
+csv_quoting = "minimal"
+html_template = "default"
+markdown_code_blocks = true
+
+[validation]
+# Production validation (strict)
+strict_mode = true
+validate_k_numbers = true
+validate_product_codes = true
+validate_dates = true
+validate_email = true
+max_string_length = 10000
+allowed_k_number_prefixes = ["K", "DEN", "HDE"]
+
+[integration]
+# Production integrations (disabled by default)
+enable_linear_integration = false
+enable_bridge_integration = false
+linear_workspace_id = ""
+linear_team_id = ""
+linear_project_id = ""
+
+[performance]
+# Production performance settings
+max_concurrent_requests = 5
+batch_size = 100
+chunk_size = 1000
+thread_pool_size = 4
+process_pool_size = 2
+enable_progress_bars = false  # No progress bars in production
+show_warnings = false  # Minimal output in production
+
+[backup]
+# Production backup settings
+enable_auto_backup = true
+backup_interval_hours = 24
+backup_retention_days = 30
+backup_compression = true
+backup_incremental = false
+
+[testing]
+# Production testing settings
+test_mode = false
+mock_api_responses = false

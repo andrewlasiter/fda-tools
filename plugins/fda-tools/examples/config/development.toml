@@ -1,0 +1,124 @@
+# FDA Tools Development Environment Configuration
+# Copy to ~/.claude/fda-tools.config.toml for local development
+
+[general]
+plugin_name = "fda-tools"
+plugin_version = "5.32.0"
+environment = "development"
+
+[paths]
+# Development paths
+base_dir = "~/.claude/fda-510k-data-dev"
+cache_dir = "~/.claude/fda-510k-data-dev/cache"
+projects_dir = "~/.claude/fda-510k-data-dev/projects"
+output_dir = "~/.claude/fda-510k-data-dev/output"
+logs_dir = "~/.claude/fda-510k-data-dev/logs"
+temp_dir = "~/.claude/fda-510k-data-dev/temp"
+backup_dir = "~/.claude/fda-510k-data-dev/backups"
+
+[api]
+# Use production FDA APIs (no test API available)
+openfda_base_url = "https://api.fda.gov"
+openfda_device_endpoint = "https://api.fda.gov/device"
+openfda_timeout = 60  # Longer timeout for development
+
+# Development bridge server
+bridge_url = "http://localhost:3000"
+
+[http]
+# Slower retries for development debugging
+max_retries = 3
+base_backoff = 2.0
+verify_ssl = true
+
+[cache]
+# Shorter TTL for development
+default_ttl = 86400  # 1 day instead of 7
+ttl_510k = 86400
+ttl_classification = 86400
+ttl_recall = 3600  # 1 hour
+ttl_maude = 3600
+enable_integrity_checks = true
+
+[rate_limiting]
+# More relaxed rate limits for development
+rate_limit_openfda = 240
+rate_limit_pdf_download = 10  # Allow faster PDF downloads in dev
+rate_limit_website = 120
+
+[logging]
+# Verbose logging for development
+level = "DEBUG"
+log_to_file = true
+log_to_console = true
+redact_api_keys = true
+redact_phi = true
+log_level_api = "DEBUG"
+log_level_cache = "DEBUG"
+log_level_http = "INFO"
+log_level_audit = "DEBUG"
+
+[audit]
+enable_audit_logging = true
+audit_log_dir = "~/.claude/fda-510k-data-dev/logs/audit"
+sequential_numbering = true
+include_user_identity = true
+include_before_after = true
+include_failed_attempts = true
+audit_log_retention_days = 90  # 3 months for dev
+
+[security]
+keyring_service = "fda-tools-plugin-dev"
+enable_keyring = true
+api_key_redaction = true
+validate_file_paths = true
+
+[features]
+# Enable all features in development
+enable_enrichment = true
+enable_intelligence = true
+enable_clinical_detection = true
+enable_standards_matching = true
+enable_predicate_validation = true
+enable_maude_comparison = true
+enable_literature_search = true
+enable_pma_intelligence = true
+enable_similarity_caching = true
+enable_pdf_ocr = false  # Requires tesseract
+enable_experimental = true  # Enable experimental features in dev
+
+[pdf_processing]
+pdf_download_delay = 10  # Faster downloads in dev
+pdf_max_size_mb = 100
+pdf_timeout = 180
+enable_ocr = false
+
+[output]
+default_format = "markdown"
+pretty_print_json = true
+markdown_code_blocks = true
+
+[validation]
+strict_mode = false  # More lenient validation in dev
+validate_k_numbers = true
+validate_product_codes = true
+validate_dates = true
+
+[integration]
+enable_linear_integration = true
+enable_bridge_integration = true
+
+[performance]
+max_concurrent_requests = 10  # Higher concurrency in dev
+enable_progress_bars = true
+show_warnings = true
+
+[backup]
+enable_auto_backup = true
+backup_interval_hours = 12
+backup_retention_days = 7
+backup_compression = true
+
+[testing]
+test_mode = false
+mock_api_responses = false
