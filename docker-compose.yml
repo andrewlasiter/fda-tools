@@ -1,0 +1,334 @@
+version: '3.8'
+
+# FDA Tools Docker Compose Configuration
+# Orchestrates FDA tools service with optional dependencies
+# Supports development, testing, and production environments
+
+services:
+  # ============================================================================
+  # Main FDA Tools Service
+  # ============================================================================
+  fda-tools:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+    image: fda-tools:${FDA_VERSION:-5.36.0}
+    container_name: fda-tools-main
+    hostname: fda-tools
+
+    # Restart policy
+    restart: unless-stopped
+
+    # Environment variables
+    environment:
+      # Python configuration
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+
+      # FDA Tools configuration
+      - FDA_DATA_DIR=/data
+      - FDA_CACHE_DIR=/cache
+      - FDA_LOG_DIR=/logs
+      - FDA_CONFIG_FILE=/app/plugins/fda-tools/config.toml
+
+      # API keys (from .env file or environment)
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - FDA_API_KEY=${FDA_API_KEY:-}
+
+      # Optional: Database connection (if using PostgreSQL)
+      - DATABASE_URL=${DATABASE_URL:-}
+      - POSTGRES_HOST=${POSTGRES_HOST:-postgres}
+      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+      - POSTGRES_DB=${POSTGRES_DB:-fda_tools}
+      - POSTGRES_USER=${POSTGRES_USER:-fdatools}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-}
+
+      # Optional: Redis cache connection
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+      - REDIS_HOST=${REDIS_HOST:-redis}
+      - REDIS_PORT=${REDIS_PORT:-6379}
+
+      # Logging configuration
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_FORMAT=${LOG_FORMAT:-json}
+
+      # Performance tuning
+      - MALLOC_ARENA_MAX=2
+      - PYTHONHASHSEED=random
+
+    # Volume mounts
+    volumes:
+      # Persistent data
+      - fda-data:/data
+      - fda-cache:/cache
+      - fda-logs:/logs
+
+      # Configuration (optional override)
+      - ./plugins/fda-tools/config.toml:/app/plugins/fda-tools/config.toml:ro
+
+      # Development: Mount source code (comment out in production)
+      # - ./plugins/fda-tools:/app/plugins/fda-tools
+
+      # Project data (for local development)
+      - ${FDA_PROJECTS_DIR:-./projects}:/projects
+
+    # Network configuration
+    networks:
+      - fda-network
+
+    # Port mappings (if running web interface)
+    ports:
+      - "${FDA_PORT:-8080}:8080"
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "/app/health_check.py"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '${FDA_CPU_LIMIT:-2.0}'
+          memory: ${FDA_MEMORY_LIMIT:-4G}
+        reservations:
+          cpus: '${FDA_CPU_RESERVATION:-0.5}'
+          memory: ${FDA_MEMORY_RESERVATION:-1G}
+
+    # Dependencies
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+    # Default command (override with docker-compose run)
+    command: ["--version"]
+
+  # ============================================================================
+  # PostgreSQL Database (Optional)
+  # ============================================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: fda-tools-postgres
+    hostname: postgres
+    restart: unless-stopped
+
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-fda_tools}
+      - POSTGRES_USER=${POSTGRES_USER:-fdatools}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --locale=en_US.UTF-8
+      - PGDATA=/var/lib/postgresql/data/pgdata
+
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      # Optional: Init scripts
+      # - ./scripts/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+    networks:
+      - fda-network
+
+    ports:
+      - "${POSTGRES_EXTERNAL_PORT:-5432}:5432"
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fdatools}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # ============================================================================
+  # Redis Cache (Optional)
+  # ============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: fda-tools-redis
+    hostname: redis
+    restart: unless-stopped
+
+    command: >
+      redis-server
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --save 60 1
+      --appendonly yes
+      --appendfsync everysec
+
+    volumes:
+      - redis-data:/data
+
+    networks:
+      - fda-network
+
+    ports:
+      - "${REDIS_EXTERNAL_PORT:-6379}:6379"
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+
+  # ============================================================================
+  # Monitoring: Prometheus (Optional)
+  # ============================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: fda-tools-prometheus
+    hostname: prometheus
+    restart: unless-stopped
+    profiles:
+      - monitoring
+
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+
+    networks:
+      - fda-network
+
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  # ============================================================================
+  # Monitoring: Grafana (Optional)
+  # ============================================================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: fda-tools-grafana
+    hostname: grafana
+    restart: unless-stopped
+    profiles:
+      - monitoring
+
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_INSTALL_PLUGINS=
+
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+
+    networks:
+      - fda-network
+
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+
+    depends_on:
+      - prometheus
+
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+# ============================================================================
+# Networks
+# ============================================================================
+networks:
+  fda-network:
+    driver: bridge
+    name: fda-tools-network
+    ipam:
+      config:
+        - subnet: ${FDA_NETWORK_SUBNET:-172.25.0.0/16}
+
+# ============================================================================
+# Volumes
+# ============================================================================
+volumes:
+  fda-data:
+    name: fda-tools-data
+    driver: local
+
+  fda-cache:
+    name: fda-tools-cache
+    driver: local
+
+  fda-logs:
+    name: fda-tools-logs
+    driver: local
+
+  postgres-data:
+    name: fda-tools-postgres-data
+    driver: local
+
+  redis-data:
+    name: fda-tools-redis-data
+    driver: local
+
+  prometheus-data:
+    name: fda-tools-prometheus-data
+    driver: local
+
+  grafana-data:
+    name: fda-tools-grafana-data
+    driver: local
+
+# ============================================================================
+# Usage Examples:
+# ============================================================================
+# Start core services (FDA tools + PostgreSQL + Redis):
+#   docker-compose up -d
+#
+# Start with monitoring:
+#   docker-compose --profile monitoring up -d
+#
+# Run batchfetch:
+#   docker-compose run --rm fda-tools -m scripts.batchfetch --product-codes DQY --years 2024
+#
+# Run tests:
+#   docker-compose run --rm fda-tools -m pytest /app/plugins/fda-tools/tests
+#
+# Interactive shell:
+#   docker-compose run --rm fda-tools /bin/bash
+#
+# View logs:
+#   docker-compose logs -f fda-tools
+#
+# Stop all services:
+#   docker-compose down
+#
+# Remove volumes (CAUTION: deletes data):
+#   docker-compose down -v
+# ============================================================================

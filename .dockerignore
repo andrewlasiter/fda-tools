@@ -1,0 +1,202 @@
+# Docker build context exclusions
+# Reduces build context size and improves build performance
+
+# ============================================================================
+# Version Control
+# ============================================================================
+.git/
+.gitignore
+.gitattributes
+.github/
+
+# ============================================================================
+# Python Cache & Build Artifacts
+# ============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ============================================================================
+# Virtual Environments
+# ============================================================================
+venv/
+env/
+ENV/
+.venv/
+env.bak/
+venv.bak/
+
+# ============================================================================
+# IDE & Editors
+# ============================================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+*.sublime-project
+*.sublime-workspace
+
+# ============================================================================
+# Testing & Coverage
+# ============================================================================
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.hypothesis/
+coverage/
+coverage.xml
+*.cover
+.cache
+nosetests.xml
+test-results/
+*.log
+
+# ============================================================================
+# Documentation (exclude from production builds)
+# ============================================================================
+docs/_build/
+*.md
+!DOCKER_README.md
+!README.md
+*.txt
+!requirements.txt
+CHANGELOG.md
+LICENSE
+
+# ============================================================================
+# Configuration & Secrets
+# ============================================================================
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.crt
+*.p12
+.secrets.baseline
+
+# ============================================================================
+# Project-specific Files
+# ============================================================================
+archives/
+*.tar.gz
+*.zip
+*.backup
+*.bak
+*.orig
+*.tmp
+audit_outputs/
+EXAMPLE_OUTPUT/
+
+# ============================================================================
+# Test Data & Reports
+# ============================================================================
+tests/test_e2e_*.py
+tests/fixtures/seed_data_*.json
+E2E_*.md
+BATCH_*.md
+COMPREHENSIVE_*.md
+FDA-*_*.md
+FE-*.md
+GAP-*.md
+SPRINT_*.md
+TICKET-*.md
+SECURITY_*.md
+REVIEW_*.md
+*_SUMMARY.md
+*_REPORT.md
+*_COMPLETE.md
+*_STATUS.md
+LINEAR_*.md
+LINEAR_*.json
+META_*.md
+ISSUE_*.md
+PRODUCTION_*.md
+PMA_*.md
+PHASE*.txt
+QUICKSTART*.md
+PRECOMMIT_*.md
+OPENCLAW_*.md
+MIGRATION_*.md
+*_IMPLEMENTATION_*.md
+*_VERIFICATION_*.md
+
+# ============================================================================
+# Batch Processing Results
+# ============================================================================
+batch*_task*.json
+plugins/fda-tools/batch*.json
+plugins/fda-tools/phase*.txt
+
+# ============================================================================
+# Development Scripts
+# ============================================================================
+demo_*.py
+test_*.py
+!plugins/fda-tools/tests/test_*.py
+scripts/test_*.sh
+scripts/demo_*.py
+
+# ============================================================================
+# Docker & CI/CD
+# ============================================================================
+docker-compose.override.yml
+.dockerignore
+Dockerfile.*
+.pre-commit-config.yaml
+
+# ============================================================================
+# Jupyter Notebooks
+# ============================================================================
+.ipynb_checkpoints/
+*.ipynb
+
+# ============================================================================
+# Node modules (if any)
+# ============================================================================
+node_modules/
+package-lock.json
+yarn.lock
+
+# ============================================================================
+# OS-specific
+# ============================================================================
+*:Zone.Identifier
+Desktop.ini
+$RECYCLE.BIN/
+
+# ============================================================================
+# Temporary Files
+# ============================================================================
+*.tmp
+.data_manifest_*.tmp
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ============================================================================
+# Claude Plugin Metadata (keep in image)
+# ============================================================================
+# .claude/
+# .claude-plugin/
