@@ -17,6 +17,98 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
+
+# ============================================================
+# Security: Path Validation (FDA-171 / SEC-004 / CWE-22)
+# ============================================================
+
+def _sanitize_path(path_input):
+    """
+    Sanitize file path to prevent path traversal attacks.
+
+    Args:
+        path_input: User-supplied path string
+
+    Returns:
+        Sanitized path string
+
+    Raises:
+        ValueError: If path contains traversal sequences or null bytes
+
+    Security: FDA-171 (SEC-004) - CWE-22 Path Traversal Prevention
+    """
+    if not path_input:
+        raise ValueError("Path cannot be empty")
+
+    path_str = str(path_input).strip()
+
+    # Reject null bytes (can bypass security checks)
+    if '\x00' in path_str:
+        raise ValueError(f"Path contains null bytes: '{path_str}'")
+
+    # Reject explicit traversal sequences
+    if '..' in path_str:
+        raise ValueError(f"Path contains directory traversal sequence (..). File: {path_str}")
+
+    return path_str
+
+
+def _validate_path_safety(path_input, allowed_base_dirs=None):
+    """
+    Validate that a file path is safe and doesn't escape allowed directories.
+
+    Args:
+        path_input: Path to validate (string or Path object)
+        allowed_base_dirs: List of allowed base directories (defaults to project root)
+
+    Returns:
+        Resolved absolute Path object
+
+    Raises:
+        ValueError: If path escapes allowed directories
+
+    Security: FDA-171 (SEC-004) - CWE-22 Path Traversal Prevention
+    """
+    # Sanitize first
+    sanitized = _sanitize_path(path_input)
+
+    # Resolve to absolute canonical path
+    try:
+        resolved_path = Path(sanitized).resolve(strict=False)
+    except (OSError, RuntimeError) as e:
+        raise ValueError(f"Cannot resolve path: {sanitized}") from e
+
+    # If no allowed directories specified, allow anything (backwards compat)
+    if allowed_base_dirs is None:
+        return resolved_path
+
+    # Ensure allowed_base_dirs are all resolved absolute paths
+    allowed_resolved = []
+    for base_dir in allowed_base_dirs:
+        try:
+            base_resolved = Path(base_dir).resolve(strict=False)
+            allowed_resolved.append(base_resolved)
+        except (OSError, RuntimeError):
+            continue
+
+    # Check if resolved path is within any allowed directory
+    for allowed_dir in allowed_resolved:
+        try:
+            # Check if resolved_path is relative to allowed_dir
+            resolved_path.relative_to(allowed_dir)
+            return resolved_path  # Path is safe
+        except ValueError:
+            # Not relative to this allowed_dir, try next
+            continue
+
+    # Path escapes all allowed directories
+    raise ValueError(
+        f"Security violation: Path escapes allowed directories\n"
+        f"  Requested: {path_input}\n"
+        f"  Resolved: {resolved_path}\n"
+        f"  Allowed: {', '.join(str(d) for d in allowed_resolved)}"
+    )
+
 try:
     from fda_api_client import FDAClient
 except ImportError:
@@ -251,6 +343,21 @@ def main():
     parser.add_argument('--output', '-o', help='Output file (default: stdout)')
 
     args = parser.parse_args()
+
+    # Security: Validate output path (FDA-171 / SEC-004 / CWE-22)
+    if args.output:
+        try:
+            # Allow writing to scripts dir, project root, or current working directory
+            project_root = SCRIPT_DIR.parent.resolve()
+            allowed_dirs = [
+                project_root,
+                Path.cwd(),
+            ]
+            validated_output = str(_validate_path_safety(args.output, allowed_dirs))
+            args.output = validated_output
+        except ValueError as e:
+            print(f"ERROR: {e}", file=sys.stderr)
+            sys.exit(1)
 
     results = fetch_predicate_data(args.k_numbers, 'json' if args.json else 'text')
     output = format_output(results, 'json' if args.json else 'text')

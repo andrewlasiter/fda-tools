@@ -19,7 +19,106 @@ import argparse
 import csv
 import os
 import re
+import sys
 from collections import defaultdict
+from pathlib import Path
+
+# ============================================================
+# Security: Path Validation (FDA-171 / SEC-004 / CWE-22)
+# ============================================================
+
+def _sanitize_path(path_input):
+    """
+    Sanitize file path to prevent path traversal attacks.
+
+    Args:
+        path_input: User-supplied path string
+
+    Returns:
+        Sanitized path string
+
+    Raises:
+        ValueError: If path contains traversal sequences or null bytes
+
+    Security: FDA-171 (SEC-004) - CWE-22 Path Traversal Prevention
+    """
+    if not path_input:
+        raise ValueError("Path cannot be empty")
+
+    path_str = str(path_input).strip()
+
+    # Reject null bytes (can bypass security checks)
+    if '\x00' in path_str:
+        raise ValueError(f"Path contains null bytes: '{path_str}'")
+
+    # Reject explicit traversal sequences
+    if '..' in path_str:
+        raise ValueError(f"Path contains directory traversal sequence (..) File: {path_str}")
+
+    # Reject absolute paths to prevent escaping project directory
+    if os.path.isabs(path_str):
+        # Allow absolute paths but validate them later in _validate_path_safety
+        pass
+
+    return path_str
+
+
+def _validate_path_safety(path_input, allowed_base_dirs=None):
+    """
+    Validate that a file path is safe and doesn't escape allowed directories.
+
+    Args:
+        path_input: Path to validate (string or Path object)
+        allowed_base_dirs: List of allowed base directories (defaults to project root)
+
+    Returns:
+        Resolved absolute Path object
+
+    Raises:
+        ValueError: If path escapes allowed directories
+
+    Security: FDA-171 (SEC-004) - CWE-22 Path Traversal Prevention
+    """
+    # Sanitize first
+    sanitized = _sanitize_path(path_input)
+
+    # Resolve to absolute canonical path
+    try:
+        resolved_path = Path(sanitized).resolve(strict=False)
+    except (OSError, RuntimeError) as e:
+        raise ValueError(f"Cannot resolve path: {sanitized}") from e
+
+    # If no allowed directories specified, allow anything (backwards compat)
+    if allowed_base_dirs is None:
+        return resolved_path
+
+    # Ensure allowed_base_dirs are all resolved absolute paths
+    allowed_resolved = []
+    for base_dir in allowed_base_dirs:
+        try:
+            base_resolved = Path(base_dir).resolve(strict=False)
+            allowed_resolved.append(base_resolved)
+        except (OSError, RuntimeError):
+            continue
+
+    # Check if resolved path is within any allowed directory
+    for allowed_dir in allowed_resolved:
+        try:
+            # Check if resolved_path is relative to allowed_dir
+            resolved_path.relative_to(allowed_dir)
+            return resolved_path  # Path is safe
+        except ValueError:
+            # Not relative to this allowed_dir, try next
+            continue
+
+    # Path escapes all allowed directories
+    raise ValueError(
+        f"Security violation: Path escapes allowed directories\n"
+        f"  Requested: {path_input}\n"
+        f"  Resolved: {resolved_path}\n"
+        f"  Allowed: {', '.join(str(d) for d in allowed_resolved)}"
+    )
+
 
 # --- Defaults ---
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -197,6 +296,37 @@ def main():
                         help="Comma-separated PMN database files (default: pmn96cur.txt,pmnlstmn.txt)")
     args = parser.parse_args()
 
+    # Security: Validate all file paths (FDA-171 / SEC-004 / CWE-22)
+    try:
+        # Define allowed base directories for path validation
+        # Allow access to scripts dir, download dir, and current working directory
+        project_root = Path(SCRIPT_DIR).parent.resolve()
+        allowed_dirs = [
+            project_root,  # Plugin root directory
+            Path.cwd(),    # Current working directory
+        ]
+
+        # Validate baseline CSV path
+        args.baseline = str(_validate_path_safety(args.baseline, allowed_dirs))
+
+        # Validate PDF base directory
+        args.pdf_dir = str(_validate_path_safety(args.pdf_dir, allowed_dirs))
+
+        # Validate output manifest path
+        args.output = str(_validate_path_safety(args.output, allowed_dirs))
+
+        # Validate PMN files if provided
+        if args.pmn_files:
+            validated_pmn_files = []
+            for pmn_path in [p.strip() for p in args.pmn_files.split(",")]:
+                validated = str(_validate_path_safety(pmn_path, allowed_dirs))
+                validated_pmn_files.append(validated)
+            args.pmn_files = ','.join(validated_pmn_files)
+
+    except ValueError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        sys.exit(1)
+
     # Resolve filters
     year_set = None
     if args.years:
@@ -216,7 +346,8 @@ def main():
 
     pmn_files = DEFAULT_PMN_FILES
     if args.pmn_files:
-        pmn_files = [p.strip() for p in args.pmn_files.split(",")]
+        # args.pmn_files is already validated as comma-separated string
+        pmn_files = args.pmn_files.split(",")
 
     print("=" * 60)
     print("510(k) Gap Analysis")

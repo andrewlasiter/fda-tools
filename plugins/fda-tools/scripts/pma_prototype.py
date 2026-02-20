@@ -35,6 +35,99 @@ import re
 from datetime import datetime
 from pathlib import Path
 
+
+# ============================================================
+# Security: Path Validation (FDA-171 / SEC-004 / CWE-22)
+# ============================================================
+
+def _sanitize_path(path_input):
+    """
+    Sanitize file path to prevent path traversal attacks.
+
+    Args:
+        path_input: User-supplied path string
+
+    Returns:
+        Sanitized path string
+
+    Raises:
+        ValueError: If path contains traversal sequences or null bytes
+
+    Security: FDA-171 (SEC-004) - CWE-22 Path Traversal Prevention
+    """
+    if not path_input:
+        raise ValueError("Path cannot be empty")
+
+    path_str = str(path_input).strip()
+
+    # Reject null bytes (can bypass security checks)
+    if '\x00' in path_str:
+        raise ValueError(f"Path contains null bytes: '{path_str}'")
+
+    # Reject explicit traversal sequences
+    if '..' in path_str:
+        raise ValueError(f"Path contains directory traversal sequence (..). File: {path_str}")
+
+    return path_str
+
+
+def _validate_path_safety(path_input, allowed_base_dirs=None):
+    """
+    Validate that a file path is safe and doesn't escape allowed directories.
+
+    Args:
+        path_input: Path to validate (string or Path object)
+        allowed_base_dirs: List of allowed base directories (defaults to project root)
+
+    Returns:
+        Resolved absolute Path object
+
+    Raises:
+        ValueError: If path escapes allowed directories
+
+    Security: FDA-171 (SEC-004) - CWE-22 Path Traversal Prevention
+    """
+    # Sanitize first
+    sanitized = _sanitize_path(path_input)
+
+    # Resolve to absolute canonical path
+    try:
+        resolved_path = Path(sanitized).resolve(strict=False)
+    except (OSError, RuntimeError) as e:
+        raise ValueError(f"Cannot resolve path: {sanitized}") from e
+
+    # If no allowed directories specified, allow anything (backwards compat)
+    if allowed_base_dirs is None:
+        return resolved_path
+
+    # Ensure allowed_base_dirs are all resolved absolute paths
+    allowed_resolved = []
+    for base_dir in allowed_base_dirs:
+        try:
+            base_resolved = Path(base_dir).resolve(strict=False)
+            allowed_resolved.append(base_resolved)
+        except (OSError, RuntimeError):
+            continue
+
+    # Check if resolved path is within any allowed directory
+    for allowed_dir in allowed_resolved:
+        try:
+            # Check if resolved_path is relative to allowed_dir
+            resolved_path.relative_to(allowed_dir)
+            return resolved_path  # Path is safe
+        except ValueError:
+            # Not relative to this allowed_dir, try next
+            continue
+
+    # Path escapes all allowed directories
+    raise ValueError(
+        f"Security violation: Path escapes allowed directories\n"
+        f"  Requested: {path_input}\n"
+        f"  Resolved: {resolved_path}\n"
+        f"  Allowed: {', '.join(str(d) for d in allowed_resolved)}"
+    )
+
+
 # HTTP headers required for FDA server access
 # FDA servers block requests without a proper User-Agent header.
 HTTP_HEADERS = {
@@ -146,6 +239,20 @@ def download_ssed(pma_number, cache_dir='./ssed_cache/'):
         'error': None,
         'attempts': 0
     }
+
+    # Security: Validate cache directory path (FDA-171 / SEC-004 / CWE-22)
+    try:
+        script_dir = Path(__file__).parent.resolve()
+        project_root = script_dir.parent.resolve()
+        allowed_dirs = [
+            project_root,
+            Path.cwd(),
+        ]
+        validated_cache_dir = str(_validate_path_safety(cache_dir, allowed_dirs))
+        cache_dir = validated_cache_dir
+    except ValueError as e:
+        result['error'] = f"Invalid cache directory: {e}"
+        return result
 
     try:
         # Ensure cache directory exists
