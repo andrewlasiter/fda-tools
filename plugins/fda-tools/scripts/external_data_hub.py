@@ -44,6 +44,7 @@ import argparse
 import hashlib
 import json
 import os
+import ssl
 import sys
 import time
 import urllib.error
@@ -194,8 +195,11 @@ class ExternalDataSource(ABC):
             headers.update(extra_headers)
         req = urllib.request.Request(url, headers=headers)
 
+        # FDA-107: Create SSL context with certificate verification enabled
+        ssl_context = ssl.create_default_context()
+
         try:
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
+            with urllib.request.urlopen(req, timeout=timeout, context=ssl_context) as resp:
                 return json.loads(resp.read())
         except urllib.error.HTTPError as e:
             return {

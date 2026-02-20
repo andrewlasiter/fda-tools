@@ -1,0 +1,81 @@
+2026-02-19 13:13:25,684 - __main__ - INFO - Initializing Universal Multi-Agent Orchestrator...
+2026-02-19 13:13:25,684 - __main__ - INFO - ✓ Orchestrator initialized with 167 agents
+2026-02-19 13:13:25,684 - __main__ - INFO - ======================================================================
+2026-02-19 13:13:25,684 - __main__ - INFO - FULL ORCHESTRATION WORKFLOW
+2026-02-19 13:13:25,684 - __main__ - INFO - ======================================================================
+2026-02-19 13:13:25,684 - __main__ - INFO - ======================================================================
+2026-02-19 13:13:25,684 - __main__ - INFO - COMPREHENSIVE CODE REVIEW
+2026-02-19 13:13:25,684 - __main__ - INFO - ======================================================================
+2026-02-19 13:13:25,684 - __main__ - INFO - 
+1. Analyzing task...
+2026-02-19 13:13:25,687 - __main__ - INFO -    Task type: unknown
+2026-02-19 13:13:25,687 - __main__ - INFO -    Languages: python
+2026-02-19 13:13:25,688 - __main__ - INFO -    Complexity: medium
+2026-02-19 13:13:25,688 - __main__ - INFO - 
+2. Selecting agent team...
+2026-02-19 13:13:25,713 - agent_registry - WARNING - YAML schema validation: rejecting unknown keys {'device_checklists', 'cardiovascular_expertise'} in /home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/skills/fda-cardiovascular-expert/agent.yaml
+2026-02-19 13:13:25,722 - agent_registry - WARNING - YAML schema validation: rejecting unknown keys {'statistical_methods'} in /home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/skills/fda-clinical-expert/agent.yaml
+2026-02-19 13:13:25,736 - agent_registry - WARNING - YAML schema validation: rejecting unknown keys {'version', 'product_expertise', 'regulatory_expertise', 'behavior', 'workflows', 'assessment_output', 'agent', 'metadata'} in /home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/skills/fda-combination-product-expert/agent.yaml
+2026-02-19 13:13:25,744 - agent_registry - WARNING - YAML schema validation: rejecting unknown keys {'risk_methodology', 'special_controls_expertise'} in /home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/skills/fda-de-novo-support/agent.yaml
+2026-02-19 13:13:25,760 - agent_registry - WARNING - YAML schema validation: rejecting unknown keys {'markets', 'regulatory_philosophy', 'challenge_patterns'} in /home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/skills/fda-international-expert/agent.yaml
+2026-02-19 13:13:25,773 - agent_registry - WARNING - YAML schema validation: rejecting unknown keys {'device_categories'} in /home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/skills/fda-ivd-expert/agent.yaml
+2026-02-19 13:13:25,780 - agent_registry - WARNING - YAML parsing error in /home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/skills/fda-neurology-expert/agent.yaml: while parsing a block collection
+  in "<unicode string>", line 70, column 5:
+        - Parkinson's disease (UPDRS Par ... 
+        ^
+expected <block end>, but found '?'
+  in "<unicode string>", line 75, column 5:
+        parameters:
+        ^ - falling back to basic parsing
+2026-02-19 13:13:25,780 - agent_registry - WARNING - YAML schema validation: rejecting unknown keys {'risk_prioritization', 'readiness_scoring', 'parameter_justification', 'lead_durability', 'spinal_cord_stimulation', 'guidance_documents', 'parameters', 'battery_longevity', 'device_categories', 'clinical_endpoints', 'cfr_sections', 'cfr_citations', 'mri_conditional', 'neurovascular_devices', 'neural_safety', 'stimulation_parameters', 'concerns', 'vagus_nerve_stimulation', 'deep_brain_stimulation', 'therapeutic_window', 'responsive_neurostimulation', 'mri_safety_rigor', 'actionable_findings'} in /home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/skills/fda-neurology-expert/agent.yaml
+2026-02-19 13:13:25,801 - agent_registry - WARNING - YAML schema validation: rejecting unknown keys {'testing_standards'} in /home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/skills/fda-orthopedic-expert/agent.yaml
+2026-02-19 13:13:25,830 - agent_registry - WARNING - YAML schema validation: rejecting unknown keys {'image_quality_benchmarks', 'ai_validation', 'safety_limits'} in /home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/skills/fda-radiology-expert/agent.yaml
+2026-02-19 13:13:25,839 - agent_registry - WARNING - YAML schema validation: rejecting unknown keys {'strategic_mistakes', 'decision_frameworks', 'review_timelines', 'cost_estimates'} in /home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/skills/fda-regulatory-strategy-expert/agent.yaml
+2026-02-19 13:13:25,847 - agent_registry - WARNING - YAML schema validation: rejecting unknown keys {'rwd_source_expertise', 'quality_assessment'} in /home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/skills/fda-rwe-integration/agent.yaml
+2026-02-19 13:13:25,858 - agent_registry - WARNING - YAML schema validation: rejecting unknown keys {'ai_ml_expertise', 'cybersecurity_expertise'} in /home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/skills/fda-software-ai-expert/agent.yaml
+2026-02-19 13:13:25,867 - __main__ - INFO -    Team size: 3 agents
+2026-02-19 13:13:25,867 - __main__ - INFO -    Core agents: 2
+2026-02-19 13:13:25,867 - __main__ - INFO -    Language agents: 1
+2026-02-19 13:13:25,867 - __main__ - INFO -    Domain agents: 0
+2026-02-19 13:13:25,867 - __main__ - INFO - 
+3. Creating execution plan...
+2026-02-19 13:13:25,867 - __main__ - INFO -    Phases: 3
+2026-02-19 13:13:25,867 - __main__ - INFO -    Estimated hours: 7
+2026-02-19 13:13:25,867 - __main__ - INFO -    Coordination: peer-to-peer
+2026-02-19 13:13:25,867 - __main__ - INFO - 
+4. Executing multi-agent review...
+2026-02-19 13:13:25,867 - execution_coordinator - INFO - Executing plan with 3 phases
+2026-02-19 13:13:25,868 - execution_coordinator - INFO - Executing phase 1: Initial Analysis
+2026-02-19 13:13:25,868 - execution_coordinator - INFO -   Invoking agent: fda-software-ai-expert
+2026-02-19 13:13:25,868 - execution_coordinator - INFO -   Invoking agent: voltagent-qa-sec:code-reviewer
+2026-02-19 13:13:25,868 - execution_coordinator - INFO - Phase 1 completed successfully: all 2 agents returned 1 findings
+2026-02-19 13:13:25,868 - execution_coordinator - INFO - Phase 1 completed: 1 findings
+2026-02-19 13:13:25,868 - execution_coordinator - INFO - Executing phase 2: Specialist Review
+2026-02-19 13:13:25,868 - execution_coordinator - INFO -   Invoking agent: voltagent-lang:python-pro
+2026-02-19 13:13:25,868 - execution_coordinator - INFO - Phase 2 completed successfully: all 1 agents returned 0 findings
+2026-02-19 13:13:25,868 - execution_coordinator - INFO - Phase 2 completed: 0 findings
+2026-02-19 13:13:25,868 - execution_coordinator - INFO - Executing phase 4: Issue Creation
+2026-02-19 13:13:25,868 - execution_coordinator - INFO - Phase 4 completed successfully: all 0 agents returned 0 findings
+2026-02-19 13:13:25,868 - execution_coordinator - INFO - Phase 4 completed: 0 findings
+2026-02-19 13:13:25,868 - __main__ - INFO -    Total findings: 1
+2026-02-19 13:13:25,868 - __main__ - INFO -    CRITICAL: 0
+2026-02-19 13:13:25,868 - __main__ - INFO -    HIGH: 0
+2026-02-19 13:13:25,868 - __main__ - INFO -    MEDIUM: 1
+2026-02-19 13:13:25,868 - __main__ - INFO -    LOW: 0
+2026-02-19 13:13:25,868 - __main__ - INFO - 
+======================================================================
+2026-02-19 13:13:25,868 - __main__ - INFO - 
+5. Creating Linear issues from findings...
+2026-02-19 13:13:25,965 - linear_integrator - WARNING - LINEAR_API_KEY not set - using simulation mode
+2026-02-19 13:13:25,965 - linear_integrator - INFO - Created Linear issue FDA-569: [TESTING] [voltagent-qa-sec:code-reviewer] Insufficient test coverage
+2026-02-19 13:13:25,966 - __main__ - INFO -    Created 1 Linear issues
+2026-02-19 13:13:25,966 - __main__ - INFO - 
+======================================================================
+{
+  "task_type": "unknown",
+  "team_size": 3,
+  "findings": 1,
+  "created_issues": [
+    "FDA-569"
+  ]
+}

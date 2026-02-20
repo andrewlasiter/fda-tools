@@ -23,6 +23,7 @@ import json
 import logging
 import os
 import re
+import ssl
 import time
 import sys
 import urllib.error
@@ -348,10 +349,13 @@ class FDAClient:
         url = f"{BASE_URL}/{endpoint}.json?{urllib.parse.urlencode(params)}"
         req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
 
+        # FDA-107: Create SSL context with certificate verification enabled
+        ssl_context = ssl.create_default_context()
+
         last_error = None
         for attempt in range(MAX_RETRIES):
             try:
-                with urllib.request.urlopen(req, timeout=15) as resp:
+                with urllib.request.urlopen(req, timeout=15, context=ssl_context) as resp:
                     # Parse response
                     data = json.loads(resp.read())
 

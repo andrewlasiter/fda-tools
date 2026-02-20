@@ -39,6 +39,7 @@ import argparse
 import logging
 import os
 import shutil
+import ssl
 import sys
 import time
 import urllib.error
@@ -552,11 +553,14 @@ class SSEDDownloader:
         """
         result = {"success": False, "content": None, "attempts": 0, "error": None}
 
+        # FDA-107: Create SSL context with certificate verification enabled
+        ssl_context = ssl.create_default_context()
+
         for attempt in range(MAX_RETRIES):
             result["attempts"] += 1
             try:
                 req = urllib.request.Request(url, headers=HTTP_HEADERS)
-                with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as resp:
+                with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT, context=ssl_context) as resp:
                     content = resp.read()
 
                 if validate_pdf(content):

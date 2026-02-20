@@ -1,0 +1,86 @@
+2026-02-19 13:30:27,707 - __main__ - INFO - Initializing Universal Multi-Agent Orchestrator...
+2026-02-19 13:30:27,707 - __main__ - INFO - ✓ Orchestrator initialized with 167 agents
+2026-02-19 13:30:27,707 - __main__ - INFO - ======================================================================
+2026-02-19 13:30:27,707 - __main__ - INFO - FULL ORCHESTRATION WORKFLOW
+2026-02-19 13:30:27,707 - __main__ - INFO - ======================================================================
+2026-02-19 13:30:27,707 - __main__ - INFO - ======================================================================
+2026-02-19 13:30:27,707 - __main__ - INFO - COMPREHENSIVE CODE REVIEW
+2026-02-19 13:30:27,707 - __main__ - INFO - ======================================================================
+2026-02-19 13:30:27,707 - __main__ - INFO - 
+1. Analyzing task...
+2026-02-19 13:30:27,710 - __main__ - INFO -    Task type: testing
+2026-02-19 13:30:27,710 - __main__ - INFO -    Languages: python
+2026-02-19 13:30:27,710 - __main__ - INFO -    Complexity: medium
+2026-02-19 13:30:27,710 - __main__ - INFO - 
+2. Selecting agent team...
+2026-02-19 13:30:27,736 - agent_registry - WARNING - YAML schema validation: rejecting unknown keys {'cardiovascular_expertise', 'device_checklists'} in /home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/skills/fda-cardiovascular-expert/agent.yaml
+2026-02-19 13:30:27,744 - agent_registry - WARNING - YAML schema validation: rejecting unknown keys {'statistical_methods'} in /home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/skills/fda-clinical-expert/agent.yaml
+2026-02-19 13:30:27,758 - agent_registry - WARNING - YAML schema validation: rejecting unknown keys {'version', 'workflows', 'product_expertise', 'agent', 'behavior', 'metadata', 'assessment_output', 'regulatory_expertise'} in /home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/skills/fda-combination-product-expert/agent.yaml
+2026-02-19 13:30:27,766 - agent_registry - WARNING - YAML schema validation: rejecting unknown keys {'risk_methodology', 'special_controls_expertise'} in /home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/skills/fda-de-novo-support/agent.yaml
+2026-02-19 13:30:27,780 - agent_registry - WARNING - YAML schema validation: rejecting unknown keys {'markets', 'challenge_patterns', 'regulatory_philosophy'} in /home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/skills/fda-international-expert/agent.yaml
+2026-02-19 13:30:27,793 - agent_registry - WARNING - YAML schema validation: rejecting unknown keys {'device_categories'} in /home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/skills/fda-ivd-expert/agent.yaml
+2026-02-19 13:30:27,800 - agent_registry - WARNING - YAML parsing error in /home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/skills/fda-neurology-expert/agent.yaml: while parsing a block collection
+  in "<unicode string>", line 70, column 5:
+        - Parkinson's disease (UPDRS Par ... 
+        ^
+expected <block end>, but found '?'
+  in "<unicode string>", line 75, column 5:
+        parameters:
+        ^ - falling back to basic parsing
+2026-02-19 13:30:27,800 - agent_registry - WARNING - YAML schema validation: rejecting unknown keys {'concerns', 'lead_durability', 'neural_safety', 'actionable_findings', 'mri_safety_rigor', 'neurovascular_devices', 'mri_conditional', 'parameters', 'deep_brain_stimulation', 'stimulation_parameters', 'parameter_justification', 'battery_longevity', 'clinical_endpoints', 'cfr_sections', 'responsive_neurostimulation', 'guidance_documents', 'vagus_nerve_stimulation', 'readiness_scoring', 'cfr_citations', 'risk_prioritization', 'device_categories', 'therapeutic_window', 'spinal_cord_stimulation'} in /home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/skills/fda-neurology-expert/agent.yaml
+2026-02-19 13:30:27,819 - agent_registry - WARNING - YAML schema validation: rejecting unknown keys {'testing_standards'} in /home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/skills/fda-orthopedic-expert/agent.yaml
+2026-02-19 13:30:27,848 - agent_registry - WARNING - YAML schema validation: rejecting unknown keys {'safety_limits', 'image_quality_benchmarks', 'ai_validation'} in /home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/skills/fda-radiology-expert/agent.yaml
+2026-02-19 13:30:27,859 - agent_registry - WARNING - YAML schema validation: rejecting unknown keys {'review_timelines', 'cost_estimates', 'decision_frameworks', 'strategic_mistakes'} in /home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/skills/fda-regulatory-strategy-expert/agent.yaml
+2026-02-19 13:30:27,867 - agent_registry - WARNING - YAML schema validation: rejecting unknown keys {'quality_assessment', 'rwd_source_expertise'} in /home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/skills/fda-rwe-integration/agent.yaml
+2026-02-19 13:30:27,881 - agent_registry - WARNING - YAML schema validation: rejecting unknown keys {'ai_ml_expertise', 'cybersecurity_expertise'} in /home/linux/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/skills/fda-software-ai-expert/agent.yaml
+2026-02-19 13:30:27,891 - __main__ - INFO -    Team size: 5 agents
+2026-02-19 13:30:27,891 - __main__ - INFO -    Core agents: 4
+2026-02-19 13:30:27,891 - __main__ - INFO -    Language agents: 1
+2026-02-19 13:30:27,891 - __main__ - INFO -    Domain agents: 0
+2026-02-19 13:30:27,891 - __main__ - INFO - 
+3. Creating execution plan...
+2026-02-19 13:30:27,891 - __main__ - INFO -    Phases: 3
+2026-02-19 13:30:27,891 - __main__ - INFO -    Estimated hours: 7
+2026-02-19 13:30:27,891 - __main__ - INFO -    Coordination: master-worker
+2026-02-19 13:30:27,891 - __main__ - INFO - 
+4. Executing multi-agent review...
+2026-02-19 13:30:27,891 - execution_coordinator - INFO - Executing plan with 3 phases
+2026-02-19 13:30:27,891 - execution_coordinator - INFO - Executing phase 1: Initial Analysis
+2026-02-19 13:30:27,891 - execution_coordinator - INFO -   Invoking agent: fda-software-ai-expert
+2026-02-19 13:30:27,891 - execution_coordinator - INFO -   Invoking agent: voltagent-qa-sec:code-reviewer
+2026-02-19 13:30:27,891 - execution_coordinator - INFO -   Invoking agent: voltagent-qa-sec:security-engineer
+2026-02-19 13:30:27,891 - execution_coordinator - INFO - Phase 1 completed successfully: all 3 agents returned 2 findings
+2026-02-19 13:30:27,891 - execution_coordinator - INFO - Phase 1 completed: 2 findings
+2026-02-19 13:30:27,891 - execution_coordinator - INFO - Executing phase 2: Specialist Review
+2026-02-19 13:30:27,891 - execution_coordinator - INFO -   Invoking agent: voltagent-infra:cloud-architect
+2026-02-19 13:30:27,891 - execution_coordinator - INFO -   Invoking agent: voltagent-lang:python-pro
+2026-02-19 13:30:27,891 - execution_coordinator - INFO - Phase 2 completed successfully: all 2 agents returned 0 findings
+2026-02-19 13:30:27,891 - execution_coordinator - INFO - Phase 2 completed: 0 findings
+2026-02-19 13:30:27,892 - execution_coordinator - INFO - Executing phase 4: Issue Creation
+2026-02-19 13:30:27,892 - execution_coordinator - INFO - Phase 4 completed successfully: all 0 agents returned 0 findings
+2026-02-19 13:30:27,892 - execution_coordinator - INFO - Phase 4 completed: 0 findings
+2026-02-19 13:30:27,892 - __main__ - INFO -    Total findings: 2
+2026-02-19 13:30:27,892 - __main__ - INFO -    CRITICAL: 0
+2026-02-19 13:30:27,892 - __main__ - INFO -    HIGH: 1
+2026-02-19 13:30:27,892 - __main__ - INFO -    MEDIUM: 1
+2026-02-19 13:30:27,892 - __main__ - INFO -    LOW: 0
+2026-02-19 13:30:27,892 - __main__ - INFO - 
+======================================================================
+2026-02-19 13:30:27,892 - __main__ - INFO - 
+5. Creating Linear issues from findings...
+2026-02-19 13:30:27,976 - linear_integrator - WARNING - LINEAR_API_KEY not set - using simulation mode
+2026-02-19 13:30:27,976 - linear_integrator - INFO - Created Linear issue FDA-970: [SECURITY] [voltagent-qa-sec:security-engineer] Potential security vulnerability detected
+2026-02-19 13:30:27,976 - linear_integrator - WARNING - LINEAR_API_KEY not set - using simulation mode
+2026-02-19 13:30:27,976 - linear_integrator - INFO - Created Linear issue FDA-274: [TESTING] [voltagent-qa-sec:code-reviewer] Insufficient test coverage
+2026-02-19 13:30:27,976 - __main__ - INFO -    Created 2 Linear issues
+2026-02-19 13:30:27,976 - __main__ - INFO - 
+======================================================================
+{
+  "task_type": "testing",
+  "team_size": 5,
+  "findings": 2,
+  "created_issues": [
+    "FDA-970",
+    "FDA-274"
+  ]
+}

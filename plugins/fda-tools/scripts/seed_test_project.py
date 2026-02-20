@@ -27,6 +27,7 @@ import json
 import os
 import random
 import re
+import ssl
 import sys
 import tempfile
 import time
@@ -98,8 +99,11 @@ def download_pdf_text(k_number):
                     continue
                 pdf_bytes = resp.content
             else:
+                # FDA-107: Create SSL context with certificate verification enabled
+                ssl_context = ssl.create_default_context()
+
                 req = urllib.request.Request(url, headers=PDF_DOWNLOAD_HEADERS)
-                with urllib.request.urlopen(req, timeout=PDF_DOWNLOAD_TIMEOUT) as resp:
+                with urllib.request.urlopen(req, timeout=PDF_DOWNLOAD_TIMEOUT, context=ssl_context) as resp:
                     content_type = resp.headers.get("Content-Type", "")
                     if "pdf" not in content_type.lower() and "octet" not in content_type.lower():
                         continue

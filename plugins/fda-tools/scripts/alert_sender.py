@@ -10,6 +10,7 @@ Config from ~/.claude/fda-tools.local.md.
 import json
 import os
 import re
+import ssl
 import sys
 import urllib.request
 from datetime import datetime, date, timezone
@@ -165,8 +166,11 @@ def send_webhook(alerts, settings, webhook_url=None):
         method="POST",
     )
 
+    # FDA-107: Create SSL context with certificate verification enabled
+    ssl_context = ssl.create_default_context()
+
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req, timeout=30, context=ssl_context) as resp:
             status = resp.status
             return {"success": status < 400, "message": f"Webhook response: HTTP {status}"}
     except Exception as e:

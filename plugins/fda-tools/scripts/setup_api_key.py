@@ -18,6 +18,7 @@ Usage:
 """
 import os
 import re
+import ssl
 import stat
 import sys
 import urllib.request
@@ -280,8 +281,12 @@ def test_key(api_key):
         params["api_key"] = api_key
     url = f"https://api.fda.gov/device/510k.json?{urllib.parse.urlencode(params)}"
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (FDA-Plugin/1.0)"})
+
+    # FDA-107: Create SSL context with certificate verification enabled
+    ssl_context = ssl.create_default_context()
+
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
+        with urllib.request.urlopen(req, timeout=15, context=ssl_context) as resp:
             data = json.loads(resp.read())
             if data.get("results"):
                 return True, "Key is valid -- 120K requests/day"
