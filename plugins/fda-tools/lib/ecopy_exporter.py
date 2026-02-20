@@ -111,6 +111,139 @@ class eCopyExporter:
         # Check pandoc availability
         self.pandoc_available = self._check_pandoc()
 
+    # ============================================================
+    # Security Validation Functions (FDA-198 Security Fixes)
+    # ============================================================
+
+    def _sanitize_path(self, path_component: str, context: str = "file") -> str:
+        """
+        Sanitize path component to prevent traversal attacks.
+
+        Args:
+            path_component: Path component to sanitize
+            context: Context for validation ("file" or "directory")
+
+        Returns:
+            Sanitized path component
+
+        Raises:
+            ValueError: If path contains traversal sequences, absolute paths,
+                       null bytes, or invalid characters
+
+        Security: FDA-198 CRITICAL-1 remediation
+        """
+        import os
+
+        # Normalize path (resolves .., ., //)
+        normalized = os.path.normpath(path_component)
+
+        # Reject absolute paths
+        if os.path.isabs(normalized):
+            raise ValueError(f"Absolute paths not allowed: {path_component}")
+
+        # Reject parent directory references
+        if ".." in normalized.split(os.sep):
+            raise ValueError(f"Path traversal not allowed: {path_component}")
+
+        # Reject null bytes (path truncation attacks)
+        if "\x00" in path_component:
+            raise ValueError(f"Null bytes not allowed: {path_component}")
+
+        # For filenames, reject directory separators
+        if context == "file" and os.sep in path_component:
+            raise ValueError(f"Directory separators not allowed in filename: {path_component}")
+
+        return normalized
+
+    def _validate_path_in_project(self, path: Path) -> Path:
+        """
+        Ensure path is within project directory.
+
+        Args:
+            path: Path to validate
+
+        Returns:
+            Resolved path if valid
+
+        Raises:
+            ValueError: If path escapes project directory
+
+        Security: FDA-198 CRITICAL-1 remediation
+        """
+        try:
+            # Resolve both paths to absolute canonical forms
+            resolved = path.resolve(strict=False)
+            project_resolved = self.project_path.resolve(strict=False)
+        except (OSError, RuntimeError) as e:
+            raise ValueError(f"Cannot resolve path: {path}") from e
+
+        # Check if resolved path is within project directory
+        if not str(resolved).startswith(str(project_resolved)):
+            raise ValueError(
+                f"Security violation: Path escapes project directory\n"
+                f"  Attempted: {path}\n"
+                f"  Resolved: {resolved}\n"
+                f"  Project: {project_resolved}"
+            )
+
+        return resolved
+
+    MAX_FILE_SIZE_MB = 100  # Per-file limit for DoS prevention
+
+    def _validate_file_size(self, file_path: Path, max_mb: int = None):
+        """
+        Validate file size to prevent DoS attacks.
+
+        Args:
+            file_path: Path to file
+            max_mb: Maximum file size in MB (default: 100 MB)
+
+        Raises:
+            ValueError: If file exceeds size limit
+
+        Security: FDA-198 HIGH-4 remediation
+        """
+        if max_mb is None:
+            max_mb = self.MAX_FILE_SIZE_MB
+
+        if not file_path.exists():
+            return  # File doesn't exist yet, skip validation
+
+        size_mb = file_path.stat().st_size / (1024 * 1024)
+        if size_mb > max_mb:
+            raise ValueError(
+                f"File size {size_mb:.1f} MB exceeds limit {max_mb} MB: {file_path.name}"
+            )
+
+    def _sanitize_section_name(self, section_name: str) -> str:
+        """
+        Sanitize section name for safe filename use.
+
+        Args:
+            section_name: Section name from ECOPY_SECTIONS
+
+        Returns:
+            Sanitized section name
+
+        Raises:
+            ValueError: If section name contains invalid characters
+
+        Security: FDA-198 HIGH-3 remediation
+        """
+        # Allow only alphanumeric, spaces, hyphens
+        import re
+        if not re.match(r'^[a-zA-Z0-9\s-]+$', section_name):
+            raise ValueError(
+                f"Section name contains invalid characters: {section_name}\n"
+                f"  Allowed: letters, numbers, spaces, hyphens"
+            )
+
+        # Limit length to prevent filesystem issues
+        if len(section_name) > 64:
+            raise ValueError(f"Section name too long (max 64 chars): {section_name}")
+
+        return section_name
+
     def _check_pandoc(self) -> bool:
         """
         Check if pandoc is installed.
@@ -152,6 +285,14 @@ class eCopyExporter:
         # Process each eCopy section
         for section_num, section_info in self.ECOPY_SECTIONS.items():
             section_name = section_info["name"]
+
+            # FDA-198 HIGH-3: Validate section name before use
+            try:
+                section_name = self._sanitize_section_name(section_name)
+            except ValueError as e:
+                conversion_errors.append(f"Section {section_num}: Invalid section name - {e}")
+                continue
+
             section_dir = self.ecopy_path / f"{section_num.zfill(4)}-{section_name.replace(' ', '')}"
             section_dir.mkdir(exist_ok=True)
             sections_created += 1
@@ -162,10 +303,28 @@ class eCopyExporter:
                 draft_files = [draft_files]
 
             for draft_file in draft_files:
-                draft_path = self.drafts_path / draft_file
-                if not draft_path.exists():
-                    draft_path = self.project_path / draft_file
-                if not draft_path.exists():
+                # FDA-198 CRITICAL-1: Sanitize and validate draft file paths
+                try:
+                    # Sanitize filename component
+                    draft_file_sanitized = self._sanitize_path(draft_file, context="file")
+
+                    # Try drafts directory first
+                    draft_path = self.drafts_path / draft_file_sanitized
+                    draft_path = self._validate_path_in_project(draft_path)
+
+                    # If not in drafts, try project root
+                    if not draft_path.exists():
+                        draft_path = self.project_path / draft_file_sanitized
+                        draft_path = self._validate_path_in_project(draft_path)
+
+                    if not draft_path.exists():
+                        continue
+
+                    # FDA-198 HIGH-4: Validate file size before processing
+                    self._validate_file_size(draft_path)
+
+                except ValueError as e:
+                    conversion_errors.append(f"{draft_file}: Security validation failed - {e}")
                     continue
 
                 # Convert markdown to PDF
@@ -229,6 +388,8 @@ class eCopyExporter:
             "-V", "geometry:margin=1in",
             "-V", "linkcolor=blue",
             "-V", "toc-title=Table of Contents",
+            # FDA-198 CRITICAL-2: Metadata is safe (datetime formatted, no user input)
+            # Future user metadata must be sanitized via shlex.quote() or similar
             "--metadata", f"date={datetime.now().strftime('%Y-%m-%d')}",
         ]
 
