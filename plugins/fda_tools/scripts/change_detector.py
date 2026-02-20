@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 # Import sibling modules
 from fda_api_client import FDAClient
 from fda_data_store import get_projects_dir, load_manifest, save_manifest
-from subprocess_utils import run_subprocess  # type: ignore
+from fda_tools.lib.subprocess_helpers import run_subprocess  # type: ignore
 
 def _load_fingerprint(
     project_dir: str, product_code: str
@@ -917,8 +917,8 @@ def trigger_pipeline(
         if verbose:
             print(f"  Step 1: Running batchfetch for {product_code}...")
 
-        step_result = run_subprocess(
-            cmd, "batchfetch", timeout_seconds=300,
+        step_result = run_command(
+            cmd, "batchfetch", timeout=300,
             cwd=str(scripts_dir), verbose=verbose,
         )
         steps.append(step_result)
@@ -942,8 +942,8 @@ def trigger_pipeline(
         if verbose:
             print("  Step 2: Building structured cache...")
 
-        step_result = run_subprocess(
-            cmd, "build_structured_cache", timeout_seconds=600,
+        step_result = run_command(
+            cmd, "build_structured_cache", timeout=600,
             cwd=str(scripts_dir), verbose=verbose,
         )
         steps.append(step_result)

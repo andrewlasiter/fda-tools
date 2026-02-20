@@ -44,7 +44,7 @@ PLUGIN_ROOT = SCRIPT_DIR.parent
 LIB_DIR = PLUGIN_ROOT / 'lib'
 sys.path.insert(0, str(SCRIPT_DIR))  # For subprocess_utils
 
-from subprocess_utils import run_subprocess  # type: ignore
+from fda_tools.lib.subprocess_helpers import run_subprocess  # type: ignore
 
 
 class DeviceStandardsGenerator:
@@ -221,10 +221,10 @@ class DeviceStandardsGenerator:
                 f'--no-enrich'
             ]
 
-            result = run_subprocess(
+            result = run_command(
                 cmd=cmd,
                 step_name=f"batchfetch_{product_code}",
-                timeout_seconds=600,
+                timeout=600,
                 cwd=str(PLUGIN_ROOT),
                 verbose=False
             )
@@ -283,10 +283,8 @@ class DeviceStandardsGenerator:
         """Extract text content from PDF file"""
         try:
             # Try pdftotext first (fastest)
-            result = run_subprocess(
-                cmd=['pdftotext', pdf_path, '-'],
-                step_name="pdftotext",
-                timeout_seconds=30,
+            result = run_command(
+                cmd=['pdftotext', pdf_path, '-'],                timeout=30,
                 cwd=str(Path(pdf_path).parent),
                 verbose=False
             )

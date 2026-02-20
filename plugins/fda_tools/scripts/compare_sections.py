@@ -43,7 +43,7 @@ from section_analytics import (
     analyze_temporal_trends,
     cross_product_compare,
 )
-from subprocess_utils import run_subprocess  # type: ignore
+from fda_tools.lib.subprocess_helpers import run_subprocess  # type: ignore
 from trend_visualization import (  # type: ignore
     generate_ascii_chart,
     generate_svg_chart,
@@ -1179,10 +1179,8 @@ def main():
                 print("No structured cache found. Auto-building from extraction cache...")
 
             cmd = [sys.executable, str(build_script), "--cache-dir", str(cache_dir)]
-            result = run_subprocess(
-                cmd=cmd,
-                step_name="build_structured_cache",
-                timeout_seconds=300,
+            result = run_command(
+                cmd=cmd,                timeout=300,
                 cwd=str(build_script.parent),
                 verbose=verbose
             )

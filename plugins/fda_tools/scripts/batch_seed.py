@@ -36,7 +36,7 @@ from seed_test_project import (
     build_query_json,
     pick_random_product_code,
 )
-from subprocess_utils import run_subprocess  # type: ignore
+from fda_tools.lib.subprocess_helpers import run_subprocess  # type: ignore
 
 DEFAULT_OUTPUT_DIR = os.path.expanduser("~/fda-510k-data/projects")
 DEFAULT_SUITE_PATH = os.path.join(SCRIPT_DIR, "test_suite.json")
@@ -53,10 +53,8 @@ def load_suite(suite_path):
 def get_plugin_commit():
     """Get current git commit hash for the plugin, or 'unknown'."""
     try:
-        result = run_subprocess(
-            cmd=["git", "rev-parse", "--short", "HEAD"],
-            step_name="git_commit",
-            timeout_seconds=5,
+        result = run_command(
+            cmd=["git", "rev-parse", "--short", "HEAD"],            timeout=5,
             cwd=os.path.dirname(SCRIPT_DIR),
             verbose=False
         )

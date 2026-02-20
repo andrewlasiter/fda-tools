@@ -43,7 +43,7 @@ from change_detector import (  # type: ignore
     find_new_clearances,
     trigger_pipeline,
 )
-from subprocess_utils import run_subprocess as _run_subprocess  # type: ignore
+from fda_tools.lib.subprocess_helpers import run_subprocess as _run_subprocess  # type: ignore
 from fda_data_store import load_manifest, save_manifest
 
 # Ensure tests directory is on sys.path for mock imports
@@ -185,7 +185,7 @@ class TestSMART013TimeoutHandling:
                 cmd=["test_cmd"], timeout=60
             )
 
-            result = _run_subprocess(
+            result = _run_command(
                 cmd=["test_cmd"],
                 step_name="test_step",
                 timeout_seconds=60,
@@ -205,7 +205,7 @@ class TestSMART013TimeoutHandling:
             )
 
             # Should not raise
-            result = _run_subprocess(
+            result = _run_command(
                 cmd=["slow_cmd"],
                 step_name="batchfetch",
                 timeout_seconds=300,
@@ -223,7 +223,7 @@ class TestSMART013TimeoutHandling:
                 cmd=["cmd"], timeout=120
             )
 
-            result = _run_subprocess(
+            result = _run_command(
                 cmd=["cmd"],
                 step_name="fetch",
                 timeout_seconds=120,
@@ -248,7 +248,7 @@ class TestSMART015OSErrorHandling:
         with patch("change_detector.subprocess.run") as mock_run:
             mock_run.side_effect = OSError("No such file or directory")
 
-            result = _run_subprocess(
+            result = _run_command(
                 cmd=["nonexistent_cmd"],
                 step_name="test_step",
                 timeout_seconds=60,
@@ -265,7 +265,7 @@ class TestSMART015OSErrorHandling:
         with patch("change_detector.subprocess.run") as mock_run:
             mock_run.side_effect = OSError("Permission denied")
 
-            result = _run_subprocess(
+            result = _run_command(
                 cmd=["locked_cmd"],
                 step_name="build_cache",
                 timeout_seconds=60,
