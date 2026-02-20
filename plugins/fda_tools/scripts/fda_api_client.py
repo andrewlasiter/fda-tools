@@ -65,6 +65,14 @@ except ImportError:
     _CROSS_PROCESS_LIMITER_AVAILABLE = False
     CrossProcessRateLimiter = None  # type: ignore
 
+# Import PostgreSQL database module (FDA-191)
+try:
+    from fda_tools.lib.postgres_database import PostgreSQLDatabase  # type: ignore
+    _POSTGRES_AVAILABLE = True
+except ImportError:
+    _POSTGRES_AVAILABLE = False
+    PostgreSQLDatabase = None  # type: ignore
+
 
 # Module logger (FDA-18 / GAP-014)
 logger = logging.getLogger(__name__)
@@ -112,6 +120,9 @@ class FDAClient:
         cache_dir: Optional[str] = None,
         api_key: Optional[str] = None,
         rate_limit_override: Optional[int] = None,
+        use_postgres: bool = False,
+        postgres_host: str = 'localhost',
+        postgres_port: int = 6432,
     ):
         """Initialize the FDA API client.
 
@@ -120,13 +131,43 @@ class FDAClient:
             api_key: openFDA API key. If not provided, reads from env/settings.
             rate_limit_override: Override rate limit (requests per minute).
                 Default: 240 (unauthenticated) or 1000 (with API key).
+            use_postgres: Enable PostgreSQL caching (FDA-191). Default: False for backward compatibility.
+            postgres_host: PostgreSQL/PgBouncer host. Default: localhost
+            postgres_port: PostgreSQL/PgBouncer port. Default: 6432 (PgBouncer)
         """
         self.api_key = api_key or self._load_api_key()
         self.cache_dir = Path(cache_dir or os.path.expanduser("~/fda-510k-data/api_cache"))
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.enabled = self._check_enabled()
-        self._stats = {"hits": 0, "misses": 0, "errors": 0, "corruptions": 0}
+        self._stats = {"hits": 0, "misses": 0, "errors": 0, "corruptions": 0, "postgres_hits": 0}
         self._audit_events = []  # In-memory audit log for cache integrity events
+
+        # Initialize PostgreSQL database (FDA-191)
+        self.use_postgres = use_postgres and _POSTGRES_AVAILABLE
+        self.db = None
+        if self.use_postgres:
+            try:
+                self.db = PostgreSQLDatabase(  # type: ignore
+                    host=postgres_host,
+                    port=postgres_port,
+                    pool_size=20  # Support 20+ concurrent agents
+                )
+                logger.info(
+                    "PostgreSQL caching enabled (FDA-191): %s:%d",
+                    postgres_host,
+                    postgres_port,
+                )
+            except Exception as e:
+                logger.warning(
+                    "PostgreSQL initialization failed, falling back to JSON cache: %s", e
+                )
+                self.use_postgres = False
+                self.db = None
+        elif use_postgres and not _POSTGRES_AVAILABLE:
+            logger.warning(
+                "PostgreSQL requested but module not available. "
+                "Falling back to JSON cache."
+            )
 
         # Initialize rate limiter (FDA-20)
         if _RATE_LIMITER_AVAILABLE:
@@ -272,6 +313,66 @@ class FDAClient:
                 )
                 return None
 
+    def _get_postgres_cached(self, endpoint, params):
+        """Get a cached response from PostgreSQL if valid.
+
+        FDA-193: Query PostgreSQL database for cached OpenFDA records.
+        Extracts record ID from search parameter and checks TTL freshness.
+
+        Args:
+            endpoint: API endpoint name ('510k', 'classification', etc.)
+            params: Query parameters dict with 'search' parameter
+
+        Returns:
+            Cached OpenFDA response dict if found and fresh, None otherwise
+        """
+        if not self.db:
+            return None
+
+        # Extract record ID from search parameter
+        search_param = params.get("search", "")
+        if not search_param:
+            return None
+
+        # Parse search parameter to extract primary key
+        # Format: "k_number:K123456" or "product_code:DQY"
+        record_id = None
+        if ":" in search_param:
+            field, value = search_param.split(":", 1)
+            # Remove quotes if present
+            record_id = value.strip('"').strip("'")
+
+        if not record_id:
+            return None
+
+        try:
+            # Query PostgreSQL by primary key
+            result = self.db.get_record(endpoint, record_id)
+            if not result:
+                return None
+
+            # Check TTL freshness
+            cached_at = result.get("cached_at")
+            if cached_at and self.db.is_stale(endpoint, cached_at):
+                return None
+
+            # Return the full OpenFDA response
+            openfda_json = result.get("openfda_json")
+            if openfda_json:
+                logger.debug(
+                    "PostgreSQL cache hit: %s %s (cached %s)",
+                    endpoint, record_id, cached_at
+                )
+                return openfda_json
+
+        except Exception as e:
+            logger.warning(
+                "PostgreSQL query error for %s %s: %s",
+                endpoint, record_id, e
+            )
+
+        return None
+
     def _set_cached(self, cache_key, data):
         """Cache a response with integrity envelope and atomic write.
 
@@ -296,6 +397,7 @@ class FDAClient:
         """Make an API request with rate limiting, retry, and exponential backoff.
 
         Implements:
+        - Three-tier fallback: PostgreSQL → JSON cache → API (FDA-191)
         - Rate limiting (token bucket, configurable 240 or 1000 req/min)
         - Cache-first lookup
         - Exponential backoff with jitter
@@ -313,7 +415,19 @@ class FDAClient:
         if not self.enabled:
             return {"error": "API disabled", "degraded": True}
 
-        # Check cache first
+        # Tier 1: PostgreSQL cache (if enabled) - FDA-191
+        if self.use_postgres and self.db:
+            try:
+                postgres_cached = self._get_postgres_cached(endpoint, params)
+                if postgres_cached is not None:
+                    self._stats["postgres_hits"] += 1
+                    return postgres_cached
+            except Exception as e:
+                logger.warning(
+                    "PostgreSQL cache query failed, falling back to JSON: %s", e
+                )
+
+        # Tier 2: JSON file cache
         key = self._cache_key(endpoint, params)
         cached = self._get_cached(key)
         if cached is not None:
@@ -953,6 +1067,25 @@ class FDAClient:
             List of audit event dictionaries.
         """
         return list(self._audit_events)
+
+    def close(self):
+        """Close PostgreSQL connection pool and cleanup resources.
+
+        FDA-193: Properly close connection pool when client is no longer needed.
+        Safe to call multiple times (idempotent).
+        """
+        if self.db:
+            try:
+                self.db.close()
+                logger.debug("Closed PostgreSQL connection pool")
+            except Exception as e:
+                logger.warning("Error closing PostgreSQL connection pool: %s", e)
+            finally:
+                self.db = None
+
+    def __del__(self):
+        """Cleanup on object deletion (FDA-193)."""
+        self.close()
 
 
 def main():

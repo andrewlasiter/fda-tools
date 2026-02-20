@@ -1,463 +1,104 @@
 version: '3.8'
 
-# FDA Tools Docker Compose Configuration
-# Production-ready orchestration with service dependencies
-# Supports development, testing, staging, and production environments
-# Version: 5.36.0+docker
-
-# ============================================================================
-# Configuration:
-# - Copy .env.example to .env and configure environment variables
-# - Adjust resource limits based on your infrastructure
-# - Use profiles to control which services start (dev, monitoring, etc.)
-# ============================================================================
-
 services:
-  # ============================================================================
-  # Main FDA Tools Service
-  # ============================================================================
-  fda-tools:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        - PYTHON_VERSION=${PYTHON_VERSION:-3.11}
-        - ENVIRONMENT=${ENVIRONMENT:-production}
-        - ENABLE_OPTIONAL_DEPS=${ENABLE_OPTIONAL_DEPS:-true}
-        - BUILDKIT_INLINE_CACHE=1
-    image: fda-tools:${FDA_VERSION:-5.36.0}
-    container_name: fda-tools-main
-    hostname: fda-tools
-
-    # Restart policy - suitable for production
-    restart: unless-stopped
-
-    # Environment variables (override via .env file)
-    environment:
-      # Python configuration
-      - PYTHONUNBUFFERED=1
-      - PYTHONDONTWRITEBYTECODE=1
-      - PYTHONHASHSEED=random
-
-      # FDA Tools configuration
-      - FDA_DATA_DIR=/data
-      - FDA_CACHE_DIR=/cache
-      - FDA_LOG_DIR=/logs
-      - FDA_CONFIG_FILE=/config/config.toml
-      - FDA_ENVIRONMENT=${ENVIRONMENT:-production}
-
-      # API keys (NEVER commit these - use .env file)
-      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
-      - OPENFDA_API_KEY=${OPENFDA_API_KEY:-}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-
-      # Database connection (optional)
-      - DATABASE_URL=${DATABASE_URL:-}
-      - POSTGRES_HOST=${POSTGRES_HOST:-postgres}
-      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
-      - POSTGRES_DB=${POSTGRES_DB:-fda_tools}
-      - POSTGRES_USER=${POSTGRES_USER:-fdatools}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-}
-
-      # Redis cache connection (optional)
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      - REDIS_HOST=${REDIS_HOST:-redis}
-      - REDIS_PORT=${REDIS_PORT:-6379}
-
-      # Logging configuration
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - LOG_FORMAT=${LOG_FORMAT:-json}
-
-      # Performance tuning
-      - MALLOC_ARENA_MAX=2
-
-      # Feature flags
-      - FDA_ENABLE_ENRICHMENT=${FDA_ENABLE_ENRICHMENT:-true}
-      - FDA_ENABLE_CACHING=${FDA_ENABLE_CACHING:-true}
-
-    # Volume mounts
-    volumes:
-      # Persistent data storage
-      - fda-data:/data
-      - fda-cache:/cache
-      - fda-logs:/logs
-
-      # Configuration (can mount custom config)
-      - ${FDA_CONFIG_PATH:-./plugins/fda-tools/config.toml}:/config/config.toml:ro
-
-      # Development mode: Mount source code (enable for development)
-      # - ./plugins/fda-tools:/app/plugins/fda-tools
-
-      # Project data (for local development/testing)
-      - ${FDA_PROJECTS_DIR:-./projects}:/projects
-
-    # Network configuration
-    networks:
-      - fda-network
-
-    # Port mappings
-    ports:
-      - "${FDA_PORT:-8080}:8080"
-
-    # Health check
-    healthcheck:
-      test: ["CMD", "python", "/app/plugins/fda-tools/scripts/health_check.py", "--skip-network"]
-      interval: 30s
-      timeout: 10s
-      start_period: 60s
-      retries: 3
-
-    # Resource limits (adjust based on workload)
-    deploy:
-      resources:
-        limits:
-          cpus: '${FDA_CPU_LIMIT:-2.0}'
-          memory: ${FDA_MEMORY_LIMIT:-4G}
-        reservations:
-          cpus: '${FDA_CPU_RESERVATION:-0.5}'
-          memory: ${FDA_MEMORY_RESERVATION:-1G}
-
-    # Dependencies (optional services)
-    depends_on:
-      postgres:
-        condition: service_healthy
-        required: false
-      redis:
-        condition: service_healthy
-        required: false
-
-    # Default command
-    command: ["--version"]
-
-    # Security options
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    cap_add:
-      - NET_BIND_SERVICE  # If binding to privileged ports
-
-  # ============================================================================
-  # Bridge Server Service (FDA Tools HTTP API)
-  # ============================================================================
-  fda-bridge:
-    image: fda-tools:${FDA_VERSION:-5.36.0}
-    container_name: fda-tools-bridge
-    hostname: fda-bridge
-    restart: unless-stopped
-
-    environment:
-      - PYTHONUNBUFFERED=1
-      - FDA_DATA_DIR=/data
-      - FDA_CACHE_DIR=/cache
-      - FDA_LOG_DIR=/logs
-      - FDA_CONFIG_FILE=/config/config.toml
-      - FDA_BRIDGE_PORT=${FDA_BRIDGE_PORT:-18790}
-      - FDA_BRIDGE_API_KEY=${FDA_BRIDGE_API_KEY:-}
-      - FDA_BRIDGE_RATE_LIMIT=${FDA_BRIDGE_RATE_LIMIT:-60/minute}
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-
-    volumes:
-      - fda-data:/data:ro  # Read-only for security
-      - fda-cache:/cache
-      - fda-logs:/logs
-      - ${FDA_CONFIG_PATH:-./plugins/fda-tools/config.toml}:/config/config.toml:ro
-
-    networks:
-      - fda-network
-
-    ports:
-      - "${FDA_BRIDGE_PORT:-18790}:18790"
-
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:18790/health"]
-      interval: 30s
-      timeout: 10s
-      start_period: 30s
-      retries: 3
-
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 2G
-        reservations:
-          cpus: '0.25'
-          memory: 512M
-
-    command: ["bridge"]
-
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-
-  # ============================================================================
-  # PostgreSQL Database (Optional)
-  # ============================================================================
-  postgres:
+  # PostgreSQL BLUE (primary/active database)
+  postgres-blue:
     image: postgres:15-alpine
-    container_name: fda-tools-postgres
-    hostname: postgres
-    restart: unless-stopped
-    profiles:
-      - database
-
+    container_name: fda_postgres_blue
     environment:
-      - POSTGRES_DB=${POSTGRES_DB:-fda_tools}
-      - POSTGRES_USER=${POSTGRES_USER:-fdatools}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
-      - POSTGRES_INITDB_ARGS=--encoding=UTF-8 --locale=en_US.UTF-8
-      - PGDATA=/var/lib/postgresql/data/pgdata
-
+      POSTGRES_DB: fda_offline
+      POSTGRES_USER: fda_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+      PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
-      - postgres-data:/var/lib/postgresql/data
-      # Optional: Custom init scripts
-      # - ./scripts/db/init.sql:/docker-entrypoint-initdb.d/01-init.sql
-
-    networks:
-      - fda-network
-
+      - ./postgres_data_blue:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./postgres_blue_wal:/var/lib/postgresql/wal_archive
     ports:
-      - "${POSTGRES_EXTERNAL_PORT:-5432}:5432"
-
+      - "5432:5432"
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fdatools}"]
+      test: ["CMD-SHELL", "pg_isready -U fda_user -d fda_offline"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
-
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 1G
-        reservations:
-          cpus: '0.25'
-          memory: 256M
-
-    security_opt:
-      - no-new-privileges:true
-
-  # ============================================================================
-  # Redis Cache (Optional)
-  # ============================================================================
-  redis:
-    image: redis:7-alpine
-    container_name: fda-tools-redis
-    hostname: redis
-    restart: unless-stopped
-    profiles:
-      - cache
-
     command: >
-      redis-server
-      --maxmemory ${REDIS_MAXMEMORY:-512mb}
-      --maxmemory-policy allkeys-lru
-      --save 60 1
-      --appendonly yes
-      --appendfsync everysec
-      --protected-mode yes
-      --requirepass ${REDIS_PASSWORD:-}
-
-    volumes:
-      - redis-data:/data
-
+      postgres
+      -c wal_level=logical
+      -c max_wal_senders=3
+      -c max_replication_slots=3
+      -c archive_mode=on
+      -c archive_command='test ! -f /var/lib/postgresql/wal_archive/%f && cp %p /var/lib/postgresql/wal_archive/%f'
     networks:
       - fda-network
 
+  # PostgreSQL GREEN (staging/standby database for blue-green deployment)
+  postgres-green:
+    image: postgres:15-alpine
+    container_name: fda_postgres_green
+    environment:
+      POSTGRES_DB: fda_offline
+      POSTGRES_USER: fda_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - ./postgres_data_green:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./postgres_green_wal:/var/lib/postgresql/wal_archive
     ports:
-      - "${REDIS_EXTERNAL_PORT:-6379}:6379"
-
+      - "5433:5432"
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "pg_isready -U fda_user -d fda_offline"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
-
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
-        reservations:
-          cpus: '0.1'
-          memory: 128M
-
-    security_opt:
-      - no-new-privileges:true
-
-  # ============================================================================
-  # Monitoring: Prometheus (Optional - monitoring profile)
-  # ============================================================================
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: fda-tools-prometheus
-    hostname: prometheus
-    restart: unless-stopped
-    profiles:
-      - monitoring
-
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=${PROMETHEUS_RETENTION:-30d}'
-      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
-      - '--web.console.templates=/usr/share/prometheus/consoles'
-      - '--web.enable-lifecycle'
-
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus-data:/prometheus
-
+    command: >
+      postgres
+      -c wal_level=logical
+      -c max_wal_senders=3
+      -c max_replication_slots=3
     networks:
       - fda-network
-
-    ports:
-      - "${PROMETHEUS_PORT:-9090}:9090"
-
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
-
-    security_opt:
-      - no-new-privileges:true
-
-  # ============================================================================
-  # Monitoring: Grafana (Optional - monitoring profile)
-  # ============================================================================
-  grafana:
-    image: grafana/grafana:latest
-    container_name: fda-tools-grafana
-    hostname: grafana
-    restart: unless-stopped
     profiles:
-      - monitoring
+      - blue-green  # Only start when explicitly requested
 
+  # PgBouncer connection pooler
+  pgbouncer:
+    image: edoburu/pgbouncer:1.21.0
+    container_name: fda_pgbouncer
     environment:
-      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
-      - GF_INSTALL_PLUGINS=
-      - GF_SERVER_ROOT_URL=http://localhost:${GRAFANA_PORT:-3000}
-
-    volumes:
-      - grafana-data:/var/lib/grafana
-      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
-      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
-
+      DATABASE_URL: "postgres://fda_user:${DB_PASSWORD:-changeme}@postgres-blue:5432/fda_offline"
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 100
+      DEFAULT_POOL_SIZE: 20
+      MIN_POOL_SIZE: 5
+      RESERVE_POOL_SIZE: 5
+      SERVER_IDLE_TIMEOUT: 600
+      SERVER_LIFETIME: 3600
+    ports:
+      - "6432:5432"
+    depends_on:
+      postgres-blue:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h localhost -p 5432"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - fda-network
+    volumes:
+      - ./pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini
+      - ./userlist.txt:/etc/pgbouncer/userlist.txt
 
-    ports:
-      - "${GRAFANA_PORT:-3000}:3000"
-
-    depends_on:
-      - prometheus
-
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
-
-    security_opt:
-      - no-new-privileges:true
-
-# ============================================================================
-# Networks
-# ============================================================================
 networks:
   fda-network:
     driver: bridge
-    name: fda-tools-network
-    ipam:
-      driver: default
-      config:
-        - subnet: ${FDA_NETWORK_SUBNET:-172.25.0.0/16}
-          gateway: ${FDA_NETWORK_GATEWAY:-172.25.0.1}
 
-# ============================================================================
-# Volumes
-# ============================================================================
 volumes:
-  fda-data:
-    name: fda-tools-data
-    driver: local
-
-  fda-cache:
-    name: fda-tools-cache
-    driver: local
-
-  fda-logs:
-    name: fda-tools-logs
-    driver: local
-
-  postgres-data:
-    name: fda-tools-postgres-data
-    driver: local
-
-  redis-data:
-    name: fda-tools-redis-data
-    driver: local
-
-  prometheus-data:
-    name: fda-tools-prometheus-data
-    driver: local
-
-  grafana-data:
-    name: fda-tools-grafana-data
-    driver: local
-
-# ============================================================================
-# Usage Examples:
-# ============================================================================
-# Setup:
-#   cp .env.example .env
-#   # Edit .env with your configuration
-#
-# Start core services only:
-#   docker-compose up -d fda-tools
-#
-# Start with bridge server:
-#   docker-compose up -d fda-tools fda-bridge
-#
-# Start with database and cache:
-#   docker-compose --profile database --profile cache up -d
-#
-# Start everything including monitoring:
-#   docker-compose --profile database --profile cache --profile monitoring up -d
-#
-# Run batchfetch command:
-#   docker-compose run --rm fda-tools -m scripts.batchfetch --product-codes DQY --years 2024
-#
-# Run tests:
-#   docker-compose run --rm fda-tools test -v
-#
-# Interactive shell:
-#   docker-compose run --rm fda-tools shell
-#
-# View logs:
-#   docker-compose logs -f fda-tools
-#   docker-compose logs -f fda-bridge
-#
-# Health check:
-#   docker-compose exec fda-tools python /app/plugins/fda-tools/scripts/health_check.py --verbose
-#
-# Stop all services:
-#   docker-compose down
-#
-# Stop and remove volumes (CAUTION: deletes data):
-#   docker-compose down -v
-#
-# Rebuild after code changes:
-#   docker-compose build --no-cache fda-tools
-#   docker-compose up -d --force-recreate fda-tools
-#
-# Scale services (if stateless):
-#   docker-compose up -d --scale fda-bridge=3
-# ============================================================================
+  postgres_data_blue:
+  postgres_data_green:
+  postgres_blue_wal:
+  postgres_green_wal:
