@@ -6,6 +6,23 @@ Automated gap analysis to identify missing data, weak predicates, testing gaps,
 and standards gaps in 510(k) submission projects.
 
 Part of Phase 4: Automation Features
+
+REFACTORING NOTICE (FDA-116):
+This module has been refactored into focused sub-modules for better maintainability:
+- predicate_gap_analyzer.py - Predicate and device data gaps
+- testing_gap_detector.py - Testing coverage gaps
+- standards_gap_detector.py - Standards compliance gaps
+- data_completeness_scorer.py - Confidence scoring
+
+The GapAnalyzer class now delegates to these focused modules.
+Public API remains unchanged for backward compatibility.
+
+New modular usage (recommended):
+    from fda_tools.lib.predicate_gap_analyzer import PredicateGapAnalyzer
+    from fda_tools.lib.testing_gap_detector import TestingGapDetector
+
+Legacy usage (still supported):
+    from fda_tools.lib.gap_analyzer import GapAnalyzer
 """
 
 import json
@@ -14,6 +31,15 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Any
+
+# Import focused gap detection modules (FDA-116 refactoring)
+from fda_tools.lib.predicate_gap_analyzer import PredicateGapAnalyzer
+from fda_tools.lib.testing_gap_detector import TestingGapDetector
+from fda_tools.lib.standards_gap_detector import StandardsGapDetector
+from fda_tools.lib.data_completeness_scorer import (
+    calculate_gap_analysis_confidence,
+    _interpret_confidence as interpret_confidence_score,
+)
 
 logger = logging.getLogger(__name__)
 
