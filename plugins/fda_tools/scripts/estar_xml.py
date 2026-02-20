@@ -47,6 +47,13 @@ try:
 except ImportError:
     _lxml_etree = None  # type: ignore
 
+# FDA-120: Import field extractor for improved eSTAR population (25% → 60%+)
+try:
+    from fda_tools.lib.estar_field_extractor import EStarFieldExtractor
+    _HAS_FIELD_EXTRACTOR = True
+except ImportError:
+    _HAS_FIELD_EXTRACTOR = False
+
 # defusedxml provides XXE-safe parsing (blocks entity expansion, DTD loading)
 try:
     import defusedxml.lxml as _defused_lxml  # type: ignore
@@ -1340,6 +1347,33 @@ def generate_xml(project_dir, template_type="nIVD", output_file=None, fmt="real"
     if template_type == "auto":
         template_type = _detect_template_from_data(project_data)
         print(f"Auto-detected template type: {template_type}")
+
+    # FDA-120: Extract additional fields from project data (25% → 60%+ population)
+    if _HAS_FIELD_EXTRACTOR:
+        logger.info("Extracting additional eSTAR fields from project data...")
+        try:
+            extractor = EStarFieldExtractor(str(project_dir))
+            extracted_fields = extractor.extract_all_fields()
+
+            # Merge extracted fields into device profile
+            if "profile" not in project_data:
+                project_data["profile"] = {}
+
+            # Add extracted fields to profile (don't overwrite existing values)
+            for field_name, field_value in extracted_fields.items():
+                if field_value and field_name not in project_data["profile"]:
+                    project_data["profile"][field_name] = field_value
+
+            # Log population score
+            population_score = extractor.get_field_population_score()
+            logger.info(f"Field population score: {population_score}%")
+            print(f"eSTAR field population: {population_score}% (target: 60%+)")
+
+        except Exception as e:
+            logger.warning(f"Field extraction failed: {e}")
+            print(f"WARNING: Field extraction encountered an error: {e}", file=sys.stderr)
+    else:
+        logger.info("Field extractor not available (running in basic mode)")
 
     # Validate required fields before XML generation
     logger.info("Validating required fields...")
