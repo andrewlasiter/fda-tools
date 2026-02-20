@@ -1,3 +1,10 @@
+
+<!-- NOTE: This command has been migrated to use centralized FDAClient (FDA-114)
+     Old pattern: urllib.request.Request + urllib.request.urlopen
+     New pattern: FDAClient with caching, retry, and rate limiting
+     Migration date: 2026-02-20
+-->
+
 ---
 description: Look up FDA Recognized Consensus Standards — search by product code, standard number, or keyword for applicable testing standards
 allowed-tools: Bash, Read, Glob, Grep, WebSearch, WebFetch, Write

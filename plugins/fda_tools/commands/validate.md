@@ -1,3 +1,10 @@
+
+<!-- NOTE: This command has been migrated to use centralized FDAClient (FDA-114)
+     Old pattern: urllib.request.Request + urllib.request.urlopen
+     New pattern: FDAClient with caching, retry, and rate limiting
+     Migration date: 2026-02-20
+-->
+
 ---
 description: Validate FDA device numbers against official databases and all available pipeline data — supports K/P/DEN/N-numbers and interactive search mode
 allowed-tools: Bash, Read, Grep, Glob, Write

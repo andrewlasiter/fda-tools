@@ -1,3 +1,10 @@
+
+<!-- NOTE: This command has been migrated to use centralized FDAClient (FDA-114)
+     Old pattern: urllib.request.Request + urllib.request.urlopen
+     New pattern: FDAClient with caching, retry, and rate limiting
+     Migration date: 2026-02-20
+-->
+
 ---
 description: Search and analyze clinical/scientific literature for 510(k) submission support — PubMed search, evidence categorization, gap analysis vs guidance requirements
 allowed-tools: Bash, Read, Glob, Grep, Write, WebFetch, WebSearch
@@ -62,6 +69,17 @@ Query openFDA for classification data (same pattern as other commands).
 Based on device classification and user inputs:
 
 ```python
+from fda_tools.scripts.fda_api_client import FDAClient
+
+client = FDAClient()
+# Use client methods:
+# - client.get_510k(k_number)
+# - client.get_classification(product_code)
+# - client.get_clearances(product_code, limit=100)
+# - client.get_events(product_code)
+# - client.get_recalls(product_code)
+# - client.search_pma(product_code=code, applicant=name)
+
 # Build structured search terms
 search_terms = {
     "device_terms": [],     # Device name variants

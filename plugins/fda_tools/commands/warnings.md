@@ -1,3 +1,10 @@
+
+<!-- NOTE: This command has been migrated to use centralized FDAClient (FDA-114)
+     Old pattern: urllib.request.Request + urllib.request.urlopen
+     New pattern: FDAClient with caching, retry, and rate limiting
+     Migration date: 2026-02-20
+-->
+
 ---
 description: Search FDA warning letters and enforcement actions for medical devices — GMP violation analysis, company risk profiles, and product code enforcement trends
 allowed-tools: Bash, Read, Glob, Grep, Write, WebFetch, WebSearch

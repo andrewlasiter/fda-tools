@@ -1,3 +1,10 @@
+
+<!-- NOTE: This command has been migrated to use centralized FDAClient (FDA-114)
+     Old pattern: urllib.request.Request + urllib.request.urlopen
+     New pattern: FDAClient with caching, retry, and rate limiting
+     Migration date: 2026-02-20
+-->
+
 ---
 description: Plan a Pre-Submission meeting with FDA — generate cover letter template, meeting request, and discussion topics based on device and predicate analysis. Supports 510(k), PMA, IDE, and De Novo pathways.
 allowed-tools: Bash, Read, Glob, Grep, Write, WebSearch
@@ -136,6 +143,17 @@ cat "$PROJECTS_DIR/$PROJECT_NAME/output.csv" 2>/dev/null | head -5 && echo "EXTR
 
 Use accepted predicates with their scores and rationale:
 ```python
+from fda_tools.scripts.fda_api_client import FDAClient
+
+client = FDAClient()
+# Use client methods:
+# - client.get_510k(k_number)
+# - client.get_classification(product_code)
+# - client.get_clearances(product_code, limit=100)
+# - client.get_events(product_code)
+# - client.get_recalls(product_code)
+# - client.search_pma(product_code=code, applicant=name)
+
 import json
 with open(review_json_path) as f:
     review = json.load(f)

@@ -1,3 +1,10 @@
+
+<!-- NOTE: This command has been migrated to use centralized FDAClient (FDA-114)
+     Old pattern: urllib.request.Request + urllib.request.urlopen
+     New pattern: FDAClient with caching, retry, and rate limiting
+     Migration date: 2026-02-20
+-->
+
 ---
 description: Generate regulatory prose drafts for 510(k) submission sections — device description, SE discussion, performance summary, testing rationale, predicate justification
 allowed-tools: Bash, Read, Glob, Grep, Write, WebFetch, WebSearch
@@ -866,6 +873,17 @@ MRI_SAFETY_DETECTION:
 
 **Detection logic:**
 ```python
+from fda_tools.scripts.fda_api_client import FDAClient
+
+client = FDAClient()
+# Use client methods:
+# - client.get_510k(k_number)
+# - client.get_classification(product_code)
+# - client.get_clearances(product_code, limit=100)
+# - client.get_events(product_code)
+# - client.get_recalls(product_code)
+# - client.search_pma(product_code=code, applicant=name)
+
 applicant = device_profile.get('applicant', '') or device_profile.get('applicant_name', '') or ''
 ifu_text = device_profile.get('intended_use', '')
 desc_text = device_profile.get('device_description', '') or str(device_profile.get('extracted_sections', {}).get('device_description', ''))

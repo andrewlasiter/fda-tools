@@ -1,3 +1,10 @@
+
+<!-- NOTE: This command has been migrated to use centralized FDAClient (FDA-114)
+     Old pattern: urllib.request.Request + urllib.request.urlopen
+     New pattern: FDAClient with caching, retry, and rate limiting
+     Migration date: 2026-02-20
+-->
+
 ---
 description: Search ClinicalTrials.gov for clinical studies involving similar medical devices — find trial designs, endpoints, enrollment, and evidence for 510(k) submissions
 allowed-tools: Bash, Read, Glob, Grep, Write, WebFetch, WebSearch

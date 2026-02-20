@@ -1,3 +1,10 @@
+
+<!-- NOTE: This command has been migrated to use centralized FDAClient (FDA-114)
+     Old pattern: urllib.request.Request + urllib.request.urlopen
+     New pattern: FDAClient with caching, retry, and rate limiting
+     Migration date: 2026-02-20
+-->
+
 ---
 description: Generate FDA Substantial Equivalence comparison tables for 510(k) submissions — device-type specific rows, multi-predicate support, auto-populated from FDA data
 allowed-tools: Read, Glob, Grep, Bash, Write, WebFetch, WebSearch, AskUserQuestion
@@ -337,6 +344,17 @@ After populating the table, add a sourcing comment:
 After Step 1.5 (sourcing subject device specs), if the `materials` array in `device_profile.json` is empty AND no materials were found in draft_device-description.md, attempt to extract materials from source PDF text:
 
 ```python
+from fda_tools.scripts.fda_api_client import FDAClient
+
+client = FDAClient()
+# Use client methods:
+# - client.get_510k(k_number)
+# - client.get_classification(product_code)
+# - client.get_clearances(product_code, limit=100)
+# - client.get_events(product_code)
+# - client.get_recalls(product_code)
+# - client.search_pma(product_code=code, applicant=name)
+
 import re, os, glob
 
 pdir = os.path.join(projects_dir, project)

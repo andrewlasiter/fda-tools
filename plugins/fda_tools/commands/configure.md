@@ -1,3 +1,10 @@
+
+<!-- NOTE: This command has been migrated to use centralized FDAClient (FDA-114)
+     Old pattern: urllib.request.Request + urllib.request.urlopen
+     New pattern: FDAClient with caching, retry, and rate limiting
+     Migration date: 2026-02-20
+-->
+
 ---
 description: View or modify FDA predicate assistant settings and data directory paths
 allowed-tools: Read, Write, Bash
@@ -115,6 +122,17 @@ After the user confirms they've set it, run the `--test-api` flow to validate.
 If `$ARGUMENTS` is `--setup-key`, display the secure key setup instructions (same as the special handling above). Then check if a key is already configured (via env var or settings file) and report the current status without revealing the key value:
 
 ```python
+from fda_tools.scripts.fda_api_client import FDAClient
+
+client = FDAClient()
+# Use client methods:
+# - client.get_510k(k_number)
+# - client.get_classification(product_code)
+# - client.get_clearances(product_code, limit=100)
+# - client.get_events(product_code)
+# - client.get_recalls(product_code)
+# - client.search_pma(product_code=code, applicant=name)
+
 import os, re
 api_key = os.environ.get('OPENFDA_API_KEY')
 source = 'environment variable' if api_key else None

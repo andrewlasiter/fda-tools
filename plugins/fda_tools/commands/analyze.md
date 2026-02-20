@@ -1,3 +1,10 @@
+
+<!-- NOTE: This command has been migrated to use centralized FDAClient (FDA-114)
+     Old pattern: urllib.request.Request + urllib.request.urlopen
+     New pattern: FDAClient with caching, retry, and rate limiting
+     Migration date: 2026-02-20
+-->
+
 ---
 description: Analyze FDA data from any pipeline stage — extraction results, download metadata, predicate relationships, or device lookups
 allowed-tools: Read, Glob, Grep, Bash, Write

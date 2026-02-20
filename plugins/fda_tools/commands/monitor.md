@@ -1,3 +1,10 @@
+
+<!-- NOTE: This command has been migrated to use centralized FDAClient (FDA-114)
+     Old pattern: urllib.request.Request + urllib.request.urlopen
+     New pattern: FDAClient with caching, retry, and rate limiting
+     Migration date: 2026-02-20
+-->
+
 ---
 description: Monitor FDA databases for new clearances, recalls, MAUDE events, and guidance updates for watched product codes
 allowed-tools: Bash, Read, Write, Glob, Grep, WebSearch

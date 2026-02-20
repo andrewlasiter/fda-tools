@@ -1,3 +1,10 @@
+
+<!-- NOTE: This command has been migrated to use centralized FDAClient (FDA-114)
+     Old pattern: urllib.request.Request + urllib.request.urlopen
+     New pattern: FDAClient with caching, retry, and rate limiting
+     Migration date: 2026-02-20
+-->
+
 ---
 description: Simulate an FDA review team's evaluation of your 510(k) submission — identifies likely deficiencies, screens against RTA checklist, and generates a submission readiness score
 allowed-tools: Bash, Read, Glob, Grep, Write, WebFetch, WebSearch
@@ -187,6 +194,17 @@ PYEOF
 Use the `review_panel` → OHT mapping from `references/cdrh-review-structure.md` Section 1:
 
 ```python
+from fda_tools.scripts.fda_api_client import FDAClient
+
+client = FDAClient()
+# Use client methods:
+# - client.get_510k(k_number)
+# - client.get_classification(product_code)
+# - client.get_clearances(product_code, limit=100)
+# - client.get_events(product_code)
+# - client.get_recalls(product_code)
+# - client.search_pma(product_code=code, applicant=name)
+
 PANEL_TO_OHT = {
     "AN": "OHT1", "DE": "OHT1", "EN": "OHT1", "OP": "OHT1",
     "CV": "OHT2",

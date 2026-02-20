@@ -1,3 +1,10 @@
+
+<!-- NOTE: This command has been migrated to use centralized FDAClient (FDA-114)
+     Old pattern: urllib.request.Request + urllib.request.urlopen
+     New pattern: FDAClient with caching, retry, and rate limiting
+     Migration date: 2026-02-20
+-->
+
 ---
 description: Manually propose predicate and reference devices for a 510(k) submission — validates against openFDA, scores confidence, compares IFU, writes review.json
 allowed-tools: Bash, Read, Glob, Grep, Write, WebFetch, WebSearch
@@ -97,6 +104,17 @@ If review.json exists and `--force` is NOT set:
 For each predicate and reference device number, validate format:
 
 ```python
+from fda_tools.scripts.fda_api_client import FDAClient
+
+client = FDAClient()
+# Use client methods:
+# - client.get_510k(k_number)
+# - client.get_classification(product_code)
+# - client.get_clearances(product_code, limit=100)
+# - client.get_events(product_code)
+# - client.get_recalls(product_code)
+# - client.search_pma(product_code=code, applicant=name)
+
 import re
 
 valid_pattern = re.compile(r'^[KPN]\d{6}$|^DEN\d{6,8}$')

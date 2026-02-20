@@ -1,3 +1,10 @@
+
+<!-- NOTE: This command has been migrated to use centralized FDAClient (FDA-114)
+     Old pattern: urllib.request.Request + urllib.request.urlopen
+     New pattern: FDAClient with caching, retry, and rate limiting
+     Migration date: 2026-02-20
+-->
+
 ---
 description: Import eSTAR data from PDF or XML — extract form fields, predicates, and section content into project data for submission preparation
 allowed-tools: Bash, Read, Glob, Grep, Write, WebFetch
