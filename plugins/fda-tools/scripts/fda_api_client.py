@@ -310,8 +310,10 @@ class FDAClient:
 
         self._stats["misses"] += 1
 
-        # FDA-12: Cross-process rate limit check (file-based lock)
+        # Rate limiting: Use cross-process limiter (FDA-104) when available,
+        # fall back to in-memory limiter for single-process use
         if self._cross_process_limiter:
+            # FDA-12: Cross-process rate limit check (file-based lock)
             xp_acquired = self._cross_process_limiter.acquire(timeout=120.0)
             if not xp_acquired:
                 self._stats["errors"] += 1
@@ -323,9 +325,8 @@ class FDAClient:
                     "error": "Cross-process rate limit timeout after 120s",
                     "degraded": True,
                 }
-
-        # Acquire rate limit token (blocks if necessary)
-        if self._rate_limiter:
+        elif self._rate_limiter:
+            # Fallback to in-memory rate limiter (single-process only)
             acquired = self._rate_limiter.acquire(tokens=1, timeout=120.0)
             if not acquired:
                 self._stats["errors"] += 1
