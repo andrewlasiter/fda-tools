@@ -1,0 +1,254 @@
+{
+  "review_metadata": {
+    "review_date": "2026-02-19",
+    "total_issues": 113,
+    "total_points": 1283,
+    "agents_deployed": 7,
+    "priority_breakdown": {
+      "P0_CRITICAL": {"count": 15, "points": 256},
+      "P1_HIGH": {"count": 54, "points": 665},
+      "P2_MEDIUM": {"count": 44, "points": 362}
+    }
+  },
+  "sprint_recommendations": {
+    "sprint_1": {
+      "name": "Foundation & Security",
+      "weeks": "1-2",
+      "points": 89,
+      "focus": "Establish foundation for all future work",
+      "issues": ["ARCH-001", "ARCH-002", "CODE-001", "SEC-003", "SEC-004", "DEVOPS-002", "QA-002", "REG-006"]
+    },
+    "sprint_2": {
+      "name": "Core Infrastructure",
+      "weeks": "3-4",
+      "points": 102,
+      "focus": "Production readiness infrastructure",
+      "issues": ["DEVOPS-001", "DEVOPS-003", "DEVOPS-004", "QA-001", "CODE-002", "REG-002"]
+    },
+    "sprint_3": {
+      "name": "Compliance & Integration",
+      "weeks": "5-6",
+      "points": 89,
+      "focus": "Regulatory compliance + OpenClaw hardening",
+      "issues": ["REG-001", "FDA-101", "FDA-102", "QA-004"]
+    },
+    "sprint_4": {
+      "name": "Quality & DevOps",
+      "weeks": "7-8",
+      "points": 76,
+      "focus": "Code quality improvements + advanced DevOps",
+      "issues": ["CODE-003", "CODE-006", "DEVOPS-005", "DEVOPS-006", "DEVOPS-007", "QA-003"]
+    }
+  },
+  "team_assignments": {
+    "security_team": {
+      "lead_agent": "voltagent-qa-sec:security-auditor",
+      "support_agents": ["voltagent-qa-sec:penetration-tester"],
+      "issue_count": 23,
+      "total_points": 118
+    },
+    "code_quality_team": {
+      "lead_agent": "voltagent-qa-sec:code-reviewer",
+      "support_agents": ["voltagent-dev-exp:refactoring-specialist"],
+      "issue_count": 23,
+      "total_points": 149
+    },
+    "architecture_team": {
+      "lead_agent": "voltagent-qa-sec:architect-reviewer",
+      "support_agents": ["voltagent-core-dev:backend-developer"],
+      "issue_count": 16,
+      "total_points": 131
+    },
+    "qa_testing_team": {
+      "lead_agent": "voltagent-qa-sec:qa-expert",
+      "support_agents": ["voltagent-qa-sec:test-automator"],
+      "issue_count": 10,
+      "total_points": 343
+    },
+    "regulatory_team": {
+      "lead_agent": "voltagent-biz:legal-advisor",
+      "support_agents": ["voltagent-qa-sec:compliance-auditor"],
+      "issue_count": 10,
+      "total_points": 122
+    },
+    "openclaw_team": {
+      "lead_agent": "voltagent-lang:typescript-pro",
+      "support_agents": ["voltagent-core-dev:api-designer"],
+      "issue_count": 13,
+      "total_points": 203
+    },
+    "devops_team": {
+      "lead_agent": "voltagent-infra:devops-engineer",
+      "support_agents": ["voltagent-infra:platform-engineer"],
+      "issue_count": 18,
+      "total_points": 217
+    }
+  },
+  "critical_path_issues": {
+    "foundation": {
+      "description": "Must complete before any other work",
+      "issues": [
+        {
+          "id": "ARCH-001",
+          "title": "Convert to proper Python package - eliminate sys.path manipulation",
+          "priority": "P0",
+          "points": 21,
+          "team": "architecture_team",
+          "blocks": ["CODE-001", "CODE-002", "ARCH-005"]
+        },
+        {
+          "id": "ARCH-002",
+          "title": "Centralize configuration across multiple formats",
+          "priority": "P0",
+          "points": 8,
+          "team": "architecture_team",
+          "blocks": ["DEVOPS-002", "DEVOPS-001"]
+        }
+      ]
+    },
+    "security": {
+      "description": "Security vulnerabilities requiring immediate attention",
+      "issues": [
+        {
+          "id": "SEC-001",
+          "title": "Fix XSS vulnerability in markdown-to-HTML conversion",
+          "priority": "P0",
+          "points": 13,
+          "team": "security_team",
+          "cwe": "CWE-79",
+          "files": ["scripts/markdown_to_html.py"]
+        },
+        {
+          "id": "SEC-003",
+          "title": "Migrate plaintext API keys to secure keyring storage",
+          "priority": "P0",
+          "points": 8,
+          "team": "security_team",
+          "cwe": "CWE-798",
+          "files": ["scripts/fda_api_client.py", "scripts/setup_api_key.py"]
+        },
+        {
+          "id": "SEC-004",
+          "title": "Add file path validation to prevent path traversal",
+          "priority": "P0",
+          "points": 13,
+          "team": "security_team",
+          "cwe": "CWE-22",
+          "files": ["scripts/gap_analysis.py", "scripts/fetch_predicate_data.py", "scripts/pma_prototype.py"]
+        }
+      ]
+    },
+    "regulatory": {
+      "description": "21 CFR Part 11 compliance requirements",
+      "issues": [
+        {
+          "id": "REG-001",
+          "title": "Implement electronic signatures per 21 CFR Part 11",
+          "priority": "P0",
+          "points": 21,
+          "team": "regulatory_team",
+          "regulatory_citation": "21 CFR 11.50, 11.70, 11.100",
+          "files": ["scripts/estar_xml.py", "commands/assemble.md"]
+        },
+        {
+          "id": "REG-006",
+          "title": "Add user authentication and access controls",
+          "priority": "P0",
+          "points": 21,
+          "team": "regulatory_team",
+          "regulatory_citation": "21 CFR 11.10(d), 11.10(g)",
+          "blocks": ["REG-002", "REG-008"]
+        }
+      ]
+    },
+    "testing": {
+      "description": "Critical test infrastructure and failures",
+      "issues": [
+        {
+          "id": "QA-001",
+          "title": "Create missing E2E test infrastructure",
+          "priority": "P0",
+          "points": 21,
+          "team": "qa_testing_team",
+          "files": ["tests/utils/e2e_helpers.py", "tests/utils/regulatory_validators.py"],
+          "blocks": ["QA-003", "QA-005"]
+        },
+        {
+          "id": "QA-002",
+          "title": "Fix 47 failing tests in production modules",
+          "priority": "P0",
+          "points": 13,
+          "team": "qa_testing_team",
+          "files": ["tests/test_fda_enrichment.py", "tests/test_error_handling.py"]
+        }
+      ]
+    },
+    "devops": {
+      "description": "Production deployment infrastructure",
+      "issues": [
+        {
+          "id": "DEVOPS-001",
+          "title": "Add Docker containerization for deployment",
+          "priority": "P0",
+          "points": 13,
+          "team": "devops_team",
+          "blocks": ["DEVOPS-003"]
+        },
+        {
+          "id": "DEVOPS-003",
+          "title": "Create CI/CD pipeline for automated deployment",
+          "priority": "P0",
+          "points": 21,
+          "team": "devops_team",
+          "requires": ["DEVOPS-001"]
+        },
+        {
+          "id": "DEVOPS-004",
+          "title": "Implement production monitoring and observability",
+          "priority": "P0",
+          "points": 21,
+          "team": "devops_team"
+        }
+      ]
+    }
+  },
+  "dependencies": [
+    {"from": "ARCH-001", "to": ["CODE-001", "CODE-002", "ARCH-005"], "reason": "Package structure required before consolidating modules"},
+    {"from": "ARCH-002", "to": ["DEVOPS-002"], "reason": "Config system needed before environment management"},
+    {"from": "DEVOPS-002", "to": ["DEVOPS-001"], "reason": "Env config needed for Docker build"},
+    {"from": "DEVOPS-001", "to": ["DEVOPS-003"], "reason": "Container images needed for CI/CD"},
+    {"from": "REG-006", "to": ["REG-002", "REG-008"], "reason": "User authentication needed before audit trail and tamper-evident logs"},
+    {"from": "QA-001", "to": ["QA-003", "QA-005"], "reason": "Test infrastructure needed before adding new tests"},
+    {"from": "CODE-001", "to": ["CODE-002"], "reason": "Consolidate rate limiter before consolidating API clients"}
+  ],
+  "issues_summary": [
+    {
+      "category": "Security",
+      "issues": [
+        {"id": "SEC-001", "priority": "P0", "points": 13, "title": "Markdown-to-HTML XSS via unsanitized content injection"},
+        {"id": "SEC-002", "priority": "P0", "points": 8, "title": "User-Agent spoofing for FDA website scraping (CFAA risk)"},
+        {"id": "SEC-003", "priority": "P0", "points": 8, "title": "API key stored in plaintext configuration file"},
+        {"id": "SEC-004", "priority": "P0", "points": 13, "title": "Unvalidated file paths in output arguments (path traversal)"},
+        {"id": "SEC-005", "priority": "P1", "points": 5, "title": "Missing TLS certificate verification enforcement"},
+        {"id": "SEC-006", "priority": "P1", "points": 5, "title": "External MCP server URLs without authentication/verification"},
+        {"id": "SEC-007", "priority": "P1", "points": 8, "title": "Subprocess command injection risk in eCopy exporter"},
+        {"id": "SEC-008", "priority": "P1", "points": 5, "title": "Broad exception handling swallows security errors"},
+        {"id": "SEC-009", "priority": "P1", "points": 3, "title": "No rate limiting enforcement on PDF downloads"},
+        {"id": "SEC-010", "priority": "P1", "points": 5, "title": "Unvalidated input from FDA PMN database files"},
+        {"id": "SEC-011", "priority": "P1", "points": 5, "title": "Audit log append without integrity protection"},
+        {"id": "SEC-012", "priority": "P1", "points": 3, "title": "Linear API key passed without TLS verification guarantee"},
+        {"id": "SEC-013", "priority": "P2", "points": 3, "title": "Hardcoded FDA server URLs without config override"},
+        {"id": "SEC-014", "priority": "P2", "points": 3, "title": "sys.path manipulation enables module shadowing attacks"},
+        {"id": "SEC-015", "priority": "P2", "points": 3, "title": "No file permission checks on configuration files"},
+        {"id": "SEC-016", "priority": "P2", "points": 3, "title": "Missing Content-Type validation on HTTP responses"},
+        {"id": "SEC-017", "priority": "P2", "points": 2, "title": "Prototype results written to current working directory"},
+        {"id": "SEC-018", "priority": "P2", "points": 2, "title": "Error messages leak internal file paths"},
+        {"id": "SEC-019", "priority": "P2", "points": 5, "title": "JSON data files loaded without schema validation"},
+        {"id": "SEC-020", "priority": "P2", "points": 3, "title": "Regex denial of service (ReDoS) potential in section detection"},
+        {"id": "SEC-021", "priority": "P2", "points": 3, "title": "Monitor configuration file race condition"},
+        {"id": "SEC-022", "priority": "P2", "points": 3, "title": "No dependency pinning or lock file for reproducible builds"},
+        {"id": "SEC-023", "priority": "P2", "points": 2, "title": "Backup file (.backup) tracked in repository"}
+      ]
+    }
+  ]
+}

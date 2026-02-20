@@ -1,0 +1,128 @@
+{
+  "created": 12,
+  "failed": 0,
+  "total": 12,
+  "created_issues": [
+    {
+      "manifest_id": "ARCH-001",
+      "linear_id": "306781c0-1bfe-440c-9df0-67667c6f05d2",
+      "linear_identifier": "FDA-179",
+      "title": "Convert to proper Python package - eliminate sys.path manipulation",
+      "url": "https://linear.app/quaella/issue/FDA-179/arch-001-convert-to-proper-python-package-eliminate-syspath",
+      "priority": "P0",
+      "points": 21,
+      "category": "Foundation"
+    },
+    {
+      "manifest_id": "ARCH-002",
+      "linear_id": "8a7981dc-690f-4319-9687-7f8cf64b6d99",
+      "linear_identifier": "FDA-180",
+      "title": "Centralize configuration across multiple formats",
+      "url": "https://linear.app/quaella/issue/FDA-180/arch-002-centralize-configuration-across-multiple-formats",
+      "priority": "P0",
+      "points": 8,
+      "category": "Foundation"
+    },
+    {
+      "manifest_id": "SEC-001",
+      "linear_id": "06fbd0e2-f54c-49a5-9dd4-01794114428e",
+      "linear_identifier": "FDA-181",
+      "title": "Fix XSS vulnerability in markdown-to-HTML conversion",
+      "url": "https://linear.app/quaella/issue/FDA-181/sec-001-fix-xss-vulnerability-in-markdown-to-html-conversion",
+      "priority": "P0",
+      "points": 13,
+      "category": "Security"
+    },
+    {
+      "manifest_id": "SEC-003",
+      "linear_id": "3205b3d0-6e49-4859-b514-f865dfbbe841",
+      "linear_identifier": "FDA-182",
+      "title": "Migrate plaintext API keys to secure keyring storage",
+      "url": "https://linear.app/quaella/issue/FDA-182/sec-003-migrate-plaintext-api-keys-to-secure-keyring-storage",
+      "priority": "P0",
+      "points": 8,
+      "category": "Security"
+    },
+    {
+      "manifest_id": "SEC-004",
+      "linear_id": "43fa5844-f285-4272-9fe6-6bf124c291da",
+      "linear_identifier": "FDA-183",
+      "title": "Add file path validation to prevent path traversal",
+      "url": "https://linear.app/quaella/issue/FDA-183/sec-004-add-file-path-validation-to-prevent-path-traversal",
+      "priority": "P0",
+      "points": 13,
+      "category": "Security"
+    },
+    {
+      "manifest_id": "REG-001",
+      "linear_id": "15776137-a065-4e20-9136-b1e054d2cad4",
+      "linear_identifier": "FDA-184",
+      "title": "Implement electronic signatures per 21 CFR Part 11",
+      "url": "https://linear.app/quaella/issue/FDA-184/reg-001-implement-electronic-signatures-per-21-cfr-part-11",
+      "priority": "P0",
+      "points": 21,
+      "category": "Regulatory"
+    },
+    {
+      "manifest_id": "REG-006",
+      "linear_id": "db27ab9a-ad9c-4b57-ba5e-9ff91a2d0701",
+      "linear_identifier": "FDA-185",
+      "title": "Add user authentication and access controls",
+      "url": "https://linear.app/quaella/issue/FDA-185/reg-006-add-user-authentication-and-access-controls",
+      "priority": "P0",
+      "points": 21,
+      "category": "Regulatory"
+    },
+    {
+      "manifest_id": "QA-001",
+      "linear_id": "43fe840f-f2e5-4002-a5d2-83decd37b461",
+      "linear_identifier": "FDA-186",
+      "title": "Create missing E2E test infrastructure",
+      "url": "https://linear.app/quaella/issue/FDA-186/qa-001-create-missing-e2e-test-infrastructure",
+      "priority": "P0",
+      "points": 21,
+      "category": "Testing"
+    },
+    {
+      "manifest_id": "QA-002",
+      "linear_id": "2779b3d3-30c5-4fcc-84c9-da81691480a5",
+      "linear_identifier": "FDA-187",
+      "title": "Fix 47 failing tests in production modules",
+      "url": "https://linear.app/quaella/issue/FDA-187/qa-002-fix-47-failing-tests-in-production-modules",
+      "priority": "P0",
+      "points": 13,
+      "category": "Testing"
+    },
+    {
+      "manifest_id": "DEVOPS-001",
+      "linear_id": "5eb0f7b2-a164-45c0-8880-00b5f16f1b2c",
+      "linear_identifier": "FDA-188",
+      "title": "Add Docker containerization for deployment",
+      "url": "https://linear.app/quaella/issue/FDA-188/devops-001-add-docker-containerization-for-deployment",
+      "priority": "P0",
+      "points": 13,
+      "category": "DevOps"
+    },
+    {
+      "manifest_id": "DEVOPS-003",
+      "linear_id": "005560a0-2aed-46a3-9cd3-4fc3de0b7f4b",
+      "linear_identifier": "FDA-189",
+      "title": "Create CI/CD pipeline for automated deployment",
+      "url": "https://linear.app/quaella/issue/FDA-189/devops-003-create-cicd-pipeline-for-automated-deployment",
+      "priority": "P0",
+      "points": 21,
+      "category": "DevOps"
+    },
+    {
+      "manifest_id": "DEVOPS-004",
+      "linear_id": "18b82634-3de1-4e07-9b46-4e637441021d",
+      "linear_identifier": "FDA-190",
+      "title": "Implement production monitoring and observability",
+      "url": "https://linear.app/quaella/issue/FDA-190/devops-004-implement-production-monitoring-and-observability",
+      "priority": "P0",
+      "points": 21,
+      "category": "DevOps"
+    }
+  ],
+  "failed_issues": []
+}
