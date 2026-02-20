@@ -21,6 +21,8 @@ from rate_limiter import (
     RetryPolicy,
     calculate_backoff,
     parse_retry_after,
+    rate_limited,
+    RateLimitContext,
 )
 
 
@@ -443,6 +445,174 @@ class TestRateLimiterIntegration:
         assert len(successful) + len(failed) == 60
         # At least half should succeed from burst capacity
         assert len(successful) >= 30
+
+
+class TestRateLimitedDecorator:
+    """Test rate_limited decorator (CODE-001)."""
+
+    def test_decorator_basic(self):
+        """Test basic decorator usage."""
+        limiter = RateLimiter(requests_per_minute=240)
+        call_count = []
+
+        @rate_limited(limiter)
+        def test_function():
+            call_count.append(1)
+            return "success"
+
+        result = test_function()
+        assert result == "success"
+        assert len(call_count) == 1
+
+    def test_decorator_with_tokens(self):
+        """Test decorator with custom token count."""
+        limiter = RateLimiter(requests_per_minute=240, burst_capacity=10)
+
+        @rate_limited(limiter, tokens=5)
+        def batch_operation():
+            return "batch_success"
+
+        # First call should succeed (5 tokens available)
+        result = batch_operation()
+        assert result == "batch_success"
+
+        # Second call should also succeed (5 more tokens)
+        result = batch_operation()
+        assert result == "batch_success"
+
+    def test_decorator_with_timeout(self):
+        """Test decorator timeout behavior."""
+        limiter = RateLimiter(requests_per_minute=12)  # Very slow: 0.2 tokens per second
+
+        # Drain bucket completely
+        for _ in range(12):
+            limiter.try_acquire()
+
+        @rate_limited(limiter, timeout=0.2)
+        def slow_function():
+            return "should_not_execute"
+
+        # Should raise RuntimeError due to timeout
+        with pytest.raises(RuntimeError, match="Rate limit acquisition timeout"):
+            slow_function()
+
+    def test_decorator_preserves_metadata(self):
+        """Test that decorator preserves function metadata."""
+        limiter = RateLimiter(requests_per_minute=240)
+
+        @rate_limited(limiter)
+        def documented_function():
+            """This is a docstring."""
+            return 42
+
+        assert documented_function.__name__ == "documented_function"
+        assert documented_function.__doc__ == "This is a docstring."
+
+    def test_decorator_with_arguments(self):
+        """Test decorated function with arguments."""
+        limiter = RateLimiter(requests_per_minute=240)
+
+        @rate_limited(limiter)
+        def add(a, b):
+            return a + b
+
+        result = add(2, 3)
+        assert result == 5
+
+        result = add(a=10, b=20)
+        assert result == 30
+
+
+class TestRateLimitContext:
+    """Test RateLimitContext context manager (CODE-001)."""
+
+    def test_context_manager_basic(self):
+        """Test basic context manager usage."""
+        limiter = RateLimiter(requests_per_minute=240)
+        executed = []
+
+        with RateLimitContext(limiter):
+            executed.append(1)
+
+        assert len(executed) == 1
+
+    def test_context_manager_with_tokens(self):
+        """Test context manager with multiple tokens."""
+        limiter = RateLimiter(requests_per_minute=240, burst_capacity=10)
+
+        with RateLimitContext(limiter, tokens=5):
+            # Should have acquired 5 tokens
+            stats = limiter.get_stats()
+            # Check that tokens were consumed
+            assert stats['total_requests'] >= 1
+
+    def test_context_manager_timeout(self):
+        """Test context manager timeout behavior."""
+        limiter = RateLimiter(requests_per_minute=12)  # Very slow: 0.2 tokens per second
+
+        # Drain bucket completely
+        for _ in range(12):
+            limiter.try_acquire()
+
+        # Should raise RuntimeError with short timeout
+        with pytest.raises(RuntimeError, match="Rate limit acquisition timeout"):
+            with RateLimitContext(limiter, tokens=1, timeout=0.2):
+                pass
+
+    def test_context_manager_exception_handling(self):
+        """Test that exceptions inside context are propagated."""
+        limiter = RateLimiter(requests_per_minute=240)
+
+        with pytest.raises(ValueError, match="test exception"):
+            with RateLimitContext(limiter):
+                raise ValueError("test exception")
+
+    def test_context_manager_multiple_calls(self):
+        """Test multiple context manager calls."""
+        limiter = RateLimiter(requests_per_minute=240, burst_capacity=20)
+        call_count = []
+
+        for i in range(5):
+            with RateLimitContext(limiter, tokens=2):
+                call_count.append(i)
+
+        assert len(call_count) == 5
+
+
+class TestIntegrationWithConfig:
+    """Test integration with centralized config system (CODE-001)."""
+
+    def test_load_from_config(self):
+        """Test loading rate limit settings from config."""
+        # This test assumes config.toml is available
+        try:
+            from lib.config import get_config
+
+            config = get_config()
+            rate_limit = config.get_int('rate_limiting.rate_limit_openfda', 240)
+
+            limiter = RateLimiter(requests_per_minute=rate_limit)
+            assert limiter.requests_per_minute == rate_limit
+        except ImportError:
+            pytest.skip("Config module not available")
+
+    def test_per_endpoint_configuration(self):
+        """Test configuring different limits per endpoint."""
+        # Simulating endpoint-specific rate limits
+        limits = {
+            'openfda': 240,
+            'pubmed': 180,  # 3 req/sec
+            'pdf_download': 2,
+        }
+
+        limiters = {
+            name: RateLimiter(requests_per_minute=limit)
+            for name, limit in limits.items()
+        }
+
+        assert limiters['openfda'].requests_per_minute == 240
+        assert limiters['pubmed'].requests_per_minute == 180
+        assert limiters['pdf_download'].requests_per_minute == 2
 
 
 if __name__ == "__main__":

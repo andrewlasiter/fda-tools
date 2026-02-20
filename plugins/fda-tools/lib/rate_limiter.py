@@ -573,3 +573,103 @@ class RetryPolicy:
         )
 
         return delay
+
+
+# ------------------------------------------------------------------
+# Decorator and Context Manager Support (CODE-001)
+# ------------------------------------------------------------------
+
+import functools
+from typing import Callable, TypeVar, Optional as OptionalType
+
+
+T = TypeVar('T')
+
+
+def rate_limited(
+    limiter: RateLimiter,
+    tokens: int = 1,
+    timeout: OptionalType[float] = None,
+) -> Callable[[Callable[..., T]], Callable[..., T]]:
+    """Decorator to rate limit function calls.
+
+    Acquires tokens from the rate limiter before executing the decorated
+    function. Useful for wrapping API calls or other rate-limited operations.
+
+    Args:
+        limiter: RateLimiter instance to use
+        tokens: Number of tokens to acquire per call (default: 1)
+        timeout: Maximum seconds to wait for tokens. None = wait forever.
+
+    Returns:
+        Decorated function that respects rate limits
+
+    Example:
+        >>> limiter = RateLimiter(requests_per_minute=240)
+        >>> @rate_limited(limiter)
+        ... def make_api_call(endpoint):
+        ...     return requests.get(endpoint)
+        ...
+        >>> make_api_call("https://api.fda.gov/device/510k.json")
+
+    Raises:
+        RuntimeError: If rate limit acquisition fails (timeout exceeded)
+    """
+    def decorator(func: Callable[..., T]) -> Callable[..., T]:
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs) -> T:
+            acquired = limiter.acquire(tokens=tokens, timeout=timeout)
+            if not acquired:
+                raise RuntimeError(
+                    f"Rate limit acquisition timeout after {timeout}s for {func.__name__}"
+                )
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
+class RateLimitContext:
+    """Context manager for rate limiting code blocks.
+
+    Acquires tokens on entry and releases them on exit (if configured).
+    Useful for wrapping code sections that make rate-limited calls.
+
+    Example:
+        >>> limiter = RateLimiter(requests_per_minute=240)
+        >>> with RateLimitContext(limiter, tokens=5):
+        ...     # Make up to 5 API calls
+        ...     for item in items[:5]:
+        ...         make_api_call(item)
+
+    Args:
+        limiter: RateLimiter instance to use
+        tokens: Number of tokens to acquire (default: 1)
+        timeout: Maximum seconds to wait. None = wait forever.
+
+    Raises:
+        RuntimeError: If rate limit acquisition fails
+    """
+
+    def __init__(
+        self,
+        limiter: RateLimiter,
+        tokens: int = 1,
+        timeout: OptionalType[float] = None,
+    ):
+        self.limiter = limiter
+        self.tokens = tokens
+        self.timeout = timeout
+        self.acquired = False
+
+    def __enter__(self):
+        self.acquired = self.limiter.acquire(tokens=self.tokens, timeout=self.timeout)
+        if not self.acquired:
+            raise RuntimeError(
+                f"Rate limit acquisition timeout after {self.timeout}s"
+            )
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # Nothing to release in token bucket implementation
+        # (tokens are consumed, not borrowed)
+        pass
