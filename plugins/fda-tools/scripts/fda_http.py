@@ -82,70 +82,76 @@ USAGE
 """
 
 import os
+import sys
 import requests
+from pathlib import Path
 
+# Add parent directory to path for lib imports
+_parent_dir = Path(__file__).parent.parent
+if str(_parent_dir) not in sys.path:
+    sys.path.insert(0, str(_parent_dir))
+
+# Import centralized configuration (FDA-180 / ARCH-002)
 try:
-    from version import PLUGIN_VERSION
-except Exception:
-    PLUGIN_VERSION = "0.0.0"
+    from lib.config import get_config
+    _CONFIG_AVAILABLE = True
+except ImportError:
+    _CONFIG_AVAILABLE = False
+    get_config = None  # type: ignore
 
-# Configuration file location (user override)
-CONFIG_PATH = os.path.expanduser("~/.claude/fda-tools.config.toml")
-
-
-def _load_config():
-    """Load configuration from ~/.claude/fda-tools.config.toml if available.
-
-    Returns dict with keys: user_agent_override (str|None), honest_ua_only (bool)
-    """
-    config = {
-        'user_agent_override': None,
-        'honest_ua_only': False,
-    }
-
-    if not os.path.exists(CONFIG_PATH):
-        return config
-
+# Version (try centralized config first, fall back to version.py)
+if _CONFIG_AVAILABLE:
     try:
-        # Simple TOML parser (avoids dependency on tomli/toml)
-        with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
-            in_http_section = False
-            for line in f:
-                line = line.strip()
-                if line.startswith('[http]'):
-                    in_http_section = True
-                elif line.startswith('['):
-                    in_http_section = False
-                elif in_http_section and '=' in line:
-                    key, value = line.split('=', 1)
-                    key = key.strip()
-                    value = value.strip().strip('"').strip("'")
-
-                    if key == 'user_agent_override':
-                        config['user_agent_override'] = value if value else None
-                    elif key == 'honest_ua_only':
-                        config['honest_ua_only'] = value.lower() in ('true', '1', 'yes')
+        PLUGIN_VERSION = get_config().get_str('general.plugin_version', '5.32.0')
     except Exception:
-        # Silently fall back to defaults if config parse fails
-        pass
+        PLUGIN_VERSION = "5.32.0"
+else:
+    try:
+        from version import PLUGIN_VERSION
+    except Exception:
+        PLUGIN_VERSION = "5.32.0"
 
-    return config
+
+def _get_config_value(key: str, default: any) -> any:
+    """Get configuration value from centralized config or fallback.
+
+    Args:
+        key: Configuration key (e.g., 'http.user_agent_override')
+        default: Default value if config not available
+
+    Returns:
+        Configuration value or default
+    """
+    if _CONFIG_AVAILABLE:
+        try:
+            config = get_config()
+            if key.startswith('http.'):
+                if 'user_agent' in key:
+                    return config.get_str(key, default)
+                else:
+                    return config.get_bool(key, default)
+            return config.get(key, default)
+        except Exception:
+            pass
+    return default
 
 
-# Load config once at module import
-_CONFIG = _load_config()
-
+# Get configuration values (uses centralized config if available)
+_user_agent_override = _get_config_value('http.user_agent_override', '')
+_default_api_ua = _get_config_value('http.default_api_user_agent', f'FDA-Plugin/{PLUGIN_VERSION}')
+_default_website_ua = _get_config_value('http.default_website_user_agent',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
 
 # Honest user-agent for API calls (recommended for all api.fda.gov interactions)
 FDA_API_HEADERS = {
-    'User-Agent': _CONFIG['user_agent_override'] or f'FDA-Plugin/{PLUGIN_VERSION}',
+    'User-Agent': _user_agent_override or _default_api_ua,
     'Accept': 'application/json',
 }
 
 # Browser-like headers for PDF downloads (technical necessity for accessdata.fda.gov)
 # Only used when honest_ua_only=False (default)
 FDA_WEBSITE_HEADERS = {
-    'User-Agent': _CONFIG['user_agent_override'] or 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'User-Agent': _user_agent_override or _default_website_ua,
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
     'Accept-Language': 'en-US,en;q=0.5',
     'Accept-Encoding': 'gzip, deflate',
@@ -169,11 +175,13 @@ def get_headers(purpose='website'):
         dict: HTTP headers appropriate for the purpose.
 
     Configuration:
-        Respects ~/.claude/fda-tools.config.toml:
-        - user_agent_override: Custom UA string (overrides both api/website)
-        - honest_ua_only: If true, uses honest UA for all requests
+        Respects configuration system (FDA-180):
+        - http.user_agent_override: Custom UA string (overrides both api/website)
+        - http.honest_ua_only: If true, uses honest UA for all requests
     """
-    if _CONFIG['honest_ua_only']:
+    honest_ua_only = _get_config_value('http.honest_ua_only', False)
+
+    if honest_ua_only:
         return FDA_API_HEADERS.copy()
 
     if purpose == 'api':

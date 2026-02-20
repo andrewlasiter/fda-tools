@@ -1,0 +1,226 @@
+# FDA Tools Plugin Configuration
+#
+# This is the centralized configuration file for the FDA Tools plugin.
+# All settings are organized by functional area with sensible defaults.
+#
+# Configuration Priority (highest to lowest):
+# 1. Environment variables (e.g., OPENFDA_API_KEY)
+# 2. This config file (~/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/config.toml)
+# 3. User override file (~/.claude/fda-tools.config.toml)
+# 4. Hard-coded defaults in config.py
+
+[general]
+# Plugin version and metadata
+plugin_name = "fda-tools"
+plugin_version = "5.32.0"
+environment = "production"  # production, development, testing
+
+[paths]
+# Base directories (relative to user home or absolute)
+base_dir = "~/.claude/fda-510k-data"
+cache_dir = "~/.claude/fda-510k-data/cache"
+projects_dir = "~/.claude/fda-510k-data/projects"
+output_dir = "~/.claude/fda-510k-data/output"
+logs_dir = "~/.claude/fda-510k-data/logs"
+temp_dir = "~/.claude/fda-510k-data/temp"
+backup_dir = "~/.claude/fda-510k-data/backups"
+
+# Data subdirectories
+safety_cache_dir = "~/.claude/fda-510k-data/cache/safety_cache"
+literature_cache_dir = "~/.claude/fda-510k-data/cache/literature_cache"
+pma_cache_dir = "~/.claude/fda-510k-data/cache/pma_cache"
+similarity_cache_dir = "~/.claude/fda-510k-data/cache/similarity_cache"
+
+# Settings files
+settings_file = "~/.claude/fda-tools.local.md"
+user_config_file = "~/.claude/fda-tools.config.toml"
+
+[api]
+# FDA API configuration
+openfda_base_url = "https://api.fda.gov"
+openfda_device_endpoint = "https://api.fda.gov/device"
+openfda_rate_limit_unauthenticated = 240  # requests per minute
+openfda_rate_limit_authenticated = 1000   # requests per minute
+openfda_timeout = 30  # seconds
+
+# FDA website/PDF download configuration
+fda_accessdata_base_url = "https://www.accessdata.fda.gov"
+fda_cdrh_docs_base_url = "https://www.accessdata.fda.gov/cdrh_docs"
+fda_website_timeout = 60  # seconds
+
+# PubMed API configuration
+pubmed_base_url = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
+pubmed_rate_limit = 3  # requests per second (without API key)
+pubmed_timeout = 30  # seconds
+
+# Linear API configuration
+linear_api_url = "https://api.linear.app/graphql"
+linear_timeout = 30  # seconds
+
+# Bridge server configuration (OpenClaw)
+bridge_url = "http://localhost:3000"
+bridge_timeout = 30  # seconds
+
+[http]
+# HTTP client configuration
+user_agent_override = ""  # Empty = use default
+honest_ua_only = false  # true = use honest UA for all requests (may break PDF downloads)
+default_api_user_agent = "FDA-Plugin/5.32.0"
+default_website_user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+max_retries = 5
+base_backoff = 1.0  # seconds
+max_backoff = 120.0  # seconds
+connection_pool_size = 10
+verify_ssl = true
+
+[cache]
+# Cache behavior
+default_ttl = 604800  # 7 days in seconds
+max_cache_size_mb = 5000  # 5 GB
+enable_integrity_checks = true
+atomic_writes = true
+compression_enabled = false
+
+# Cache-specific TTLs (seconds)
+ttl_510k = 2592000        # 30 days
+ttl_classification = 2592000  # 30 days
+ttl_recall = 86400        # 1 day
+ttl_maude = 86400         # 1 day
+ttl_pma = 2592000         # 30 days
+ttl_literature = 2592000  # 30 days
+ttl_similarity = 604800   # 7 days
+
+[rate_limiting]
+# Rate limiting configuration
+enable_cross_process = true
+enable_thread_safe = true
+lock_timeout = 30  # seconds
+cleanup_interval = 300  # seconds
+
+# Rate limits by endpoint
+rate_limit_openfda = 240  # per minute
+rate_limit_pubmed = 3     # per second
+rate_limit_pdf_download = 2  # per minute (30s delay between PDFs)
+rate_limit_website = 60   # per minute
+
+[logging]
+# Logging configuration
+level = "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+date_format = "%Y-%m-%d %H:%M:%S"
+log_to_file = true
+log_to_console = true
+log_file_max_bytes = 10485760  # 10 MB
+log_file_backup_count = 5
+redact_api_keys = true
+redact_phi = true
+
+# Component-specific log levels
+log_level_api = "INFO"
+log_level_cache = "INFO"
+log_level_http = "WARNING"
+log_level_audit = "INFO"
+
+[audit]
+# Audit trail configuration (21 CFR Part 11)
+enable_audit_logging = true
+audit_log_dir = "~/.claude/fda-510k-data/logs/audit"
+sequential_numbering = true
+include_user_identity = true
+include_before_after = true
+include_failed_attempts = true
+audit_log_retention_days = 2555  # 7 years (FDA requirement)
+encrypt_audit_logs = false  # Requires encryption key setup
+
+[security]
+# Security settings
+keyring_service = "fda-tools-plugin"
+enable_keyring = true
+api_key_redaction = true
+validate_file_paths = true
+max_path_depth = 10
+allowed_file_extensions = [".json", ".txt", ".md", ".csv", ".pdf", ".xml", ".html"]
+sanitize_html_output = true
+
+[features]
+# Feature flags
+enable_enrichment = true
+enable_intelligence = true
+enable_clinical_detection = true
+enable_standards_matching = true
+enable_predicate_validation = true
+enable_maude_comparison = true
+enable_literature_search = true
+enable_pma_intelligence = true
+enable_similarity_caching = true
+enable_pdf_ocr = false  # Requires tesseract installation
+enable_experimental = false
+
+[pdf_processing]
+# PDF download and processing
+pdf_download_delay = 30  # seconds between downloads
+pdf_max_size_mb = 50
+pdf_timeout = 120  # seconds
+enable_ocr = false  # Requires pytesseract and tesseract installation
+ocr_language = "eng"
+tesseract_cmd = ""  # Auto-detected if empty
+
+[output]
+# Output file settings
+default_format = "markdown"  # markdown, html, json, csv
+pretty_print_json = true
+csv_delimiter = ","
+csv_quoting = "minimal"  # minimal, all, nonnumeric, none
+html_template = "default"
+markdown_code_blocks = true
+
+[validation]
+# Input validation settings
+strict_mode = true
+validate_k_numbers = true
+validate_product_codes = true
+validate_dates = true
+validate_email = true
+max_string_length = 10000
+allowed_k_number_prefixes = ["K", "DEN", "HDE"]
+
+[integration]
+# External integration settings
+enable_linear_integration = false
+enable_bridge_integration = false
+linear_workspace_id = ""
+linear_team_id = ""
+linear_project_id = ""
+
+[performance]
+# Performance tuning
+max_concurrent_requests = 5
+batch_size = 100
+chunk_size = 1000
+thread_pool_size = 4
+process_pool_size = 2
+enable_progress_bars = true
+show_warnings = true
+
+[backup]
+# Backup and restore settings
+enable_auto_backup = false
+backup_interval_hours = 24
+backup_retention_days = 30
+backup_compression = true
+backup_incremental = false
+
+[testing]
+# Testing configuration
+test_mode = false
+mock_api_responses = false
+test_data_dir = "~/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/tests/data"
+test_cache_dir = "~/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/tests/cache"
+test_output_dir = "~/.claude/plugins/marketplaces/fda-tools/plugins/fda-tools/tests/output"
+
+[deprecated]
+# Deprecated settings (maintained for backward compatibility)
+# These will be removed in version 6.0.0
+legacy_path_resolution = false
+legacy_cache_format = false
+legacy_api_client = false
