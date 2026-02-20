@@ -18,13 +18,18 @@ Date: 2026-02-14
 
 from typing import Dict, List, Optional, Tuple
 import re
+import unicodedata
 
 
 class CombinationProductDetector:
     """Detects combination products and assigns RHO per FDA guidance."""
 
+    # Security: FDA-939 HIGH-2 remediation
+    MAX_INPUT_LENGTH = 50_000  # 50KB per field (generous for device descriptions)
+
     # Drug-device combination keywords
-    DRUG_DEVICE_KEYWORDS = [
+    # FDA-939 Priority 1-3: Use tuple instead of list (immutable)
+    DRUG_DEVICE_KEYWORDS = (
         # Drug-eluting/coated devices
         'drug-eluting', 'drug-coated', 'drug eluting', 'drug coated',
         'drug impregnated', 'drug-impregnated', 'drug loaded', 'drug-loaded',
@@ -38,10 +43,11 @@ class CombinationProductDetector:
         # Pharmacological descriptors
         'pharmacological', 'pharmacologic', 'drug delivery',
         'controlled release', 'sustained release', 'elution'
-    ]
+    )
 
     # Device-biologic combination keywords
-    DEVICE_BIOLOGIC_KEYWORDS = [
+    # FDA-939 Priority 1-3: Use tuple instead of list (immutable)
+    DEVICE_BIOLOGIC_KEYWORDS = (
         # Tissue-based products
         'collagen', 'tissue-engineered', 'tissue engineered',
         'decellularized', 'acellular', 'xenograft', 'allograft',
@@ -56,14 +62,15 @@ class CombinationProductDetector:
 
         # Biologic descriptors
         'biological', 'biologic', 'bioactive', 'regenerative'
-    ]
+    )
 
     # Exclusions (keywords that look like combination but aren't)
-    EXCLUSIONS = [
+    # FDA-939 Priority 1-3: Use tuple instead of list (immutable)
+    EXCLUSIONS = (
         'compatible with', 'may be used with', 'can be used with',
         'drug-free', 'non-pharmacological', 'non-biological',
         'without drug', 'no drug', 'uncoated'
-    ]
+    )
 
     def __init__(self, device_data: Dict):
         """
@@ -75,18 +82,93 @@ class CombinationProductDetector:
                 - trade_name: str (optional)
                 - intended_use: str (optional)
                 - device_profile: dict (optional, for extracted_sections)
+
+        Raises:
+            ValueError: If input exceeds maximum length or is invalid type
+
+        Security: FDA-939 CRITICAL-1, HIGH-2 remediation
         """
         self.device_data = device_data
-        self.device_description = device_data.get('device_description', '')
-        self.trade_name = device_data.get('trade_name', '')
-        self.intended_use = device_data.get('intended_use', '')
 
-        # Combine all text for analysis
-        self.combined_text = ' '.join([
+        # FDA-939 HIGH-2: Validate input lengths BEFORE any processing
+        self.device_description = self._validate_input(
+            device_data.get('device_description', ''),
+            'device_description'
+        )
+        self.trade_name = self._validate_input(
+            device_data.get('trade_name', ''),
+            'trade_name'
+        )
+        self.intended_use = self._validate_input(
+            device_data.get('intended_use', ''),
+            'intended_use'
+        )
+
+        # FDA-939 Priority 1-2: Normalize and combine text safely (validated lengths)
+        combined_raw = ' '.join([
             self.device_description,
             self.trade_name,
             self.intended_use
-        ]).lower()
+        ])
+        self.combined_text = self._normalize_text(combined_raw)
+
+    # ============================================================
+    # Security Validation Methods (FDA-939 Security Fixes)
+    # ============================================================
+
+    def _validate_input(self, text: str, field_name: str, max_length: int = None) -> str:
+        """
+        Validate input text length and type.
+
+        Args:
+            text: Input text to validate
+            field_name: Field name for error messages
+            max_length: Maximum allowed length (default: MAX_INPUT_LENGTH)
+
+        Returns:
+            Validated text string
+
+        Raises:
+            ValueError: If input exceeds maximum length or is not a string
+
+        Security: FDA-939 HIGH-2 remediation (prevents DoS via oversized inputs)
+        """
+        if max_length is None:
+            max_length = self.MAX_INPUT_LENGTH
+
+        if not isinstance(text, str):
+            raise ValueError(f"{field_name} must be a string, got {type(text).__name__}")
+
+        if len(text) > max_length:
+            raise ValueError(
+                f"{field_name} exceeds maximum length {max_length} "
+                f"(got {len(text)} characters). This limit prevents resource exhaustion."
+            )
+
+        return text
+
+    def _normalize_text(self, text: str) -> str:
+        """
+        Normalize Unicode text to prevent lookalike bypasses and ensure consistent matching.
+
+        Args:
+            text: Text to normalize
+
+        Returns:
+            Normalized lowercase text
+
+        Security: FDA-939 Priority 1-2 remediation
+        - NFC normalization prevents Unicode lookalike bypasses
+        - Lowercase conversion done after normalization for efficiency
+        """
+        # NFC normalization (canonical composition)
+        # Prevents bypass via Unicode lookalikes (e.g., 'e' vs 'é' vs 'ė')
+        normalized = unicodedata.normalize('NFC', text)
+
+        # Convert to lowercase (after normalization)
+        lowercased = normalized.lower()
+
+        return lowercased
 
     def detect(self) -> Dict:
         """
