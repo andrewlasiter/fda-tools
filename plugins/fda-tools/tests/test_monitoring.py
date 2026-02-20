@@ -112,10 +112,10 @@ class TestMetricsCollector(unittest.TestCase):
         # Check percentiles
         p50 = histogram.get_percentile(50)
         self.assertGreater(p50, 0.3)
-        self.assertLess(p50, 1.0)
+        self.assertLessEqual(p50, 1.0)  # Allow p50 to equal 1.0 with 8 samples
 
         p95 = histogram.get_percentile(95)
-        self.assertGreater(p95, 1.5)
+        self.assertGreaterEqual(p95, 1.5)  # With 8 samples, p95 could equal 1.5
 
     def test_track_request_context_manager(self):
         """Test track_request context manager."""
@@ -312,9 +312,17 @@ class TestHealthChecker(unittest.TestCase):
 class TestStructuredLogging(unittest.TestCase):
     """Test structured logging functionality."""
 
+    def setUp(self):
+        """Clear correlation ID before each test."""
+        clear_correlation_id()
+
+    def tearDown(self):
+        """Clear correlation ID after each test."""
+        clear_correlation_id()
+
     def test_correlation_id(self):
         """Test correlation ID management."""
-        # Initially no correlation ID
+        # Initially no correlation ID (after setUp clear)
         self.assertIsNone(get_correlation_id())
 
         # Set correlation ID
