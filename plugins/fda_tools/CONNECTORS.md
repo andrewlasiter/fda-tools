@@ -34,6 +34,37 @@ The `.mcp.json` file configures MCP servers for data sources that have hosted MC
 
 All other data sources are accessed directly via the bundled Python scripts in `scripts/`, which provide rate limiting, retry logic, caching, and structured output.
 
+### MCP Server Integrity Verification (FDA-113)
+
+To prevent supply chain attacks (CWE-494), MCP server endpoints are verified using Subresource Integrity (SRI) hashes:
+
+- **Integrity File**: `.mcp.integrity.json` stores SHA-384 hashes for each MCP server
+- **Automatic Verification**: Servers are verified on first use and hashes are pinned
+- **Hash Mismatch Handling**: Verification failures trigger security warnings
+- **Fallback Support**: Backup URLs can be configured for critical servers
+
+**Verify all MCP servers**:
+```bash
+python3 -m lib.mcp_integrity verify
+```
+
+**Update hash for a server** (after legitimate server update):
+```bash
+python3 -m lib.mcp_integrity update --server c-trials --url https://mcp.deepsense.ai/clinical_trials/mcp
+```
+
+**Check verification status**:
+```bash
+python3 -m lib.mcp_integrity status
+```
+
+**Add fallback URL**:
+```bash
+python3 -m lib.mcp_integrity add-fallback --server c-trials --fallback-url https://backup.mcp.deepsense.ai/clinical_trials/mcp
+```
+
+See `lib/mcp_integrity.py` for implementation details and security model.
+
 ## API keys
 
 openFDA endpoints work without authentication but are rate-limited to ~40 requests/minute per IP. An optional API key raises the limit to ~240 requests/minute:
