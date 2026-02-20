@@ -58,6 +58,9 @@ dependencies = [
     "orjson>=3.9.0,<4.0.0",
     "ijson>=3.2.0,<4.0.0",
 
+    # TOML parsing (Python <3.11 backport, FDA-206)
+    "tomli>=2.0.0,<3.0.0; python_version<'3.11'",
+
     # Secure credential storage
     "keyring>=24.0.0,<26.0.0",
 

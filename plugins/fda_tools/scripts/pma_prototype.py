@@ -24,6 +24,31 @@ Notes:
       (pdf7, not pdf07). Pre-2000 PMAs are excluded as they are not digitized.
     - User-Agent header required for FDA servers.
     - 500ms rate limiting between requests (2 req/sec).
+
+LEGAL NOTICE: WEB SCRAPING COMPLIANCE (SEC-002)
+==============================================
+
+This tool accesses publicly available FDA data. Users are responsible for:
+1. Ensuring compliance with the Computer Fraud and Abuse Act (CFAA)
+2. Respecting FDA's Terms of Service and robots.txt
+3. Rate-limiting requests to avoid server overload
+4. Seeking legal advice if using for commercial purposes
+
+This tool is intended for research, regulatory intelligence, and compliance
+purposes. Misuse may violate federal law. See 18 U.S.C. § 1030 (CFAA).
+
+RECOMMENDED: Use FDA bulk download programs when available:
+- openFDA API: https://open.fda.gov/
+- FDA PMA Bulk Downloads: https://www.fda.gov/medical-devices/device-approvals-denials-and-clearances/pma-approvals
+- FDA Data Dashboard: https://datadashboard.fda.gov/
+
+User-Agent Configuration:
+    This script uses centralized User-Agent management from fda_http.py.
+    To use honest User-Agent for all requests (may cause 403 errors):
+
+    # ~/.claude/fda-tools.config.toml
+    [http]
+    honest_ua_only = true
 """
 
 import os
@@ -34,6 +59,25 @@ import requests
 import re
 from datetime import datetime
 from pathlib import Path
+
+# SEC-002 Fix: Import centralized User-Agent management
+try:
+    # Add parent lib directory to path
+    _lib_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lib")
+    if _lib_dir not in sys.path:
+        sys.path.insert(0, _lib_dir)
+
+    from fda_http import FDA_WEBSITE_HEADERS, create_session
+    _FDA_HTTP_AVAILABLE = True
+except ImportError:
+    _FDA_HTTP_AVAILABLE = False
+    print("WARNING: fda_http module not found. Using fallback User-Agent.")
+    print("  For honest UA configuration, install full plugin with fda_http.py")
+    print("  See: SEC-002 compliance requirements")
+    FDA_WEBSITE_HEADERS = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+                      '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    }
 
 
 # ============================================================
@@ -127,13 +171,6 @@ def _validate_path_safety(path_input, allowed_base_dirs=None):
         f"  Allowed: {', '.join(str(d) for d in allowed_resolved)}"
     )
 
-
-# HTTP headers required for FDA server access
-# FDA servers block requests without a proper User-Agent header.
-HTTP_HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-                  '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-}
 
 # Rate limiting: 500ms between requests (2 req/sec) to avoid abuse detection
 RATE_LIMIT_SECONDS = 0.5
@@ -267,9 +304,10 @@ def download_ssed(pma_number, cache_dir='./ssed_cache/'):
             result['url'] = url
 
             try:
+                # SEC-002 Fix: Use centralized headers from fda_http
                 response = requests.get(
                     url,
-                    headers=HTTP_HEADERS,
+                    headers=FDA_WEBSITE_HEADERS,
                     timeout=30,
                     allow_redirects=True
                 )

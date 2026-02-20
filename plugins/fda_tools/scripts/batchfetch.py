@@ -14,6 +14,31 @@ Usage:
 
     # Mixed mode (some filters via CLI, rest interactive):
     python batchfetch.py --date-range pmn96cur --years 2024
+
+LEGAL NOTICE: WEB SCRAPING COMPLIANCE (SEC-002)
+==============================================
+
+This tool accesses publicly available FDA data. Users are responsible for:
+1. Ensuring compliance with the Computer Fraud and Abuse Act (CFAA)
+2. Respecting FDA's Terms of Service and robots.txt
+3. Rate-limiting requests to avoid server overload
+4. Seeking legal advice if using for commercial purposes
+
+This tool is intended for research, regulatory intelligence, and compliance
+purposes. Misuse may violate federal law. See 18 U.S.C. § 1030 (CFAA).
+
+RECOMMENDED: Use FDA bulk download programs when available:
+- openFDA API: https://open.fda.gov/
+- FDA 510(k) Bulk Downloads: https://www.fda.gov/medical-devices/510k-clearances/downloadable-510k-files
+- FDA Data Dashboard: https://datadashboard.fda.gov/
+
+User-Agent Configuration:
+    This script uses centralized User-Agent management from fda_http.py.
+    To use honest User-Agent for all requests (may cause 403 errors):
+
+    # ~/.claude/fda-tools.config.toml
+    [http]
+    honest_ua_only = true
 """
 
 import os
@@ -40,10 +65,20 @@ from itertools import zip_longest
 from threading import Lock
 from colorama import init, Fore, Style
 
-# Shared HTTP utilities
+# Shared HTTP utilities (SEC-002 fix)
 try:
-    from fda_http import create_session, FDA_WEBSITE_HEADERS
+    from fda_http import create_session, FDA_WEBSITE_HEADERS, get_headers
+    _FDA_HTTP_AVAILABLE = True
 except ImportError:
+    _FDA_HTTP_AVAILABLE = False
+    print("=" * 80)
+    print("WARNING: fda_http module not found. User-Agent configuration unavailable.")
+    print("  Install the full plugin to enable honest UA and configuration options.")
+    print("  See: plugins/fda_tools/scripts/fda_http.py")
+    print("  For compliance, see SEC-002 requirements in security documentation.")
+    print("=" * 80)
+    print()
+
     FDA_WEBSITE_HEADERS = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -52,10 +87,14 @@ except ImportError:
         'Connection': 'keep-alive',
         'Upgrade-Insecure-Requests': '1',
     }
-    def create_session(api_mode=False):
+
+    def create_session(api_mode=False, purpose=None):
         session = requests.Session()
         session.headers.update(FDA_WEBSITE_HEADERS)
         return session
+
+    def get_headers(purpose='website'):
+        return FDA_WEBSITE_HEADERS.copy()
 
 # FDA-12: Cross-process rate limiter
 try:

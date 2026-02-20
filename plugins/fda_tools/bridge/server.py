@@ -122,6 +122,72 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ============================================================
+# Security: Error Sanitization (FDA-205 / SEC-014)
+# ============================================================
+
+def sanitize_error_for_client(exception: Exception, context: str = "") -> str:
+    """Sanitize error messages to prevent internal path/detail exposure.
+
+    Removes:
+    - File paths (absolute and relative)
+    - Internal directory structures
+    - Stack traces
+    - Sensitive configuration details
+
+    Args:
+        exception: The exception to sanitize
+        context: Optional context for the error (e.g., "command execution")
+
+    Returns:
+        Generic error message safe for client consumption
+
+    Note:
+        Full error details are logged server-side via logger.error() calls.
+        This function only affects what is returned to the client.
+    """
+    error_type = type(exception).__name__
+    error_str = str(exception)
+
+    # Pattern to detect file paths (absolute or relative)
+    path_patterns = [
+        r'/[\w\-./]+',  # Unix absolute paths
+        r'\\[\w\-\\]+',  # Windows paths
+        r'File ".*?"',  # Python traceback file references
+        r'line \d+',  # Line number references
+        r'plugins/[\w/]+',  # Plugin internal paths
+        r'scripts/[\w/]+',  # Script paths
+    ]
+
+    # Check if error contains internal paths
+    has_internal_details = any(re.search(pattern, error_str) for pattern in path_patterns)
+
+    # Generic messages by exception type
+    generic_messages = {
+        'FileNotFoundError': 'Required file not found',
+        'PermissionError': 'Permission denied',
+        'ValueError': 'Invalid input value',
+        'KeyError': 'Required configuration missing',
+        'ImportError': 'Required module not available',
+        'AttributeError': 'Internal configuration error',
+        'TypeError': 'Invalid data type',
+        'RuntimeError': 'Runtime error occurred',
+        'OSError': 'System operation failed',
+        'IOError': 'Input/output error',
+    }
+
+    # Use generic message if error contains internal details
+    if has_internal_details or error_type in generic_messages:
+        base_message = generic_messages.get(error_type, 'An error occurred')
+        if context:
+            return f"{base_message} during {context}"
+        return base_message
+
+    # For simple errors without paths, return the error message (safe)
+    # but limit length to prevent information leakage
+    safe_message = error_str[:200] if len(error_str) <= 200 else error_str[:200] + "..."
+    return safe_message
+
+# ============================================================
 # API Key Management (uses keyring from FDA-80)
 # ============================================================
 
@@ -319,13 +385,22 @@ else:
         "Install with: pip install slowapi"
     )
 
-# Enable CORS for localhost only
+# Enable CORS with configurable origins (FDA-201)
+# Read allowed origins from environment variable or use development defaults
+# For production, set BRIDGE_ALLOWED_ORIGINS="https://app.example.com,https://other.example.com"
+import os
+allowed_origins_str = os.getenv(
+    "BRIDGE_ALLOWED_ORIGINS",
+    "http://localhost:3000,http://localhost:8000,http://127.0.0.1:3000,http://127.0.0.1:8000"
+)
+allowed_origins = [origin.strip() for origin in allowed_origins_str.split(",") if origin.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:*", "http://127.0.0.1:*"],
+    allow_origins=allowed_origins,  # Explicit origins only, no wildcards
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Explicit methods
+    allow_headers=["Content-Type", "Authorization", "X-API-Key"],  # Explicit headers
 )
 
 # API key security scheme
@@ -609,9 +684,13 @@ def execute_fda_command(
 
     except SubprocessTimeoutError as e:
         duration_ms = int((time.time() - start_time) * 1000)
+
+        # FDA-205 (SEC-014): Log full error server-side
+        logger.warning(f"Subprocess timeout: {str(e)}")
+
         return {
             "success": False,
-            "error": str(e),
+            "error": f"Command execution timed out after {timeout} seconds",  # Generic message
             "classification": "PUBLIC",
             "llm_provider": "none",
             "session_id": session_id,
@@ -626,9 +705,13 @@ def execute_fda_command(
         }
     except SubprocessAllowlistError as e:
         duration_ms = int((time.time() - start_time) * 1000)
+
+        # FDA-205 (SEC-014): Log full error server-side
+        logger.warning(f"Subprocess allowlist violation: {str(e)}")
+
         return {
             "success": False,
-            "error": f"Security error: {str(e)}",
+            "error": "Command not permitted by security policy",  # Generic message (no command name)
             "classification": "PUBLIC",
             "llm_provider": "none",
             "session_id": session_id,
@@ -642,9 +725,20 @@ def execute_fda_command(
         }
     except Exception as e:
         duration_ms = int((time.time() - start_time) * 1000)
+
+        # FDA-205 (SEC-014): Log full error server-side, return sanitized message to client
+        import traceback
+        logger.error(
+            f"Command execution failed for '{command}': {type(e).__name__}: {str(e)}\n"
+            f"Traceback:\n{traceback.format_exc()}"
+        )
+
+        # Sanitize error message for client (removes internal paths/details)
+        sanitized_error = sanitize_error_for_client(e, context="command execution")
+
         return {
             "success": False,
-            "error": f"Error executing command '{command}': {str(e)}",
+            "error": sanitized_error,  # Sanitized message (no internal paths)
             "classification": "PUBLIC",
             "llm_provider": "none",
             "session_id": session_id,
@@ -653,7 +747,7 @@ def execute_fda_command(
                 "files_read": [],
                 "files_written": [],
                 "command_found": True,
-                "exception": type(e).__name__,
+                "exception": type(e).__name__,  # Safe to expose exception type
             },
         }
 
@@ -773,11 +867,15 @@ async def execute_command(
         return ExecuteResponse(**result)
 
     except Exception as e:
+        # FDA-205 (SEC-014): Log full error server-side, return sanitized message to client
         logger.error(f"Command execution failed: {e}", exc_info=True)
+
+        # Sanitize error message for client (removes internal paths/details)
+        sanitized_error = sanitize_error_for_client(e, context="request processing")
 
         return ExecuteResponse(
             success=False,
-            error=f"Internal error: {str(e)}",
+            error=sanitized_error,  # Sanitized message (no internal paths)
             classification="PUBLIC",
             llm_provider="none",
             session_id=session_id,

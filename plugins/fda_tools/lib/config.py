@@ -55,6 +55,13 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 from threading import Lock
 
+# FDA-206 (CQ-005): Use standard TOML parser instead of custom implementation
+# Python 3.11+ has tomllib in stdlib, earlier versions use tomli backport
+try:
+    import tomllib  # type: ignore
+except ModuleNotFoundError:
+    import tomli as tomllib  # type: ignore
+
 logger = logging.getLogger(__name__)
 
 # ============================================================
@@ -75,162 +82,6 @@ ENV_PREFIX = "FDA_"
 
 ConfigValue = Union[str, int, float, bool, List[str], Dict[str, Any]]
 ConfigDict = Dict[str, Any]
-
-# ============================================================
-# TOML Parser (minimal, no dependencies)
-# ============================================================
-
-
-class SimpleTomlParser:
-    """Minimal TOML parser for configuration files.
-
-    Supports:
-    - Sections: [section.subsection]
-    - Strings: key = "value" or key = 'value'
-    - Numbers: key = 123 or key = 123.45
-    - Booleans: key = true or key = false
-    - Arrays: key = ["a", "b", "c"]
-    - Comments: # comment
-
-    Does not support:
-    - Inline tables
-    - Multi-line strings (triple-quoted)
-    - Dates/times
-    - Complex nested structures
-    """
-
-    @staticmethod
-    def parse(content: str) -> ConfigDict:
-        """Parse TOML content into nested dictionary.
-
-        Args:
-            content: TOML file content
-
-        Returns:
-            Nested dictionary of configuration values
-        """
-        result: ConfigDict = {}
-        current_section: List[str] = []
-
-        for line_num, line in enumerate(content.split('\n'), 1):
-            line = line.strip()
-
-            # Skip empty lines and comments
-            if not line or line.startswith('#'):
-                continue
-
-            # Section header: [section.subsection]
-            if line.startswith('[') and line.endswith(']'):
-                section = line[1:-1].strip()
-                current_section = section.split('.')
-                continue
-
-            # Key-value pair: key = value
-            if '=' in line:
-                # Split on first =, handle inline comments
-                key_part, value_part = line.split('=', 1)
-                key = key_part.strip()
-                value_str = value_part.strip()
-
-                # Remove inline comments (but not inside strings)
-                if '#' in value_str:
-                    # Simple heuristic: if # is outside quotes, it's a comment
-                    in_quotes = False
-                    quote_char = None
-                    for i, char in enumerate(value_str):
-                        if char in ('"', "'") and (i == 0 or value_str[i-1] != '\\'):
-                            if not in_quotes:
-                                in_quotes = True
-                                quote_char = char
-                            elif char == quote_char:
-                                in_quotes = False
-                                quote_char = None
-                        elif char == '#' and not in_quotes:
-                            value_str = value_str[:i].strip()
-                            break
-
-                # Parse value
-                try:
-                    value = SimpleTomlParser._parse_value(value_str)
-                except Exception as e:
-                    logger.warning(f"Failed to parse line {line_num}: {line}: {e}")
-                    continue
-
-                # Store in nested dict
-                d = result
-                for section_part in current_section:
-                    if section_part not in d:
-                        d[section_part] = {}
-                    d = d[section_part]
-                d[key] = value
-
-        return result
-
-    @staticmethod
-    def _parse_value(value_str: str) -> ConfigValue:
-        """Parse a TOML value string into Python type.
-
-        Args:
-            value_str: Value string from TOML file
-
-        Returns:
-            Parsed value (str, int, float, bool, or list)
-        """
-        value_str = value_str.strip()
-
-        # Array: ["a", "b", "c"]
-        if value_str.startswith('[') and value_str.endswith(']'):
-            items_str = value_str[1:-1].strip()
-            if not items_str:
-                return []
-            items = []
-            current_item = ""
-            in_quotes = False
-            quote_char = None
-            for char in items_str:
-                if char in ('"', "'") and (not current_item or current_item[-1] != '\\'):
-                    if not in_quotes:
-                        in_quotes = True
-                        quote_char = char
-                    elif char == quote_char:
-                        in_quotes = False
-                        quote_char = None
-                    else:
-                        current_item += char
-                elif char == ',' and not in_quotes:
-                    if current_item.strip():
-                        items.append(SimpleTomlParser._parse_value(current_item.strip()))
-                    current_item = ""
-                else:
-                    current_item += char
-            if current_item.strip():
-                items.append(SimpleTomlParser._parse_value(current_item.strip()))
-            return items
-
-        # String: "value" or 'value'
-        if (value_str.startswith('"') and value_str.endswith('"')) or \
-           (value_str.startswith("'") and value_str.endswith("'")):
-            return value_str[1:-1]
-
-        # Boolean: true or false
-        if value_str.lower() == 'true':
-            return True
-        if value_str.lower() == 'false':
-            return False
-
-        # Integer: 123
-        if value_str.isdigit() or (value_str.startswith('-') and value_str[1:].isdigit()):
-            return int(value_str)
-
-        # Float: 123.45
-        try:
-            return float(value_str)
-        except ValueError:
-            pass
-
-        # Unquoted string (non-standard but common)
-        return value_str
-
 
 # ============================================================
 # Configuration Class
@@ -534,10 +385,19 @@ class Config:
         Returns:
             Default configuration dictionary
         """
+        # Import version dynamically from version.py
+        try:
+            from fda_tools.scripts.version import PLUGIN_VERSION
+        except ImportError:
+            try:
+                from version import PLUGIN_VERSION
+            except ImportError:
+                PLUGIN_VERSION = '5.36.0'  # Fallback to current version
+
         return {
             'general': {
                 'plugin_name': 'fda-tools',
-                'plugin_version': '5.32.0',
+                'plugin_version': PLUGIN_VERSION,
                 'environment': 'production',
             },
             'paths': {
@@ -603,9 +463,9 @@ class Config:
         Returns:
             Parsed configuration dictionary
         """
-        with open(path, 'r', encoding='utf-8') as f:
-            content = f.read()
-        return SimpleTomlParser.parse(content)
+        # FDA-206 (CQ-005): Use standard TOML parser (tomllib/tomli)
+        with open(path, 'rb') as f:  # tomllib requires binary mode
+            return tomllib.load(f)
 
     def _merge_config(self, base: ConfigDict, override: ConfigDict) -> None:
         """Recursively merge override config into base config.

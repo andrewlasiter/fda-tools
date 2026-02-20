@@ -91,7 +91,7 @@ VALID_DECISION_TYPES = {"auto", "manual", "deferred"}
 try:
     from version import PLUGIN_VERSION
 except Exception:
-    PLUGIN_VERSION = "5.22.0"
+    PLUGIN_VERSION = "5.36.0"  # Fallback to current version (matches pyproject.toml and plugin.json)
 
 
 def get_projects_dir():

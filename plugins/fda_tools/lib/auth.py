@@ -1499,6 +1499,41 @@ class AuthManager:
         conn.commit()
         conn.close()
 
+    def log_audit_event(
+        self,
+        event_type: AuditEventType,
+        user_id: Optional[int],
+        username: str,
+        details: Optional[Dict] = None,
+        ip_address: Optional[str] = None,
+        success: bool = True
+    ):
+        """Public wrapper for logging audit events.
+
+        This method exposes audit logging functionality for use by other modules
+        like RBAC decorators. Delegates to internal _log_audit_event.
+
+        Args:
+            event_type: Type of event
+            user_id: User ID (None for system events)
+            username: Username
+            details: Additional event details
+            ip_address: Client IP address
+            success: Event success flag
+
+        Note:
+            This fixes FDA-202 - RBAC decorators were calling log_audit_event()
+            but only _log_audit_event() existed (private method).
+        """
+        return self._log_audit_event(
+            event_type=event_type,
+            user_id=user_id,
+            username=username,
+            details=details,
+            ip_address=ip_address,
+            success=success
+        )
+
     # --------------------------------------------------------
     # Internal Helper Methods
     # --------------------------------------------------------

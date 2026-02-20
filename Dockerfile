@@ -56,7 +56,7 @@ WORKDIR /build
 
 # Copy dependency specification files first (layer caching optimization)
 COPY pyproject.toml setup.py ./
-COPY plugins/fda-tools/__init__.py plugins/fda-tools/
+COPY plugins/fda_tools/__init__.py plugins/fda_tools/
 
 # Install dependencies based on environment
 RUN if [ "$ENABLE_OPTIONAL_DEPS" = "true" ]; then \
