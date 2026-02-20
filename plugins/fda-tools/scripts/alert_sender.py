@@ -7,11 +7,14 @@ Reads alert JSON from ~/fda-510k-data/monitor_alerts/.
 Config from ~/.claude/fda-tools.local.md.
 """
 
+import ipaddress
 import json
 import os
 import re
+import socket
 import ssl
 import sys
+import urllib.parse
 import urllib.request
 from datetime import datetime, date, timezone
 from pathlib import Path
@@ -19,6 +22,123 @@ from pathlib import Path
 
 DEFAULT_ALERT_DIR = os.path.expanduser("~/fda-510k-data/monitor_alerts")
 SETTINGS_PATH = os.path.expanduser("~/.claude/fda-tools.local.md")
+
+
+# ============================================================================
+# Security: SSRF Prevention (FDA-99 / CWE-918)
+# ============================================================================
+
+def _is_private_ip(ip_str):
+    """Check if an IP address is in a private range.
+
+    Args:
+        ip_str: IP address string (IPv4 or IPv6)
+
+    Returns:
+        True if IP is private/link-local/loopback, False otherwise
+
+    Security: FDA-99 (CWE-918) - Prevents SSRF to internal networks
+    """
+    try:
+        ip = ipaddress.ip_address(ip_str)
+
+        # Check for private, loopback, link-local, and multicast ranges
+        return (
+            ip.is_private or          # 10.x, 172.16-31.x, 192.168.x, fd00::/8
+            ip.is_loopback or         # 127.x, ::1
+            ip.is_link_local or       # 169.254.x, fe80::/10
+            ip.is_multicast or        # 224.x-239.x, ff00::/8
+            ip.is_reserved or         # Reserved ranges
+            ip.is_unspecified         # 0.0.0.0, ::
+        )
+    except ValueError:
+        # Invalid IP address
+        return True  # Reject invalid IPs as a safety measure
+
+
+def _validate_webhook_url(url):
+    """Validate webhook URL to prevent SSRF attacks.
+
+    Args:
+        url: Webhook URL string
+
+    Returns:
+        Validated URL string
+
+    Raises:
+        ValueError: If URL is invalid or points to private network
+
+    Security: FDA-99 (CWE-918) - SSRF Prevention
+    Implements OWASP SSRF Prevention Cheat Sheet recommendations:
+    1. Scheme validation (HTTPS only)
+    2. Private IP range blocking
+    3. DNS resolution verification (prevents DNS rebinding)
+    """
+    if not url:
+        raise ValueError("Webhook URL cannot be empty")
+
+    # Parse URL
+    try:
+        parsed = urllib.parse.urlparse(url)
+    except Exception as e:
+        raise ValueError(f"Invalid URL format: {url}") from e
+
+    # 1. Validate scheme (HTTPS only for security)
+    if parsed.scheme != "https":
+        raise ValueError(
+            f"Security: Only HTTPS webhooks allowed (got: {parsed.scheme}://). "
+            f"This prevents credential leakage and MitM attacks."
+        )
+
+    # 2. Validate hostname exists
+    hostname = parsed.hostname
+    if not hostname:
+        raise ValueError(f"URL must contain a valid hostname: {url}")
+
+    # 3. Block localhost and loopback
+    localhost_patterns = ["localhost", "127.", "::1", "0.0.0.0"]
+    hostname_lower = hostname.lower()
+    if any(pattern in hostname_lower for pattern in localhost_patterns):
+        raise ValueError(
+            f"Security: Webhook URL cannot target localhost/loopback addresses. "
+            f"Hostname: {hostname}"
+        )
+
+    # 4. DNS resolution and IP validation (prevents DNS rebinding)
+    try:
+        # Resolve hostname to IP address(es)
+        addr_info = socket.getaddrinfo(hostname, None, family=socket.AF_UNSPEC)
+        resolved_ips = [info[4][0] for info in addr_info]
+
+        # Check each resolved IP for private ranges
+        for ip_str in resolved_ips:
+            if _is_private_ip(ip_str):
+                raise ValueError(
+                    f"Security: Webhook URL resolves to private IP address. "
+                    f"Hostname '{hostname}' → {ip_str}. "
+                    f"Private IPs blocked: 10.x, 172.16-31.x, 192.168.x, 169.254.x, 127.x"
+                )
+    except socket.gaierror as e:
+        raise ValueError(f"DNS resolution failed for hostname '{hostname}': {e}") from e
+    except ValueError:
+        # Re-raise our security errors
+        raise
+    except Exception as e:
+        raise ValueError(f"Error validating webhook URL '{hostname}': {e}") from e
+
+    # 5. Block AWS/GCP/Azure metadata endpoints (belt-and-suspenders)
+    cloud_metadata_domains = [
+        "169.254.169.254",          # AWS/GCP/Azure link-local
+        "metadata.google.internal",  # GCP
+        "metadata.azure.com",        # Azure
+    ]
+    if any(domain in hostname_lower for domain in cloud_metadata_domains):
+        raise ValueError(
+            f"Security: Webhook URL cannot target cloud metadata services. "
+            f"Hostname: {hostname}"
+        )
+
+    return url
 
 
 def load_settings():
@@ -142,10 +262,18 @@ def send_webhook(alerts, settings, webhook_url=None):
 
     Returns:
         dict with success status and message.
+
+    Security: FDA-99 (CWE-918) - URL validated to prevent SSRF attacks
     """
     url = webhook_url or settings.get("webhook_url")
     if not url:
         return {"success": False, "error": "No webhook_url configured"}
+
+    # Security: Validate webhook URL to prevent SSRF (FDA-99 / CWE-918)
+    try:
+        url = _validate_webhook_url(url)
+    except ValueError as e:
+        return {"success": False, "error": f"Invalid webhook URL: {e}"}
 
     payload = {
         "source": "fda-tools-monitor",
