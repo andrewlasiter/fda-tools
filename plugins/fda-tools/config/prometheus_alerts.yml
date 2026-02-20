@@ -1,0 +1,363 @@
+# Prometheus Alert Rules for FDA Tools
+# FDA-190 (DEVOPS-004) - Production Monitoring and Observability
+#
+# Alert Severity Levels:
+# - critical: PagerDuty notification, requires immediate action
+# - warning: Slack notification, should be investigated
+# - info: Logged, no immediate action required
+
+groups:
+  - name: fda_tools_slo_violations
+    interval: 30s
+    rules:
+      # ========================================================================
+      # CRITICAL ALERTS (PagerDuty)
+      # ========================================================================
+
+      - alert: FDAToolsHighErrorRate
+        expr: |
+          (
+            rate(fda_requests_errors_total[5m])
+            /
+            rate(fda_requests_total[5m])
+          ) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+          service: fda_tools
+          slo: error_rate
+        annotations:
+          summary: "FDA Tools error rate exceeded SLO"
+          description: |
+            Error rate is {{ $value | humanizePercentage }} over the last 5 minutes.
+            SLO target: < 1%
+            Current value: {{ $value | humanizePercentage }}
+            Affected endpoint: {{ $labels.endpoint }}
+          runbook_url: "https://github.com/fda-tools/runbooks#high-error-rate"
+          dashboard_url: "https://grafana.example.com/d/fda-tools"
+
+      - alert: FDAToolsHighLatencyP99
+        expr: |
+          histogram_quantile(0.99,
+            rate(fda_request_duration_seconds_bucket[5m])
+          ) > 1.0
+        for: 5m
+        labels:
+          severity: critical
+          service: fda_tools
+          slo: latency_p99
+        annotations:
+          summary: "FDA Tools p99 latency exceeded SLO"
+          description: |
+            p99 latency is {{ $value }}s over the last 5 minutes.
+            SLO target: < 1.0s
+            Current value: {{ $value }}s
+            Affected endpoint: {{ $labels.endpoint }}
+          runbook_url: "https://github.com/fda-tools/runbooks#high-latency"
+
+      - alert: FDAToolsHighLatencyP95
+        expr: |
+          histogram_quantile(0.95,
+            rate(fda_request_duration_seconds_bucket[5m])
+          ) > 0.5
+        for: 5m
+        labels:
+          severity: critical
+          service: fda_tools
+          slo: latency_p95
+        annotations:
+          summary: "FDA Tools p95 latency exceeded SLO"
+          description: |
+            p95 latency is {{ $value }}s over the last 5 minutes.
+            SLO target: < 0.5s
+            Current value: {{ $value }}s
+            Affected endpoint: {{ $labels.endpoint }}
+          runbook_url: "https://github.com/fda-tools/runbooks#high-latency"
+
+      - alert: FDAToolsServiceDown
+        expr: up{job="fda_tools"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: fda_tools
+        annotations:
+          summary: "FDA Tools service is down"
+          description: |
+            The FDA Tools service has been unreachable for 2 minutes.
+            Instance: {{ $labels.instance }}
+          runbook_url: "https://github.com/fda-tools/runbooks#service-down"
+
+      - alert: FDAToolsCriticalMemoryUsage
+        expr: fda_memory_usage_percent > 90
+        for: 5m
+        labels:
+          severity: critical
+          service: fda_tools
+        annotations:
+          summary: "FDA Tools critical memory usage"
+          description: |
+            Memory usage is critically high at {{ $value }}%.
+            Threshold: 90%
+            Current value: {{ $value }}%
+          runbook_url: "https://github.com/fda-tools/runbooks#high-memory"
+
+      - alert: FDAToolsCriticalDiskUsage
+        expr: fda_disk_usage_percent > 95
+        for: 5m
+        labels:
+          severity: critical
+          service: fda_tools
+        annotations:
+          summary: "FDA Tools critical disk usage"
+          description: |
+            Disk usage is critically high at {{ $value }}%.
+            Threshold: 95%
+            Current value: {{ $value }}%
+          runbook_url: "https://github.com/fda-tools/runbooks#high-disk"
+
+      # ========================================================================
+      # WARNING ALERTS (Slack)
+      # ========================================================================
+
+      - alert: FDAToolsElevatedErrorRate
+        expr: |
+          (
+            rate(fda_requests_errors_total[5m])
+            /
+            rate(fda_requests_total[5m])
+          ) > 0.005
+        for: 10m
+        labels:
+          severity: warning
+          service: fda_tools
+        annotations:
+          summary: "FDA Tools elevated error rate"
+          description: |
+            Error rate is elevated at {{ $value | humanizePercentage }}.
+            Warning threshold: 0.5%
+            Current value: {{ $value | humanizePercentage }}
+            Affected endpoint: {{ $labels.endpoint }}
+
+      - alert: FDAToolsLowCacheHitRate
+        expr: |
+          (
+            rate(fda_cache_hits_total[5m])
+            /
+            (rate(fda_cache_hits_total[5m]) + rate(fda_cache_misses_total[5m]))
+          ) < 0.7
+        for: 15m
+        labels:
+          severity: warning
+          service: fda_tools
+        annotations:
+          summary: "FDA Tools cache hit rate is low"
+          description: |
+            Cache hit rate is {{ $value | humanizePercentage }}.
+            Warning threshold: < 70%
+            Current value: {{ $value | humanizePercentage }}
+            Cache: {{ $labels.cache }}
+
+      - alert: FDAToolsHighCPUUsage
+        expr: fda_cpu_usage_percent > 80
+        for: 10m
+        labels:
+          severity: warning
+          service: fda_tools
+        annotations:
+          summary: "FDA Tools high CPU usage"
+          description: |
+            CPU usage is {{ $value }}%.
+            Warning threshold: 80%
+            Current value: {{ $value }}%
+
+      - alert: FDAToolsHighMemoryUsage
+        expr: fda_memory_usage_percent > 75
+        for: 10m
+        labels:
+          severity: warning
+          service: fda_tools
+        annotations:
+          summary: "FDA Tools high memory usage"
+          description: |
+            Memory usage is {{ $value }}%.
+            Warning threshold: 75%
+            Current value: {{ $value }}%
+
+      - alert: FDAToolsHighDiskUsage
+        expr: fda_disk_usage_percent > 85
+        for: 10m
+        labels:
+          severity: warning
+          service: fda_tools
+        annotations:
+          summary: "FDA Tools high disk usage"
+          description: |
+            Disk usage is {{ $value }}%.
+            Warning threshold: 85%
+            Current value: {{ $value }}%
+
+      - alert: FDAToolsExternalAPIErrors
+        expr: |
+          rate(fda_external_api_errors_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: fda_tools
+        annotations:
+          summary: "FDA Tools external API errors"
+          description: |
+            External API error rate is {{ $value }} errors/sec.
+            API: {{ $labels.api }}
+
+      - alert: FDAToolsBackgroundJobFailures
+        expr: |
+          rate(fda_background_jobs_failed_total[5m]) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          service: fda_tools
+        annotations:
+          summary: "FDA Tools background job failures"
+          description: |
+            Background job failure rate is {{ $value }} failures/sec.
+            Queue: {{ $labels.queue }}
+
+      - alert: FDAToolsRateLimitApproaching
+        expr: fda_rate_limit_tokens_available < 50
+        for: 5m
+        labels:
+          severity: warning
+          service: fda_tools
+        annotations:
+          summary: "FDA Tools approaching rate limit"
+          description: |
+            Available rate limit tokens: {{ $value }}
+            Warning threshold: < 50 tokens
+
+      # ========================================================================
+      # INFO ALERTS (Logging only)
+      # ========================================================================
+
+      - alert: FDAToolsSlowExternalAPI
+        expr: |
+          histogram_quantile(0.95,
+            rate(fda_external_api_duration_seconds_bucket[5m])
+          ) > 5.0
+        for: 15m
+        labels:
+          severity: info
+          service: fda_tools
+        annotations:
+          summary: "FDA Tools slow external API"
+          description: |
+            External API p95 latency is {{ $value }}s.
+            API: {{ $labels.api }}
+
+      - alert: FDAToolsHighBackgroundJobQueueDepth
+        expr: fda_background_jobs_queued > 100
+        for: 30m
+        labels:
+          severity: info
+          service: fda_tools
+        annotations:
+          summary: "FDA Tools high background job queue depth"
+          description: |
+            Background job queue depth is {{ $value }}.
+            Queue: {{ $labels.queue }}
+
+  # ==========================================================================
+  # ERROR BUDGET ALERTS
+  # ==========================================================================
+
+  - name: fda_tools_error_budget
+    interval: 5m
+    rules:
+      - alert: FDAToolsErrorBudgetCritical
+        expr: |
+          (
+            1 - (
+              rate(fda_requests_errors_total[30d])
+              /
+              rate(fda_requests_total[30d])
+            )
+          ) < 0.999
+        for: 1h
+        labels:
+          severity: critical
+          service: fda_tools
+          slo: availability
+        annotations:
+          summary: "FDA Tools error budget exhausted"
+          description: |
+            Monthly availability is {{ $value | humanizePercentage }}.
+            SLO target: 99.9% (3 nines)
+            Current value: {{ $value | humanizePercentage }}
+            Error budget remaining: {{ sub 1 $value | humanizePercentage }}
+
+            POLICY: Feature freeze in effect. Focus on reliability.
+          runbook_url: "https://github.com/fda-tools/runbooks#error-budget-exhausted"
+
+      - alert: FDAToolsErrorBudgetLow
+        expr: |
+          (
+            1 - (
+              rate(fda_requests_errors_total[30d])
+              /
+              rate(fda_requests_total[30d])
+            )
+          ) < 0.9995
+        for: 30m
+        labels:
+          severity: warning
+          service: fda_tools
+          slo: availability
+        annotations:
+          summary: "FDA Tools error budget low"
+          description: |
+            Monthly availability is {{ $value | humanizePercentage }}.
+            SLO target: 99.9%
+            Current value: {{ $value | humanizePercentage }}
+            Error budget remaining: {{ sub 0.999 $value | humanizePercentage }} of 0.1%
+
+            WARNING: Error budget < 50% remaining. Prioritize reliability.
+
+  # ==========================================================================
+  # DEPENDENCY HEALTH
+  # ==========================================================================
+
+  - name: fda_tools_dependencies
+    interval: 1m
+    rules:
+      - alert: FDAToolsOpenFDAAPIDown
+        expr: |
+          rate(fda_external_api_errors_total{api="openFDA"}[5m])
+          /
+          rate(fda_external_api_calls_total{api="openFDA"}[5m])
+          > 0.5
+        for: 5m
+        labels:
+          severity: critical
+          service: fda_tools
+          dependency: openfda_api
+        annotations:
+          summary: "openFDA API is experiencing issues"
+          description: |
+            openFDA API error rate is {{ $value | humanizePercentage }}.
+            This may impact FDA data fetching operations.
+
+      - alert: FDAToolsLinearAPIDown
+        expr: |
+          rate(fda_external_api_errors_total{api="Linear"}[5m])
+          /
+          rate(fda_external_api_calls_total{api="Linear"}[5m])
+          > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          service: fda_tools
+          dependency: linear_api
+        annotations:
+          summary: "Linear API is experiencing issues"
+          description: |
+            Linear API error rate is {{ $value | humanizePercentage }}.
+            This may impact issue tracking functionality.

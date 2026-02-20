@@ -1,0 +1,57 @@
+# yamllint configuration for FDA Tools
+# https://yamllint.readthedocs.io/
+
+extends: default
+
+rules:
+  # Line length
+  line-length:
+    max: 120
+    level: warning
+
+  # Indentation
+  indentation:
+    spaces: 2
+    indent-sequences: consistent
+
+  # Comments
+  comments:
+    min-spaces-from-content: 1
+
+  # Document start (---) not required
+  document-start:
+    present: false
+
+  # Truthy values (on/off, yes/no, true/false)
+  truthy:
+    allowed-values: ['true', 'false', 'on', 'off']
+    check-keys: false
+
+  # Brackets
+  brackets:
+    min-spaces-inside: 0
+    max-spaces-inside: 1
+
+  # Braces
+  braces:
+    min-spaces-inside: 0
+    max-spaces-inside: 1
+
+  # Empty values
+  empty-values:
+    forbid-in-block-mappings: false
+    forbid-in-flow-mappings: true
+
+  # Quoted strings
+  quoted-strings:
+    quote-type: any
+    required: false
+
+ignore: |
+  node_modules/
+  openclaw-skill/
+  .venv/
+  venv/
+  env/
+  build/
+  dist/

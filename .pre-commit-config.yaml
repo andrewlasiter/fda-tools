@@ -150,6 +150,33 @@ repos:
             .*/__pycache__/
           )$
 
+  # Security scanning with Bandit
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.6
+    hooks:
+      - id: bandit
+        name: Security check
+        description: Scan for common security issues
+        stages: [commit]
+        args: [-r, -ll, --ini, .bandit]
+        files: ^plugins/fda-tools/(lib|scripts)/.*\.py$
+        exclude: ^plugins/fda-tools/tests/
+
+  # Type checking with mypy (optional, can be slow)
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.8.0
+    hooks:
+      - id: mypy
+        name: Type check
+        description: Static type checking
+        stages: [manual]  # Run manually due to speed
+        additional_dependencies:
+          - types-requests
+          - types-python-dateutil
+          - types-beautifulsoup4
+        args: [--config-file=pyproject.toml]
+        files: ^plugins/fda-tools/lib/.*\.py$
+
 # Global exclusions
 exclude: |
   (?x)^(
