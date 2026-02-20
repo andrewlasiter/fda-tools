@@ -45,14 +45,19 @@ import os
 import re
 import secrets
 import shlex
-import signal
-import subprocess
 import sys
 import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+# Import shared subprocess utilities
+from fda_tools.lib.subprocess_helpers import (
+    run_command,
+    SubprocessTimeoutError,
+    SubprocessAllowlistError,
+)
 
 from fastapi import FastAPI, HTTPException, Request, Security, Depends  # type: ignore
 from fastapi.middleware.cors import CORSMiddleware  # type: ignore
@@ -547,15 +552,19 @@ def execute_fda_command(
     # Get timeout from environment or use default (60 seconds)
     timeout = int(os.getenv("FDA_BRIDGE_COMMAND_TIMEOUT", "60"))
 
+    # Setup environment with PYTHONPATH
+    cmd_env = {"PYTHONPATH": str(PLUGIN_ROOT.parent)}
+
     try:
-        # Execute command as subprocess
-        result = subprocess.run(
+        # Execute command using shared subprocess utility
+        result = run_command(
             cmd_parts,
+            timeout=timeout,
+            cwd=PLUGIN_ROOT,
+            env=cmd_env,
             capture_output=True,
             text=True,
-            timeout=timeout,
-            cwd=str(PLUGIN_ROOT),
-            env={**os.environ, "PYTHONPATH": str(PLUGIN_ROOT.parent)},
+            allowlist=["python3", "python"],
         )
 
         # Combine stdout and stderr for complete output
@@ -598,19 +607,11 @@ def execute_fda_command(
                 },
             }
 
-    except subprocess.TimeoutExpired as e:
+    except SubprocessTimeoutError as e:
         duration_ms = int((time.time() - start_time) * 1000)
-        # Capture partial output if available
-        partial_output = ""
-        if e.stdout:
-            partial_output += e.stdout.decode('utf-8', errors='replace')
-        if e.stderr:
-            partial_output += "\n--- STDERR ---\n" + e.stderr.decode('utf-8', errors='replace')
-
         return {
             "success": False,
-            "error": f"Command '{command}' timed out after {timeout} seconds",
-            "result": partial_output if partial_output else None,
+            "error": str(e),
             "classification": "PUBLIC",
             "llm_provider": "none",
             "session_id": session_id,
@@ -621,6 +622,22 @@ def execute_fda_command(
                 "command_found": True,
                 "timeout": True,
                 "timeout_seconds": timeout,
+            },
+        }
+    except SubprocessAllowlistError as e:
+        duration_ms = int((time.time() - start_time) * 1000)
+        return {
+            "success": False,
+            "error": f"Security error: {str(e)}",
+            "classification": "PUBLIC",
+            "llm_provider": "none",
+            "session_id": session_id,
+            "duration_ms": duration_ms,
+            "command_metadata": {
+                "files_read": [],
+                "files_written": [],
+                "command_found": True,
+                "security_blocked": True,
             },
         }
     except Exception as e:
