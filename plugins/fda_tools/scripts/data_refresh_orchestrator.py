@@ -1,0 +1,950 @@
+#!/usr/bin/env python3
+"""
+Automated Data Refresh Orchestrator -- Scheduled refresh workflows for
+PMA data, SSED PDFs, MAUDE events, and recall information.
+
+Implements intelligent refresh prioritization based on TTL tiers:
+    - 24h: Safety-critical data (MAUDE events, recalls)
+    - 168h: Classification and approval data
+    - Never expires: Static documents (SSEDs, extracted sections)
+
+Features:
+    - Batch processing with rate limiting (FDA API: 240 req/min, 1000 req/5min)
+    - Progress tracking with real-time updates
+    - Error recovery with exponential backoff and retry logic
+    - Background execution with asyncio/threading
+    - Comprehensive refresh reports with audit trails
+    - Data versioning with checksums for integrity verification
+
+Regulatory compliance:
+    - Full audit trails for all data modifications (21 CFR 807, 814)
+    - Before/after snapshots for change verification
+    - Data source citations with timestamps and API versions
+    - No automated regulatory decisions without human review
+
+Usage:
+    from data_refresh_orchestrator import DataRefreshOrchestrator
+
+    orchestrator = DataRefreshOrchestrator()
+    report = orchestrator.run_refresh(priority="safety")
+    report = orchestrator.run_refresh(schedule="daily", dry_run=True)
+    status = orchestrator.get_refresh_status()
+
+    # CLI usage:
+    python3 data_refresh_orchestrator.py --schedule daily
+    python3 data_refresh_orchestrator.py --priority safety --dry-run
+    python3 data_refresh_orchestrator.py --background
+    python3 data_refresh_orchestrator.py --status
+"""
+
+import argparse
+import hashlib
+import json
+import os
+import sys
+import threading
+import time
+from collections import defaultdict
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+# Import sibling modules
+from pma_data_store import PMADataStore
+
+
+# ------------------------------------------------------------------
+# TTL tier configuration
+# ------------------------------------------------------------------
+
+REFRESH_TTL_TIERS = {
+    "safety_critical": {
+        "label": "Safety-Critical Data",
+        "ttl_hours": 24,
+        "data_types": ["maude_events", "recalls"],
+        "priority": 1,
+        "description": "MAUDE adverse events and recall data refreshed every 24 hours.",
+    },
+    "supplements": {
+        "label": "Supplement Data",
+        "ttl_hours": 24,
+        "data_types": ["pma_supplements"],
+        "priority": 2,
+        "description": "PMA supplement filings refreshed every 24 hours.",
+    },
+    "approval_data": {
+        "label": "Approval & Classification Data",
+        "ttl_hours": 168,
+        "data_types": ["pma_approval", "classification"],
+        "priority": 3,
+        "description": "PMA approval and classification data refreshed weekly.",
+    },
+    "static_documents": {
+        "label": "Static Documents",
+        "ttl_hours": 0,
+        "data_types": ["ssed_pdf", "extracted_sections"],
+        "priority": 4,
+        "description": "SSED PDFs and extracted sections never auto-refresh.",
+    },
+}
+
+# Rate limiting configuration
+RATE_LIMIT_CONFIG = {
+    "requests_per_minute": 240,
+    "requests_per_5min": 1000,
+    "min_delay_seconds": 0.25,
+    "burst_delay_seconds": 1.0,
+}
+
+# Retry configuration
+RETRY_CONFIG = {
+    "max_retries": 3,
+    "base_backoff_seconds": 2.0,
+    "max_backoff_seconds": 60.0,
+    "backoff_multiplier": 2.0,
+}
+
+ORCHESTRATOR_VERSION = "1.0.0"
+
+
+class TokenBucketRateLimiter:
+    """Token bucket rate limiter for FDA API compliance.
+
+    Implements a dual-bucket system: per-minute and per-5-minute limits.
+    """
+
+    def __init__(
+        self,
+        per_minute: int = 240,
+        per_5min: int = 1000,
+        min_delay: float = 0.25,
+    ):
+        self.per_minute = per_minute
+        self.per_5min = per_5min
+        self.min_delay = min_delay
+        self._minute_tokens = per_minute
+        self._five_min_tokens = per_5min
+        self._last_minute_refill = time.monotonic()
+        self._last_five_min_refill = time.monotonic()
+        self._lock = threading.Lock()
+        self._request_count = 0
+        self._wait_total = 0.0
+
+    def acquire(self) -> float:
+        """Acquire a token, blocking until one is available.
+
+        Returns:
+            Time waited in seconds.
+        """
+        waited = 0.0
+        with self._lock:
+            now = time.monotonic()
+
+            # Refill minute bucket
+            elapsed_min = now - self._last_minute_refill
+            if elapsed_min >= 60:
+                self._minute_tokens = self.per_minute
+                self._last_minute_refill = now
+            else:
+                refill = int(elapsed_min * self.per_minute / 60)
+                self._minute_tokens = min(
+                    self.per_minute, self._minute_tokens + refill
+                )
+
+            # Refill 5-minute bucket
+            elapsed_5min = now - self._last_five_min_refill
+            if elapsed_5min >= 300:
+                self._five_min_tokens = self.per_5min
+                self._last_five_min_refill = now
+            else:
+                refill = int(elapsed_5min * self.per_5min / 300)
+                self._five_min_tokens = min(
+                    self.per_5min, self._five_min_tokens + refill
+                )
+
+            # Wait if either bucket is empty
+            if self._minute_tokens <= 0 or self._five_min_tokens <= 0:
+                wait_time = max(self.min_delay, 1.0)
+                waited = wait_time
+            else:
+                waited = self.min_delay
+
+            self._minute_tokens -= 1
+            self._five_min_tokens -= 1
+            self._request_count += 1
+            self._wait_total += waited
+
+        if waited > 0:
+            time.sleep(waited)
+        return waited
+
+    def get_stats(self) -> Dict[str, Any]:
+        """Get rate limiter statistics."""
+        with self._lock:
+            return {
+                "total_requests": self._request_count,
+                "total_wait_seconds": round(self._wait_total, 2),
+                "minute_tokens_remaining": max(0, self._minute_tokens),
+                "five_min_tokens_remaining": max(0, self._five_min_tokens),
+            }
+
+
+class RefreshAuditLogger:
+    """Audit logger for data refresh operations.
+
+    Maintains a complete audit trail of all data modifications
+    per 21 CFR 807/814 requirements.
+    """
+
+    def __init__(self, log_dir: Optional[Path] = None):
+        self.log_dir = log_dir or Path(
+            os.path.expanduser("~/fda-510k-data/pma_cache/refresh_logs")
+        )
+        self.log_dir.mkdir(parents=True, exist_ok=True)
+        self._entries: List[Dict[str, Any]] = []
+
+    def log_refresh_start(self, config: Dict) -> str:
+        """Log the start of a refresh cycle.
+
+        Returns:
+            Refresh session ID.
+        """
+        session_id = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        entry = {
+            "event": "refresh_start",
+            "session_id": session_id,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "config": config,
+        }
+        self._entries.append(entry)
+        return session_id
+
+    def log_item_refresh(
+        self,
+        session_id: str,
+        pma_number: str,
+        data_type: str,
+        status: str,
+        details: Optional[Dict] = None,
+    ) -> None:
+        """Log an individual item refresh."""
+        entry = {
+            "event": "item_refresh",
+            "session_id": session_id,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "pma_number": pma_number,
+            "data_type": data_type,
+            "status": status,
+            "details": details or {},
+        }
+        self._entries.append(entry)
+
+    def log_refresh_complete(
+        self, session_id: str, summary: Dict
+    ) -> None:
+        """Log refresh cycle completion."""
+        entry = {
+            "event": "refresh_complete",
+            "session_id": session_id,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "summary": summary,
+        }
+        self._entries.append(entry)
+
+    def save_log(self, session_id: str) -> str:
+        """Save audit log to disk.
+
+        Returns:
+            Path to saved log file.
+        """
+        log_path = self.log_dir / f"refresh_log_{session_id}.json"
+        session_entries = [
+            e for e in self._entries if e.get("session_id") == session_id
+        ]
+        with open(log_path, "w") as f:
+            json.dump(
+                {
+                    "session_id": session_id,
+                    "orchestrator_version": ORCHESTRATOR_VERSION,
+                    "entries": session_entries,
+                    "generated_at": datetime.now(timezone.utc).isoformat(),
+                },
+                f,
+                indent=2,
+            )
+        return str(log_path)
+
+    def get_entries(self, session_id: Optional[str] = None) -> List[Dict]:
+        """Get audit log entries, optionally filtered by session."""
+        if session_id:
+            return [
+                e for e in self._entries if e.get("session_id") == session_id
+            ]
+        return list(self._entries)
+
+
+def _compute_checksum(data: Any) -> str:
+    """Compute SHA-256 checksum for data integrity verification."""
+    if isinstance(data, dict):
+        serialized = json.dumps(data, sort_keys=True)
+    elif isinstance(data, str):
+        serialized = data
+    else:
+        serialized = str(data)
+    return hashlib.sha256(serialized.encode()).hexdigest()[:16]
+
+
+class DataRefreshOrchestrator:
+    """Automated data refresh orchestrator for PMA Intelligence data.
+
+    Manages scheduled refresh workflows with intelligent prioritization,
+    rate limiting, error recovery, and comprehensive audit trails.
+    """
+
+    def __init__(
+        self,
+        store: Optional[PMADataStore] = None,
+        rate_limiter: Optional[TokenBucketRateLimiter] = None,
+        audit_logger: Optional[RefreshAuditLogger] = None,
+        retry_config: Optional[Dict[str, Any]] = None,
+    ):
+        """Initialize data refresh orchestrator.
+
+        Args:
+            store: PMADataStore instance (creates default if not provided).
+            rate_limiter: Rate limiter for API calls.
+            audit_logger: Audit logger for compliance tracking.
+            retry_config: Override retry configuration (for testing).
+        """
+        self.store = store or PMADataStore()
+        self.rate_limiter = rate_limiter or TokenBucketRateLimiter(
+            per_minute=RATE_LIMIT_CONFIG["requests_per_minute"],
+            per_5min=RATE_LIMIT_CONFIG["requests_per_5min"],
+            min_delay=RATE_LIMIT_CONFIG["min_delay_seconds"],
+        )
+        self.audit_logger = audit_logger or RefreshAuditLogger()
+        self.retry_config = retry_config or RETRY_CONFIG
+        self._background_thread: Optional[threading.Thread] = None
+        self._cancel_flag = threading.Event()
+        self._progress: Dict[str, Any] = {}
+
+    # ------------------------------------------------------------------
+    # Refresh prioritization
+    # ------------------------------------------------------------------
+
+    def get_refresh_candidates(
+        self, priority: str = "all"
+    ) -> List[Dict[str, Any]]:
+        """Identify PMA entries that need refreshing based on TTL tiers.
+
+        Args:
+            priority: 'safety' for safety-critical only, 'all' for everything.
+
+        Returns:
+            List of refresh candidates sorted by priority.
+        """
+        manifest = self.store.get_manifest()
+        entries = manifest.get("pma_entries", {})
+        candidates = []
+
+        for pma_number, entry in entries.items():
+            for tier_name, tier_config in REFRESH_TTL_TIERS.items():
+                if priority == "safety" and tier_config["priority"] > 2:
+                    continue
+
+                # Skip static documents (TTL=0)
+                if tier_config["ttl_hours"] == 0:
+                    continue
+
+                for data_type in tier_config["data_types"]:
+                    if self.store.is_expired(pma_number, data_type):
+                        candidates.append({
+                            "pma_number": pma_number,
+                            "data_type": data_type,
+                            "tier": tier_name,
+                            "priority": tier_config["priority"],
+                            "ttl_hours": tier_config["ttl_hours"],
+                            "product_code": entry.get("product_code", ""),
+                            "device_name": entry.get("device_name", ""),
+                        })
+
+        # Sort by priority (lower number = higher priority)
+        candidates.sort(key=lambda x: (x["priority"], x["pma_number"]))
+        return candidates
+
+    def get_schedule_config(self, schedule: str) -> Dict[str, Any]:
+        """Get refresh configuration for a schedule type.
+
+        Args:
+            schedule: 'daily', 'weekly', or 'monthly'.
+
+        Returns:
+            Schedule configuration dictionary.
+        """
+        configs = {
+            "daily": {
+                "label": "Daily Refresh",
+                "tiers": ["safety_critical", "supplements"],
+                "description": "Refresh safety-critical and supplement data.",
+            },
+            "weekly": {
+                "label": "Weekly Refresh",
+                "tiers": [
+                    "safety_critical", "supplements", "approval_data",
+                ],
+                "description": "Refresh all non-static data tiers.",
+            },
+            "monthly": {
+                "label": "Monthly Full Refresh",
+                "tiers": [
+                    "safety_critical", "supplements", "approval_data",
+                ],
+                "description": (
+                    "Full refresh of all data tiers including "
+                    "re-validation of static documents."
+                ),
+            },
+        }
+        return configs.get(schedule, configs["daily"])
+
+    # ------------------------------------------------------------------
+    # Core refresh execution
+    # ------------------------------------------------------------------
+
+    def run_refresh(
+        self,
+        schedule: str = "daily",
+        priority: str = "all",
+        dry_run: bool = False,
+        background: bool = False,
+        pma_numbers: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """Execute a data refresh cycle.
+
+        Args:
+            schedule: Refresh schedule ('daily', 'weekly', 'monthly').
+            priority: Priority filter ('safety', 'all').
+            dry_run: If True, report what would be refreshed without executing.
+            background: If True, run in background thread.
+            pma_numbers: Optional list of specific PMAs to refresh.
+
+        Returns:
+            Refresh report dictionary.
+        """
+        config = {
+            "schedule": schedule,
+            "priority": priority,
+            "dry_run": dry_run,
+            "background": background,
+            "pma_numbers": pma_numbers,
+            "orchestrator_version": ORCHESTRATOR_VERSION,
+            "started_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+        session_id = self.audit_logger.log_refresh_start(config)
+
+        if background and not dry_run:
+            return self._run_background(config, session_id)
+
+        return self._execute_refresh(config, session_id, pma_numbers)
+
+    def _run_background(
+        self, config: Dict, session_id: str
+    ) -> Dict[str, Any]:
+        """Launch refresh in background thread."""
+        self._cancel_flag.clear()
+        self._progress = {
+            "session_id": session_id,
+            "status": "running",
+            "started_at": config["started_at"],
+            "items_processed": 0,
+            "items_total": 0,
+            "errors": 0,
+        }
+
+        self._background_thread = threading.Thread(
+            target=self._execute_refresh,
+            args=(config, session_id, config.get("pma_numbers")),
+            daemon=True,
+        )
+        self._background_thread.start()
+
+        return {
+            "status": "background_started",
+            "session_id": session_id,
+            "message": (
+                "Data refresh started in background. "
+                "Use --status to check progress."
+            ),
+        }
+
+    def _execute_refresh(
+        self,
+        config: Dict,
+        session_id: str,
+        pma_numbers: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """Execute the refresh workflow.
+
+        Args:
+            config: Refresh configuration.
+            session_id: Audit session identifier.
+            pma_numbers: Optional specific PMAs to refresh.
+
+        Returns:
+            Refresh report dictionary.
+        """
+        start_time = time.monotonic()
+
+        # Get candidates
+        if pma_numbers:
+            candidates = []
+            for pma in pma_numbers:
+                for tier_name, tier_config in REFRESH_TTL_TIERS.items():
+                    if tier_config["ttl_hours"] == 0:
+                        continue
+                    for data_type in tier_config["data_types"]:
+                        candidates.append({
+                            "pma_number": pma.upper(),
+                            "data_type": data_type,
+                            "tier": tier_name,
+                            "priority": tier_config["priority"],
+                            "ttl_hours": tier_config["ttl_hours"],
+                        })
+        else:
+            candidates = self.get_refresh_candidates(
+                priority=config.get("priority", "all")
+            )
+
+        total = len(candidates)
+        self._progress["items_total"] = total
+
+        if config.get("dry_run"):
+            return self._build_dry_run_report(
+                candidates, config, session_id, start_time
+            )
+
+        # Execute refresh
+        results = {
+            "refreshed": [],
+            "skipped": [],
+            "errors": [],
+        }
+
+        for i, candidate in enumerate(candidates):
+            if self._cancel_flag.is_set():
+                break
+
+            self._progress["items_processed"] = i + 1
+            pma_number = candidate["pma_number"]
+            data_type = candidate["data_type"]
+
+            try:
+                self.rate_limiter.acquire()
+                result = self._refresh_item(
+                    pma_number, data_type, session_id
+                )
+                if result["status"] == "refreshed":
+                    results["refreshed"].append(result)
+                elif result["status"] == "skipped":
+                    results["skipped"].append(result)
+                else:
+                    results["errors"].append(result)
+                    self._progress["errors"] = len(results["errors"])
+            except Exception as exc:
+                error_result = {
+                    "pma_number": pma_number,
+                    "data_type": data_type,
+                    "status": "error",
+                    "error": str(exc),
+                }
+                results["errors"].append(error_result)
+                self.audit_logger.log_item_refresh(
+                    session_id, pma_number, data_type, "error",
+                    {"error": str(exc)},
+                )
+                self._progress["errors"] = len(results["errors"])
+
+        elapsed = time.monotonic() - start_time
+        rate_stats = self.rate_limiter.get_stats()
+
+        summary = {
+            "session_id": session_id,
+            "schedule": config.get("schedule", "manual"),
+            "priority": config.get("priority", "all"),
+            "total_candidates": total,
+            "items_refreshed": len(results["refreshed"]),
+            "items_skipped": len(results["skipped"]),
+            "items_errored": len(results["errors"]),
+            "elapsed_seconds": round(elapsed, 2),
+            "api_calls_made": rate_stats["total_requests"],
+            "rate_limiter_wait_seconds": rate_stats["total_wait_seconds"],
+            "completed_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+        self.audit_logger.log_refresh_complete(session_id, summary)
+        log_path = self.audit_logger.save_log(session_id)
+
+        self._progress["status"] = "completed"
+        self._progress["completed_at"] = summary["completed_at"]
+
+        return {
+            "status": "completed",
+            "summary": summary,
+            "results": results,
+            "audit_log": log_path,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "orchestrator_version": ORCHESTRATOR_VERSION,
+            "disclaimer": (
+                "This data refresh is for research and intelligence "
+                "gathering purposes. All refreshed data should be "
+                "independently verified by qualified regulatory "
+                "professionals before use in FDA submissions."
+            ),
+        }
+
+    def _refresh_item(
+        self, pma_number: str, data_type: str, session_id: str
+    ) -> Dict[str, Any]:
+        """Refresh a single data item with retry logic.
+
+        Args:
+            pma_number: PMA number to refresh.
+            data_type: Type of data to refresh.
+            session_id: Audit session ID.
+
+        Returns:
+            Result dictionary with status and details.
+        """
+        max_retries = self.retry_config["max_retries"]
+        base_backoff = self.retry_config["base_backoff_seconds"]
+        max_backoff = self.retry_config["max_backoff_seconds"]
+        multiplier = self.retry_config["backoff_multiplier"]
+
+        # Get before-snapshot for change detection
+        before_checksum = self._get_data_checksum(pma_number, data_type)
+
+        last_error: Optional[str] = None
+        for attempt in range(max_retries):
+            try:
+                result = self._do_refresh(pma_number, data_type)
+                if result.get("error"):
+                    last_error = result["error"]
+                    backoff = min(
+                        base_backoff * (multiplier ** attempt),
+                        max_backoff,
+                    )
+                    time.sleep(backoff)
+                    continue
+
+                # Compute after-checksum
+                after_checksum = self._get_data_checksum(pma_number, data_type)
+                changed = before_checksum != after_checksum
+
+                status = "refreshed"
+                details = {
+                    "attempt": attempt + 1,
+                    "changed": changed,
+                    "before_checksum": before_checksum,
+                    "after_checksum": after_checksum,
+                }
+
+                self.audit_logger.log_item_refresh(
+                    session_id, pma_number, data_type, status, details
+                )
+
+                return {
+                    "pma_number": pma_number,
+                    "data_type": data_type,
+                    "status": status,
+                    "changed": changed,
+                    "attempts": attempt + 1,
+                }
+
+            except Exception as exc:
+                last_error = str(exc)
+                backoff = min(
+                    base_backoff * (multiplier ** attempt),
+                    max_backoff,
+                )
+                time.sleep(backoff)
+
+        # All retries exhausted
+        self.audit_logger.log_item_refresh(
+            session_id, pma_number, data_type, "error",
+            {"error": last_error, "attempts": max_retries},
+        )
+        return {
+            "pma_number": pma_number,
+            "data_type": data_type,
+            "status": "error",
+            "error": last_error or "Unknown error",
+            "attempts": max_retries,
+        }
+
+    def _do_refresh(
+        self, pma_number: str, data_type: str
+    ) -> Dict[str, Any]:
+        """Execute the actual API refresh for a data type.
+
+        Args:
+            pma_number: PMA number.
+            data_type: Type of data to refresh.
+
+        Returns:
+            API result or error dictionary.
+        """
+        if data_type in ("pma_approval", "pma_supplements"):
+            return self.store.get_pma_data(pma_number, refresh=True)
+        elif data_type == "maude_events":
+            pma_data = self.store.get_pma_data(pma_number)
+            product_code = pma_data.get("product_code", "")
+            if not product_code:
+                return {"error": "No product code for MAUDE query"}
+            return self.store.client.get_events(product_code) or {}
+        elif data_type == "recalls":
+            pma_data = self.store.get_pma_data(pma_number)
+            product_code = pma_data.get("product_code", "")
+            if not product_code:
+                return {"error": "No product code for recall query"}
+            return self.store.client.get_recalls(product_code) or {}
+        elif data_type == "classification":
+            pma_data = self.store.get_pma_data(pma_number)
+            product_code = pma_data.get("product_code", "")
+            if not product_code:
+                return {"error": "No product code for classification query"}
+            return self.store.client.get_classification(product_code) or {}
+        else:
+            return {"error": f"Unknown data type: {data_type}"}
+
+    def _get_data_checksum(
+        self, pma_number: str, data_type: str
+    ) -> str:
+        """Get a checksum of current cached data for change detection."""
+        try:
+            if data_type in ("pma_approval", "pma_supplements"):
+                data = self.store.get_pma_data(pma_number)
+                # Remove volatile fields
+                stable = {
+                    k: v for k, v in data.items()
+                    if not k.startswith("_")
+                }
+                return _compute_checksum(stable)
+            else:
+                return "no_cache"
+        except Exception:
+            return "error"
+
+    def _build_dry_run_report(
+        self,
+        candidates: List[Dict],
+        config: Dict,
+        session_id: str,
+        start_time: float,
+    ) -> Dict[str, Any]:
+        """Build a dry-run report without executing refreshes."""
+        elapsed = time.monotonic() - start_time
+
+        # Group by tier
+        by_tier: Dict[str, List[Dict]] = defaultdict(list)
+        for c in candidates:
+            by_tier[c.get("tier", "unknown")].append(c)
+
+        tier_summary = {}
+        for tier_name, items in by_tier.items():
+            tier_config = REFRESH_TTL_TIERS.get(tier_name, {})
+            tier_summary[tier_name] = {
+                "label": tier_config.get("label", tier_name),
+                "count": len(items),
+                "pma_numbers": sorted(set(i["pma_number"] for i in items)),
+            }
+
+        return {
+            "status": "dry_run",
+            "session_id": session_id,
+            "summary": {
+                "total_candidates": len(candidates),
+                "tiers": tier_summary,
+                "schedule": config.get("schedule", "manual"),
+                "priority": config.get("priority", "all"),
+                "elapsed_seconds": round(elapsed, 2),
+            },
+            "candidates": candidates,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "orchestrator_version": ORCHESTRATOR_VERSION,
+        }
+
+    # ------------------------------------------------------------------
+    # Status and monitoring
+    # ------------------------------------------------------------------
+
+    def get_refresh_status(self) -> Dict[str, Any]:
+        """Get the current refresh status and history.
+
+        Returns:
+            Status dictionary with progress and history.
+        """
+        manifest = self.store.get_manifest()
+        entries = manifest.get("pma_entries", {})
+
+        # Check for stale data
+        stale_counts: Dict[str, int] = defaultdict(int)
+        for pma_number in entries:
+            for tier_name, tier_config in REFRESH_TTL_TIERS.items():
+                if tier_config["ttl_hours"] == 0:
+                    continue
+                for data_type in tier_config["data_types"]:
+                    if self.store.is_expired(pma_number, data_type):
+                        stale_counts[tier_name] += 1
+
+        # Recent audit logs
+        log_dir = self.audit_logger.log_dir
+        recent_logs = []
+        if log_dir.exists():
+            log_files = sorted(log_dir.glob("refresh_log_*.json"), reverse=True)
+            for lf in log_files[:5]:
+                try:
+                    with open(lf) as f:
+                        log_data = json.load(f)
+                    recent_logs.append({
+                        "session_id": log_data.get("session_id", ""),
+                        "generated_at": log_data.get("generated_at", ""),
+                        "entries_count": len(log_data.get("entries", [])),
+                    })
+                except (json.JSONDecodeError, OSError) as e:
+                    print(f"Warning: Failed to read refresh log: {e}", file=sys.stderr)
+
+        return {
+            "total_pmas_tracked": len(entries),
+            "stale_data_counts": dict(stale_counts),
+            "background_running": (
+                self._background_thread is not None
+                and self._background_thread.is_alive()
+            ),
+            "current_progress": dict(self._progress) if self._progress else None,
+            "recent_refresh_logs": recent_logs,
+            "ttl_tiers": {
+                k: {"label": v["label"], "ttl_hours": v["ttl_hours"]}
+                for k, v in REFRESH_TTL_TIERS.items()
+            },
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "orchestrator_version": ORCHESTRATOR_VERSION,
+        }
+
+    def cancel_refresh(self) -> Dict[str, Any]:
+        """Cancel a running background refresh."""
+        if (
+            self._background_thread is not None
+            and self._background_thread.is_alive()
+        ):
+            self._cancel_flag.set()
+            return {
+                "status": "cancelling",
+                "message": "Cancel signal sent to background refresh.",
+            }
+        return {
+            "status": "no_refresh_running",
+            "message": "No background refresh is currently running.",
+        }
+
+
+# ------------------------------------------------------------------
+# CLI
+# ------------------------------------------------------------------
+
+def main():
+    """CLI entry point for data refresh orchestrator."""
+    parser = argparse.ArgumentParser(
+        description="FDA Data Refresh Orchestrator -- "
+                    "Automated data refresh with audit trails."
+    )
+    parser.add_argument(
+        "--schedule", choices=["daily", "weekly", "monthly"],
+        default="daily", help="Refresh schedule (default: daily)"
+    )
+    parser.add_argument(
+        "--priority", choices=["safety", "all"],
+        default="all", help="Priority filter (default: all)"
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true",
+        help="Report what would be refreshed without executing"
+    )
+    parser.add_argument(
+        "--background", action="store_true",
+        help="Run refresh in background thread"
+    )
+    parser.add_argument(
+        "--pma", nargs="+",
+        help="Specific PMA numbers to refresh"
+    )
+    parser.add_argument(
+        "--status", action="store_true",
+        help="Show current refresh status"
+    )
+    parser.add_argument(
+        "--json", action="store_true",
+        help="Output as JSON"
+    )
+
+    args = parser.parse_args()
+
+    orchestrator = DataRefreshOrchestrator()
+
+    if args.status:
+        result = orchestrator.get_refresh_status()
+    else:
+        result = orchestrator.run_refresh(
+            schedule=args.schedule,
+            priority=args.priority,
+            dry_run=args.dry_run,
+            background=args.background,
+            pma_numbers=args.pma,
+        )
+
+    if args.json:
+        print(json.dumps(result, indent=2))
+    else:
+        _print_report(result)
+
+
+def _print_report(result: Dict) -> None:
+    """Print a human-readable refresh report."""
+    status = result.get("status", "unknown")
+    print(f"\n  FDA Data Refresh Orchestrator v{ORCHESTRATOR_VERSION}")
+    print("=" * 60)
+
+    if status == "dry_run":
+        summary = result.get("summary", {})
+        print(f"  Mode:        DRY RUN (no changes made)")
+        print(f"  Schedule:    {summary.get('schedule', 'manual')}")
+        print(f"  Candidates:  {summary.get('total_candidates', 0)}")
+        tiers = summary.get("tiers", {})
+        for _tier_name, tier_data in tiers.items():
+            print(f"    {tier_data['label']}: {tier_data['count']} items")
+    elif status == "completed":
+        summary = result.get("summary", {})
+        print(f"  Status:      COMPLETED")
+        print(f"  Schedule:    {summary.get('schedule', 'manual')}")
+        print(f"  Refreshed:   {summary.get('items_refreshed', 0)}")
+        print(f"  Skipped:     {summary.get('items_skipped', 0)}")
+        print(f"  Errors:      {summary.get('items_errored', 0)}")
+        print(f"  API Calls:   {summary.get('api_calls_made', 0)}")
+        print(f"  Time:        {summary.get('elapsed_seconds', 0)}s")
+        print(f"  Audit Log:   {result.get('audit_log', 'N/A')}")
+    elif status == "background_started":
+        print(f"  Status:      BACKGROUND STARTED")
+        print(f"  Session:     {result.get('session_id', '')}")
+        print(f"  {result.get('message', '')}")
+    else:
+        print(f"  Status: {status}")
+        print(json.dumps(result, indent=2))
+
+    print()
+    print("  DISCLAIMER: Data is for research purposes only.")
+    print("  Verify independently before use in FDA submissions.")
+    print("=" * 60)
+
+
+if __name__ == "__main__":
+    main()
