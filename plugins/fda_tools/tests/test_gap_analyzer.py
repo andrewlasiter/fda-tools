@@ -105,13 +105,15 @@ def project_with_weak_predicates(tmp_path):
         "accepted_predicates": [
             {
                 "k_number": "K050123",
-                "clearance_date": "2005-03-15",
-                "recalls": 3,
+                "decision_date": "2005-03-15",
+                "recalls_total": 3,
+                "device_name": "Old Fusion Device",
             },
             {
                 "k_number": "K200456",
-                "clearance_date": "2020-09-01",
-                "recalls": 0,
+                "decision_date": "2020-09-01",
+                "recalls_total": 0,
+                "device_name": "Recent Fusion Device",
             },
         ],
         "rejected_predicates": [],
