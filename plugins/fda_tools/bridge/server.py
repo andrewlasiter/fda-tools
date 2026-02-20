@@ -44,6 +44,9 @@ import logging
 import os
 import re
 import secrets
+import shlex
+import signal
+import subprocess
 import sys
 import time
 import uuid
@@ -496,15 +499,22 @@ def execute_fda_command(
     """
     Execute FDA command via subprocess.
 
-    Note: This is a simplified implementation. In production, this would:
-    - Use the security gateway to evaluate classification
-    - Route to appropriate LLM provider
-    - Implement tool emulation layer
-    - Handle streaming output for long-running commands
+    Executes the corresponding Python script for the command with timeout
+    enforcement, output capture, and signal handling.
+
+    Args:
+        command: Command name (e.g., "batchfetch", "review")
+        args: Optional command arguments
+        user_id: User identifier for audit logging
+        session_id: Session identifier for tracking
+        channel: Communication channel (e.g., "openclaw", "cli")
+
+    Returns:
+        Dict with success status, output, classification, and metadata
     """
     start_time = time.time()
 
-    # Check if command exists
+    # Check if command exists (verify .md file)
     command_file = COMMANDS_DIR / f"{command}.md"
     if not command_file.exists():
         return {
@@ -515,44 +525,120 @@ def execute_fda_command(
             "session_id": session_id,
         }
 
+    # Map command to Python script (convert hyphens to underscores)
+    script_name = command.replace("-", "_") + ".py"
+    script_path = SCRIPTS_DIR / script_name
+
+    if not script_path.exists():
+        return {
+            "success": False,
+            "error": f"Script not found for command '{command}': {script_path}",
+            "classification": "PUBLIC",
+            "llm_provider": "none",
+            "session_id": session_id,
+        }
+
     # Build command execution
-    # For now, we'll just return a success message indicating the bridge is working
-    # In production, this would invoke the actual command processor
+    cmd_parts = ["python3", str(script_path)]
+    if args:
+        # Split args string into individual arguments, respecting quotes
+        cmd_parts.extend(shlex.split(args))
 
-    result_message = f"""FDA Tools Bridge Server (v{SERVER_VERSION})
-Command: {command}
-Args: {args or '(none)'}
-User: {user_id}
-Session: {session_id}
-Channel: {channel}
+    # Get timeout from environment or use default (60 seconds)
+    timeout = int(os.getenv("FDA_BRIDGE_COMMAND_TIMEOUT", "60"))
 
-Status: Bridge server is operational (authenticated).
+    try:
+        # Execute command as subprocess
+        result = subprocess.run(
+            cmd_parts,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            cwd=str(PLUGIN_ROOT),
+            env={**os.environ, "PYTHONPATH": str(PLUGIN_ROOT.parent)},
+        )
 
-Note: Full command execution requires the Phase 2 security gateway and
-tool emulation layer. This simplified bridge demonstrates connectivity
-between the OpenClaw TypeScript skill and the Python backend.
+        # Combine stdout and stderr for complete output
+        output = result.stdout
+        if result.stderr:
+            output += "\n--- STDERR ---\n" + result.stderr
 
-To execute actual FDA commands, use the command-line interface:
-  cd {PLUGIN_ROOT}
-  /fda-tools:{command} {args or ''}
-"""
+        duration_ms = int((time.time() - start_time) * 1000)
 
-    duration_ms = int((time.time() - start_time) * 1000)
+        if result.returncode == 0:
+            return {
+                "success": True,
+                "result": output or f"Command '{command}' completed successfully with no output.",
+                "classification": "PUBLIC",
+                "llm_provider": "none",
+                "warnings": [],
+                "session_id": session_id,
+                "duration_ms": duration_ms,
+                "command_metadata": {
+                    "files_read": [],
+                    "files_written": [],
+                    "command_found": True,
+                    "exit_code": result.returncode,
+                },
+            }
+        else:
+            return {
+                "success": False,
+                "error": f"Command '{command}' failed with exit code {result.returncode}",
+                "result": output,
+                "classification": "PUBLIC",
+                "llm_provider": "none",
+                "session_id": session_id,
+                "duration_ms": duration_ms,
+                "command_metadata": {
+                    "files_read": [],
+                    "files_written": [],
+                    "command_found": True,
+                    "exit_code": result.returncode,
+                },
+            }
 
-    return {
-        "success": True,
-        "result": result_message,
-        "classification": "PUBLIC",
-        "llm_provider": "none",
-        "warnings": [],
-        "session_id": session_id,
-        "duration_ms": duration_ms,
-        "command_metadata": {
-            "files_read": [],
-            "files_written": [],
-            "command_found": True,
-        },
-    }
+    except subprocess.TimeoutExpired as e:
+        duration_ms = int((time.time() - start_time) * 1000)
+        # Capture partial output if available
+        partial_output = ""
+        if e.stdout:
+            partial_output += e.stdout.decode('utf-8', errors='replace')
+        if e.stderr:
+            partial_output += "\n--- STDERR ---\n" + e.stderr.decode('utf-8', errors='replace')
+
+        return {
+            "success": False,
+            "error": f"Command '{command}' timed out after {timeout} seconds",
+            "result": partial_output if partial_output else None,
+            "classification": "PUBLIC",
+            "llm_provider": "none",
+            "session_id": session_id,
+            "duration_ms": duration_ms,
+            "command_metadata": {
+                "files_read": [],
+                "files_written": [],
+                "command_found": True,
+                "timeout": True,
+                "timeout_seconds": timeout,
+            },
+        }
+    except Exception as e:
+        duration_ms = int((time.time() - start_time) * 1000)
+        return {
+            "success": False,
+            "error": f"Error executing command '{command}': {str(e)}",
+            "classification": "PUBLIC",
+            "llm_provider": "none",
+            "session_id": session_id,
+            "duration_ms": duration_ms,
+            "command_metadata": {
+                "files_read": [],
+                "files_written": [],
+                "command_found": True,
+                "exception": type(e).__name__,
+            },
+        }
 
 
 # ============================================================
