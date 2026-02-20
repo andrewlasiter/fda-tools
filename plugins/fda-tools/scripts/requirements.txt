@@ -39,6 +39,9 @@ defusedxml>=0.7.1,<1.0.0
 # Secure credential storage (setup_api_key.py, bridge server auth)
 keyring>=24.0.0,<26.0.0
 
+# Authentication system (FDA-185 / REG-006)
+argon2-cffi>=23.1.0,<25.0.0  # Password hashing (21 CFR Part 11)
+
 # Retry / Resilience (ide_pathway_support.py ClinicalTrials.gov integration)
 tenacity>=8.0.0,<10.0.0
 
