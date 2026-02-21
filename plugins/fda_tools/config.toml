@@ -59,6 +59,7 @@ linear_timeout = 30  # seconds
 
 # Bridge server configuration (OpenClaw)
 bridge_url = "http://localhost:3000"
+bridge_server_port = 18790  # FDA-138: bridge REST API port
 bridge_timeout = 30  # seconds
 
 [http]
@@ -104,7 +105,8 @@ lock_timeout = 30  # seconds
 cleanup_interval = 300  # seconds
 
 # Rate limits by endpoint
-rate_limit_openfda = 240  # per minute
+rate_limit_openfda = 240             # per minute (unauthenticated)
+rate_limit_openfda_authenticated = 1000  # per minute (with API key)
 rate_limit_pubmed = 3     # per second
 rate_limit_pdf_download = 2  # per minute (30s delay between PDFs)
 rate_limit_website = 60   # per minute
