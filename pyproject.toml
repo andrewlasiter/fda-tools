@@ -234,7 +234,7 @@ indent-width = 4
 skip-magic-trailing-comma = false
 
 [tool.pytest.ini_options]
-testpaths = ["plugins/fda-tools/tests", "tests"]
+testpaths = ["plugins/fda_tools/tests", "tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
@@ -254,7 +254,7 @@ filterwarnings = [
 ]
 
 [tool.coverage.run]
-source = ["plugins/fda-tools/lib", "plugins/fda-tools/scripts"]
+source = ["plugins/fda_tools/lib", "plugins/fda_tools/scripts"]
 omit = [
     "*/tests/*",
     "*/test_*.py",

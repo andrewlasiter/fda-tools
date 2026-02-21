@@ -124,10 +124,10 @@ jobs:
 
       - name: Run full test suite
         run: |
-          pytest plugins/fda-tools/tests/ \
+          pytest plugins/fda_tools/tests/ \
             -m "not slow and not e2e and not api" \
-            --cov=plugins/fda-tools/lib \
-            --cov=plugins/fda-tools/scripts \
+            --cov=plugins/fda_tools/lib \
+            --cov=plugins/fda_tools/scripts \
             --cov-report=xml \
             --cov-report=term-missing \
             -v
@@ -146,7 +146,7 @@ jobs:
           python -m venv test-venv
           source test-venv/bin/activate
           pip install dist/*.whl
-          python -c "import sys; sys.path.insert(0, 'plugins/fda-tools'); from lib import fda_api_client"
+          python -c "from fda_tools.lib import fda_api_client"
           deactivate
           rm -rf test-venv
 
@@ -248,7 +248,7 @@ jobs:
 
           ```bash
           # Verify installation
-          python -c "import sys; sys.path.insert(0, 'plugins/fda-tools'); from lib import fda_api_client; print('FDA Tools installed successfully')"
+          python -c "from fda_tools.lib import fda_api_client; print('FDA Tools installed successfully')"
 
           # Check version
           docker run --rm ghcr.io/${{ github.repository }}:$VERSION --version

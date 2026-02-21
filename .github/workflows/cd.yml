@@ -80,7 +80,7 @@ jobs:
       - name: Run validation tests
         if: github.event.inputs.skip_tests != 'true'
         run: |
-          pytest plugins/fda-tools/tests/ \
+          pytest plugins/fda_tools/tests/ \
             -m "not slow and not e2e and not api" \
             --tb=short \
             -v
@@ -88,7 +88,7 @@ jobs:
       - name: Validate configuration files
         run: |
           python -c "import tomli; tomli.load(open('pyproject.toml', 'rb'))"
-          python -c "import tomli; tomli.load(open('plugins/fda-tools/config.toml', 'rb'))"
+          python -c "import tomli; tomli.load(open('plugins/fda_tools/config.toml', 'rb'))"
 
   # ==========================================================================
   # Job 2: Build and Push Docker Image
@@ -380,7 +380,7 @@ jobs:
 
             # Health check
             sleep 30
-            docker-compose exec -T fda-tools python /app/plugins/fda-tools/scripts/health_check.py --verbose
+            docker-compose exec -T fda-tools python /app/plugins/fda_tools/scripts/health_check.py --verbose
 
             # If successful, update other services
             docker-compose up -d

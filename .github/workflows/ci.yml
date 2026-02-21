@@ -76,7 +76,7 @@ jobs:
           cache: 'pip'
           cache-dependency-path: |
             pyproject.toml
-            plugins/fda-tools/bridge/requirements.txt
+            plugins/fda_tools/bridge/requirements.txt
 
       - name: Cache pre-commit environments
         uses: actions/cache@v4
@@ -93,19 +93,19 @@ jobs:
       - name: Run Ruff linter
         run: |
           echo "::group::Ruff Linting"
-          ruff check plugins/fda-tools/ --output-format=github
+          ruff check plugins/fda_tools/ --output-format=github
           echo "::endgroup::"
 
       - name: Run Ruff formatter check
         run: |
           echo "::group::Ruff Format Check"
-          ruff format --check plugins/fda-tools/
+          ruff format --check plugins/fda_tools/
           echo "::endgroup::"
 
       - name: Run Black formatter check
         run: |
           echo "::group::Black Format Check"
-          black --check plugins/fda-tools/lib plugins/fda-tools/scripts plugins/fda-tools/tests
+          black --check plugins/fda_tools/lib plugins/fda_tools/scripts plugins/fda_tools/tests
           echo "::endgroup::"
 
       - name: Check YAML syntax
@@ -127,7 +127,7 @@ jobs:
             --ignore-init-method \
             --ignore-init-module \
             --ignore-nested-functions \
-            plugins/fda-tools/lib plugins/fda-tools/scripts || true
+            plugins/fda_tools/lib plugins/fda_tools/scripts || true
           echo "::endgroup::"
 
   # ==========================================================================
@@ -157,7 +157,7 @@ jobs:
       - name: Run mypy type checking
         run: |
           echo "::group::Type Checking"
-          mypy plugins/fda-tools/lib/ --config-file=pyproject.toml || true
+          mypy plugins/fda_tools/lib/ --config-file=pyproject.toml || true
           echo "::endgroup::"
 
       - name: Upload mypy report
@@ -198,9 +198,9 @@ jobs:
       - name: Run Bandit security scanner
         run: |
           echo "::group::Bandit Security Scan"
-          bandit -r plugins/fda-tools/lib plugins/fda-tools/scripts \
+          bandit -r plugins/fda_tools/lib plugins/fda_tools/scripts \
             -ll -f json -o bandit-report.json || true
-          bandit -r plugins/fda-tools/lib plugins/fda-tools/scripts \
+          bandit -r plugins/fda_tools/lib plugins/fda_tools/scripts \
             -ll --ini .bandit
           echo "::endgroup::"
 
@@ -294,10 +294,10 @@ jobs:
 
       - name: Run fast unit tests
         run: |
-          pytest plugins/fda-tools/tests/ \
+          pytest plugins/fda_tools/tests/ \
             -m "not slow and not e2e and not api and not e2e_integration" \
-            --cov=plugins/fda-tools/lib \
-            --cov=plugins/fda-tools/scripts \
+            --cov=plugins/fda_tools/lib \
+            --cov=plugins/fda_tools/scripts \
             --cov-report=xml \
             --cov-report=term-missing:skip-covered \
             --cov-report=html \
@@ -309,7 +309,7 @@ jobs:
         env:
           OPENFDA_API_KEY: ${{ secrets.OPENFDA_API_KEY }}
         run: |
-          pytest plugins/fda-tools/tests/ \
+          pytest plugins/fda_tools/tests/ \
             -m "slow or api" \
             -v
 
@@ -398,7 +398,7 @@ jobs:
           DATABASE_URL: postgresql://fdatools:test_password@localhost:5432/fda_tools_test
           REDIS_URL: redis://localhost:6379/0
         run: |
-          pytest plugins/fda-tools/tests/ \
+          pytest plugins/fda_tools/tests/ \
             -m "integration" \
             -v || true
 
