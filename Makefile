@@ -2,7 +2,7 @@
 # Run `make help` to list all targets.
 
 .PHONY: help install dev test test-fast lint format check clean pre-commit \
-        coverage build verify completion-install
+        coverage build verify completion-install docs docs-serve docs-install
 
 # Default target
 .DEFAULT_GOAL := help
@@ -83,6 +83,17 @@ licenses:  ## Check for copyleft dependency licenses
 
 verify:  ## Verify the installation is working
 	python3 $(SRC_DIR)/scripts/verify_install.py
+
+# ── Documentation ─────────────────────────────────────────────────────────────
+
+docs-install:  ## Install MkDocs and documentation dependencies
+	pip install -e ".[docs]"
+
+docs:  ## Build API documentation (output: site/)
+	mkdocs build --strict
+
+docs-serve:  ## Serve docs locally with live-reload at http://127.0.0.1:8000
+	mkdocs serve
 
 # ── Shell completion ───────────────────────────────────────────────────────────
 

@@ -1,0 +1,131 @@
+site_name: FDA Tools
+site_description: AI-powered FDA regulatory assistant — API reference and developer docs
+site_url: https://andrewlasiter.github.io/fda-tools/
+repo_url: https://github.com/andrewlasiter/fda-tools
+repo_name: andrewlasiter/fda-tools
+edit_uri: edit/master/docs/
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: blue
+      accent: light blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: blue
+      accent: light blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - content.code.copy
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [plugins]
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            show_if_no_docstring: false
+            inherited_members: false
+            members_order: source
+            separate_signature: true
+            unwrap_annotated: true
+            filters:
+              - "!^_"   # exclude private/dunder by default
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Installation: docs/INSTALLATION.md
+    - Quick Start: docs/QUICK_START.md
+    - Contributing: CONTRIBUTING.md
+  - API Reference:
+    - Overview: api/index.md
+    - Core:
+      - config: api/lib/config.md
+      - input_validators: api/lib/input_validators.md
+      - subprocess_helpers: api/lib/subprocess_helpers.md
+      - import_helpers: api/lib/import_helpers.md
+      - user_errors: api/lib/user_errors.md
+      - disclaimers: api/lib/disclaimers.md
+    - Data & Analytics:
+      - fda_enrichment: api/lib/fda_enrichment.md
+      - feature_analytics: api/lib/feature_analytics.md
+      - performance_baseline: api/lib/performance_baseline.md
+      - data_completeness_scorer: api/lib/data_completeness_scorer.md
+      - gap_analyzer: api/lib/gap_analyzer.md
+      - predicate_ranker: api/lib/predicate_ranker.md
+      - predicate_diversity: api/lib/predicate_diversity.md
+      - predicate_gap_analyzer: api/lib/predicate_gap_analyzer.md
+      - combination_detector: api/lib/combination_detector.md
+      - standards_gap_detector: api/lib/standards_gap_detector.md
+      - testing_gap_detector: api/lib/testing_gap_detector.md
+      - rwe_integration: api/lib/rwe_integration.md
+    - Storage & Caching:
+      - cache_manager: api/lib/cache_manager.md
+      - secure_data_storage: api/lib/secure_data_storage.md
+      - backup_manager: api/lib/backup_manager.md
+      - project_backup: api/lib/project_backup.md
+      - refresh_checkpoint: api/lib/refresh_checkpoint.md
+      - postgres_database: api/lib/postgres_database.md
+    - Security & Auth:
+      - auth: api/lib/auth.md
+      - rbac: api/lib/rbac.md
+      - users: api/lib/users.md
+      - secure_argparse: api/lib/secure_argparse.md
+      - secure_config: api/lib/secure_config.md
+      - path_validator: api/lib/path_validator.md
+      - monitoring_security: api/lib/monitoring_security.md
+      - mcp_integrity: api/lib/mcp_integrity.md
+    - Observability:
+      - logger: api/lib/logger.md
+      - logging_config: api/lib/logging_config.md
+      - monitoring: api/lib/monitoring.md
+      - metrics: api/lib/metrics.md
+      - health_checks: api/lib/health_checks.md
+      - quota_tracker: api/lib/quota_tracker.md
+      - post_market_surveillance: api/lib/post_market_surveillance.md
+    - Regulatory Processing:
+      - estar_field_extractor: api/lib/estar_field_extractor.md
+      - ecopy_exporter: api/lib/ecopy_exporter.md
+      - signatures: api/lib/signatures.md
+      - manifest_validator: api/lib/manifest_validator.md
+      - project_schema_validator: api/lib/project_schema_validator.md
+      - de_novo_support: api/lib/de_novo_support.md
+      - hde_support: api/lib/hde_support.md
+      - expert_validator: api/lib/expert_validator.md
+    - Rate Limiting:
+      - cross_process_rate_limiter: api/lib/cross_process_rate_limiter.md
+      - rate_limiter: api/lib/rate_limiter.md
+  - Architecture:
+    - ADR Index: docs/adr/README.md
+    - "ADR-001: Python Choice": docs/adr/ADR-001-python-over-typescript.md
+    - "ADR-005: stdlib-only lib/": docs/adr/ADR-005-stdlib-only-lib-modules.md
+    - "ADR-007: PostgreSQL": docs/adr/ADR-007-postgres-offline-database.md
+    - "ADR-008: defusedxml": docs/adr/ADR-008-defusedxml-for-xml-parsing.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
