@@ -2,7 +2,7 @@
 # Run `make help` to list all targets.
 
 .PHONY: help install dev test test-fast lint format check clean pre-commit \
-        coverage build verify
+        coverage build verify completion-install
 
 # Default target
 .DEFAULT_GOAL := help
@@ -83,6 +83,22 @@ licenses:  ## Check for copyleft dependency licenses
 
 verify:  ## Verify the installation is working
 	python3 $(SRC_DIR)/scripts/verify_install.py
+
+# ── Shell completion ───────────────────────────────────────────────────────────
+
+COMPLETION_DIR_BASH ?= /etc/bash_completion.d
+COMPLETION_DIR_ZSH  ?= /usr/local/share/zsh/site-functions
+
+completion-install:  ## Install shell completions (bash + zsh); override dirs with COMPLETION_DIR_BASH / COMPLETION_DIR_ZSH
+	@echo "Installing bash completion to $(COMPLETION_DIR_BASH)/"
+	@sudo install -Dm644 tools/completions/fda-tools.bash \
+	  $(COMPLETION_DIR_BASH)/fda-tools
+	@echo "Installing zsh completion to $(COMPLETION_DIR_ZSH)/"
+	@sudo install -Dm644 tools/completions/fda-tools.zsh \
+	  $(COMPLETION_DIR_ZSH)/_fda_tools
+	@echo "Done. Open a new shell or run:"
+	@echo "  bash: source $(COMPLETION_DIR_BASH)/fda-tools"
+	@echo "  zsh:  autoload -Uz compinit && compinit"
 
 # ── Cleanup ───────────────────────────────────────────────────────────────────
 
