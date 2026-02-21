@@ -1251,6 +1251,128 @@ async def list_tools(
     }
 
 
+class ToolExecuteRequest(BaseModel):
+    """Request to execute a tool emulator."""
+    tool: str = Field(..., description="Tool name: Read, Write, Bash, Grep, Glob, AskUserQuestion")
+    session_id: str = Field(..., description="Session ID for sandboxing and question queue")
+    project_root: str = Field(..., description="Project root directory (absolute path)")
+    params: Dict[str, Any] = Field(default_factory=dict, description="Tool-specific parameters")
+
+
+@app.post("/tool/execute")
+@_rate_limit(RATE_LIMIT_DEFAULT)
+async def execute_tool(
+    tool_request: ToolExecuteRequest,
+    request: Request,
+    api_key: str = Depends(require_api_key),
+):
+    """
+    Execute a tool emulator within a session sandbox (AUTHENTICATED).
+
+    Dispatches to the ToolEmulator for the named tool. All file operations
+    are restricted to the specified project_root directory.
+
+    Supported tools and their params:
+    - Read: {file_path, offset?, limit?}
+    - Write: {file_path, content}
+    - Bash: {command, timeout?, cwd?}
+    - Grep: {pattern, path?, glob_pattern?, case_insensitive?}
+    - Glob: {pattern, path?}
+    - AskUserQuestion: {question}
+    """
+    from fda_tools.bridge.tool_emulator import ToolEmulator, PathTraversalError
+
+    # Verify session exists
+    session = get_session(tool_request.session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session not found: {tool_request.session_id}")
+
+    project_root = Path(tool_request.project_root).expanduser().resolve()
+    emulator = ToolEmulator(
+        project_root=project_root,
+        session_id=tool_request.session_id,
+        question_queue=PENDING_QUESTIONS,
+    )
+
+    tool = tool_request.tool
+    params = tool_request.params
+
+    audit_log_entry("tool_execute", {
+        "tool": tool,
+        "session_id": tool_request.session_id,
+        "project_root": str(project_root),
+    })
+
+    try:
+        if tool == "Read":
+            result = emulator.emulate_read(
+                file_path=params["file_path"],
+                offset=int(params.get("offset", 0)),
+                limit=params.get("limit"),
+            )
+            return {"success": True, "result": result, "tool": tool}
+
+        elif tool == "Write":
+            info = emulator.emulate_write(
+                file_path=params["file_path"],
+                content=params["content"],
+            )
+            return {"success": True, "result": info, "tool": tool}
+
+        elif tool == "Bash":
+            info = emulator.emulate_bash(
+                command=params["command"],
+                timeout=int(params.get("timeout", 30)),
+                cwd=params.get("cwd"),
+            )
+            return {"success": True, "result": info, "tool": tool}
+
+        elif tool == "Grep":
+            matches = emulator.emulate_grep(
+                pattern=params["pattern"],
+                path=str(params.get("path", ".")),
+                glob_pattern=params.get("glob_pattern"),
+                case_insensitive=bool(params.get("case_insensitive", False)),
+            )
+            return {"success": True, "result": matches, "tool": tool}
+
+        elif tool == "Glob":
+            files = emulator.emulate_glob(
+                pattern=params["pattern"],
+                path=str(params.get("path", ".")),
+            )
+            return {"success": True, "result": files, "tool": tool}
+
+        elif tool == "AskUserQuestion":
+            question_id = emulator.emulate_ask_user_question(
+                question=params["question"],
+            )
+            return {"success": True, "result": {"question_id": question_id}, "tool": tool}
+
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown tool: '{tool}'. Supported: Read, Write, Bash, Grep, Glob, AskUserQuestion",
+            )
+
+    except PathTraversalError as e:
+        logger.warning(f"Path traversal attempt in tool '{tool}': {e}")
+        raise HTTPException(status_code=403, detail="Path traversal attempt blocked")
+    except PermissionError as e:
+        logger.warning(f"Permission denied in tool '{tool}': {e}")
+        raise HTTPException(status_code=403, detail=str(e))
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except (IsADirectoryError, ValueError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except KeyError as e:
+        raise HTTPException(status_code=422, detail=f"Missing required parameter: {e}")
+    except Exception as e:
+        logger.error(f"Tool execution error ({tool}): {type(e).__name__}: {e}", exc_info=True)
+        sanitized = sanitize_error_for_client(e, context=f"tool {tool}")
+        raise HTTPException(status_code=500, detail=sanitized)
+
+
 @app.get("/audit/integrity")
 @_rate_limit(RATE_LIMIT_DEFAULT)
 async def verify_audit_integrity(
