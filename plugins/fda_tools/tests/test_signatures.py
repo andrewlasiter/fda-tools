@@ -74,8 +74,8 @@ def auth_manager(temp_dir):
     """Create test authentication manager."""
     # Use test database
     test_db = temp_dir / "users.db"
-    with patch('lib.auth.USERS_DB_PATH', test_db):
-        with patch('lib.auth.AUDIT_DB_PATH', temp_dir / "audit.db"):
+    with patch('fda_tools.lib.auth.USERS_DB_PATH', test_db):
+        with patch('fda_tools.lib.auth.AUDIT_DB_PATH', temp_dir / "audit.db"):
             auth_mgr = AuthManager()
 
             # Create test users
@@ -110,7 +110,7 @@ def auth_manager(temp_dir):
 def signature_manager(temp_dir, auth_manager):
     """Create test signature manager."""
     test_db = temp_dir / "signatures.db"
-    with patch('lib.signatures.SIGNATURES_DB_PATH', test_db):
+    with patch('fda_tools.lib.signatures.SIGNATURES_DB_PATH', test_db):
         sig_mgr = SignatureManager()
         sig_mgr.auth_manager = auth_manager
         yield sig_mgr
@@ -329,9 +329,9 @@ class TestSignatureVerification:
         is_valid = verify_signature_hash(signature)
         assert is_valid is True
 
-        # Tamper with signature hash in database
-from fda_tools.lib.signatures import SIGNATURES_DB_PATH
-        conn = sqlite3.connect(SIGNATURES_DB_PATH)
+        # Tamper with signature hash in database — use patched path via module attribute
+        import fda_tools.lib.signatures as _sig_mod
+        conn = sqlite3.connect(_sig_mod.SIGNATURES_DB_PATH)
         cursor = conn.cursor()
         cursor.execute(
             "UPDATE signatures SET signature_hash = ? WHERE signature_id = ?",
