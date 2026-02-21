@@ -52,6 +52,7 @@ Usage (library)::
     low = tracker.get_low_performers()
 """
 
+import argparse
 import json
 import logging
 from dataclasses import dataclass, asdict
@@ -411,3 +412,88 @@ class AgentPerformanceTracker:
         tmp = self.store_path.with_suffix(".tmp")
         tmp.write_text(json.dumps(payload, indent=2), encoding="utf-8")
         tmp.replace(self.store_path)
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+
+def _build_arg_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="agent_performance_tracker",
+        description="View agent performance metrics (ORCH-010)",
+    )
+    action = parser.add_mutually_exclusive_group(required=False)
+    action.add_argument(
+        "--report",
+        action="store_true",
+        help="Print a performance report for all tracked agents",
+    )
+    action.add_argument(
+        "--agent",
+        metavar="AGENT_NAME",
+        help="Show detailed stats for a specific agent",
+    )
+    parser.add_argument(
+        "--top",
+        type=int,
+        default=20,
+        metavar="N",
+        help="Limit report to top N agents (default: 20)",
+    )
+    parser.add_argument(
+        "--no-low-performers",
+        action="store_true",
+        help="Exclude low-performing agents from the report",
+    )
+    parser.add_argument(
+        "--store",
+        metavar="PATH",
+        help="Override performance store path",
+    )
+    return parser
+
+
+def main(argv: Optional[List[str]] = None) -> int:
+    """CLI entry point.  Returns exit code."""
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+    parser = _build_arg_parser()
+    args = parser.parse_args(argv)
+
+    if not args.report and not args.agent:
+        parser.error("one of --report or --agent is required")
+
+    store_path = Path(args.store) if args.store else None
+    tracker = AgentPerformanceTracker(store_path=store_path)
+
+    if args.agent:
+        rec = tracker.get_record(args.agent)
+        if rec is None:
+            print(f"No data recorded for agent: {args.agent}")
+            return 1
+        print(f"\nAgent: {rec.agent_name}")
+        print(f"  Total runs:          {rec.total_runs}")
+        print(f"  Total findings:      {rec.total_findings}")
+        print(f"  Critical findings:   {rec.critical_findings}")
+        print(f"  Findings resolved:   {rec.findings_resolved}")
+        print(f"  Duplicate findings:  {rec.duplicate_findings}")
+        print(f"  Effectiveness score: {rec.effectiveness_score:.3f}")
+        print(f"  Low performer:       {rec.is_low_performer}")
+        print(f"  Last updated:        {rec.last_updated}")
+        return 0
+
+    # --report
+    print(
+        tracker.format_report(
+            top_n=args.top,
+            include_low_performers=not args.no_low_performers,
+        )
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+
+    sys.exit(main())
