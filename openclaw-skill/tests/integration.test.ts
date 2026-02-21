@@ -52,6 +52,16 @@ function parseFrontmatter(content: string): Record<string, unknown> {
   const lines = match[1].split('\n');
 
   for (const line of lines) {
+    // Handle list-header key with no inline value (e.g., "triggers:")
+    const listHeaderMatch = line.match(/^(\w[\w_-]*):\s*$/);
+    if (listHeaderMatch) {
+      currentKey = listHeaderMatch[1];
+      if (!Array.isArray(frontmatter[currentKey])) {
+        frontmatter[currentKey] = [];
+      }
+      continue;
+    }
+
     const kvMatch = line.match(/^(\w[\w_-]*):\s*(.+)$/);
     if (kvMatch) {
       const key = kvMatch[1];

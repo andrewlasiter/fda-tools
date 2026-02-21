@@ -31,6 +31,34 @@ let commandCacheTime: number = 0;
 const CACHE_TTL_MS = 300_000; // 5 minutes
 
 /**
+ * Commands that access only PUBLIC data (product codes, cleared devices, public records).
+ * Safe to execute on any messaging channel without additional warnings.
+ */
+const PUBLIC_COMMANDS = new Set([
+  'research',
+  'safety',
+  'warnings',
+  'trials',
+  'guidance',
+  'standards',
+  'validate',
+  'udi',
+  'pma-search',
+  'pma-compare',
+  'pma-intelligence',
+  'pma-timeline',
+  'predict-review-time',
+  'approval-probability',
+  'competitive-dashboard',
+  'search-predicates',
+  'smart-predicates',
+  'batchfetch',
+  'lineage',
+  'pathway',
+  'portfolio',
+]);
+
+/**
  * Commands known to access CONFIDENTIAL data.
  * Used to pre-warn users on messaging channels.
  */
@@ -131,6 +159,13 @@ export const fdaGenericTool: Tool = {
       );
     }
 
+    // Determine data classification for the response envelope
+    const dataClassification: DataClassification = CONFIDENTIAL_COMMANDS.has(command)
+      ? 'CONFIDENTIAL'
+      : PUBLIC_COMMANDS.has(command)
+      ? 'PUBLIC'
+      : 'RESTRICTED';
+
     try {
       // Validate command exists (use cache if available)
       const commands = await getCommandList();
@@ -178,6 +213,7 @@ export const fdaGenericTool: Tool = {
       context.updateSession({
         session_id: response.session_id,
         last_command: command,
+        last_command_classification: dataClassification,
       });
 
       return response.result ?? '(No results returned)';
