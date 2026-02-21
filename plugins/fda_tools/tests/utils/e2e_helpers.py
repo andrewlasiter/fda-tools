@@ -765,3 +765,80 @@ class E2EAssertions:
         data_rows = rows[1:]
         assert len(data_rows) >= min_rows, \
             f"Expected at least {min_rows} data rows, got {len(data_rows)}"
+
+
+# ---------------------------------------------------------------------------
+# Legacy helper stubs for test compatibility
+# ---------------------------------------------------------------------------
+
+def verify_file_exists(path: "Path | str") -> bool:
+    """Verify a file exists, raising AssertionError if not."""
+    p = Path(path)
+    assert p.exists(), f"Expected file does not exist: {p}"
+    return True
+
+
+def load_json_safe(path: "Path | str") -> dict:
+    """Load JSON from path, returning empty dict on any error."""
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+class E2ETestProject:
+    """Minimal test project context manager for legacy e2e tests."""
+
+    def __init__(self, tmp_path: "Path | str", name: str = "test_project"):
+        self.project_dir = Path(tmp_path) / name
+        self.project_dir.mkdir(parents=True, exist_ok=True)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        pass
+
+    def write_file(self, filename: str, content: str) -> Path:
+        p = self.project_dir / filename
+        p.write_text(content)
+        return p
+
+    def write_json(self, filename: str, data: dict) -> Path:
+        return self.write_file(filename, json.dumps(data, indent=2))
+
+
+def compare_json_files(path1: "Path | str", path2: "Path | str") -> bool:
+    """Return True if two JSON files have equal content."""
+    with open(path1) as f1, open(path2) as f2:
+        return json.load(f1) == json.load(f2)
+
+
+def count_estar_sections(path: "Path | str") -> int:
+    """Count top-level sections in an eSTAR XML file."""
+    import xml.etree.ElementTree as ET
+    try:
+        tree = ET.parse(path)
+        root = tree.getroot()
+        return len(list(root))
+    except Exception:
+        return 0
+
+
+def create_seed_device_profile(
+    project_dir: "Path | str",
+    product_code: str = "DQY",
+    device_name: str = "Test Device",
+    **kwargs,
+) -> dict:
+    """Write a minimal device_profile.json and return the dict."""
+    profile = {
+        "product_code": product_code,
+        "device_name": device_name,
+        "indications_for_use": kwargs.get("indications_for_use", ""),
+        **kwargs,
+    }
+    out = Path(project_dir) / "device_profile.json"
+    out.write_text(json.dumps(profile, indent=2))
+    return profile

@@ -64,6 +64,20 @@ except ModuleNotFoundError:
 
 logger = logging.getLogger(__name__)
 
+
+class SimpleTomlParser:
+    """Thin wrapper around tomllib for parsing TOML strings.
+
+    Provided for backward compatibility with tests written before
+    the tomllib migration (FDA-206 / CQ-005).
+    """
+
+    @staticmethod
+    def parse(content: str) -> Dict[str, Any]:
+        """Parse a TOML string and return a dict."""
+        return tomllib.loads(content)
+
+
 # ============================================================
 # Constants
 # ============================================================

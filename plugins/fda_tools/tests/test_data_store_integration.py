@@ -16,10 +16,6 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock
 
-# Add parent directory to Python path
-PROJECT_ROOT = Path(__file__).parent.parent.resolve()
-if str(PROJECT_ROOT) not in sys.path:
-
 from fda_tools.scripts.fda_data_store import (
     load_manifest,
     save_manifest,

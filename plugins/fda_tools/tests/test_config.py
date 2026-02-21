@@ -24,10 +24,6 @@ from pathlib import Path
 from threading import Thread
 from unittest.mock import Mock, patch
 
-# Add parent directory to path for imports
-_parent_dir = Path(__file__).parent.parent
-if str(_parent_dir) not in sys.path:
-
 from fda_tools.lib.config import (
     Config,
     SimpleTomlParser,

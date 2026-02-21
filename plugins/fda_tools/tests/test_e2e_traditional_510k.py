@@ -34,8 +34,7 @@ import json
 import sys
 from pathlib import Path
 
-# Add test utilities to path
-from e2e_helpers import (
+from fda_tools.tests.utils.e2e_helpers import (
     E2ETestProject,
     compare_json_files,
     count_estar_sections,
@@ -43,7 +42,7 @@ from e2e_helpers import (
     load_json_safe,
     create_seed_device_profile,
 )
-from regulatory_validators import RegulatoryValidator
+from fda_tools.tests.utils.regulatory_validators import RegulatoryValidator
 
 
 @pytest.fixture(scope="module")

@@ -22,10 +22,6 @@ from io import StringIO
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 
-# Add parent directory to path
-_parent_dir = Path(__file__).parent.parent
-if str(_parent_dir) not in sys.path:
-
 from fda_tools.lib.monitoring import (
     MetricsCollector,
     HealthChecker,

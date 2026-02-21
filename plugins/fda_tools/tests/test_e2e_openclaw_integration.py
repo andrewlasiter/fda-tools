@@ -49,8 +49,7 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
-# Add test utilities to path
-from e2e_helpers import verify_file_exists, load_json_safe
+from fda_tools.tests.utils.e2e_helpers import verify_file_exists, load_json_safe
 
 # Test configuration
 BRIDGE_SERVER_HOST = "127.0.0.1"

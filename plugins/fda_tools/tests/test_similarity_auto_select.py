@@ -17,11 +17,6 @@ from pathlib import Path
 
 import pytest
 
-# Add scripts dir to path if conftest hasn't loaded yet
-_TEST_DIR = Path(__file__).parent
-_SCRIPTS_DIR = _TEST_DIR.parent / "scripts"
-if str(_SCRIPTS_DIR) not in sys.path:
-
 from section_analytics import (  # type: ignore
     auto_select_similarity_method,
     compute_similarity,
