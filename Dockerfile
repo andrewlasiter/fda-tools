@@ -68,7 +68,7 @@ RUN if [ "$ENABLE_OPTIONAL_DEPS" = "true" ]; then \
     fi
 
 # Install bridge server dependencies (always needed for health checks)
-COPY plugins/fda-tools/bridge/requirements.txt /tmp/bridge-requirements.txt
+COPY plugins/fda_tools/bridge/requirements.txt /tmp/bridge-requirements.txt
 RUN pip install --no-cache-dir -r /tmp/bridge-requirements.txt
 
 # Install test dependencies if not production
@@ -152,18 +152,18 @@ ENV PATH="/opt/venv/bin:$PATH" \
 WORKDIR /app
 
 # Copy application code with proper ownership
-COPY --chown=fdatools:fdatools plugins/fda-tools/ /app/plugins/fda-tools/
+COPY --chown=fdatools:fdatools plugins/fda_tools/ /app/plugins/fda_tools/
 COPY --chown=fdatools:fdatools pyproject.toml setup.py /app/
 
 # Copy scripts and libraries
-COPY --chown=fdatools:fdatools plugins/fda-tools/scripts/ /app/plugins/fda-tools/scripts/
-COPY --chown=fdatools:fdatools plugins/fda-tools/lib/ /app/plugins/fda-tools/lib/
-COPY --chown=fdatools:fdatools plugins/fda-tools/bridge/ /app/plugins/fda-tools/bridge/
-COPY --chown=fdatools:fdatools plugins/fda-tools/commands/ /app/plugins/fda-tools/commands/
-COPY --chown=fdatools:fdatools plugins/fda-tools/data/ /app/plugins/fda-tools/data/
+COPY --chown=fdatools:fdatools plugins/fda_tools/scripts/ /app/plugins/fda_tools/scripts/
+COPY --chown=fdatools:fdatools plugins/fda_tools/lib/ /app/plugins/fda_tools/lib/
+COPY --chown=fdatools:fdatools plugins/fda_tools/bridge/ /app/plugins/fda_tools/bridge/
+COPY --chown=fdatools:fdatools plugins/fda_tools/commands/ /app/plugins/fda_tools/commands/
+COPY --chown=fdatools:fdatools plugins/fda_tools/data/ /app/plugins/fda_tools/data/
 
 # Copy configuration with fallback
-COPY --chown=fdatools:fdatools plugins/fda-tools/config.toml /config/config.toml
+COPY --chown=fdatools:fdatools plugins/fda_tools/config.toml /config/config.toml
 
 # Create entrypoint script for flexible execution
 COPY --chown=fdatools:fdatools <<'EOF' /app/entrypoint.sh
@@ -187,13 +187,13 @@ run_bridge_server() {
 
 # Function to run health check
 run_health_check() {
-    exec python /app/plugins/fda-tools/scripts/health_check.py "$@"
+    exec python /app/plugins/fda_tools/scripts/health_check.py "$@"
 }
 
 # Function to run tests
 run_tests() {
     echo "Running FDA Tools test suite..."
-    cd /app/plugins/fda-tools
+    cd /app/plugins/fda_tools
     exec pytest "$@"
 }
 
@@ -235,7 +235,7 @@ EXPOSE 8080 18790
 # Health check configuration
 # Uses skip-network flag to avoid external dependencies in container health
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD python /app/plugins/fda-tools/scripts/health_check.py --skip-network || exit 1
+    CMD python /app/plugins/fda_tools/scripts/health_check.py --skip-network || exit 1
 
 # Volume mount points for persistence
 VOLUME ["/data", "/cache", "/logs", "/config"]
