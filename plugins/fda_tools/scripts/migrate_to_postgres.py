@@ -25,8 +25,12 @@ import json
 import logging
 import os
 import shutil
-import subprocess
 import sys
+
+from fda_tools.lib.subprocess_helpers import SubprocessTimeoutError, run_command
+
+# Commands allowed by this migration script (FDA-129)
+_MIGRATE_ALLOWLIST = ["docker", "docker-compose"]
 import time
 from datetime import datetime
 from pathlib import Path
@@ -101,16 +105,15 @@ def run_preflight_checks(cache_dir: Path) -> Dict[str, bool]:
     
     # Check 1: Docker installed and running
     try:
-        result = subprocess.run(
+        result = run_command(
             ["docker", "ps"],
-            capture_output=True,
-            text=True,
-            timeout=10
+            timeout=10,
+            allowlist=_MIGRATE_ALLOWLIST,
         )
         checks["docker_running"] = result.returncode == 0
         if not checks["docker_running"]:
             raise PreflightCheckFailure("Docker is not running. Start with: docker-compose up -d")
-    except (subprocess.TimeoutExpired, FileNotFoundError):
+    except (SubprocessTimeoutError, FileNotFoundError):
         raise PreflightCheckFailure("Docker not installed or not in PATH")
     
     # Check 2: docker-compose.yml exists
@@ -121,19 +124,18 @@ def run_preflight_checks(cache_dir: Path) -> Dict[str, bool]:
     
     # Check 3: PostgreSQL container health
     try:
-        result = subprocess.run(
+        result = run_command(
             ["docker-compose", "ps", "--filter", "status=running", "postgres-blue"],
-            capture_output=True,
-            text=True,
             timeout=10,
-            cwd=str(compose_file.parent)
+            cwd=compose_file.parent,
+            allowlist=_MIGRATE_ALLOWLIST,
         )
         checks["postgres_healthy"] = "postgres-blue" in result.stdout and "running" in result.stdout
         if not checks["postgres_healthy"]:
             raise PreflightCheckFailure(
                 "PostgreSQL container not running. Start with: docker-compose up -d postgres-blue"
             )
-    except subprocess.TimeoutExpired:
+    except SubprocessTimeoutError:
         raise PreflightCheckFailure("Docker compose check timeout")
     
     # Check 4: Cache directory exists and has files

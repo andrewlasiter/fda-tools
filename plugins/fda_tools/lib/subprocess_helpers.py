@@ -50,6 +50,16 @@ DEFAULT_ALLOWLIST = [
     "pdftotext",
     "python",
     "pip",
+    # Docker / database infrastructure (FDA-129)
+    "docker",
+    "docker-compose",
+    "gpg",
+    "aws",
+    "createdb",
+    "dropdb",
+    "psql",
+    "pg_dump",
+    "pg_restore",
 ]
 
 
@@ -67,6 +77,7 @@ def run_command(
     on_timeout: Optional[Callable[[], None]] = None,
     on_error: Optional[Callable[[Exception], None]] = None,
     shell: bool = False,
+    input: Optional[str] = None,
 ) -> subprocess.CompletedProcess:
     """
     Execute a command with consistent error handling and retry logic.
@@ -85,6 +96,7 @@ def run_command(
         on_timeout: Callback function called on timeout
         on_error: Callback function called on error (receives exception)
         shell: Whether to execute command through shell
+        input: Optional stdin data to pass to the process
 
     Returns:
         subprocess.CompletedProcess with stdout, stderr, returncode
@@ -146,6 +158,7 @@ def run_command(
                 cwd=str(cwd) if cwd else None,
                 env=merged_env,
                 shell=shell,
+                input=input,
             )
 
             # Check for transient errors even when check=False
