@@ -3,6 +3,7 @@
 ![Commands](https://img.shields.io/badge/commands-42-orange)
 ![Agents](https://img.shields.io/badge/agents-4-purple)
 ![Tests](https://img.shields.io/badge/tests-722-brightgreen)
+[![codecov](https://codecov.io/gh/andrewlasiter/fda-tools/branch/master/graph/badge.svg)](https://codecov.io/gh/andrewlasiter/fda-tools)
 ![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-blueviolet)
 ![FDA 510(k)](https://img.shields.io/badge/FDA-510(k)-red)
 
