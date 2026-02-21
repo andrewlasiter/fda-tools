@@ -51,7 +51,7 @@ class SecureArgumentParser(argparse.ArgumentParser):
     output paths to prevent arbitrary file write attacks.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         """Initialize secure parser with path validator."""
         super().__init__(*args, **kwargs)
         self._path_validator = OutputPathValidator()
@@ -121,7 +121,7 @@ class SecureArgumentParser(argparse.ArgumentParser):
             **kwargs
         )
 
-    def parse_args(self, args=None, namespace=None):
+    def parse_args(self, args=None, namespace=None) -> argparse.Namespace:
         """
         Parse arguments with automatic output path validation.
 

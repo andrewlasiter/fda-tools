@@ -239,7 +239,7 @@ def is_valid_session_token_format(token: str) -> bool:
 # Decorators
 # ============================================================
 
-def require_role(*allowed_roles: Role):
+def require_role(*allowed_roles: Role) -> Callable[..., Any]:
     """Decorator to require specific role(s) for function execution.
 
     This decorator validates that the authenticated user has one of the
@@ -278,7 +278,7 @@ def require_role(*allowed_roles: Role):
     """
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args, **kwargs) -> Any:
             # Extract session_token from kwargs or args
             session_token = kwargs.get('session_token')
             if not session_token and args:
@@ -333,7 +333,7 @@ def require_role(*allowed_roles: Role):
     return decorator
 
 
-def require_permission(permission: str):
+def require_permission(permission: str) -> Callable[..., Any]:
     """Decorator to require specific permission for function execution.
 
     This decorator validates that the authenticated user has the specified
@@ -360,7 +360,7 @@ def require_permission(permission: str):
     """
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args, **kwargs) -> Any:
             # Extract session_token from kwargs or args
             session_token = kwargs.get('session_token')
             if not session_token and args:

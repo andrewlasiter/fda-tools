@@ -189,7 +189,7 @@ class ProductCodeValidator:
         return validated
 
     @classmethod
-    def clear_cache(cls):
+    def clear_cache(cls) -> None:
         """Clear the product code cache (for testing)."""
         cls._valid_codes_cache = None
         cls._cache_timestamp = None
@@ -226,7 +226,7 @@ class RateLimiter:
     - Sliding window algorithm
     """
 
-    def __init__(self, max_per_hour: int = 100):
+    def __init__(self, max_per_hour: int = 100) -> None:
         """
         Initialize rate limiter.
 
@@ -299,7 +299,7 @@ class RateLimiter:
             if ts > one_hour_ago
         )
 
-    def reset(self, product_code: Optional[str] = None):
+    def reset(self, product_code: Optional[str] = None) -> None:
         """
         Reset rate limiter (for testing or manual override).
 
@@ -432,7 +432,7 @@ class AlertQueue:
 
     MAX_QUEUE_SIZE = 10000
 
-    def __init__(self, max_size: int = MAX_QUEUE_SIZE):
+    def __init__(self, max_size: int = MAX_QUEUE_SIZE) -> None:
         """
         Initialize alert queue.
 
@@ -500,7 +500,7 @@ class AlertQueue:
         """Check if queue is at capacity."""
         return len(self.queue) >= self.max_size
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear queue (for testing or manual reset)."""
         self.queue = []
         self.overflow_count = 0

@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 class ExpertValidator:
     """Orchestrates expert validation agents for consensus-based validation"""
 
-    def __init__(self, standards_dir: Path, agents_dir: Optional[Path] = None):
+    def __init__(self, standards_dir: Path, agents_dir: Optional[Path] = None) -> None:
         """Initialize Expert Validator
 
         Args:
@@ -169,7 +169,7 @@ class ExpertValidator:
 
         return consensus
 
-    def _write_consensus_report(self, consensus: Dict, output_path: Path):
+    def _write_consensus_report(self, consensus: Dict, output_path: Path) -> None:
         """Write formal consensus validation report
 
         Args:
@@ -277,7 +277,7 @@ class ExpertValidator:
         }
 
 
-def main():
+def main() -> None:
     """CLI for expert validator"""
     import argparse
 
