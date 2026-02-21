@@ -1,0 +1,61 @@
+{
+  "device_name": "Example Percutaneous Catheter System",
+  "trade_name": "ExaCath-4",
+  "applicant": "Example Medical Devices LLC",
+  "product_code": "DQY",
+  "intended_use": "The ExaCath-4 Percutaneous Catheter System is intended for use in percutaneous transluminal cardiovascular procedures to facilitate access and delivery of interventional devices through the vasculature in adult and pediatric patients (≥5 kg body weight).",
+  "device_description": "The ExaCath-4 Percutaneous Catheter System is a single-patient, single-use vascular access device consisting of: (1) a 4 Fr delivery catheter with radiopaque marker band at the distal tip; (2) a Tuohy-Borst hemostasis valve with flush port and stopcock; (3) a self-sealing loader hemostasis valve; and (4) a guidewire lumen with 0.014-inch compatibility. Catheter body: braided polyurethane construction. Usable length: 45 cm. The device is supplied sterile (EO sterilization) and non-pyrogenic.",
+  "device_class": "2",
+  "regulation_number": "870.1250",
+  "review_panel": "CV",
+  "implant_flag": "N",
+  "classification_device_name": "Catheter, Percutaneous",
+  "materials": [
+    "Polyurethane (catheter shaft)",
+    "Stainless steel (braid)",
+    "Platinum-iridium (radiopaque marker)",
+    "PTFE (inner liner)",
+    "ABS (hub and valve body)"
+  ],
+  "dimensions": {
+    "french_size": "4 Fr",
+    "outer_diameter_mm": 1.33,
+    "usable_length_cm": 45,
+    "guidewire_compatibility_inch": 0.014
+  },
+  "sterilization_method": "EO",
+  "sterilization_text": "Sterilized using ethylene oxide (EO) per ISO 11135. SAL 10^-6.",
+  "electrical": false,
+  "shelf_life_months": 36,
+  "extracted_sections": {
+    "device_description": "The ExaCath-4 Percutaneous Catheter System is a single-patient, single-use vascular access device...",
+    "intended_use": "The ExaCath-4 is intended for use in percutaneous transluminal cardiovascular procedures...",
+    "sterility": "Sterilized using ethylene oxide (EO) per ISO 11135. SAL 10^-6.",
+    "biocompatibility": "Materials evaluated per ISO 10993-1. Cytotoxicity and sensitization studies conducted.",
+    "performance_testing": "Burst pressure, kink resistance, torque response, and radiopaque visibility testing performed per ASTM F2172."
+  },
+  "peer_devices": [
+    {
+      "k_number": "K241335",
+      "device_name": "Amplatzer Piccolo Delivery System",
+      "applicant": "St. Jude Medical",
+      "product_code": "DQY",
+      "date_received": "2024-01-15",
+      "decision": "SESE",
+      "decision_date": "2024-04-02",
+      "review_time_days": 77
+    },
+    {
+      "k_number": "K231892",
+      "device_name": "Arrow Percutaneous Catheter",
+      "applicant": "Teleflex Medical",
+      "product_code": "DQY",
+      "date_received": "2023-06-20",
+      "decision": "SESE",
+      "decision_date": "2023-09-14",
+      "review_time_days": 86
+    }
+  ],
+  "created_at": "2026-02-01T09:00:00Z",
+  "source": "example"
+}
