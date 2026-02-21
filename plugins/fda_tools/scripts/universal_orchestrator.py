@@ -55,6 +55,7 @@ from execution_coordinator import ExecutionCoordinator
 from linear_integrator import LinearIntegrator
 from linear_issue_watcher import LinearIssueWatcher
 from agent_performance_tracker import AgentPerformanceTracker
+from repo_registry import RepoRegistry
 
 # Setup logging
 logging.basicConfig(
@@ -388,6 +389,86 @@ class UniversalOrchestrator:
         print(report)
         return report
 
+    def list_repos(self) -> str:
+        """Display and return the multi-repo registry table.
+
+        Loads the registry from ``~/.fda_tools/repo_registry.json`` and
+        prints a markdown-formatted table of all registered repositories.
+
+        Returns:
+            Markdown table string.
+        """
+        logger.info("=" * 70)
+        logger.info("REGISTERED REPOSITORIES")
+        logger.info("=" * 70)
+
+        registry = RepoRegistry()
+        table = registry.format_registry()
+        print(table)
+        return table
+
+    def multi_repo_execute(
+        self,
+        task: str,
+        files: List[str],
+        repo_names: List[str],
+        create_linear: bool = False,
+        max_agents: int = 10,
+    ) -> dict:
+        """Full workflow across multiple repositories.
+
+        Resolves each repo from the registry, detects cross-repo imports in
+        *files*, expands the file list to include dependent repos' files
+        (heuristic), runs a standard ``execute()`` review, and annotates the
+        returned result with multi-repo metadata.
+
+        Args:
+            task: Task description.
+            files: Source files for the review.
+            repo_names: Comma-separated or list of repo short-names.
+            create_linear: Whether to create Linear issues from findings.
+            max_agents: Maximum team size.
+
+        Returns:
+            Dict with review results plus ``multi_repo_metadata``.
+        """
+        logger.info("=" * 70)
+        logger.info("MULTI-REPO ORCHESTRATION WORKFLOW")
+        logger.info("=" * 70)
+
+        registry = RepoRegistry()
+        repos = registry.resolve_repos(repo_names)
+
+        if not repos:
+            logger.warning("No valid repos resolved from: %s", repo_names)
+            repos_info = []
+        else:
+            repos_info = [{"name": r.name, "team": r.team, "path": r.path} for r in repos]
+            logger.info("Resolved %d repos: %s", len(repos), [r.name for r in repos])
+
+        # Detect cross-repo dependencies in provided files.
+        cross_deps = []
+        primary_repo = repos[0].name if repos else ""
+        for f in files:
+            for dep in registry.detect_cross_repo_imports(f, primary_repo):
+                cross_deps.append(str(dep))
+                logger.info("  Cross-repo dep: %s", dep)
+
+        if cross_deps:
+            logger.info("%d cross-repo import(s) detected.", len(cross_deps))
+
+        # Run the standard execute workflow.
+        result = self.execute(task, files, create_linear=create_linear, max_agents=max_agents)
+
+        result["multi_repo_metadata"] = {
+            "repos": repos_info,
+            "cross_repo_dependencies": cross_deps,
+            "dependency_count": len(cross_deps),
+        }
+
+        logger.info("\n" + "=" * 70)
+        return result
+
 
 # ==================================================================
 # CLI Entry Point
@@ -428,7 +509,19 @@ def main():
     execute_parser.add_argument("--files", required=True, help="Comma-separated file paths")
     execute_parser.add_argument("--create-linear", action="store_true", help="Create Linear issues")
     execute_parser.add_argument("--max-agents", type=int, default=10, help="Maximum team size")
+    execute_parser.add_argument(
+        "--repos",
+        default="",
+        metavar="REPO,...",
+        help="Comma-separated repo names for multi-repo orchestration (FDA-215)",
+    )
     execute_parser.add_argument("--json", action="store_true", help="Output JSON")
+
+    # list-repos command (FDA-215 / ORCH-011)
+    subparsers.add_parser(
+        "list-repos",
+        help="Show all registered repositories in the multi-repo registry",
+    )
 
     # report-agents command (FDA-214 / ORCH-010)
     report_parser = subparsers.add_parser(
@@ -514,26 +607,41 @@ def main():
 
         elif args.command == "execute":
             files = args.files.split(",")
-            result = orchestrator.execute(
-                args.task,
-                files,
-                create_linear=args.create_linear,
-                max_agents=args.max_agents
-            )
+            repo_names = [r for r in args.repos.split(",") if r] if args.repos else []
+
+            if repo_names:
+                # Multi-repo execution (FDA-215)
+                result = orchestrator.multi_repo_execute(
+                    args.task,
+                    files,
+                    repo_names=repo_names,
+                    create_linear=args.create_linear,
+                    max_agents=args.max_agents,
+                )
+            else:
+                result = orchestrator.execute(
+                    args.task,
+                    files,
+                    create_linear=args.create_linear,
+                    max_agents=args.max_agents,
+                )
 
             if args.json:
-                print(json.dumps({
+                out = {
                     "task_type": result["profile"].task_type,
                     "team_size": result["team"].total_agents,
                     "findings": len(result["results"].findings),
                     "created_issues": result["created_issues"],
-                }, indent=2))
+                }
+                if "multi_repo_metadata" in result:
+                    out["multi_repo_metadata"] = result["multi_repo_metadata"]
+                print(json.dumps(out, indent=2))
+
+        elif args.command == "list-repos":
+            orchestrator.list_repos()
 
         elif args.command == "report-agents":
-            report = orchestrator.report_agents(
-                top_n=args.top,
-                strict=args.strict,
-            )
+            orchestrator.report_agents(top_n=args.top, strict=args.strict)
             if args.json:
                 # Emit raw records as JSON for machine consumption.
                 from agent_performance_tracker import AgentPerformanceTracker
