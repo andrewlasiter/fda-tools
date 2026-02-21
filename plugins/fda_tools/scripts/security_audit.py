@@ -26,8 +26,12 @@ import json
 import logging
 import os
 import re
-import subprocess
 import sys
+
+from fda_tools.lib.subprocess_helpers import SubprocessTimeoutError, run_command
+
+# Commands allowed by this module (FDA-129)
+_AUDIT_ALLOWLIST = ["gpg"]
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -193,11 +197,10 @@ class SecurityAuditor:
         
         # Check 3: GPG encryption for backups
         try:
-            result = subprocess.run(
+            result = run_command(
                 ["gpg", "--version"],
-                capture_output=True,
-                text=True,
-                timeout=5
+                timeout=5,
+                allowlist=_AUDIT_ALLOWLIST,
             )
             gpg_available = result.returncode == 0
             
@@ -221,7 +224,7 @@ class SecurityAuditor:
                     description="Backups cannot be encrypted without GPG",
                     remediation="Install GPG: apt-get install gnupg"
                 ))
-        except (subprocess.TimeoutExpired, FileNotFoundError):
+        except (SubprocessTimeoutError, FileNotFoundError):
             results["compliant"] = False
             results["checks"].append({
                 "name": "GPG backup encryption",
@@ -756,11 +759,10 @@ class SecurityAuditor:
         
         # Check 2: GPG key configured
         try:
-            result = subprocess.run(
+            result = run_command(
                 ["gpg", "--list-keys"],
-                capture_output=True,
-                text=True,
-                timeout=5
+                timeout=5,
+                allowlist=_AUDIT_ALLOWLIST,
             )
             key_count = len([l for l in result.stdout.split("\n") if l.startswith("pub")])
             
@@ -784,7 +786,7 @@ class SecurityAuditor:
                     description="Backups cannot be encrypted without GPG keys",
                     remediation="Generate GPG key: gpg --full-generate-key"
                 ))
-        except (subprocess.TimeoutExpired, FileNotFoundError):
+        except (SubprocessTimeoutError, FileNotFoundError):
             results["compliant"] = False
             results["checks"].append({
                 "name": "GPG encryption keys",

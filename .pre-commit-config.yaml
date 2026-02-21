@@ -162,6 +162,23 @@ repos:
         files: ^plugins/fda-tools/(lib|scripts)/.*\.py$
         exclude: ^plugins/fda-tools/tests/
 
+  # Subprocess allowlist enforcement (FDA-129)
+  # Prevents direct subprocess.run() calls that bypass security controls
+  - repo: local
+    hooks:
+      - id: subprocess-allowlist
+        name: Subprocess allowlist enforcement
+        description: Ensure all subprocess calls go through subprocess_helpers.py
+        entry: python3 plugins/fda_tools/scripts/lint_subprocess_usage.py
+        language: system
+        types: [python]
+        stages: [commit]
+        exclude: |
+          (?x)^(
+            tests/|
+            openclaw-skill/
+          )$
+
   # Type checking with mypy (optional, can be slow)
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.8.0

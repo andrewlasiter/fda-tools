@@ -26,8 +26,12 @@ import hmac
 import json
 import logging
 import os
-import subprocess
 import sys
+
+from fda_tools.lib.subprocess_helpers import run_command
+
+# Commands allowed by this coordinator script (FDA-129)
+_COORDINATOR_ALLOWLIST = ["docker", "docker-compose"]
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -163,15 +167,12 @@ class UpdateCoordinator:
         
         # Step 1: Start GREEN container
         logger.info("Starting GREEN PostgreSQL container...")
-        try:
-            subprocess.run(
-                ["docker-compose", "--profile", "blue-green", "up", "-d", "postgres-green"],
-                check=True,
-                capture_output=True,
-                text=True
-            )
-        except subprocess.CalledProcessError as e:
-            raise ReplicationError(f"Failed to start GREEN container: {e.stderr}")
+        result = run_command(
+            ["docker-compose", "--profile", "blue-green", "up", "-d", "postgres-green"],
+            allowlist=_COORDINATOR_ALLOWLIST,
+        )
+        if result.returncode != 0:
+            raise ReplicationError(f"Failed to start GREEN container: {result.stderr}")
         
         # Wait for GREEN to be healthy
         logger.info("Waiting for GREEN database to be healthy...")
@@ -469,16 +470,13 @@ class UpdateCoordinator:
             port: Database port (5432 for BLUE, 5433 for GREEN)
         """
         # Read current config from container
-        try:
-            result = subprocess.run(
-                ["docker", "exec", PGBOUNCER_CONTAINER, "cat", "/etc/pgbouncer/pgbouncer.ini"],
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            config = result.stdout
-        except subprocess.CalledProcessError as e:
-            raise SwitchError(f"Failed to read PgBouncer config: {e.stderr}")
+        result = run_command(
+            ["docker", "exec", PGBOUNCER_CONTAINER, "cat", "/etc/pgbouncer/pgbouncer.ini"],
+            allowlist=_COORDINATOR_ALLOWLIST,
+        )
+        if result.returncode != 0:
+            raise SwitchError(f"Failed to read PgBouncer config: {result.stderr}")
+        config = result.stdout
         
         # Update port in [databases] section
         lines = config.split('\n')
@@ -495,29 +493,25 @@ class UpdateCoordinator:
         updated_config = '\n'.join(updated_lines)
         
         # Write updated config back to container
-        try:
-            subprocess.run(
-                ["docker", "exec", "-i", PGBOUNCER_CONTAINER, "sh", "-c", "cat > /etc/pgbouncer/pgbouncer.ini"],
-                input=updated_config,
-                text=True,
-                check=True
-            )
-        except subprocess.CalledProcessError as e:
-            raise SwitchError(f"Failed to write PgBouncer config: {e}")
+        result = run_command(
+            ["docker", "exec", "-i", PGBOUNCER_CONTAINER, "sh", "-c", "cat > /etc/pgbouncer/pgbouncer.ini"],
+            input=updated_config,
+            allowlist=_COORDINATOR_ALLOWLIST,
+        )
+        if result.returncode != 0:
+            raise SwitchError(f"Failed to write PgBouncer config: {result.stderr}")
     
     def _reload_pgbouncer(self):
         """Send SIGHUP to PgBouncer for hot reload."""
         logger.info("Reloading PgBouncer configuration...")
-        try:
-            subprocess.run(
-                ["docker", "kill", "-s", "SIGHUP", PGBOUNCER_CONTAINER],
-                check=True,
-                capture_output=True
-            )
-            logger.info("PgBouncer reload signal sent")
-            time.sleep(2)  # Wait for reload
-        except subprocess.CalledProcessError as e:
-            raise SwitchError(f"Failed to reload PgBouncer: {e.stderr}")
+        result = run_command(
+            ["docker", "kill", "-s", "SIGHUP", PGBOUNCER_CONTAINER],
+            allowlist=_COORDINATOR_ALLOWLIST,
+        )
+        if result.returncode != 0:
+            raise SwitchError(f"Failed to reload PgBouncer: {result.stderr}")
+        logger.info("PgBouncer reload signal sent")
+        time.sleep(2)  # Wait for reload
     
     def get_status(self) -> Dict:
         """Get current blue-green deployment status.
