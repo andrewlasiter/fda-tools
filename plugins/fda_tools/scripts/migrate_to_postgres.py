@@ -32,9 +32,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
 try:
     from fda_tools.lib.postgres_database import PostgreSQLDatabase
     _POSTGRES_AVAILABLE = True

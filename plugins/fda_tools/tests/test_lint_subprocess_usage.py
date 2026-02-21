@@ -15,13 +15,7 @@ from pathlib import Path
 
 import pytest
 
-# Add scripts directory to path for import
-import sys
-from pathlib import Path
-scripts_dir = Path(__file__).parent.parent / "scripts"
-sys.path.insert(0, str(scripts_dir))
-
-from lint_subprocess_usage import (
+from fda_tools.scripts.lint_subprocess_usage import (
     lint_file,
     is_allowed_file,
     SubprocessUsageVisitor,

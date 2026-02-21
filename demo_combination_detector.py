@@ -12,13 +12,7 @@ Author: FDA Tools Plugin Development Team
 Date: 2026-02-14
 """
 
-import sys
-import os
-
-# Add lib directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'plugins', 'fda-tools', 'lib'))
-
-from combination_detector import detect_combination_product
+from fda_tools.lib.combination_detector import detect_combination_product
 
 
 def print_result(device_name: str, result: dict):

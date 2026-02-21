@@ -89,13 +89,7 @@ class ProductCodeValidator:
         # Load from FDA classification data
         # Try to import from existing classification lookup module
         try:
-            # Import from plugin's classification module
-            import sys
-            import os
-            sys.path.insert(0, os.path.join(
-                os.path.dirname(__file__), '..', 'scripts'
-            ))
-            from classification_lookup import get_all_product_codes
+            from fda_tools.scripts.classification_lookup import get_all_product_codes
             valid_codes = set(get_all_product_codes())
         except (ImportError, FileNotFoundError):
             # Fallback: Load from hardcoded common product codes

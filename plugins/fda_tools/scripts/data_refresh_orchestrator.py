@@ -50,11 +50,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 # Import sibling modules
-from pma_data_store import PMADataStore
+from fda_tools.scripts.pma_data_store import PMADataStore
 
 # FDA-196: PostgreSQL blue-green deployment integration
 try:
-    sys.path.insert(0, str(Path(__file__).parent.parent))
     from fda_tools.lib.postgres_database import PostgreSQLDatabase
     from fda_tools.scripts.update_coordinator import UpdateCoordinator
     _POSTGRES_AVAILABLE = True

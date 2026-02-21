@@ -62,12 +62,7 @@ from pathlib import Path
 
 # SEC-002 Fix: Import centralized User-Agent management
 try:
-    # Add parent lib directory to path
-    _lib_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lib")
-    if _lib_dir not in sys.path:
-        sys.path.insert(0, _lib_dir)
-
-    from fda_http import FDA_WEBSITE_HEADERS, create_session
+    from fda_tools.scripts.fda_http import FDA_WEBSITE_HEADERS, create_session
     _FDA_HTTP_AVAILABLE = True
 except ImportError:
     _FDA_HTTP_AVAILABLE = False

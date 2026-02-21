@@ -129,8 +129,8 @@ fda-update-manager = "scripts.update_manager:main"
 # This eliminates the need for sys.path.insert() hacks in test files.
 
 [tool.setuptools.packages.find]
-where = ["plugins/fda-tools"]
-include = ["scripts*", "lib*", "tests*", "bridge*"]
+where = ["plugins"]
+include = ["fda_tools*"]
 
 [tool.ruff]
 # Python 3.9+ compatibility
