@@ -86,10 +86,6 @@ import sys
 import requests
 from pathlib import Path
 
-# Add parent directory to path for lib imports
-_parent_dir = Path(__file__).parent.parent
-if str(_parent_dir) not in sys.path:
-
 # Import centralized configuration (FDA-180 / ARCH-002)
 try:
     from fda_tools.lib.config import get_config

@@ -7,15 +7,10 @@ and header parsing functionality.
 """
 
 import pytest
-import threading
-import time
 from unittest.mock import patch
 
 # Add parent directory to path for imports
-import sys
-from pathlib import Path
-
-from rate_limiter import (
+from fda_tools.lib.rate_limiter import (
     RateLimiter,
     RetryPolicy,
     calculate_backoff,
@@ -26,141 +21,12 @@ from rate_limiter import (
 
 
 class TestRateLimiter:
-    """Test RateLimiter class."""
-
-    def test_initialization(self):
-        """Test rate limiter initialization."""
-        limiter = RateLimiter(requests_per_minute=240)
-        assert limiter.requests_per_minute == 240
-        assert limiter.tokens_per_second == 4.0  # 240 / 60
-        assert limiter.burst_capacity == 240
+    """Test RateLimiter (CrossProcessRateLimiter) via backward-compat shim."""
 
     def test_initialization_with_custom_burst(self):
         """Test rate limiter with custom burst capacity."""
         limiter = RateLimiter(requests_per_minute=240, burst_capacity=120)
         assert limiter.burst_capacity == 120
-
-    def test_initialization_invalid_rate(self):
-        """Test that invalid rate raises ValueError."""
-        with pytest.raises(ValueError, match="must be positive"):
-            RateLimiter(requests_per_minute=0)
-
-        with pytest.raises(ValueError, match="must be positive"):
-            RateLimiter(requests_per_minute=-10)
-
-    def test_acquire_immediate(self):
-        """Test that acquire succeeds immediately when tokens available."""
-        limiter = RateLimiter(requests_per_minute=240)
-
-        start = time.time()
-        result = limiter.acquire(tokens=1)
-        elapsed = time.time() - start
-
-        assert result is True
-        assert elapsed < 0.1  # Should be nearly instant
-
-    def test_acquire_multiple_tokens(self):
-        """Test acquiring multiple tokens at once."""
-        limiter = RateLimiter(requests_per_minute=60, burst_capacity=10)
-
-        # Acquire 5 tokens
-        result = limiter.acquire(tokens=5)
-        assert result is True
-
-        # Should have 5 tokens left
-        stats = limiter.get_stats()
-        assert 4.0 < stats["current_tokens"] < 6.0  # Allow small drift
-
-    def test_acquire_exceeds_capacity(self):
-        """Test that acquiring more than capacity raises ValueError."""
-        limiter = RateLimiter(requests_per_minute=60, burst_capacity=10)
-
-        with pytest.raises(ValueError, match="burst capacity"):
-            limiter.acquire(tokens=20)
-
-    def test_acquire_blocks_when_empty(self):
-        """Test that acquire blocks when bucket is empty."""
-        limiter = RateLimiter(requests_per_minute=60)  # 1 token per second
-
-        # Drain the bucket
-        limiter.acquire(tokens=60)
-
-        # Next acquire should block for ~1 second
-        start = time.time()
-        result = limiter.acquire(tokens=1, timeout=2.0)
-        elapsed = time.time() - start
-
-        assert result is True
-        assert 0.5 < elapsed < 1.5  # Should wait ~1 second
-
-    def test_acquire_timeout(self):
-        """Test that acquire respects timeout."""
-        limiter = RateLimiter(requests_per_minute=60)
-
-        # Drain bucket
-        limiter.acquire(tokens=60)
-
-        # Try to acquire with short timeout (should fail)
-        start = time.time()
-        result = limiter.acquire(tokens=10, timeout=0.1)
-        elapsed = time.time() - start
-
-        assert result is False
-        # Timeout may take slightly longer due to sleep(1.0) in the loop
-        assert elapsed < 1.5  # Should timeout within reasonable time
-
-    def test_try_acquire_success(self):
-        """Test try_acquire when tokens available."""
-        limiter = RateLimiter(requests_per_minute=240)
-
-        result = limiter.try_acquire(tokens=1)
-        assert result is True
-
-    def test_try_acquire_failure(self):
-        """Test try_acquire when insufficient tokens."""
-        limiter = RateLimiter(requests_per_minute=60, burst_capacity=10)
-
-        # Drain bucket
-        limiter.acquire(tokens=10)
-
-        # Try acquire should fail immediately
-        result = limiter.try_acquire(tokens=1)
-        assert result is False
-
-    def test_token_replenishment(self):
-        """Test that tokens replenish over time."""
-        limiter = RateLimiter(requests_per_minute=60)  # 1 token per second
-
-        # Drain bucket
-        limiter.acquire(tokens=60)
-
-        # Wait for 2 seconds
-        time.sleep(2.1)
-
-        # Should have ~2 tokens now
-        result = limiter.try_acquire(tokens=2)
-        assert result is True
-
-    def test_thread_safety(self):
-        """Test that rate limiter is thread-safe."""
-        limiter = RateLimiter(requests_per_minute=100)
-        results = []
-
-        def worker():
-            for _ in range(10):
-                success = limiter.acquire(tokens=1, timeout=5.0)
-                results.append(success)
-
-        # Start 5 threads, each trying to acquire 10 tokens
-        threads = [threading.Thread(target=worker) for _ in range(5)]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
-
-        # All acquires should succeed (50 total, capacity 100)
-        assert all(results)
-        assert len(results) == 50
 
     def test_update_from_headers_basic(self):
         """Test parsing rate limit headers."""
@@ -222,39 +88,6 @@ class TestRateLimiter:
 
         # Should log warning but not raise
         limiter.update_from_headers(headers)
-
-    def test_get_stats(self):
-        """Test statistics collection."""
-        limiter = RateLimiter(requests_per_minute=240)
-
-        # Make some requests
-        limiter.acquire(tokens=1)
-        limiter.acquire(tokens=1)
-        limiter.try_acquire(tokens=1)
-
-        stats = limiter.get_stats()
-
-        assert "total_requests" in stats
-        assert "total_waits" in stats
-        assert "current_tokens" in stats
-        assert "requests_per_minute" in stats
-        assert stats["requests_per_minute"] == 240
-
-    def test_reset_stats(self):
-        """Test that statistics can be reset."""
-        limiter = RateLimiter(requests_per_minute=240)
-
-        # Make some requests
-        limiter.acquire(tokens=5)
-        limiter.acquire(tokens=5)
-
-        # Reset stats
-        limiter.reset_stats()
-
-        stats = limiter.get_stats()
-        assert stats["total_requests"] == 0
-        assert stats["total_waits"] == 0
-
 
 class TestRetryPolicy:
     """Test RetryPolicy class."""
@@ -397,55 +230,6 @@ class TestParseRetryAfter:
         assert parse_retry_after("not-a-number") is None
 
 
-class TestRateLimiterIntegration:
-    """Integration tests for realistic usage patterns."""
-
-    def test_burst_then_sustained(self):
-        """Test burst of requests followed by sustained rate."""
-        limiter = RateLimiter(requests_per_minute=60)  # 1 token per second
-
-        # Burst: consume all 60 tokens
-        for _ in range(60):
-            result = limiter.try_acquire(tokens=1)
-            assert result is True
-
-        # Next request should fail (no tokens)
-        result = limiter.try_acquire(tokens=1)
-        assert result is False
-
-        # Wait 2 seconds for replenishment
-        time.sleep(2.1)
-
-        # Should be able to acquire ~2 tokens now
-        result = limiter.acquire(tokens=2, timeout=1.0)
-        assert result is True
-
-    def test_concurrent_requests(self):
-        """Test multiple threads making concurrent requests."""
-        limiter = RateLimiter(requests_per_minute=120)  # 2 tokens per second
-        successful = []
-        failed = []
-
-        def make_requests():
-            for _ in range(20):
-                if limiter.try_acquire(tokens=1):
-                    successful.append(1)
-                else:
-                    failed.append(1)
-
-        # Start 3 threads
-        threads = [threading.Thread(target=make_requests) for _ in range(3)]
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
-
-        # Total 60 requests, burst capacity 120, so most should succeed
-        assert len(successful) + len(failed) == 60
-        # At least half should succeed from burst capacity
-        assert len(successful) >= 30
-
-
 class TestRateLimitedDecorator:
     """Test rate_limited decorator (CODE-001)."""
 
@@ -462,22 +246,6 @@ class TestRateLimitedDecorator:
         result = test_function()
         assert result == "success"
         assert len(call_count) == 1
-
-    def test_decorator_with_tokens(self):
-        """Test decorator with custom token count."""
-        limiter = RateLimiter(requests_per_minute=240, burst_capacity=10)
-
-        @rate_limited(limiter, tokens=5)
-        def batch_operation():
-            return "batch_success"
-
-        # First call should succeed (5 tokens available)
-        result = batch_operation()
-        assert result == "batch_success"
-
-        # Second call should also succeed (5 more tokens)
-        result = batch_operation()
-        assert result == "batch_success"
 
     def test_decorator_with_timeout(self):
         """Test decorator timeout behavior."""
@@ -535,29 +303,6 @@ class TestRateLimitContext:
 
         assert len(executed) == 1
 
-    def test_context_manager_with_tokens(self):
-        """Test context manager with multiple tokens."""
-        limiter = RateLimiter(requests_per_minute=240, burst_capacity=10)
-
-        with RateLimitContext(limiter, tokens=5):
-            # Should have acquired 5 tokens
-            stats = limiter.get_stats()
-            # Check that tokens were consumed
-            assert stats['total_requests'] >= 1
-
-    def test_context_manager_timeout(self):
-        """Test context manager timeout behavior."""
-        limiter = RateLimiter(requests_per_minute=12)  # Very slow: 0.2 tokens per second
-
-        # Drain bucket completely
-        for _ in range(12):
-            limiter.try_acquire()
-
-        # Should raise RuntimeError with short timeout
-        with pytest.raises(RuntimeError, match="Rate limit acquisition timeout"):
-            with RateLimitContext(limiter, tokens=1, timeout=0.2):
-                pass
-
     def test_context_manager_exception_handling(self):
         """Test that exceptions inside context are propagated."""
         limiter = RateLimiter(requests_per_minute=240)
@@ -565,17 +310,6 @@ class TestRateLimitContext:
         with pytest.raises(ValueError, match="test exception"):
             with RateLimitContext(limiter):
                 raise ValueError("test exception")
-
-    def test_context_manager_multiple_calls(self):
-        """Test multiple context manager calls."""
-        limiter = RateLimiter(requests_per_minute=240, burst_capacity=20)
-        call_count = []
-
-        for i in range(5):
-            with RateLimitContext(limiter, tokens=2):
-                call_count.append(i)
-
-        assert len(call_count) == 5
 
 
 class TestIntegrationWithConfig:

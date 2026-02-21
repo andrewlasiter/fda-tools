@@ -43,12 +43,13 @@ from agent_registry import UniversalAgentRegistry
 from agent_selector import AgentSelector
 from task_analyzer import TaskAnalyzer, TaskProfile
 from execution_coordinator import Finding
-from error_handling import with_retry, RateLimiter, CircuitBreaker
+from fda_tools.scripts.error_handling import with_retry, CircuitBreaker
+from fda_tools.lib.cross_process_rate_limiter import CrossProcessRateLimiter
 
 logger = logging.getLogger(__name__)
 
 # Initialize global error handling components
-linear_rate_limiter = RateLimiter(calls_per_minute=100)  # Linear API rate limit
+linear_rate_limiter = CrossProcessRateLimiter(requests_per_minute=100)  # Linear API rate limit
 linear_circuit_breaker = CircuitBreaker(failure_threshold=5, recovery_timeout=60)
 
 

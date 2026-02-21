@@ -38,12 +38,6 @@ from collections import Counter, defaultdict
 from datetime import datetime
 import tempfile
 
-# Add lib directory to path
-SCRIPT_DIR = Path(__file__).parent
-PLUGIN_ROOT = SCRIPT_DIR.parent
-LIB_DIR = PLUGIN_ROOT / 'lib'
-sys.path.insert(0, str(SCRIPT_DIR))  # For subprocess_utils
-
 from fda_tools.lib.subprocess_helpers import run_subprocess  # type: ignore
 
 

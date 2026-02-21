@@ -15,7 +15,6 @@ Tests the CrossProcessRateLimiter for:
 
 import json
 import os
-import sys
 import tempfile
 import shutil
 import threading
@@ -25,13 +24,7 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-# Add lib directory to path
-_lib_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lib")
-
-# Add scripts directory to path
-_scripts_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "scripts")
-
-from cross_process_rate_limiter import (
+from fda_tools.lib.cross_process_rate_limiter import (
     CrossProcessRateLimiter,
     RATE_LIMIT_WITH_KEY,
     RATE_LIMIT_WITHOUT_KEY,

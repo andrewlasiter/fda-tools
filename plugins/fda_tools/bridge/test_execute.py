@@ -16,10 +16,7 @@ import time
 import tempfile
 from pathlib import Path
 
-# Add parent to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from bridge.server import execute_fda_command, SCRIPTS_DIR, COMMANDS_DIR
+from fda_tools.bridge.server import execute_fda_command, SCRIPTS_DIR, COMMANDS_DIR
 
 
 def create_test_script(script_path, content, executable=True):

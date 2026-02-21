@@ -98,8 +98,7 @@ except ImportError:
 
 # FDA-12: Cross-process rate limiter
 try:
-    _lib_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lib")
-    from cross_process_rate_limiter import CrossProcessRateLimiter  # type: ignore
+    from fda_tools.lib.cross_process_rate_limiter import CrossProcessRateLimiter  # type: ignore
     _CROSS_PROCESS_LIMITER_AVAILABLE = True
 except ImportError:
     _CROSS_PROCESS_LIMITER_AVAILABLE = False

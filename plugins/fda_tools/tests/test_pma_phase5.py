@@ -322,17 +322,6 @@ class TestDataRefreshOrchestrator:
         result = self.orchestrator.cancel_refresh()
         assert result["status"] == "no_refresh_running"
 
-    def test_token_bucket_rate_limiter(self):
-        """Test token bucket rate limiter basic operation."""
-        from data_refresh_orchestrator import TokenBucketRateLimiter
-        limiter = TokenBucketRateLimiter(
-            per_minute=10, per_5min=50, min_delay=0.0
-        )
-        waited = limiter.acquire()
-        assert waited >= 0
-        stats = limiter.get_stats()
-        assert stats["total_requests"] == 1
-
     def test_audit_logger(self):
         """Test audit logger records entries."""
         from data_refresh_orchestrator import RefreshAuditLogger

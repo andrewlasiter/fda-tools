@@ -50,11 +50,11 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 # Import sibling modules
-from pma_data_store import PMADataStore
+from fda_tools.lib.cross_process_rate_limiter import CrossProcessRateLimiter
+from fda_tools.scripts.pma_data_store import PMADataStore
 
 # FDA-196: PostgreSQL blue-green deployment integration
 try:
-    sys.path.insert(0, str(Path(__file__).parent.parent))
     from fda_tools.lib.postgres_database import PostgreSQLDatabase
     from fda_tools.scripts.update_coordinator import UpdateCoordinator
     _POSTGRES_AVAILABLE = True
@@ -119,85 +119,23 @@ ORCHESTRATOR_VERSION = "1.0.0"
 
 
 class TokenBucketRateLimiter:
-    """Token bucket rate limiter for FDA API compliance.
+    """Backward-compat factory (FDA-200). Wraps CrossProcessRateLimiter.
 
-    Implements a dual-bucket system: per-minute and per-5-minute limits.
+    Deprecated — callers should use CrossProcessRateLimiter directly.
+    Maps old per_minute/per_5min/min_delay kwargs to the canonical API.
     """
 
-    def __init__(
-        self,
+    def __new__(
+        cls,
         per_minute: int = 240,
         per_5min: int = 1000,
         min_delay: float = 0.25,
-    ):
-        self.per_minute = per_minute
-        self.per_5min = per_5min
-        self.min_delay = min_delay
-        self._minute_tokens = per_minute
-        self._five_min_tokens = per_5min
-        self._last_minute_refill = time.monotonic()
-        self._last_five_min_refill = time.monotonic()
-        self._lock = threading.Lock()
-        self._request_count = 0
-        self._wait_total = 0.0
-
-    def acquire(self) -> float:
-        """Acquire a token, blocking until one is available.
-
-        Returns:
-            Time waited in seconds.
-        """
-        waited = 0.0
-        with self._lock:
-            now = time.monotonic()
-
-            # Refill minute bucket
-            elapsed_min = now - self._last_minute_refill
-            if elapsed_min >= 60:
-                self._minute_tokens = self.per_minute
-                self._last_minute_refill = now
-            else:
-                refill = int(elapsed_min * self.per_minute / 60)
-                self._minute_tokens = min(
-                    self.per_minute, self._minute_tokens + refill
-                )
-
-            # Refill 5-minute bucket
-            elapsed_5min = now - self._last_five_min_refill
-            if elapsed_5min >= 300:
-                self._five_min_tokens = self.per_5min
-                self._last_five_min_refill = now
-            else:
-                refill = int(elapsed_5min * self.per_5min / 300)
-                self._five_min_tokens = min(
-                    self.per_5min, self._five_min_tokens + refill
-                )
-
-            # Wait if either bucket is empty
-            if self._minute_tokens <= 0 or self._five_min_tokens <= 0:
-                wait_time = max(self.min_delay, 1.0)
-                waited = wait_time
-            else:
-                waited = self.min_delay
-
-            self._minute_tokens -= 1
-            self._five_min_tokens -= 1
-            self._request_count += 1
-            self._wait_total += waited
-
-        if waited > 0:
-            time.sleep(waited)
-        return waited
-
-    def get_stats(self) -> Dict[str, Any]:
-        """Get rate limiter statistics."""
-        with self._lock:
-            return {
-                "total_requests": self._request_count,
-                "total_wait_seconds": round(self._wait_total, 2),
-                "minute_tokens_remaining": max(0, self._minute_tokens),
-                "five_min_tokens_remaining": max(0, self._five_min_tokens),
-            }
+    ) -> CrossProcessRateLimiter:  # type: ignore[misc]
+        return CrossProcessRateLimiter(
+            requests_per_minute=per_minute,
+            requests_per_5min=per_5min,
+            min_delay_seconds=min_delay,
+        )
 
 
 class RefreshAuditLogger:
@@ -315,7 +253,7 @@ class DataRefreshOrchestrator:
     def __init__(
         self,
         store: Optional[PMADataStore] = None,
-        rate_limiter: Optional[TokenBucketRateLimiter] = None,
+        rate_limiter: Optional[CrossProcessRateLimiter] = None,
         audit_logger: Optional[RefreshAuditLogger] = None,
         retry_config: Optional[Dict[str, Any]] = None,
         use_blue_green: bool = False,
@@ -334,10 +272,10 @@ class DataRefreshOrchestrator:
             postgres_port: PostgreSQL/PgBouncer port for blue-green updates.
         """
         self.store = store or PMADataStore()
-        self.rate_limiter = rate_limiter or TokenBucketRateLimiter(
-            per_minute=RATE_LIMIT_CONFIG["requests_per_minute"],
-            per_5min=RATE_LIMIT_CONFIG["requests_per_5min"],
-            min_delay=RATE_LIMIT_CONFIG["min_delay_seconds"],
+        self.rate_limiter = rate_limiter or CrossProcessRateLimiter(
+            requests_per_minute=RATE_LIMIT_CONFIG["requests_per_minute"],
+            requests_per_5min=RATE_LIMIT_CONFIG["requests_per_5min"],
+            min_delay_seconds=RATE_LIMIT_CONFIG["min_delay_seconds"],
         )
         self.audit_logger = audit_logger or RefreshAuditLogger()
         self.retry_config = retry_config or RETRY_CONFIG
