@@ -89,9 +89,21 @@ MAX_RETRIES = 5  # Increased from 3 to 5 for better 429 handling
 # Base backoff in seconds (for legacy fallback)
 BASE_BACKOFF = 1.0
 
-# Rate limit defaults
+# Rate limit defaults — overridden by config (FDA-138)
 UNAUTHENTICATED_RATE_LIMIT = 240  # requests per minute
 AUTHENTICATED_RATE_LIMIT = 1000   # requests per minute
+try:
+    from fda_tools.lib.config import get_config as _get_config  # type: ignore
+    _cfg = _get_config()
+    UNAUTHENTICATED_RATE_LIMIT = _cfg.get_int(
+        "rate_limiting.rate_limit_openfda", default=UNAUTHENTICATED_RATE_LIMIT
+    )
+    AUTHENTICATED_RATE_LIMIT = _cfg.get_int(
+        "rate_limiting.rate_limit_openfda_authenticated", default=AUTHENTICATED_RATE_LIMIT
+    )
+    del _get_config, _cfg
+except Exception:
+    pass  # fall back to hardcoded defaults above
 
 # API base URL
 BASE_URL = "https://api.fda.gov/device"

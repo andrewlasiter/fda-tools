@@ -80,10 +80,16 @@ except ImportError:
 # Configuration
 # ============================================================
 
-# Server configuration
+# Server configuration — port overridden by config (FDA-138)
 SERVER_HOST = "127.0.0.1"
 SERVER_PORT = 18790
 SERVER_VERSION = "1.1.0"
+try:
+    from fda_tools.lib.config import get_config as _get_config  # type: ignore
+    SERVER_PORT = _get_config().get_int("api.bridge_server_port", default=SERVER_PORT)
+    del _get_config
+except Exception:
+    pass  # fall back to hardcoded default above
 
 # Rate limiting configuration (requests per minute)
 RATE_LIMIT_DEFAULT = os.getenv("FDA_BRIDGE_RATE_LIMIT", "60/minute")
