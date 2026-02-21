@@ -49,7 +49,6 @@ import shlex
 import sys
 import threading
 import time
-import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -114,10 +113,21 @@ def _get_security_gateway() -> Any:
 # Server startup time for uptime calculation
 SERVER_START_TIME = time.time()
 
-# In-memory session storage (for production, use Redis or database)
-SESSIONS: Dict[str, Dict[str, Any]] = {}
+# Persistent session storage (FDA-121): SQLite-backed SessionStore.
+# Lazy-initialised on first use via _get_session_store().
+_session_store: Any = None
 
-# In-memory question queue (for production, use message queue)
+
+def _get_session_store() -> Any:
+    """Return the shared SessionStore, creating it on first call."""
+    global _session_store
+    if _session_store is None:
+        from fda_tools.bridge.session_store import SessionStore
+        _session_store = SessionStore()
+    return _session_store
+
+
+# In-memory question queue (questions are ephemeral — answered within seconds)
 PENDING_QUESTIONS: Dict[str, List[Dict[str, Any]]] = {}
 
 # Audit log (for production, use append-only file or database)
@@ -515,32 +525,13 @@ async def log_requests(request: Request, call_next):
 # ============================================================
 
 def get_session(session_id: str) -> Optional[Dict[str, Any]]:
-    """Get session by ID."""
-    return SESSIONS.get(session_id)
+    """Get session by ID from the persistent store."""
+    return _get_session_store().get(session_id)
 
 
 def create_session(user_id: str, session_id: Optional[str] = None) -> Dict[str, Any]:
-    """Create new session or return existing one."""
-    if session_id and session_id in SESSIONS:
-        session = SESSIONS[session_id]
-        session["last_accessed"] = datetime.now(timezone.utc).isoformat()
-        return session
-
-    # Create new session
-    new_session_id = session_id or str(uuid.uuid4())
-    now = datetime.now(timezone.utc).isoformat()
-
-    session = {
-        "session_id": new_session_id,
-        "user_id": user_id,
-        "created_at": now,
-        "last_accessed": now,
-        "context": {},
-        "metadata": {},
-    }
-
-    SESSIONS[new_session_id] = session
-    return session
+    """Create new session or return existing one from the persistent store."""
+    return _get_session_store().create_or_get(user_id, session_id)
 
 
 def audit_log_entry(event_type: str, data: Dict[str, Any]) -> None:
@@ -908,7 +899,7 @@ async def health_check(request: Request):
         "uptime_seconds": uptime_seconds,
         "llm_providers": llm_providers,
         "security_config_hash": None,
-        "sessions_active": len(SESSIONS),
+        "sessions_active": _get_session_store().count(),
         "commands_available": len(commands),
         "last_request_at": (
             datetime.fromtimestamp(last_req, timezone.utc).isoformat()
@@ -1009,7 +1000,7 @@ async def get_metrics(
             "samples": n,
         },
         "sessions": {
-            "active": len(SESSIONS),
+            "active": _get_session_store().count(),
         },
         "memory_mb": memory_mb,
         "last_request_at": (
@@ -1190,10 +1181,7 @@ async def list_sessions(
     """
     sessions = []
 
-    for session in SESSIONS.values():
-        if user_id and session["user_id"] != user_id:
-            continue
-
+    for session in _get_session_store().list_all(user_id=user_id):
         sessions.append({
             "session_id": session["session_id"],
             "user_id": session["user_id"],
@@ -1473,6 +1461,14 @@ async def startup_event():
     commands = list_available_commands()
     logger.info(f"Available commands: {len(commands)}")
 
+    # Session recovery (FDA-121): expire stale sessions, log active count
+    store = _get_session_store()
+    expired = store.expire_old()
+    if expired:
+        logger.info(f"Session expiry: removed {len(expired)} stale session(s) on startup.")
+    active = store.count()
+    logger.info(f"Sessions loaded from persistent store: {active} active.")
+
     logger.info("=" * 70)
     logger.info("Server is ready to accept authenticated connections.")
     logger.info("=" * 70)
@@ -1482,7 +1478,7 @@ async def startup_event():
 async def shutdown_event():
     """Server shutdown event."""
     logger.info("Server shutting down...")
-    logger.info(f"Total sessions created: {len(SESSIONS)}")
+    logger.info(f"Total sessions active: {_get_session_store().count()}")
     logger.info(f"Total audit entries: {len(AUDIT_LOG)}")
 
 
