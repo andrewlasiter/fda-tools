@@ -22,8 +22,8 @@ from urllib.parse import quote
 from urllib.error import HTTPError, URLError
 import json
 import logging
-import time
 import sys
+from fda_tools.lib.cross_process_rate_limiter import CrossProcessRateLimiter
 
 logger = logging.getLogger(__name__)
 
@@ -162,6 +162,10 @@ class FDAEnrichment:
         self.api_version = api_version
         self.base_url = "https://api.fda.gov/device"
         self.enrichment_timestamp = datetime.now(timezone.utc).isoformat().replace('+00:00', 'Z')
+        self._rate_limiter = CrossProcessRateLimiter(
+            has_api_key=bool(api_key),
+            min_delay_seconds=0.25,
+        )
 
     # ========================================================================
     # PHASE 1: DATA INTEGRITY FUNCTIONS
@@ -188,10 +192,10 @@ class FDAEnrichment:
         url = f"{self.base_url}/{endpoint}.json?{query_string}"
 
         try:
+            self._rate_limiter.acquire()
             req = Request(url, headers={'User-Agent': 'FDA-Predicate-Assistant/2.0'})
             response = urlopen(req, timeout=10)
             data = json.loads(response.read().decode('utf-8'))
-            time.sleep(0.25)  # Rate limiting: 4 requests/second
             return data
         except HTTPError as e:
             if e.code == 404:

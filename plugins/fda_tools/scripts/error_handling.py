@@ -27,12 +27,22 @@ Usage:
     result = circuit_breaker.call(api_function, *args, **kwargs)
 """
 
+import threading
 import time
 import logging
 from functools import wraps
 from typing import Callable, Any, Optional, TypeVar, cast
 from datetime import datetime, timedelta
 from collections import deque
+
+try:
+    from fda_tools.lib.cross_process_rate_limiter import (
+        CrossProcessRateLimiter as _CrossProcessRateLimiter,
+    )
+    _CROSS_PROCESS_AVAILABLE = True
+except ImportError:
+    _CROSS_PROCESS_AVAILABLE = False
+    _CrossProcessRateLimiter = None  # type: ignore[assignment,misc]
 
 logger = logging.getLogger(__name__)
 
@@ -112,13 +122,14 @@ def with_retry(
 # Rate Limiter
 # ==================================================================
 
-class RateLimiter:
-    """Rate limiter using sliding window algorithm.
+class _FallbackRateLimiter:
+    """Rate limiter using sliding window algorithm (in-process only).
 
-    Limits the number of calls per time window to avoid hitting API rate limits.
+    Used as a fallback when CrossProcessRateLimiter is unavailable.
+    New code should use CrossProcessRateLimiter directly.
 
     Example:
-        rate_limiter = RateLimiter(calls_per_minute=100)
+        rate_limiter = _FallbackRateLimiter(calls_per_minute=100)
 
         # Use as context manager
         with rate_limiter:
@@ -138,31 +149,30 @@ class RateLimiter:
         self.max_calls = calls_per_minute
         self.window = window_seconds
         self.calls: deque = deque()
+        self._lock = threading.Lock()
 
     def wait_if_needed(self):
-        """Wait if rate limit would be exceeded."""
-        now = time.time()
+        """Wait if rate limit would be exceeded (thread-safe)."""
+        while True:
+            with self._lock:
+                now = time.time()
+                # Remove calls outside the window
+                while self.calls and self.calls[0] < now - self.window:
+                    self.calls.popleft()
+                # Under limit: record this call and return
+                if len(self.calls) < self.max_calls:
+                    self.calls.append(now)
+                    return
+                # At limit: compute sleep time, release lock before sleeping
+                sleep_time = self.calls[0] + self.window - now + 0.001
 
-        # Remove calls outside the window
-        while self.calls and self.calls[0] < now - self.window:
-            self.calls.popleft()
-
-        # Check if we're at the limit
-        if len(self.calls) >= self.max_calls:
-            # Wait until the oldest call expires
-            sleep_time = self.calls[0] + self.window - now
             if sleep_time > 0:
                 logger.debug(
                     "Rate limit reached. Waiting %.1f seconds...",
                     sleep_time
                 )
                 time.sleep(sleep_time)
-
-                # Clean up expired calls
-                self.calls.popleft()
-
-        # Record this call
-        self.calls.append(now)
+            # Re-check after waking (loop)
 
     def __enter__(self):
         """Context manager entry."""
@@ -172,6 +182,11 @@ class RateLimiter:
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit."""
         return False
+
+
+# Backward-compat alias: uses cross-process-safe limiter when available.
+# New code should import CrossProcessRateLimiter directly.
+RateLimiter = _CrossProcessRateLimiter if _CROSS_PROCESS_AVAILABLE else _FallbackRateLimiter
 
 
 # ==================================================================
@@ -220,6 +235,7 @@ class CircuitBreaker:
         self.failure_count = 0
         self.last_failure_time: Optional[float] = None
         self.state = "CLOSED"  # CLOSED, OPEN, HALF_OPEN
+        self._lock = threading.Lock()
 
     def call(self, func: Callable[..., T], *args, **kwargs) -> T:
         """Call function through circuit breaker.
@@ -235,48 +251,51 @@ class CircuitBreaker:
         Raises:
             CircuitBreakerOpen: If circuit is open
         """
-        # Check if we should attempt recovery
-        if self.state == "OPEN":
-            if (self.last_failure_time and
-                time.time() - self.last_failure_time >= self.recovery_timeout):
-                logger.info("Circuit breaker attempting recovery (HALF_OPEN)")
-                self.state = "HALF_OPEN"
-            else:
-                raise CircuitBreakerOpen(
-                    f"Circuit breaker is OPEN (failures: {self.failure_count})"
-                )
+        # Check/update circuit state under lock (don't hold lock during func call)
+        with self._lock:
+            if self.state == "OPEN":
+                if (self.last_failure_time and
+                    time.time() - self.last_failure_time >= self.recovery_timeout):
+                    logger.info("Circuit breaker attempting recovery (HALF_OPEN)")
+                    self.state = "HALF_OPEN"
+                else:
+                    raise CircuitBreakerOpen(
+                        f"Circuit breaker is OPEN (failures: {self.failure_count})"
+                    )
 
         try:
             result = func(*args, **kwargs)
 
-            # Success - reset failure count
-            if self.state == "HALF_OPEN":
-                logger.info("Circuit breaker recovered (CLOSED)")
-                self.state = "CLOSED"
-                self.failure_count = 0
+            # Success - reset failure count under lock
+            with self._lock:
+                if self.state == "HALF_OPEN":
+                    logger.info("Circuit breaker recovered (CLOSED)")
+                    self.state = "CLOSED"
+                    self.failure_count = 0
 
             return result
 
-        except self.expected_exceptions as e:
+        except self.expected_exceptions:
             self._record_failure()
             raise
 
     def _record_failure(self):
         """Record a failure and potentially open the circuit."""
-        self.failure_count += 1
-        self.last_failure_time = time.time()
+        with self._lock:
+            self.failure_count += 1
+            self.last_failure_time = time.time()
 
-        if self.failure_count >= self.failure_threshold:
-            logger.error(
-                "Circuit breaker OPEN (failures: %d >= threshold: %d)",
-                self.failure_count, self.failure_threshold
-            )
-            self.state = "OPEN"
-        else:
-            logger.warning(
-                "Circuit breaker failure %d/%d",
-                self.failure_count, self.failure_threshold
-            )
+            if self.failure_count >= self.failure_threshold:
+                logger.error(
+                    "Circuit breaker OPEN (failures: %d >= threshold: %d)",
+                    self.failure_count, self.failure_threshold
+                )
+                self.state = "OPEN"
+            else:
+                logger.warning(
+                    "Circuit breaker failure %d/%d",
+                    self.failure_count, self.failure_threshold
+                )
 
 
 # ==================================================================
@@ -375,7 +394,12 @@ class RobustAPIClient:
             failure_threshold: Circuit breaker threshold
             recovery_timeout: Circuit breaker recovery time
         """
-        self.rate_limiter = RateLimiter(calls_per_minute=calls_per_minute)
+        if _CROSS_PROCESS_AVAILABLE:
+            self.rate_limiter: Any = _CrossProcessRateLimiter(  # type: ignore[call-arg]
+                requests_per_minute=calls_per_minute
+            )
+        else:
+            self.rate_limiter = _FallbackRateLimiter(calls_per_minute=calls_per_minute)
         self.circuit_breaker = CircuitBreaker(
             failure_threshold=failure_threshold,
             recovery_timeout=recovery_timeout

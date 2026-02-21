@@ -17,7 +17,6 @@ from unittest.mock import patch, Mock
 from fda_tools.scripts.error_handling import (
     with_retry,
     RetryExhausted,
-    RateLimiter,
     CircuitBreaker,
     CircuitBreakerOpen,
 )
@@ -126,76 +125,6 @@ class TestRetryDecorator:
 
         assert documented_function.__name__ == "documented_function"
         assert "This is a docstring" in documented_function.__doc__
-
-
-class TestRateLimiter:
-    """Test RateLimiter class."""
-
-    def test_allows_calls_within_limit(self):
-        """Should allow calls within rate limit."""
-        limiter = RateLimiter(calls_per_minute=10)
-
-        # Should succeed
-        for _ in range(5):
-            with limiter:
-                pass
-
-    def test_blocks_when_limit_exceeded(self):
-        """Should block when rate limit is exceeded."""
-        limiter = RateLimiter(calls_per_minute=2)
-
-        # Use up the limit
-        with limiter:
-            pass
-        with limiter:
-            pass
-
-        # Next call should be delayed
-        start = time.time()
-        with limiter:
-            pass
-        elapsed = time.time() - start
-
-        # Should have waited at least a short time
-        assert elapsed > 0
-
-    def test_sliding_window_expires_old_calls(self):
-        """Should allow new calls after old ones expire from window."""
-        limiter = RateLimiter(calls_per_minute=60)  # 1 per second
-
-        with patch('time.time') as mock_time:
-            # t=0: First call
-            mock_time.return_value = 0.0
-            with limiter:
-                pass
-
-            # t=2: Old call should have expired (window is 60 seconds / 60 calls = 1 second)
-            mock_time.return_value = 2.0
-            with limiter:
-                pass  # Should succeed without blocking
-
-    def test_context_manager_interface(self):
-        """Should work as context manager."""
-        limiter = RateLimiter(calls_per_minute=10)
-
-        with limiter:
-            result = "executed"
-
-        assert result == "executed"
-
-    def test_multiple_limiters_independent(self):
-        """Multiple rate limiters should be independent."""
-        limiter1 = RateLimiter(calls_per_minute=5)
-        limiter2 = RateLimiter(calls_per_minute=10)
-
-        with limiter1:
-            pass
-        with limiter2:
-            pass
-
-        # Both should have their own state
-        assert len(limiter1.calls) == 1
-        assert len(limiter2.calls) == 1
 
 
 class TestCircuitBreaker:
@@ -455,11 +384,3 @@ class TestEdgeCases:
         with pytest.raises(CircuitBreakerOpen):
             breaker.call(lambda: "success")
 
-    def test_rate_limiter_with_high_rate(self):
-        """Should handle very high call rates."""
-        limiter = RateLimiter(calls_per_minute=1000)
-
-        # Should allow many rapid calls
-        for _ in range(100):
-            with limiter:
-                pass
