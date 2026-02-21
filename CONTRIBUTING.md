@@ -231,6 +231,13 @@ Before opening a PR, verify:
 - Minimum coverage for new files: aim for 80 %+ line coverage
 - Use `pytest-cov` to check: `pytest --cov=plugins/fda_tools/lib/<module> --cov-report=term-missing`
 
+### Architecture Decision Records
+
+Significant architectural decisions are documented in [`docs/adr/`](docs/adr/).
+When your PR introduces a significant new pattern, library choice, or
+cross-cutting design change, consider creating an ADR alongside the code.
+See [`docs/adr/README.md`](docs/adr/README.md) for the process and template.
+
 ### Code review
 
 PRs are reviewed for:
