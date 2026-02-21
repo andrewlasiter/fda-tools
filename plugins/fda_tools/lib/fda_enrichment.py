@@ -593,6 +593,8 @@ class FDAEnrichment:
 
             peer_devices = peer_data['results']
 
+            # 10-peer minimum: below this, quartile calculations become unstable and
+            # percentile rankings are unreliable for predicate acceptability decisions.
             if len(peer_devices) < 10:  # Require minimum 10 peers for statistical validity
                 default_response['peer_cohort_size'] = len(peer_devices)
                 default_response['peer_comparison_note'] = f'Cohort too small ({len(peer_devices)} devices) for reliable statistics'
@@ -631,7 +633,10 @@ class FDAEnrichment:
             if len(peer_maude_counts) < 10:
                 return default_response
 
-            # Remove zeros for more meaningful statistics (devices with no events skew distribution)
+            # Exclude zero-event devices from the distribution: many devices have zero MAUDE
+            # reports simply because they are rarely used, newly cleared, or poorly indexed —
+            # not because they are safer. Including them would compress the percentile scale
+            # and make any non-zero count appear artificially concerning.
             non_zero_counts = [c for c in peer_maude_counts if c > 0]
 
             if len(non_zero_counts) < 5:  # Need at least 5 non-zero for percentiles
@@ -655,7 +660,14 @@ class FDAEnrichment:
                 devices_below = sum(1 for c in sorted_counts if c < device_maude_count)
                 device_pct = round((devices_below / len(sorted_counts)) * 100, 1)
 
-                # Classify based on percentile
+                # Classify based on percentile using standard inter-quartile bands:
+                # <P25  → EXCELLENT  (bottom quartile — fewest adverse events)
+                # P25–P50 → GOOD     (below median)
+                # P50–P75 → AVERAGE  (middle range)
+                # P75–P90 → CONCERNING (upper quartile — investigate event types)
+                # ≥P90  → EXTREME_OUTLIER — disqualify as predicate; a device in the top
+                #         decile of adverse-event burden carries unacceptable risk carryover
+                #         and would undermine the safety basis of the 510(k) comparison.
                 if device_pct < 25:
                     classification = 'EXCELLENT'
                     note = f'Significantly below median ({device_maude_count} vs {median:.0f} median events)'

@@ -325,7 +325,12 @@ class CombinationProductDetector:
             cell_based_terms = ['cell-seeded', 'cell seeded', 'stem cell', 'cell therapy',
                                'autologous cells', 'allogeneic cells', 'cellular']
             has_cells = any(term in comp for comp in components for term in cell_based_terms)
-            # Exclude "acellular" from cell detection
+            # Acellular/decellularized scaffolds (e.g., dermal matrices) contain the word
+            # "cellular" but are explicitly NOT cell-based therapeutics — they have been
+            # processed to remove all cells. Per 21 CFR Part 3, the primary mode of action
+            # (PMOA) for acellular scaffolds is structural (device-led), not biological.
+            # Without this exclusion, e.g. "acellular dermal matrix" would incorrectly
+            # trigger CBER RHO assignment.
             is_acellular = any('acellular' in comp or 'decellularized' in comp for comp in components)
 
             if has_cells and not is_acellular:

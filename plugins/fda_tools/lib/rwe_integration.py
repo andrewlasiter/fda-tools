@@ -496,6 +496,10 @@ class RWDQualityAssessor:
 
             for sub in dim_def["sub_criteria"]:
                 score = dim_scores.get(sub, 0)
+                # Each sub-criterion is scored 0–5 by the caller to match FDA's five-level
+                # quality framework (absent → minimal → partial → adequate → exemplary).
+                # Clamping prevents accidental out-of-range values from corrupting the
+                # overall score, since we sum sub-scores to calculate the dimension total.
                 score = max(0, min(5, score))  # Clamp to 0-5
                 sub_results.append({
                     "criterion": sub,
@@ -504,7 +508,11 @@ class RWDQualityAssessor:
                 })
                 dim_total += score
 
-            # Normalize to dimension max score
+            # Normalize raw sub-criterion points to the dimension's declared max_score
+            # so that dimensions with more sub-criteria don't unfairly dominate the total.
+            # Example: a dimension with 4 sub-criteria (max raw = 20) and max_score = 20
+            # maps directly; a dimension with 3 sub-criteria (max raw = 15) but max_score
+            # = 20 is scaled up proportionally so all dimensions contribute equally.
             normalized = round(
                 (dim_total / dim_max * dim_def["max_score"]) if dim_max > 0 else 0,
                 1,
@@ -540,7 +548,19 @@ class RWDQualityAssessor:
         else:
             assessment["grade"] = "F"
 
-        # Fit-for-purpose evaluation
+        # Fit-for-purpose thresholds are aligned with FDA's RWE Framework (2018) and
+        # Real-World Evidence Program guidance:
+        # - 510(k) supplementary (≥50%): RWD used alongside bench/clinical testing to
+        #   support SE; high data completeness not required when primary evidence is strong.
+        # - 510(k) primary (≥70%): RWD is the main clinical evidence base; requires
+        #   adequate reliability and regulatory alignment.
+        # - PMA supplementary (≥60%): Higher bar than 510(k) due to Class III risk level.
+        # - PMA primary (≥80%): RWD alone must meet valid scientific evidence standard
+        #   per 21 CFR 860.7(c)(2); Grade A quality required.
+        # - Post-market surveillance (≥40%): Registry/claims data needs only basic
+        #   reliability; completeness is traded for scale and real-world relevance.
+        # - HDE probable benefit (≥55%): Humanitarian device exemption requires
+        #   probable (not proven) benefit; lighter evidentiary standard than PMA.
         assessment["fit_for_purpose"] = {
             "510k_supplementary": pct >= 50,
             "510k_primary": pct >= 70,
