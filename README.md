@@ -4,6 +4,7 @@
 ![Agents](https://img.shields.io/badge/agents-4-purple)
 ![Tests](https://img.shields.io/badge/tests-722-brightgreen)
 [![codecov](https://codecov.io/gh/andrewlasiter/fda-tools/branch/master/graph/badge.svg)](https://codecov.io/gh/andrewlasiter/fda-tools)
+[![Docs](https://img.shields.io/badge/docs-GitHub_Pages-blue)](https://andrewlasiter.github.io/fda-tools/)
 ![Claude Code](https://img.shields.io/badge/Claude_Code-plugin-blueviolet)
 ![FDA 510(k)](https://img.shields.io/badge/FDA-510(k)-red)
 
@@ -114,6 +115,7 @@ Completion scripts live in [`tools/completions/`](tools/completions/).
 
 - **Installation**: `claude plugin install fda-tools@fda-tools`
 - **Version**: 5.36.0
+- **API Docs**: [andrewlasiter.github.io/fda-tools](https://andrewlasiter.github.io/fda-tools/)
 - **Repository**: [GitHub](https://github.com/andrewlasiter/fda-tools)
 - **Issues**: [Report a bug](https://github.com/andrewlasiter/fda-tools/issues)
 - **Contributing**: [CONTRIBUTING.md](CONTRIBUTING.md)
