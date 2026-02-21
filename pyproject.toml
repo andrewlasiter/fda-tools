@@ -110,18 +110,18 @@ all = [
 ]
 
 [project.scripts]
-# CLI entry points for installed scripts
+# CLI entry points for installed scripts (FDA-207: corrected to fda_tools.* prefix)
 # Usage after install: fda-batchfetch --help
-fda-batchfetch = "scripts.batchfetch:main"
-fda-gap-analysis = "scripts.gap_analysis:main"
-fda-batch-analyze = "scripts.batch_analyze:main"
-fda-batch-seed = "scripts.batch_seed:main"
-fda-backup-project = "scripts.backup_project:main"
-fda-setup-api-key = "scripts.setup_api_key:main"
-fda-migrate-keyring = "scripts.migrate_to_keyring:main"
-fda-auto-standards = "scripts.auto_generate_device_standards:main"
-fda-check-version = "scripts.check_version:main"
-fda-update-manager = "scripts.update_manager:main"
+fda-batchfetch = "fda_tools.scripts.batchfetch:main"
+fda-gap-analysis = "fda_tools.scripts.gap_analysis:main"
+fda-batch-analyze = "fda_tools.scripts.batch_analyze:main"
+fda-batch-seed = "fda_tools.scripts.batch_seed:main"
+fda-backup-project = "fda_tools.scripts.backup_project:main"
+fda-setup-api-key = "fda_tools.scripts.setup_api_key:main"
+fda-migrate-keyring = "fda_tools.scripts.migrate_to_keyring:main"
+fda-auto-standards = "fda_tools.scripts.auto_generate_device_standards:main"
+fda-check-version = "fda_tools.scripts.check_version:main"
+fda-update-manager = "fda_tools.scripts.update_manager:main"
 
 [tool.setuptools]
 # FDA-55: Explicit package discovery so that `pip install -e .` makes
