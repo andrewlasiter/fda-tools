@@ -63,6 +63,41 @@ services:
     profiles:
       - blue-green  # Only start when explicitly requested
 
+  # FDA Tools Bridge Server
+  bridge-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        ENVIRONMENT: production
+        ENABLE_OPTIONAL_DEPS: "true"
+    container_name: fda_bridge
+    ports:
+      - "${FDA_BRIDGE_PORT:-18790}:18790"
+    environment:
+      FDA_BRIDGE_API_KEY: ${FDA_BRIDGE_API_KEY}
+      FDA_DATA_DIR: /data
+      FDA_CACHE_DIR: /cache
+      FDA_LOG_DIR: /logs
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - fda_data:/data
+      - fda_cache:/cache
+      - fda_logs:/logs
+    depends_on:
+      postgres-blue:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:18790/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - fda-network
+    command: ["bridge"]
+
   # PgBouncer connection pooler
   pgbouncer:
     image: edoburu/pgbouncer:1.21.0
@@ -102,3 +137,6 @@ volumes:
   postgres_data_green:
   postgres_blue_wal:
   postgres_green_wal:
+  fda_data:
+  fda_cache:
+  fda_logs:
