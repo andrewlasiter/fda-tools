@@ -1,0 +1,78 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://fda-tools/schemas/review.schema.json",
+  "title": "FDA 510(k) Predicate Review",
+  "description": "Predicate device evaluation results file (review.json) — schema version 1.0.0",
+  "type": "object",
+  "required": ["product_code"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "URI reference to this schema"
+    },
+    "schema_version": {
+      "type": "string",
+      "description": "Schema version string (semver)",
+      "default": "1.0.0"
+    },
+    "project": {
+      "type": "string",
+      "description": "Project directory name"
+    },
+    "product_code": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 4,
+      "pattern": "^[A-Z]{2,4}$",
+      "description": "FDA 3-letter product code"
+    },
+    "device_name": {
+      "type": "string",
+      "description": "Device name for this project"
+    },
+    "intended_use": {
+      "type": "string",
+      "description": "Intended use statement"
+    },
+    "created_at": {
+      "type": "string",
+      "description": "ISO 8601 creation timestamp"
+    },
+    "reviewed_at": {
+      "type": "string",
+      "description": "ISO 8601 review timestamp"
+    },
+    "predicates": {
+      "type": "object",
+      "description": "Evaluated predicate devices keyed by K-number",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "device_name": {"type": "string"},
+          "applicant": {"type": "string"},
+          "decision_date": {"type": "string"},
+          "score": {"type": "number", "minimum": 0, "maximum": 100},
+          "accepted": {"type": "boolean"},
+          "rejection_reason": {"type": "string"},
+          "similarity_score": {"type": "number"},
+          "technology_match": {"type": "number"}
+        }
+      }
+    },
+    "reference_devices": {
+      "type": "object",
+      "description": "Reference devices used for comparison"
+    },
+    "summary": {
+      "type": "object",
+      "description": "Evaluation summary statistics",
+      "properties": {
+        "total_evaluated": {"type": "integer", "minimum": 0},
+        "accepted": {"type": "integer", "minimum": 0},
+        "rejected": {"type": "integer", "minimum": 0},
+        "average_score": {"type": "number", "minimum": 0, "maximum": 100}
+      }
+    }
+  },
+  "additionalProperties": true
+}
