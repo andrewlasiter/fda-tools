@@ -10,12 +10,14 @@ Part of Phase 4: Automation Features
 
 import json
 import logging
-import sys
 import re
+import sys
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any
-from collections import Counter
+from typing import Any, Dict, List
+
+from fda_tools.lib.post_market_surveillance import _maude_safety_score
 
 logger = logging.getLogger(__name__)
 
@@ -259,7 +261,7 @@ class PredicateRanker:
             except (ValueError, TypeError):
                 score += 5  # Unknown date
 
-        # Clean regulatory history (10 pts)
+        # Clean regulatory history (10 pts) — recall component
         recalls = predicate.get('recalls_total', 0)
         if isinstance(recalls, int):
             if recalls == 0:
@@ -267,6 +269,12 @@ class PredicateRanker:
             elif recalls == 1:
                 score += 5
             # else: 0 points
+
+        # MAUDE safety component (10 pts) — granular score based on annual event rate (FDA-119)
+        maude_5y = predicate.get('maude_productcode_5y', 0)
+        if isinstance(maude_5y, (int, float)):
+            events_per_year = maude_5y / 5.0
+            score += _maude_safety_score(events_per_year)
 
         # Section context (40 pts) - assume moderate if no data
         score += 25  # Conservative estimate
@@ -285,10 +293,12 @@ class PredicateRanker:
         if isinstance(recalls, int) and recalls > 0:
             flags.append(f'RECALLED ({recalls} recall{"s" if recalls > 1 else ""})')
 
-        # High MAUDE
+        # High MAUDE — flag when product code averages >10 events/year (FDA-119)
         maude_5y = predicate.get('maude_productcode_5y', 0)
-        if isinstance(maude_5y, int) and maude_5y > 100:
-            flags.append(f'HIGH_MAUDE ({maude_5y} events)')
+        if isinstance(maude_5y, (int, float)):
+            events_per_year = maude_5y / 5.0
+            if events_per_year > 10:
+                flags.append(f'HIGH_MAUDE ({maude_5y} events / 5y, {events_per_year:.0f}/yr)')
 
         # Old predicate
         decision_date = predicate.get('decision_date', '')
