@@ -54,6 +54,7 @@ from agent_selector import AgentSelector
 from execution_coordinator import ExecutionCoordinator
 from linear_integrator import LinearIntegrator
 from linear_issue_watcher import LinearIssueWatcher
+from agent_performance_tracker import AgentPerformanceTracker
 
 # Setup logging
 logging.basicConfig(
@@ -348,6 +349,45 @@ class UniversalOrchestrator:
             else:
                 logger.debug("Informational update on %s — no action", update.issue_id)
 
+    def report_agents(
+        self,
+        top_n: int = 20,
+        strict: bool = False,
+    ) -> str:
+        """Print and return an agent performance ranking table.
+
+        Loads performance data from the default store
+        (``~/.fda_tools/agent_performance.json``) and renders a markdown
+        table sorted by effectiveness score.
+
+        Args:
+            top_n: Maximum rows to include in the table (default 20).
+            strict: When True, low-performing agents are excluded from the
+                report and flagged prominently.
+
+        Returns:
+            Markdown-formatted report string.
+        """
+        logger.info("=" * 70)
+        logger.info("AGENT PERFORMANCE REPORT")
+        logger.info("=" * 70)
+
+        tracker = AgentPerformanceTracker()
+        report = tracker.format_report(top_n=top_n, include_low_performers=not strict)
+
+        low = tracker.get_low_performers()
+        if low:
+            logger.warning("%d low-performing agent(s) flagged.", len(low))
+            for rec in low:
+                logger.warning(
+                    "  ⚠ %s  score=%.3f  runs=%d",
+                    rec.agent_name, rec.effectiveness_score, rec.total_runs,
+                )
+
+        logger.info("\n" + "=" * 70)
+        print(report)
+        return report
+
 
 # ==================================================================
 # CLI Entry Point
@@ -389,6 +429,25 @@ def main():
     execute_parser.add_argument("--create-linear", action="store_true", help="Create Linear issues")
     execute_parser.add_argument("--max-agents", type=int, default=10, help="Maximum team size")
     execute_parser.add_argument("--json", action="store_true", help="Output JSON")
+
+    # report-agents command (FDA-214 / ORCH-010)
+    report_parser = subparsers.add_parser(
+        "report-agents",
+        help="Show agent performance ranking table",
+    )
+    report_parser.add_argument(
+        "--top",
+        type=int,
+        default=20,
+        metavar="N",
+        help="Number of top agents to show (default: 20)",
+    )
+    report_parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Exclude low-performing agents from output",
+    )
+    report_parser.add_argument("--json", action="store_true", help="Output JSON")
 
     # watch command (FDA-213 / ORCH-009)
     watch_parser = subparsers.add_parser(
@@ -469,6 +528,21 @@ def main():
                     "findings": len(result["results"].findings),
                     "created_issues": result["created_issues"],
                 }, indent=2))
+
+        elif args.command == "report-agents":
+            report = orchestrator.report_agents(
+                top_n=args.top,
+                strict=args.strict,
+            )
+            if args.json:
+                # Emit raw records as JSON for machine consumption.
+                from agent_performance_tracker import AgentPerformanceTracker
+                tracker = AgentPerformanceTracker()
+                ranked = tracker.rank_agents(include_low_performers=not args.strict)
+                print(json.dumps(
+                    [r.to_dict() for r in ranked[:args.top]],
+                    indent=2,
+                ))
 
         elif args.command == "watch":
             issue_ids = args.issue_ids.split(",")
