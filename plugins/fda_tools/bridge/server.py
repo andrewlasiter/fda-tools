@@ -1411,6 +1411,8 @@ async def execute_tool(
         raise HTTPException(status_code=400, detail=str(e))
     except KeyError as e:
         raise HTTPException(status_code=422, detail=f"Missing required parameter: {e}")
+    except HTTPException:
+        raise  # Re-raise FastAPI HTTP exceptions without wrapping them as 500
     except Exception as e:
         logger.error(f"Tool execution error ({tool}): {type(e).__name__}: {e}", exc_info=True)
         sanitized = sanitize_error_for_client(e, context=f"tool {tool}")
