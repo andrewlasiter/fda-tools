@@ -48,7 +48,7 @@ logger = logging.getLogger(__name__)
 class UserManager:
     """High-level user management interface."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize UserManager."""
         self.auth = AuthManager()
 
@@ -276,7 +276,7 @@ class UserManager:
 
         return info
 
-    def print_user_info(self, username: str):
+    def print_user_info(self, username: str) -> None:
         """Print formatted user information.
 
         Args:
@@ -325,7 +325,7 @@ class UserManager:
         self,
         role: Optional[Role] = None,
         active_only: bool = False
-    ):
+    ) -> None:
         """Print formatted user list.
 
         Args:
@@ -670,7 +670,7 @@ class UserManager:
     # Session Management
     # --------------------------------------------------------
 
-    def list_sessions(self, username: str):
+    def list_sessions(self, username: str) -> None:
         """Print active sessions for user.
 
         Args:
@@ -747,7 +747,7 @@ class UserManager:
 # CLI Entry Point
 # ============================================================
 
-def main():
+def main() -> None:
     """CLI for user management testing."""
     import sys
 

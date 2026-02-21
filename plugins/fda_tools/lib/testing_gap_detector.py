@@ -33,7 +33,7 @@ class TestingGapDetector:
         'software': ['software_validation', 'cybersecurity'],
     }
 
-    def __init__(self, project_dir: str):
+    def __init__(self, project_dir: str) -> None:
         """Initialize detector with project data."""
         self.project_dir = Path(project_dir)
         self.device_profile = self._load_device_profile()

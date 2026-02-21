@@ -98,7 +98,7 @@ class eCopyExporter:
         "19": {"name": "MRI Safety", "draft_files": ["draft_mri-safety.md"]},  # NEW
     }
 
-    def __init__(self, project_path: str):
+    def __init__(self, project_path: str) -> None:
         """
         Initialize eCopy exporter.
 
@@ -191,7 +191,7 @@ class eCopyExporter:
 
     MAX_FILE_SIZE_MB = 100  # Per-file limit for DoS prevention
 
-    def _validate_file_size(self, file_path: Path, max_mb: int = None):
+    def _validate_file_size(self, file_path: Path, max_mb: int = None) -> None:
         """
         Validate file size to prevent DoS attacks.
 
@@ -367,7 +367,7 @@ class eCopyExporter:
             "pandoc_available": self.pandoc_available,
         }
 
-    def _convert_md_to_pdf(self, input_md: Path, output_pdf: Path):
+    def _convert_md_to_pdf(self, input_md: Path, output_pdf: Path) -> None:
         """
         Convert markdown file to PDF using pandoc with FDA-compliant styling.
 
@@ -404,7 +404,7 @@ class eCopyExporter:
         if result.returncode != 0:
             raise RuntimeError(f"Pandoc conversion failed: {result.stderr}")
 
-    def _generate_ecopy_checklist(self, checklist_path: Path):
+    def _generate_ecopy_checklist(self, checklist_path: Path) -> None:
         """
         Generate eCopy checklist Excel file.
 

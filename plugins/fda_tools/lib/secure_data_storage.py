@@ -43,7 +43,7 @@ import time
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Any, Set, Optional
+from typing import Dict, Any, Set, Optional, Iterator, IO
 
 
 class SecureDataStore:
@@ -68,7 +68,7 @@ class SecureDataStore:
         'safety_cache',
     }
 
-    def __init__(self, secret_key: Optional[str] = None):
+    def __init__(self, secret_key: Optional[str] = None) -> None:
         """
         Initialize secure data store.
 
@@ -123,7 +123,7 @@ class SecureDataStore:
             hashlib.sha256
         ).hexdigest()
 
-    def write_data(self, path: Path, data: Dict[str, Any]):
+    def write_data(self, path: Path, data: Dict[str, Any]) -> None:
         """
         Write data with HMAC integrity protection.
 
@@ -211,7 +211,7 @@ class SecureDataStore:
     # ============================================================
 
     @contextmanager
-    def _atomic_write(self, path: Path):
+    def _atomic_write(self, path: Path) -> Iterator[IO[str]]:
         """
         Context manager for atomic file writes with exclusive locking.
 

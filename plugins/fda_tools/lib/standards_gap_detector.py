@@ -22,7 +22,7 @@ class StandardsGapDetector:
     not referenced in the submission documents.
     """
 
-    def __init__(self, project_dir: str):
+    def __init__(self, project_dir: str) -> None:
         """Initialize detector with project data."""
         self.project_dir = Path(project_dir)
         self.standards_lookup = self._load_standards_lookup()
