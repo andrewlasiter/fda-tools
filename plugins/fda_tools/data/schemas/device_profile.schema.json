@@ -1,0 +1,128 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://fda-tools/schemas/device_profile.schema.json",
+  "title": "FDA 510(k) Device Profile",
+  "description": "Project device specification file (device_profile.json) — schema version 1.0.0",
+  "type": "object",
+  "required": ["product_code", "device_name"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "URI reference to this schema"
+    },
+    "schema_version": {
+      "type": "string",
+      "description": "Schema version string (semver)",
+      "default": "1.0.0"
+    },
+    "device_name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Generic device name per FDA classification"
+    },
+    "trade_name": {
+      "type": "string",
+      "description": "Trade/brand name of the device"
+    },
+    "applicant": {
+      "type": "string",
+      "description": "Manufacturer / applicant company name"
+    },
+    "product_code": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 4,
+      "pattern": "^[A-Z]{2,4}$",
+      "description": "FDA 3-letter product code (e.g. DQY)"
+    },
+    "intended_use": {
+      "type": "string",
+      "description": "Device intended use statement"
+    },
+    "device_description": {
+      "type": "string",
+      "description": "Detailed device description"
+    },
+    "device_class": {
+      "type": "string",
+      "enum": ["1", "2", "3", "U", "f", ""],
+      "description": "FDA device class: 1, 2, 3, U (unclassified), f (exempted)"
+    },
+    "regulation_number": {
+      "type": "string",
+      "description": "21 CFR regulation number (e.g. 870.1250)"
+    },
+    "review_panel": {
+      "type": "string",
+      "description": "FDA review panel code (e.g. CV, GU, OR)"
+    },
+    "implant_flag": {
+      "type": "string",
+      "enum": ["Y", "N", "y", "n", ""],
+      "description": "Whether device is implantable (Y/N)"
+    },
+    "classification_device_name": {
+      "type": "string",
+      "description": "FDA classification database device name"
+    },
+    "materials": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Materials of construction"
+    },
+    "dimensions": {
+      "type": "object",
+      "description": "Device dimensions and measurements"
+    },
+    "sterilization_method": {
+      "type": "string",
+      "description": "Sterilization method identifier (e.g. ethylene_oxide, steam)"
+    },
+    "sterilization_text": {
+      "type": "string",
+      "description": "Full sterilization description from 510(k) summary"
+    },
+    "electrical": {
+      "type": "object",
+      "description": "Electrical characteristics"
+    },
+    "standards_referenced": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Standards referenced in the submission (e.g. ISO 11135)"
+    },
+    "extracted_sections": {
+      "type": "object",
+      "description": "Sections extracted from the 510(k) summary PDF"
+    },
+    "data_source": {
+      "type": "object",
+      "description": "Provenance information for device data",
+      "properties": {
+        "mode": {"type": "string"},
+        "source_knumber": {"type": "string"},
+        "source_type": {"type": "string"}
+      }
+    },
+    "peer_devices": {
+      "type": "array",
+      "description": "Peer 510(k) devices used as data sources",
+      "items": {
+        "type": "object",
+        "properties": {
+          "k_number": {"type": "string"},
+          "device_name": {"type": "string"}
+        }
+      }
+    },
+    "created_at": {
+      "type": "string",
+      "description": "ISO 8601 creation timestamp"
+    },
+    "source": {
+      "type": "string",
+      "description": "Generator identifier (e.g. seed_generator_peer_data)"
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,85 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://fda-tools/schemas/standards_lookup.schema.json",
+  "title": "FDA 510(k) Standards Lookup",
+  "description": "Applicable standards for a device class (standards_lookup.json) — schema version 1.0.0",
+  "type": "object",
+  "required": ["product_code"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "URI reference to this schema"
+    },
+    "schema_version": {
+      "type": "string",
+      "description": "Schema version string (semver)",
+      "default": "1.0.0"
+    },
+    "product_code": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 4,
+      "pattern": "^[A-Z]{2,4}$",
+      "description": "FDA 3-letter product code"
+    },
+    "device_name": {
+      "type": "string",
+      "description": "Device name for this product code"
+    },
+    "device_class": {
+      "type": "string",
+      "description": "FDA device class"
+    },
+    "regulation_number": {
+      "type": "string",
+      "description": "21 CFR regulation number"
+    },
+    "generated_at": {
+      "type": "string",
+      "description": "Date the lookup was generated (ISO 8601 or YYYY-MM-DD)"
+    },
+    "standards": {
+      "type": "array",
+      "description": "List of applicable consensus standards",
+      "items": {
+        "type": "object",
+        "required": ["standard"],
+        "properties": {
+          "standard": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Standard designation (e.g. IEC 60601-1:2005)"
+          },
+          "title": {
+            "type": "string",
+            "description": "Full standard title"
+          },
+          "category": {
+            "type": "string",
+            "description": "Standard category (e.g. Electrical Safety, Biocompatibility)"
+          },
+          "mandatory": {
+            "type": "boolean",
+            "description": "Whether this standard is mandatory for the device type"
+          },
+          "notes": {
+            "type": "string",
+            "description": "Additional context or applicability notes"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "total_standards": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total number of standards in the list"
+    },
+    "categories": {
+      "type": "object",
+      "description": "Count of standards per category",
+      "additionalProperties": {"type": "integer", "minimum": 0}
+    }
+  },
+  "additionalProperties": true
+}
