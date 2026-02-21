@@ -34,10 +34,13 @@ Usage:
 """
 
 import argparse
+import fcntl
 import hashlib
 import json
 import os
 import sys
+import tempfile
+import time
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -45,6 +48,148 @@ from typing import Any, Dict, List, Optional, Set
 
 # Import sibling modules
 from pma_data_store import PMADataStore
+
+
+# ---------------------------------------------------------------------------
+# Atomic file write helpers (FDA-123)
+# ---------------------------------------------------------------------------
+
+_LOCK_TIMEOUT_SECS: float = 5.0   # Max time to wait for an exclusive lock
+_LOCK_RETRY_COUNT: int = 3         # Retries on lock acquisition failure
+_LOCK_RETRY_BASE_SECS: float = 0.1  # Base for exponential back-off
+
+
+def _atomic_write_json(path: Path, data: Any, indent: int = 2) -> None:
+    """Write *data* as JSON to *path* using an atomic temp-file + rename.
+
+    Steps:
+      1. Acquire an exclusive ``fcntl`` lock on a companion ``.lock`` file.
+      2. Serialise *data* to a temp file in the same directory.
+      3. ``Path.replace()`` the temp file over *path* (atomic on POSIX).
+      4. Release the lock.
+
+    On lock acquisition failure the operation is retried up to
+    ``_LOCK_RETRY_COUNT`` times with exponential back-off.  If all retries
+    are exhausted a ``TimeoutError`` is raised rather than silently writing
+    a potentially corrupt file.
+
+    Args:
+        path: Destination file path (created or overwritten atomically).
+        data: JSON-serialisable object.
+        indent: Indentation for :func:`json.dumps`.
+
+    Raises:
+        TimeoutError: If the lock cannot be acquired within the retry budget.
+        OSError: On underlying I/O failure.
+    """
+    lock_path = path.with_suffix(path.suffix + ".lock")
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    for attempt in range(_LOCK_RETRY_COUNT):
+        lock_fd = open(lock_path, "w")  # noqa: WPS515 — need explicit close below
+        try:
+            try:
+                # Non-blocking first attempt; fall back to timed polling.
+                fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                deadline = time.monotonic() + _LOCK_TIMEOUT_SECS
+                while True:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        raise TimeoutError(
+                            f"Could not acquire write lock for {path} "
+                            f"after {_LOCK_TIMEOUT_SECS}s"
+                        )
+                    try:
+                        fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                        break
+                    except BlockingIOError:
+                        time.sleep(min(0.05, remaining))
+
+            # Lock held — write to a temp file then rename atomically.
+            serialised = json.dumps(data, indent=indent)
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                dir=path.parent,
+                prefix=f"{path.name}.tmp.",
+                delete=False,
+                encoding="utf-8",
+            ) as tmp:
+                tmp.write(serialised)
+                tmp_path = Path(tmp.name)
+
+            tmp_path.replace(path)
+            return  # Success
+
+        except TimeoutError:
+            if attempt < _LOCK_RETRY_COUNT - 1:
+                backoff = _LOCK_RETRY_BASE_SECS * (2 ** attempt)
+                time.sleep(backoff)
+            else:
+                raise
+        finally:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            lock_fd.close()
+
+
+def _atomic_write_text(path: Path, text: str) -> None:
+    """Write *text* to *path* atomically using a temp-file + rename.
+
+    Uses the same lock discipline as :func:`_atomic_write_json`.
+
+    Args:
+        path: Destination file path.
+        text: UTF-8 text content.
+
+    Raises:
+        TimeoutError: If the lock cannot be acquired within the retry budget.
+        OSError: On underlying I/O failure.
+    """
+    lock_path = path.with_suffix(path.suffix + ".lock")
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    for attempt in range(_LOCK_RETRY_COUNT):
+        lock_fd = open(lock_path, "w")  # noqa: WPS515
+        try:
+            try:
+                fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                deadline = time.monotonic() + _LOCK_TIMEOUT_SECS
+                while True:
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        raise TimeoutError(
+                            f"Could not acquire write lock for {path} "
+                            f"after {_LOCK_TIMEOUT_SECS}s"
+                        )
+                    try:
+                        fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                        break
+                    except BlockingIOError:
+                        time.sleep(min(0.05, remaining))
+
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                dir=path.parent,
+                prefix=f"{path.name}.tmp.",
+                delete=False,
+                encoding="utf-8",
+            ) as tmp:
+                tmp.write(text)
+                tmp_path = Path(tmp.name)
+
+            tmp_path.replace(path)
+            return
+
+        except TimeoutError:
+            if attempt < _LOCK_RETRY_COUNT - 1:
+                backoff = _LOCK_RETRY_BASE_SECS * (2 ** attempt)
+                time.sleep(backoff)
+            else:
+                raise
+        finally:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            lock_fd.close()
 
 
 # ------------------------------------------------------------------
@@ -139,7 +284,7 @@ class FDAApprovalMonitor:
                 print(f"Warning: Failed to load monitor state: {e}", file=sys.stderr)
 
     def _save_state(self) -> None:
-        """Save watchlist and alert history to disk."""
+        """Save watchlist and alert history to disk atomically."""
         config_path = self.config_dir / "monitor_config.json"
         data = {
             "watchlist": sorted(self._watchlist),
@@ -148,8 +293,10 @@ class FDAApprovalMonitor:
             "last_saved": datetime.now(timezone.utc).isoformat(),
             "monitor_version": MONITOR_VERSION,
         }
-        with open(config_path, "w") as f:
-            json.dump(data, f, indent=2)
+        try:
+            _atomic_write_json(config_path, data)
+        except (TimeoutError, OSError) as e:
+            print(f"Warning: Failed to save monitor state: {e}", file=sys.stderr)
 
     # ------------------------------------------------------------------
     # Watchlist management
@@ -582,7 +729,7 @@ class FDAApprovalMonitor:
     def _write_digest_file(
         self, digest: Dict, output_path: str
     ) -> None:
-        """Write digest to a text file."""
+        """Write digest to a text file atomically."""
         lines = [
             "=" * 60,
             f"  FDA Approval Monitor - {digest['frequency'].title()} Digest",
@@ -613,9 +760,7 @@ class FDAApprovalMonitor:
             "=" * 60,
         ])
 
-        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, "w") as f:
-            f.write("\n".join(lines))
+        _atomic_write_text(Path(output_path), "\n".join(lines))
 
     # ------------------------------------------------------------------
     # Alert history
