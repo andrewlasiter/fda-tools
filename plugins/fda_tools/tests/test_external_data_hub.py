@@ -20,6 +20,7 @@ import os
 import sys
 import tempfile
 import time
+import urllib.error
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch, call
@@ -324,9 +325,9 @@ class TestPubMedSource:
 
         source_with_key.search("test query")
 
-        # Verify API key was included in URL
-        call_args = mock_get.call_args[0][0]
-        assert "api_key=test_api_key_12345" in call_args
+        # Verify API key was passed as header (not URL) per FDA-106 security fix
+        extra_headers = mock_get.call_args.kwargs.get("extra_headers", {})
+        assert extra_headers.get("api_key") == "test_api_key_12345"
 
     @patch("external_data_hub.PubMedSource._http_get")
     def test_esearch_error_handling(self, mock_get):
@@ -796,6 +797,145 @@ class TestErrorHandling:
             )
 
             assert result is not None
+
+
+# ============================================================
+# Test Retry Logic and Circuit Breaker (FDA-126)
+# ============================================================
+
+
+class TestRetryAndCircuitBreaker:
+    """Tests verifying retry behavior and circuit breaker for all 3 data sources."""
+
+    def setup_method(self):
+        from external_data_hub import ClinicalTrialsSource  # type: ignore
+        self.tmpdir = tempfile.mkdtemp()
+        self.source = ClinicalTrialsSource(cache_dir=Path(self.tmpdir) / "retry_cb")
+
+    def test_transient_503_triggers_retry(self):
+        """Verify 503 responses cause the request to be retried (stop_after_attempt=5)."""
+        http_error_503 = urllib.error.HTTPError(
+            url="http://test", code=503, msg="Service Unavailable",
+            hdrs=None, fp=None,
+        )
+        with patch("urllib.request.urlopen", side_effect=http_error_503) as mock_urlopen:
+            with patch("time.sleep"):  # Skip exponential back-off delays
+                result = self.source._http_get("http://example.com/test")
+
+        # tenacity retries up to stop_after_attempt(5) times
+        assert mock_urlopen.call_count == 5
+        assert "error" in result
+        assert "503" in result["error"]
+
+    def test_transient_429_triggers_retry(self):
+        """Verify 429 (rate limit) responses are retried."""
+        http_error_429 = urllib.error.HTTPError(
+            url="http://test", code=429, msg="Too Many Requests",
+            hdrs=None, fp=None,
+        )
+        with patch("urllib.request.urlopen", side_effect=http_error_429) as mock_urlopen:
+            with patch("time.sleep"):
+                result = self.source._http_get("http://example.com/test")
+
+        assert mock_urlopen.call_count == 5  # retried all attempts
+        assert "error" in result
+
+    def test_permanent_404_not_retried(self):
+        """Verify 404 (permanent) responses are NOT retried."""
+        http_error_404 = urllib.error.HTTPError(
+            url="http://test", code=404, msg="Not Found",
+            hdrs=None, fp=None,
+        )
+        with patch("urllib.request.urlopen", side_effect=http_error_404) as mock_urlopen:
+            result = self.source._http_get("http://example.com/test")
+
+        # Must call exactly once — no retry for permanent errors
+        assert mock_urlopen.call_count == 1
+        assert "error" in result
+        assert "404" in result["error"]
+
+    def test_permanent_400_not_retried(self):
+        """Verify 400 (bad request) responses are NOT retried."""
+        http_error_400 = urllib.error.HTTPError(
+            url="http://test", code=400, msg="Bad Request",
+            hdrs=None, fp=None,
+        )
+        with patch("urllib.request.urlopen", side_effect=http_error_400) as mock_urlopen:
+            result = self.source._http_get("http://example.com/test")
+
+        assert mock_urlopen.call_count == 1
+        assert "400" in result.get("error", "")
+
+    def test_circuit_breaker_opens_after_threshold_failures(self):
+        """Verify circuit opens after _CIRCUIT_BREAKER_THRESHOLD consecutive failures."""
+        from external_data_hub import (  # type: ignore
+            _CIRCUIT_BREAKER_THRESHOLD,
+            _RetryableHTTPError,
+        )
+        # Simulate exhausted retries by patching _fetch_with_retry to raise immediately
+        with patch.object(
+            self.source,
+            "_fetch_with_retry",
+            side_effect=_RetryableHTTPError("HTTP 503: Service Unavailable"),
+        ):
+            for _ in range(_CIRCUIT_BREAKER_THRESHOLD):
+                self.source._http_get("http://example.com/test")
+
+        # Circuit must be open
+        assert self.source._consecutive_failures >= _CIRCUIT_BREAKER_THRESHOLD
+        assert self.source._circuit_open_until > time.monotonic()
+
+    def test_circuit_breaker_blocks_requests_when_open(self):
+        """Verify circuit breaker returns an error without calling the API when open."""
+        # Force the circuit open for the next 60 seconds
+        self.source._circuit_open_until = time.monotonic() + 60.0
+
+        with patch("urllib.request.urlopen") as mock_urlopen:
+            result = self.source._http_get("http://example.com/test")
+
+        # Must not make any network call
+        mock_urlopen.assert_not_called()
+        assert "error" in result
+        assert "Circuit breaker open" in result["error"]
+
+    def test_circuit_breaker_resets_consecutive_failures_on_success(self):
+        """Verify consecutive_failures counter resets to 0 after a successful request."""
+        # Simulate 3 prior failures
+        self.source._consecutive_failures = 3
+
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps({"totalCount": 0, "studies": []}).encode()
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = lambda s, *a: None
+
+        with patch("urllib.request.urlopen", return_value=mock_resp):
+            self.source._http_get("http://example.com/test")
+
+        assert self.source._consecutive_failures == 0
+
+    def test_circuit_breaker_status_reported_in_stats(self):
+        """Verify get_circuit_breaker_status() reports open/closed state."""
+        from external_data_hub import ClinicalTrialsSource  # type: ignore
+        source = ClinicalTrialsSource(cache_dir=Path(self.tmpdir) / "cb_stats")
+
+        status = source.get_circuit_breaker_status()
+        assert status["is_open"] is False
+        assert status["consecutive_failures"] == 0
+        assert status["seconds_remaining"] == 0
+
+        # Force open
+        source._circuit_open_until = time.monotonic() + 45.0
+        status = source.get_circuit_breaker_status()
+        assert status["is_open"] is True
+        assert status["seconds_remaining"] > 0
+
+    def test_get_stats_includes_circuit_breaker(self):
+        """Verify get_stats() includes circuit_breaker key."""
+        stats = self.source.get_stats()
+        assert "circuit_breaker" in stats
+        cb = stats["circuit_breaker"]
+        assert "is_open" in cb
+        assert "consecutive_failures" in cb
 
 
 # ============================================================

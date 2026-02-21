@@ -68,10 +68,16 @@ from pma_data_store import PMADataStore
 HUB_VERSION = "1.0.0"
 
 _RETRYABLE_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
+_CIRCUIT_BREAKER_THRESHOLD = 5    # consecutive failures before opening circuit
+_CIRCUIT_BREAKER_PAUSE_SECS = 60  # seconds to wait before allowing requests again
 
 
 class _RetryableHTTPError(OSError):
     """Raised for HTTP errors that should be retried with back-off."""
+
+
+class _CircuitOpenError(OSError):
+    """Raised when the circuit breaker is open and blocking requests."""
 
 
 EXTERNAL_API_CONFIG = {
@@ -126,6 +132,8 @@ class ExternalDataSource(ABC):
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self._last_request_time = 0.0
         self._request_count = 0
+        self._consecutive_failures = 0
+        self._circuit_open_until = 0.0
 
     def _rate_limit_wait(self) -> None:
         """Enforce rate limiting between requests."""
@@ -182,7 +190,7 @@ class ExternalDataSource(ABC):
             print(f"Warning: Failed to write cache file {cache_file}: {e}", file=sys.stderr)
 
     def _http_get(self, url: str, timeout: int = 15, extra_headers: Optional[Dict[str, str]] = None) -> Optional[Dict]:
-        """Make an HTTP GET request with error handling and retry logic.
+        """Make an HTTP GET request with error handling, retry logic, and circuit breaker.
 
         Args:
             url: URL to fetch
@@ -192,6 +200,12 @@ class ExternalDataSource(ABC):
         Returns:
             Parsed JSON response or error dict on failure.
         """
+        # Circuit breaker check — refuse requests while circuit is open (FDA-126)
+        now = time.monotonic()
+        if now < self._circuit_open_until:
+            remaining = int(self._circuit_open_until - now)
+            return {"error": f"Circuit breaker open — service unavailable (retry in {remaining}s)"}
+
         self._rate_limit_wait()
         self._request_count += 1
 
@@ -207,11 +221,20 @@ class ExternalDataSource(ABC):
         ssl_context = ssl.create_default_context()
 
         try:
-            return self._fetch_with_retry(req, timeout, ssl_context)
+            result = self._fetch_with_retry(req, timeout, ssl_context)
+            # Success — reset circuit breaker failure counter
+            self._consecutive_failures = 0
+            return result
         except _RetryableHTTPError as e:
-            # All retries exhausted
+            # All retries exhausted — update circuit breaker state (FDA-126)
+            self._consecutive_failures += 1
+            if self._consecutive_failures >= _CIRCUIT_BREAKER_THRESHOLD:
+                self._circuit_open_until = time.monotonic() + _CIRCUIT_BREAKER_PAUSE_SECS
             return {"error": str(e)}
         except urllib.error.URLError as e:
+            self._consecutive_failures += 1
+            if self._consecutive_failures >= _CIRCUIT_BREAKER_THRESHOLD:
+                self._circuit_open_until = time.monotonic() + _CIRCUIT_BREAKER_PAUSE_SECS
             return {"error": f"URL error: {e.reason}"}
         except Exception as e:
             return {"error": str(e)}
@@ -252,6 +275,16 @@ class ExternalDataSource(ABC):
         """Search the external data source."""
         ...
 
+    def get_circuit_breaker_status(self) -> Dict[str, Any]:
+        """Get circuit breaker state (FDA-126)."""
+        now = time.monotonic()
+        is_open = now < self._circuit_open_until
+        return {
+            "is_open": is_open,
+            "consecutive_failures": self._consecutive_failures,
+            "seconds_remaining": max(0, int(self._circuit_open_until - now)) if is_open else 0,
+        }
+
     def get_stats(self) -> Dict[str, Any]:
         """Get source statistics."""
         return {
@@ -261,6 +294,7 @@ class ExternalDataSource(ABC):
             "requests_made": self._request_count,
             "rate_limit_per_sec": self.rate_limit,
             "cache_ttl_hours": self.cache_ttl_hours,
+            "circuit_breaker": self.get_circuit_breaker_status(),
         }
 
 
