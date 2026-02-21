@@ -66,6 +66,9 @@ dependencies = [
 
     # Resilience
     "tenacity>=8.0.0,<10.0.0",
+
+    # Environment variable / .env file support (FDA-148)
+    "python-dotenv>=1.0.0,<2.0.0",
 ]
 
 [project.optional-dependencies]

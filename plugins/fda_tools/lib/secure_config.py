@@ -55,6 +55,40 @@ from typing import Dict, List, Optional, Tuple
 logger = logging.getLogger(__name__)
 
 # ============================================================
+# .env File Loading (FDA-148)
+# ============================================================
+
+
+def _load_dotenv() -> None:
+    """Load .env file from standard search locations.
+
+    Searches (in order): current directory, project root, home directory.
+    Silently skips if python-dotenv is not installed or no .env file found.
+    Never overrides already-set environment variables (override=False).
+    """
+    try:
+        from dotenv import load_dotenv
+
+        # Search upward from cwd for a .env file, then fall back to home
+        search_dirs = [
+            Path.cwd(),
+            Path(__file__).parent.parent.parent.parent,  # repo root
+            Path.home(),
+        ]
+        for directory in search_dirs:
+            env_file = directory / ".env"
+            if env_file.is_file():
+                load_dotenv(env_file, override=False)
+                logger.debug("Loaded .env from %s", env_file)
+                return
+    except ImportError:
+        pass  # python-dotenv optional — keyring/env vars still work
+
+
+# Load .env on module import so env vars are available before any config read
+_load_dotenv()
+
+# ============================================================
 # Keyring Service Configuration
 # ============================================================
 
@@ -637,6 +671,63 @@ def set_api_key(key_type: str, api_key: str) -> bool:
         True on success, False on failure.
     """
     return get_default_config().set_api_key(key_type, api_key)
+
+
+def validate_credentials(
+    required: Optional[List[str]] = None,
+    optional: Optional[List[str]] = None,
+) -> Dict[str, bool]:
+    """Validate that required and optional credentials are configured.
+
+    Logs warnings for missing optional credentials and raises ValueError
+    for missing required ones. Intended for startup validation.
+
+    Args:
+        required: Key types that must be present (raises ValueError if missing).
+        optional: Key types that are optional (logs warning if missing).
+
+    Returns:
+        Mapping of key_type → True/False indicating presence.
+
+    Raises:
+        ValueError: If any required credential is not configured.
+
+    Example::
+
+        validate_credentials(required=['bridge'], optional=['openfda', 'gemini'])
+    """
+    config = get_default_config()
+    results: Dict[str, bool] = {}
+
+    for key_type in (optional or []):
+        present = config.get_api_key(key_type) is not None
+        results[key_type] = present
+        if not present:
+            env_var = ENV_VAR_NAMES.get(key_type, key_type.upper() + "_API_KEY")
+            logger.warning(
+                "Optional credential '%s' not configured "
+                "(set %s env var or run: fda-setup-api-key)",
+                key_type,
+                env_var,
+            )
+
+    missing_required = []
+    for key_type in (required or []):
+        present = config.get_api_key(key_type) is not None
+        results[key_type] = present
+        if not present:
+            missing_required.append(key_type)
+
+    if missing_required:
+        env_vars = [
+            ENV_VAR_NAMES.get(k, k.upper() + "_API_KEY") for k in missing_required
+        ]
+        raise ValueError(
+            f"Required credential(s) not configured: {missing_required}. "
+            f"Set environment variables {env_vars} or run: fda-setup-api-key"
+        )
+
+    return results
 
 
 # ============================================================
