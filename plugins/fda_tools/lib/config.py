@@ -443,6 +443,12 @@ class Config:
                 'default_ttl': 604800,  # 7 days
                 'enable_integrity_checks': True,
                 'atomic_writes': True,
+                # Per-cache-type TTLs (seconds) — FDA-135
+                'ttl_openfda': 2592000,    # 30 days  (openFDA API responses)
+                'ttl_literature': 7776000, # 90 days  (PubMed articles)
+                'ttl_safety': 604800,      # 7 days   (MAUDE adverse events)
+                'ttl_pma_ssed': 5184000,   # 60 days  (PMA SSED documents)
+                'ttl_clinicaltrials': 86400, # 1 day   (ClinicalTrials.gov)
             },
             'rate_limiting': {
                 'enable_cross_process': True,
