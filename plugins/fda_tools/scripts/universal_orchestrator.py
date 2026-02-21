@@ -33,6 +33,11 @@ Usage:
         --files bridge/server.py \
         --create-linear \
         --max-agents 12
+
+    # Continuous monitoring
+    python3 universal_orchestrator.py watch \\
+        --issue-ids FDA-83,FDA-96,FDA-97 \\
+        --poll-interval 300
 """
 
 import argparse
@@ -48,6 +53,7 @@ from task_analyzer import TaskAnalyzer
 from agent_selector import AgentSelector
 from execution_coordinator import ExecutionCoordinator
 from linear_integrator import LinearIntegrator
+from linear_issue_watcher import LinearIssueWatcher
 
 # Setup logging
 logging.basicConfig(
@@ -304,6 +310,44 @@ class UniversalOrchestrator:
             "created_issues": created_issues,
         }
 
+    def watch(
+        self,
+        issue_ids: List[str],
+        poll_interval: int = 300,
+        auto_rereview: bool = True,
+    ) -> None:
+        """Daemon mode: monitor Linear issues and re-trigger review on substantial changes.
+
+        Polls *issue_ids* every *poll_interval* seconds.  When a substantial
+        change is detected (PR linked, "fixed" comment, code change mentioned)
+        the orchestrator optionally posts a re-review comment on the original
+        issue.
+
+        Runs until SIGINT (Ctrl-C) or SIGTERM is received.
+
+        Args:
+            issue_ids: Linear identifiers to monitor (e.g. ``["FDA-83"]``).
+            poll_interval: Seconds between poll cycles (default 300).
+            auto_rereview: When True, post re-review comment for substantial
+                updates automatically.
+        """
+        logger.info("=" * 70)
+        logger.info("CONTINUOUS MONITORING MODE")
+        logger.info("=" * 70)
+        logger.info("\nWatching %d issues (interval=%ds, auto-rereview=%s)",
+                    len(issue_ids), poll_interval, auto_rereview)
+
+        watcher = LinearIssueWatcher(poll_interval_seconds=poll_interval)
+
+        for update in watcher.watch(issue_ids):
+            if update.is_substantial:
+                logger.info("Substantial update on %s: %s", update.issue_id, update.substance_reason)
+                if auto_rereview:
+                    comment = watcher.post_rereview_comment(update)
+                    logger.info("Re-review comment posted (%d chars)", len(comment))
+            else:
+                logger.debug("Informational update on %s — no action", update.issue_id)
+
 
 # ==================================================================
 # CLI Entry Point
@@ -345,6 +389,29 @@ def main():
     execute_parser.add_argument("--create-linear", action="store_true", help="Create Linear issues")
     execute_parser.add_argument("--max-agents", type=int, default=10, help="Maximum team size")
     execute_parser.add_argument("--json", action="store_true", help="Output JSON")
+
+    # watch command (FDA-213 / ORCH-009)
+    watch_parser = subparsers.add_parser(
+        "watch",
+        help="Daemon: monitor Linear issues and re-trigger review on substantial updates",
+    )
+    watch_parser.add_argument(
+        "--issue-ids",
+        required=True,
+        help="Comma-separated Linear issue IDs to monitor (e.g. FDA-83,FDA-96)",
+    )
+    watch_parser.add_argument(
+        "--poll-interval",
+        type=int,
+        default=300,
+        metavar="SECONDS",
+        help="Seconds between poll cycles (default: 300)",
+    )
+    watch_parser.add_argument(
+        "--no-auto-rereview",
+        action="store_true",
+        help="Log substantial updates but do not post re-review comments",
+    )
 
     args = parser.parse_args()
 
@@ -402,6 +469,14 @@ def main():
                     "findings": len(result["results"].findings),
                     "created_issues": result["created_issues"],
                 }, indent=2))
+
+        elif args.command == "watch":
+            issue_ids = args.issue_ids.split(",")
+            orchestrator.watch(
+                issue_ids,
+                poll_interval=args.poll_interval,
+                auto_rereview=not args.no_auto_rereview,
+            )
 
         return 0
 
