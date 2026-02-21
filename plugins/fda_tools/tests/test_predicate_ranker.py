@@ -219,9 +219,10 @@ class TestConfidenceScoring:
 
         score = ranker._estimate_confidence_score(predicate, 'DQY')
 
-        # Should have low recency score (only 2 pts) but still includes base points
-        # Base includes 15 (product code) + 10 (clean recalls) + 25 (section) + 5 (citation) = 55 + 2 (old recency) = 57
-        assert score < 65  # Adjusted threshold based on actual scoring
+        # Should have low recency score (only 2 pts) but still includes base points.
+        # Base: 15 (product code) + 2 (old recency) + 10 (clean recalls) + 10 (MAUDE, FDA-119)
+        #       + 25 (section) + 5 (citation) = 67
+        assert score < 75  # Adjusted for FDA-119 MAUDE safety scoring (+10)
 
     def test_clean_recall_history_bonus(self, temp_project_dir):
         """Test zero recalls gives 10 point bonus."""
