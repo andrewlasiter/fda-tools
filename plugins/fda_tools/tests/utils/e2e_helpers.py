@@ -778,13 +778,17 @@ def verify_file_exists(path: "Path | str") -> bool:
     return True
 
 
-def load_json_safe(path: "Path | str") -> dict:
-    """Load JSON from path, returning empty dict on any error."""
+def load_json_safe(path: "Path | str") -> tuple:
+    """Load JSON from path, returning (data, error_message) tuple."""
     try:
         with open(path) as f:
-            return json.load(f)
-    except Exception:
-        return {}
+            return json.load(f), ""
+    except FileNotFoundError as e:
+        return {}, f"File not found: {e}"
+    except json.JSONDecodeError as e:
+        return {}, f"JSON decode error: {e}"
+    except Exception as e:
+        return {}, str(e)
 
 
 class E2ETestProject:
@@ -797,8 +801,12 @@ class E2ETestProject:
     def __enter__(self):
         return self
 
-    def __exit__(self, *args):
+    def __exit__(self, *_args):
         pass
+
+    def __truediv__(self, other: str) -> Path:
+        """Allow ``project / 'file'`` to resolve relative to project_dir."""
+        return self.project_dir / other
 
     def write_file(self, filename: str, content: str) -> Path:
         p = self.project_dir / filename
@@ -815,15 +823,33 @@ def compare_json_files(path1: "Path | str", path2: "Path | str") -> bool:
         return json.load(f1) == json.load(f2)
 
 
-def count_estar_sections(path: "Path | str") -> int:
-    """Count top-level sections in an eSTAR XML file."""
+def count_estar_sections(path: "Path | str") -> dict:
+    """Count sections in an eSTAR directory or XML file.
+
+    When *path* is a directory, counts ``.md`` files and considers files
+    with more than 100 bytes to be "populated".  When *path* is an XML
+    file, counts top-level child elements.
+
+    Returns:
+        Dict with keys ``total_sections`` and ``populated_sections``.
+    """
+    p = Path(path)
+    if p.is_dir():
+        md_files = list(p.glob("*.md"))
+        populated = [f for f in md_files if f.stat().st_size > 100]
+        return {
+            "total_sections": len(md_files),
+            "populated_sections": len(populated),
+        }
+
     import xml.etree.ElementTree as ET
     try:
-        tree = ET.parse(path)
+        tree = ET.parse(p)
         root = tree.getroot()
-        return len(list(root))
+        count = len(list(root))
+        return {"total_sections": count, "populated_sections": count}
     except Exception:
-        return 0
+        return {"total_sections": 0, "populated_sections": 0}
 
 
 def create_seed_device_profile(

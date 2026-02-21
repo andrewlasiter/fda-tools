@@ -1,0 +1,83 @@
+{
+  "device_profile": {
+    "device_info": {
+      "trade_name": "CardioFlow Diagnostic Catheter",
+      "product_code": "DQY",
+      "regulation_number": "21 CFR 870.1220",
+      "device_class": "II"
+    },
+    "intended_use": "The CardioFlow Diagnostic Catheter is intended for use in diagnostic cardiac catheterization procedures to measure pressures and obtain blood samples from the heart and great vessels.",
+    "indications_for_use": "Indicated for use in patients requiring cardiac catheterization for hemodynamic assessment of coronary artery disease.",
+    "device_description": "The CardioFlow Diagnostic Catheter is a single-use, sterile, flexible catheter designed for intravascular use. The device consists of a radiopaque shaft, tip, lumen(s), and Luer-lock hub. Materials of construction include medical-grade polyurethane and PTFE.",
+    "predicate_device": {
+      "k_number": "K233210",
+      "trade_name": "CordisFlow Diagnostic Catheter",
+      "applicant": "Cordis Corporation",
+      "decision_date": "2023-09-15",
+      "product_code": "DQY"
+    },
+    "materials": [
+      {
+        "component": "Shaft",
+        "material": "Medical-grade polyurethane",
+        "patient_contact": true,
+        "duration": "Transient (<24h)"
+      },
+      {
+        "component": "Tip",
+        "material": "PTFE",
+        "patient_contact": true,
+        "duration": "Transient (<24h)"
+      },
+      {
+        "component": "Hub",
+        "material": "Polycarbonate",
+        "patient_contact": false,
+        "duration": "N/A"
+      }
+    ],
+    "performance_testing": [
+      {
+        "test_type": "Dimensional Verification",
+        "acceptance_criteria": "All dimensions within ±0.1mm of nominal",
+        "result": "PASS"
+      },
+      {
+        "test_type": "Tensile Strength",
+        "acceptance_criteria": "≥25 N pull force without failure",
+        "result": "PASS"
+      },
+      {
+        "test_type": "Kink Resistance",
+        "acceptance_criteria": "No kinking at minimum bend radius of 25mm",
+        "result": "PASS"
+      },
+      {
+        "test_type": "Pressure Measurement Accuracy",
+        "acceptance_criteria": "±2 mmHg accuracy at 0–400 mmHg range",
+        "result": "PASS"
+      }
+    ],
+    "sterilization": {
+      "method": "Ethylene oxide (EO)",
+      "sterility_assurance_level": "10^-6"
+    }
+  },
+  "expected_sections": [
+    "01_CoverLetter.md",
+    "02_510k_Summary.md",
+    "03_Form_3881.md",
+    "04_Truthful_and_Accuracy.md",
+    "05_Device_Description.md",
+    "06_Substantial_Equivalence.md",
+    "07_Proposed_Labeling.md",
+    "08_Sterilization.md",
+    "09_Biocompatibility.md",
+    "10_Software.md",
+    "11_Performance_Testing.md",
+    "12_Risk_Analysis.md",
+    "13_Standards.md",
+    "14_References.md",
+    "15_Appendix.md"
+  ]
+}
