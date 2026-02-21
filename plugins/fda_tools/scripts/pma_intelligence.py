@@ -42,8 +42,7 @@ from pma_data_store import PMADataStore
 from pma_section_extractor import PMAExtractor
 
 # Import helpers for safe optional imports (FDA-17 / GAP-015)
-lib_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'lib')
-from import_helpers import  # type: ignore safe_import
+from fda_tools.lib.import_helpers import safe_import  # type: ignore
 
 logger = logging.getLogger(__name__)
 

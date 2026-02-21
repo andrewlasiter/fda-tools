@@ -173,7 +173,7 @@ class TestSmartDetectAllProjects:
 
     @pytest.mark.smart
     def test_detects_new_clearances_across_projects(
-        self, two_project_dirs, mock_client_with_new_data, _tmp_path
+        self, two_project_dirs, mock_client_with_new_data
     ):
         """Smart detection finds new clearances across multiple projects."""
         with patch("update_manager.find_all_projects") as mock_find, \
@@ -255,7 +255,7 @@ class TestSmartDetectAllProjects:
 
     @pytest.mark.smart
     def test_no_changes_across_projects(
-        self, two_project_dirs, mock_client_stable, _tmp_path
+        self, two_project_dirs, mock_client_stable
     ):
         """Smart detection with no changes returns zero counts."""
         with patch("update_manager.find_all_projects") as mock_find, \
@@ -301,7 +301,7 @@ class TestSmartDetectAllProjects:
 
     @pytest.mark.smart
     def test_global_rate_limit_uses_single_client(
-        self, _two_project_dirs
+        self,
     ):
         """With global_rate_limit=True, a single FDAClient is shared across projects."""
         client_instances = []
@@ -340,7 +340,7 @@ class TestSmartDetectAllProjects:
         assert len(client_instances) == 1
 
     @pytest.mark.smart
-    def test_api_call_count_estimation(self, _two_project_dirs):
+    def test_api_call_count_estimation(self):
         """API call count is estimated as 2x product codes checked."""
         with patch("update_manager.find_all_projects") as mock_find, \
              patch("update_manager.FDAClient", return_value=MockFDAClient()), \
@@ -430,7 +430,7 @@ class TestConsolidatedReport:
             assert "K261001" in content
 
     @pytest.mark.smart
-    def test_report_dry_run_mode(self, _tmp_path):
+    def test_report_dry_run_mode(self):
         """Report shows DRY RUN in header when dry_run=True."""
         report_path = _generate_consolidated_smart_report(
             project_results={"test": {"status": "completed", "product_codes_checked": 0,
@@ -450,7 +450,7 @@ class TestConsolidatedReport:
             assert "DRY RUN" in content
 
     @pytest.mark.smart
-    def test_report_no_changes_message(self, _tmp_path):
+    def test_report_no_changes_message(self):
         """Report includes 'no changes' message when no changes detected."""
         report_path = _generate_consolidated_smart_report(
             project_results={"test": {"status": "completed", "product_codes_checked": 1,
