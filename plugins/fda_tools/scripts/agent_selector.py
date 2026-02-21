@@ -37,6 +37,17 @@ from typing import Any, Dict, List, Optional, Tuple
 from agent_registry import UniversalAgentRegistry
 from task_analyzer import TaskProfile
 
+# Optional performance tracker — imported lazily to avoid circular dependency.
+try:
+    from fda_tools.scripts.agent_performance_tracker import (  # type: ignore[import]
+        AgentPerformanceTracker,
+        MIN_RUNS_FOR_FLAGGING,
+    )
+    _TRACKER_AVAILABLE = True
+except ImportError:
+    _TRACKER_AVAILABLE = False
+    AgentPerformanceTracker = None  # type: ignore[assignment,misc]
+
 logger = logging.getLogger(__name__)
 
 
@@ -78,6 +89,14 @@ class AgentSelector:
     - Language matching (30% weight)
     - Domain matching (20% weight)
     - Model tier (10% weight)
+    - Historical performance (0–10 bonus points, when tracker is provided)
+
+    When an ``AgentPerformanceTracker`` is supplied, each agent's
+    ``effectiveness_score`` (0–1) contributes up to ``PERFORMANCE_SCORE_MAX``
+    (10) additional ranking points.  Low-performing agents (flagged as
+    ``is_low_performer``) have their entire score halved (0.5× multiplier)
+    so they are ranked lower; high-performing agents (score ≥ 0.7) receive
+    a 1.5× boost.
     """
 
     # Ranking weights
@@ -85,6 +104,13 @@ class AgentSelector:
     LANGUAGE_WEIGHT = 0.30
     DOMAIN_WEIGHT = 0.20
     MODEL_WEIGHT = 0.10
+
+    # Extra points from historical performance (0 = no tracker, max 10)
+    PERFORMANCE_SCORE_MAX = 10
+
+    # effectiveness_score thresholds for auto-promotion / auto-demotion
+    PERFORMANCE_PROMOTE_THRESHOLD = 0.70   # score ≥ 0.70 → 1.5× multiplier
+    PERFORMANCE_DEMOTE_THRESHOLD = 0.20    # score < 0.20 AND min runs → 0.5× multiplier
 
     # Model tier scores
     MODEL_SCORES = {
@@ -103,13 +129,22 @@ class AgentSelector:
         "haiku": 1,
     }
 
-    def __init__(self, registry: UniversalAgentRegistry):
+    def __init__(
+        self,
+        registry: UniversalAgentRegistry,
+        tracker: Optional[Any] = None,
+    ):
         """Initialize agent selector.
 
         Args:
-            registry: Universal agent registry instance
+            registry: Universal agent registry instance.
+            tracker: Optional ``AgentPerformanceTracker`` instance.  When
+                provided, historical effectiveness scores influence agent
+                ranking (up to ``PERFORMANCE_SCORE_MAX`` extra points) and
+                low-performing agents are demoted in the ordering.
         """
         self.registry = registry
+        self.tracker: Optional[Any] = tracker
 
     def select_review_team(
         self,
@@ -414,8 +449,24 @@ class AgentSelector:
             model = agent.get("model", "haiku")
             model_score = self.MODEL_SCORES.get(model, 0)
 
+            # Performance score (0-10 points), using historical tracker data
+            performance_score = 0.0
+            if self.tracker is not None:
+                agent_name = agent.get("name", "")
+                perf_rec = self.tracker.get_record(agent_name)
+                if perf_rec is not None and perf_rec.total_runs > 0:
+                    eff = perf_rec.effectiveness_score  # 0.0–1.0
+                    # Determine multiplier based on performance thresholds
+                    if perf_rec.is_low_performer:
+                        multiplier = 0.5
+                    elif eff >= self.PERFORMANCE_PROMOTE_THRESHOLD:
+                        multiplier = 1.5
+                    else:
+                        multiplier = 1.0
+                    performance_score = eff * self.PERFORMANCE_SCORE_MAX * multiplier
+
             # Total score
-            total_score = dimension_score + language_score + domain_score + model_score
+            total_score = dimension_score + language_score + domain_score + model_score + performance_score
 
             scored_agents.append({
                 **agent,

@@ -25,6 +25,7 @@ from fda_tools.scripts.agent_performance_tracker import (
     AgentRecord,
     AgentPerformanceTracker,
     effectiveness_score,
+    main as tracker_main,
 )
 
 
@@ -389,3 +390,197 @@ class TestStatePersistence:
         data = json.loads(store.read_text())
         assert "my-agent" in data
         assert "agent_name" not in data["my-agent"]
+
+
+# ---------------------------------------------------------------------------
+# CLI tests
+# ---------------------------------------------------------------------------
+
+
+class TestCLI:
+    """Tests for the agent_performance_tracker CLI (--report / --agent)."""
+
+    def test_report_empty_store(self, tmp_path, capsys):
+        store = tmp_path / "perf.json"
+        rc = tracker_main(["--report", "--store", str(store)])
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "No agent performance data" in out
+
+    def test_report_with_data(self, tmp_path, capsys):
+        store = tmp_path / "perf.json"
+        t = AgentPerformanceTracker(store_path=store)
+        t.record_run("agent-a", findings=5, critical_findings=2, findings_resolved=4)
+        rc = tracker_main(["--report", "--store", str(store)])
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "agent-a" in out
+        assert "Score" in out
+
+    def test_agent_flag_known_agent(self, tmp_path, capsys):
+        store = tmp_path / "perf.json"
+        t = AgentPerformanceTracker(store_path=store)
+        t.record_run("my-agent", findings=3)
+        rc = tracker_main(["--agent", "my-agent", "--store", str(store)])
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "my-agent" in out
+        assert "Total runs" in out
+
+    def test_agent_flag_unknown_agent(self, tmp_path, capsys):
+        store = tmp_path / "perf.json"
+        rc = tracker_main(["--agent", "ghost-agent", "--store", str(store)])
+        assert rc == 1
+        out = capsys.readouterr().out
+        assert "No data" in out
+
+    def test_no_action_exits_with_error(self, tmp_path):
+        import pytest
+        store = tmp_path / "perf.json"
+        with pytest.raises(SystemExit) as exc_info:
+            tracker_main(["--store", str(store)])
+        assert exc_info.value.code != 0
+
+    def test_report_top_n_flag(self, tmp_path, capsys):
+        store = tmp_path / "perf.json"
+        t = AgentPerformanceTracker(store_path=store)
+        for i in range(5):
+            t.record_run(f"agent-{i}", findings=i + 1)
+        rc = tracker_main(["--report", "--top", "2", "--store", str(store)])
+        assert rc == 0
+        out = capsys.readouterr().out
+        # At most 2 data rows (header rows + separator excluded)
+        data_rows = [
+            line for line in out.splitlines()
+            if line.startswith("| ") and "Rank" not in line and "---" not in line
+        ]
+        assert len(data_rows) <= 2
+
+    def test_no_low_performers_flag_excludes_them(self, tmp_path, capsys):
+        store = tmp_path / "perf.json"
+        t = AgentPerformanceTracker(store_path=store)
+        _record_n_runs(t, "weak", MIN_RUNS_FOR_FLAGGING, findings=0)
+        _record_n_runs(t, "strong", MIN_RUNS_FOR_FLAGGING, findings=10, critical=8, resolved=9)
+        rc = tracker_main(["--report", "--no-low-performers", "--store", str(store)])
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "weak" not in out
+        assert "strong" in out
+
+
+# ---------------------------------------------------------------------------
+# AgentSelector integration tests
+# ---------------------------------------------------------------------------
+
+
+class TestAgentSelectorIntegration:
+    """Tests for AgentSelector performance-weighted ranking."""
+
+    @staticmethod
+    def _make_mock_agent(name: str, model: str = "sonnet") -> dict:
+        return {
+            "name": name,
+            "model": model,
+            "selection_reason": "dimension",
+            "dimension_score": 0.8,
+            "matched_dimension": "code_quality",
+        }
+
+    @staticmethod
+    def _make_mock_registry():
+        """Return a minimal mock registry (no real lookups needed)."""
+        class _MockRegistry:
+            def find_agents_by_review_dimension(self, dim):
+                return []
+            def find_agents_by_language(self, lang):
+                return []
+            def search_universal_agents(self, **kw):
+                return []
+        return _MockRegistry()
+
+    @staticmethod
+    def _make_mock_task_profile(languages=None, domains=None):
+        return type("_MockProfile", (), {
+            "task_type": "code_review",
+            "complexity": 3,
+            "review_dimensions": {"code_quality": 0.9},
+            "languages": languages or [],
+            "domains": domains or [],
+        })()
+
+    def test_no_tracker_ranks_normally(self, tmp_path):
+        """AgentSelector without tracker still ranks agents."""
+        from fda_tools.scripts.agent_selector import AgentSelector
+        registry = self._make_mock_registry()
+        selector = AgentSelector(registry)
+        agents = [
+            self._make_mock_agent("agent-a"),
+            self._make_mock_agent("agent-b"),
+        ]
+        profile = self._make_mock_task_profile()
+        ranked = selector._rank_agents(agents, profile)
+        assert len(ranked) == 2
+
+    def test_high_performer_ranked_above_neutral(self, tmp_path):
+        """Agent with high effectiveness score ranks above untracked agent."""
+        from fda_tools.scripts.agent_selector import AgentSelector
+        store = tmp_path / "perf.json"
+        tracker = AgentPerformanceTracker(store_path=store)
+        # Make "star-agent" a high performer
+        _record_n_runs(
+            tracker, "star-agent",
+            MIN_RUNS_FOR_FLAGGING,
+            findings=10, critical=8, resolved=9, dupes=0,
+        )
+
+        registry = self._make_mock_registry()
+        selector = AgentSelector(registry, tracker=tracker)
+
+        # Both agents have identical static scores
+        agents = [
+            {**self._make_mock_agent("unknown-agent"), "dimension_score": 0.8},
+            {**self._make_mock_agent("star-agent"), "dimension_score": 0.8},
+        ]
+        profile = self._make_mock_task_profile()
+        ranked = selector._rank_agents(agents, profile)
+        ranked_names = [a["name"] for a in ranked]
+        assert ranked_names[0] == "star-agent"
+
+    def test_low_performer_ranked_below_neutral(self, tmp_path):
+        """Low-performing agent (score < threshold) is ranked below untracked agents."""
+        from fda_tools.scripts.agent_selector import AgentSelector
+        store = tmp_path / "perf.json"
+        tracker = AgentPerformanceTracker(store_path=store)
+        # Make "weak-agent" a low performer
+        _record_n_runs(
+            tracker, "weak-agent",
+            MIN_RUNS_FOR_FLAGGING,
+            findings=0, critical=0, resolved=0, dupes=0,
+        )
+
+        registry = self._make_mock_registry()
+        selector = AgentSelector(registry, tracker=tracker)
+
+        agents = [
+            {**self._make_mock_agent("unknown-agent"), "dimension_score": 0.8},
+            {**self._make_mock_agent("weak-agent"), "dimension_score": 0.8},
+        ]
+        profile = self._make_mock_task_profile()
+        ranked = selector._rank_agents(agents, profile)
+        ranked_names = [a["name"] for a in ranked]
+        assert ranked_names[-1] == "weak-agent"
+
+    def test_tracker_attribute_accessible(self):
+        """AgentSelector exposes tracker attribute."""
+        from fda_tools.scripts.agent_selector import AgentSelector
+        registry = self._make_mock_registry()
+        tracker = AgentPerformanceTracker()
+        selector = AgentSelector(registry, tracker=tracker)
+        assert selector.tracker is tracker
+
+    def test_tracker_none_by_default(self):
+        """AgentSelector tracker defaults to None."""
+        from fda_tools.scripts.agent_selector import AgentSelector
+        registry = self._make_mock_registry()
+        selector = AgentSelector(registry)
+        assert selector.tracker is None
