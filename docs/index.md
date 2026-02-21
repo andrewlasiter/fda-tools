@@ -10,9 +10,11 @@ substantial equivalence analysis, submission drafting, and regulatory intelligen
 | [Quick Start](docs/QUICK_START.md) | Get started in 5 minutes |
 | [Installation](docs/INSTALLATION.md) | Full setup instructions |
 | [API Reference](api/index.md) | Auto-generated Python module docs |
+| [Architecture](docs/ARCHITECTURE.md) | System diagrams, data flow, component map |
+| [Developer Guide](docs/DEVELOPER_GUIDE.md) | How to add commands, modules, and tests |
 | [Examples](../examples/) | Worked 510(k) examples (catheter, SaMD, combo product) |
 | [ADRs](docs/adr/README.md) | Architecture Decision Records |
-| [Contributing](CONTRIBUTING.md) | Developer guide |
+| [Contributing](CONTRIBUTING.md) | Setup, PR checklist, code style |
 
 ## Key Modules
 
