@@ -437,106 +437,50 @@ DEVICE_TYPE_STANDARDS_LOADED:Robotics and Robotic-Assisted Surgical Devices, COU
 
 ### Detection Process
 
-Use the `combination_detector.py` module to analyze device descriptions for drug or biologic components:
+Use the `fda_tools.scripts.detect_combination` CLI to analyze device descriptions for drug or biologic components:
 
 ```bash
-python3 << 'PYEOF'
+# Run combination product detection (outputs JSON; exit 1 if profile not found)
+python3 -m fda_tools.scripts.detect_combination --project-dir "$PROJECT_DIR" \
+    > /tmp/combo_result.json 2>/dev/null
+
+if [ $? -eq 0 ]; then
+    # Persist detection results to device_profile.json and display summary
+    python3 << PYEOF
 import json
-import os
-import sys
-import re
+from pathlib import Path
 
-# Add lib directory to Python path
-plugin_root = os.environ.get('FDA_PLUGIN_ROOT', '')
-if not plugin_root:
-    installed_plugins_path = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
-    if os.path.exists(installed_plugins_path):
-        with open(installed_plugins_path) as ipf:
-            installed_data = json.load(ipf)
-            for key, value in installed_data.get('plugins', {}).items():
-                if key.startswith('fda-tools@') or key.startswith('fda-tools@'):
-                    for entry in value:
-                        install_path = entry.get('installPath', '')
-                        if os.path.isdir(install_path):
-                            plugin_root = install_path
-                            break
-                if plugin_root:
-                    break
+combo = json.loads(Path("/tmp/combo_result.json").read_text())
+profile_path = Path("$PROJECT_DIR") / "device_profile.json"
 
-if plugin_root:
-    sys.path.insert(0, os.path.join(plugin_root, 'lib'))
+if profile_path.exists():
+    profile = json.loads(profile_path.read_text())
+    profile["combination_product"] = combo
+    profile_path.write_text(json.dumps(profile, indent=2))
 
-from combination_detector import CombinationProductDetector
-
-# Load device data from project
-settings_path = os.path.expanduser('~/.claude/fda-tools.local.md')
-projects_dir = os.path.expanduser('~/fda-510k-data/projects')
-if os.path.exists(settings_path):
-    with open(settings_path) as f:
-        m = re.search(r'projects_dir:\s*(.+)', f.read())
-        if m:
-            projects_dir = os.path.expanduser(m.group(1).strip())
-
-project = "PROJECT"  # Replace with actual project name
-pdir = os.path.join(projects_dir, project)
-
-# Load device_profile.json
-device_profile_path = os.path.join(pdir, 'device_profile.json')
-device_data = {}
-
-if os.path.exists(device_profile_path):
-    with open(device_profile_path) as f:
-        device_profile = json.load(f)
-        device_data = {
-            'device_description': device_profile.get('device_description', ''),
-            'trade_name': device_profile.get('trade_name', ''),
-            'intended_use': device_profile.get('intended_use', '')
-        }
-
-# Run combination product detection
-detector = CombinationProductDetector(device_data)
-result = detector.detect()
-
-# Store results in device_profile.json
-if os.path.exists(device_profile_path):
-    with open(device_profile_path) as f:
-        device_profile = json.load(f)
-
-    device_profile['combination_product'] = {
-        'is_combination': result['is_combination'],
-        'combination_type': result['combination_type'],
-        'confidence': result['confidence'],
-        'detected_components': result['detected_components'],
-        'rho_assignment': result['rho_assignment'],
-        'rho_rationale': result['rho_rationale'],
-        'consultation_required': result['consultation_required'],
-        'regulatory_pathway': result['regulatory_pathway'],
-        'recommendations': result['recommendations']
-    }
-
-    with open(device_profile_path, 'w') as f:
-        json.dump(device_profile, f, indent=2)
-
-# Log detection results
+r = combo
 print("COMBINATION_PRODUCT_DETECTION:")
-print(f"  Status: {result['is_combination']}")
-print(f"  Type: {result['combination_type']}")
-print(f"  Confidence: {result['confidence']}")
-print(f"  RHO: {result['rho_assignment']}")
-print(f"  Components Detected: {len(result['detected_components'])}")
-
-if result['is_combination']:
-    print("\nCOMBINATION_PRODUCT_COMPONENTS:")
-    for comp in result['detected_components'][:10]:  # Show first 10
-        print(f"  - {comp}")
-
-    print("\nCOMBINATION_PRODUCT_RECOMMENDATIONS:")
-    for rec in result['recommendations']:
+print(f"  Status: {r['is_combination']}")
+print(f"  Type: {r.get('combination_type')}")
+print(f"  Confidence: {r['confidence']}")
+print(f"  RHO: {r['rho_assignment']}")
+print(f"  Class U: {r['class_u']}")
+print(f"  Components Detected: {len(r['detected_components'])}")
+if r["is_combination"]:
+    print()
+    print("COMBINATION_PRODUCT_COMPONENTS:")
+    for c in r["detected_components"][:10]:
+        print(f"  - {c}")
+    print()
+    print("COMBINATION_PRODUCT_RECOMMENDATIONS:")
+    for rec in r["recommendations"]:
         print(f"  - {rec}")
-
-    print(f"\nAUTO_TRIGGER: Section 15 (Combination Product Information) generation REQUIRED")
-
+    print()
+    print("AUTO_TRIGGER: Section 15 (Combination Product Information) generation REQUIRED")
 PYEOF
+else
+    echo "COMBINATION_PRODUCT_DETECTION: Skipped (device_profile.json not found)"
+fi
 ```
 
 ### Auto-Trigger Rules
