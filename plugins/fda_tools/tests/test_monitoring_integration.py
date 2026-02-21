@@ -16,6 +16,14 @@ import pytest
 import time
 from datetime import datetime, timedelta, timezone
 
+from fda_tools.lib.monitoring import get_metrics_collector, get_health_checker
+from fda_tools.lib.metrics import (
+    get_metrics_reporter,
+    track_business_metric,
+    SLI_DEFINITIONS,
+    ALERT_THRESHOLDS,
+)
+
 
 # ---------------------------------------------------------------------------
 # Test Metrics Collection
@@ -23,7 +31,6 @@ from datetime import datetime, timedelta, timezone
 
 def test_metrics_collector_initialization():
     """Test that metrics collector initializes correctly."""
-from fda_tools.lib.monitoring import get_metrics_collector
 
     metrics = get_metrics_collector()
 
@@ -36,7 +43,6 @@ from fda_tools.lib.monitoring import get_metrics_collector
 
 def test_counter_tracking():
     """Test counter metric tracking."""
-from fda_tools.lib.monitoring import get_metrics_collector
 
     metrics = get_metrics_collector()
 
@@ -53,7 +59,6 @@ from fda_tools.lib.monitoring import get_metrics_collector
 
 def test_counter_with_labels():
     """Test counter with labels."""
-from fda_tools.lib.monitoring import get_metrics_collector
 
     metrics = get_metrics_collector()
 
@@ -70,7 +75,6 @@ from fda_tools.lib.monitoring import get_metrics_collector
 
 def test_histogram_tracking():
     """Test histogram metric tracking."""
-from fda_tools.lib.monitoring import get_metrics_collector
 
     metrics = get_metrics_collector()
 
@@ -92,7 +96,6 @@ from fda_tools.lib.monitoring import get_metrics_collector
 
 def test_request_tracking_context_manager():
     """Test request tracking context manager."""
-from fda_tools.lib.monitoring import get_metrics_collector
 
     metrics = get_metrics_collector()
 
@@ -114,7 +117,6 @@ from fda_tools.lib.monitoring import get_metrics_collector
 
 def test_cache_tracking():
     """Test cache hit/miss tracking."""
-from fda_tools.lib.monitoring import get_metrics_collector
 
     metrics = get_metrics_collector()
 
@@ -130,7 +132,6 @@ from fda_tools.lib.monitoring import get_metrics_collector
 
 def test_prometheus_export():
     """Test Prometheus format export."""
-from fda_tools.lib.monitoring import get_metrics_collector
 
     metrics = get_metrics_collector()
 
@@ -149,7 +150,6 @@ from fda_tools.lib.monitoring import get_metrics_collector
 
 def test_metrics_reporter_initialization():
     """Test that metrics reporter initializes correctly."""
-from fda_tools.lib.metrics import get_metrics_reporter
 
     reporter = get_metrics_reporter()
 
@@ -159,7 +159,6 @@ from fda_tools.lib.metrics import get_metrics_reporter
 
 def test_business_metric_tracking():
     """Test business metric tracking."""
-from fda_tools.lib.metrics import track_business_metric
 
     # Track business metric
     track_business_metric("510k_submissions_analyzed", value=1,
@@ -168,7 +167,6 @@ from fda_tools.lib.metrics import track_business_metric
     track_business_metric("predicates_identified", value=5)
 
     # Verify tracking
-from fda_tools.lib.metrics import get_metrics_reporter
     reporter = get_metrics_reporter()
     metrics = reporter.get_business_metrics()
 
@@ -178,7 +176,6 @@ from fda_tools.lib.metrics import get_metrics_reporter
 
 def test_sli_values():
     """Test SLI value calculation."""
-from fda_tools.lib.metrics import get_metrics_reporter
 
     reporter = get_metrics_reporter()
 
@@ -195,7 +192,6 @@ from fda_tools.lib.metrics import get_metrics_reporter
 
 def test_slo_compliance_check():
     """Test SLO compliance checking."""
-from fda_tools.lib.metrics import get_metrics_reporter
 
     reporter = get_metrics_reporter()
 
@@ -216,7 +212,6 @@ from fda_tools.lib.metrics import get_metrics_reporter
 
 def test_metric_snapshot():
     """Test metric snapshot functionality."""
-from fda_tools.lib.metrics import get_metrics_reporter
 
     reporter = get_metrics_reporter()
 
@@ -233,7 +228,6 @@ from fda_tools.lib.metrics import get_metrics_reporter
 
 def test_json_export():
     """Test JSON metrics export."""
-from fda_tools.lib.metrics import get_metrics_reporter
     import json
 
     reporter = get_metrics_reporter()
@@ -255,7 +249,6 @@ from fda_tools.lib.metrics import get_metrics_reporter
 
 def test_health_checker_initialization():
     """Test health checker initialization."""
-from fda_tools.lib.monitoring import get_health_checker
 
     health = get_health_checker()
 
@@ -268,7 +261,6 @@ from fda_tools.lib.monitoring import get_health_checker
 
 def test_health_check_execution():
     """Test health check execution."""
-from fda_tools.lib.monitoring import get_health_checker
 
     health = get_health_checker()
 
@@ -288,7 +280,6 @@ from fda_tools.lib.monitoring import get_health_checker
 
 def test_readiness_check():
     """Test readiness probe."""
-from fda_tools.lib.monitoring import get_health_checker
 
     health = get_health_checker()
 
@@ -301,7 +292,6 @@ from fda_tools.lib.monitoring import get_health_checker
 
 def test_health_check_result_to_dict():
     """Test health check result serialization."""
-from fda_tools.lib.monitoring import get_health_checker
 
     health = get_health_checker()
     result = health.check()
@@ -321,7 +311,6 @@ from fda_tools.lib.monitoring import get_health_checker
 
 def test_slo_definitions():
     """Test SLO definitions are properly configured."""
-from fda_tools.lib.metrics import SLI_DEFINITIONS
 
     # Verify all expected SLIs are defined
     assert "availability" in SLI_DEFINITIONS
@@ -340,7 +329,6 @@ from fda_tools.lib.metrics import SLI_DEFINITIONS
 
 def test_slo_violation_recording():
     """Test SLO violation recording."""
-from fda_tools.lib.metrics import get_metrics_reporter
 
     reporter = get_metrics_reporter()
 
@@ -360,7 +348,6 @@ from fda_tools.lib.metrics import get_metrics_reporter
 
 def test_alert_thresholds_configured():
     """Test alert thresholds are properly configured."""
-from fda_tools.lib.metrics import ALERT_THRESHOLDS
 
     # Verify thresholds exist
     assert "cpu_percent" in ALERT_THRESHOLDS
@@ -382,8 +369,6 @@ from fda_tools.lib.metrics import ALERT_THRESHOLDS
 
 def test_end_to_end_monitoring_flow():
     """Test complete monitoring flow."""
-from fda_tools.lib.monitoring import get_metrics_collector
-from fda_tools.lib.metrics import get_metrics_reporter, track_business_metric
 
     metrics = get_metrics_collector()
     reporter = get_metrics_reporter()
@@ -414,7 +399,6 @@ from fda_tools.lib.metrics import get_metrics_reporter, track_business_metric
 
 def test_performance_overhead():
     """Test that monitoring has minimal performance overhead."""
-from fda_tools.lib.monitoring import get_metrics_collector
     import time
 
     metrics = get_metrics_collector()

@@ -30,7 +30,7 @@ from unittest.mock import patch, MagicMock, call
 from io import StringIO
 
 # Use proper package import
-from fda_tools.lib.expert_validator import ExpertValidator
+from fda_tools.lib.expert_validator import ExpertValidator, main
 
 
 @pytest.fixture
@@ -507,9 +507,6 @@ class TestCLIInterface:
     @patch('expert_validator.ExpertValidator')
     def test_cli_accepts_standards_dir_argument(self, mock_validator):
         """Test CLI accepts --standards-dir argument."""
-        # Import main to test CLI
-from fda_tools.lib.expert_validator import main
-
         mock_instance = MagicMock()
         mock_validator.return_value = mock_instance
         mock_instance.validate_all.return_value = {
@@ -529,8 +526,6 @@ from fda_tools.lib.expert_validator import main
     @patch('expert_validator.ExpertValidator')
     def test_cli_coverage_only_flag(self, mock_validator):
         """Test CLI --coverage-only flag runs only coverage audit."""
-from fda_tools.lib.expert_validator import main
-
         mock_instance = MagicMock()
         mock_validator.return_value = mock_instance
         mock_instance.validate_coverage.return_value = {'status': 'PENDING'}
@@ -549,8 +544,6 @@ from fda_tools.lib.expert_validator import main
     @patch('expert_validator.ExpertValidator')
     def test_cli_quality_only_flag(self, mock_validator):
         """Test CLI --quality-only flag runs only quality review."""
-from fda_tools.lib.expert_validator import main
-
         mock_instance = MagicMock()
         mock_validator.return_value = mock_instance
         mock_instance.validate_quality.return_value = {'status': 'PENDING'}

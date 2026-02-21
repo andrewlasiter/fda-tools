@@ -62,7 +62,6 @@ DEFAULT_ALLOWLIST = [
     "pg_restore",
 ]
 
-
 def run_command(
     cmd: Union[List[str], str],
     timeout: Optional[int] = None,
@@ -204,6 +203,10 @@ def run_command(
     if on_error and last_exception:
         on_error(last_exception)
     raise last_exception
+
+
+# Backward-compatibility alias — renamed run_subprocess → run_command in FDA-115 (FDA-199)
+run_subprocess = run_command
 
 
 def _is_transient_error(exit_code: int) -> bool:
