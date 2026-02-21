@@ -68,11 +68,6 @@ class VersionChecker:
             return
 
         try:
-            # Add parent directory to sys.path to enable import
-            import sys
-            scripts_dir = str(self.project_root / "scripts")
-            if scripts_dir not in sys.path:
-
             # Import the version module
             import importlib.util
             spec = importlib.util.spec_from_file_location("version", version_file)
