@@ -55,6 +55,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+
 # Import sibling modules
 from pma_data_store import PMADataStore
 
@@ -64,6 +66,13 @@ from pma_data_store import PMADataStore
 # ------------------------------------------------------------------
 
 HUB_VERSION = "1.0.0"
+
+_RETRYABLE_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
+
+
+class _RetryableHTTPError(OSError):
+    """Raised for HTTP errors that should be retried with back-off."""
+
 
 EXTERNAL_API_CONFIG = {
     "clinicaltrials": {
@@ -173,7 +182,7 @@ class ExternalDataSource(ABC):
             print(f"Warning: Failed to write cache file {cache_file}: {e}", file=sys.stderr)
 
     def _http_get(self, url: str, timeout: int = 15, extra_headers: Optional[Dict[str, str]] = None) -> Optional[Dict]:
-        """Make an HTTP GET request with error handling.
+        """Make an HTTP GET request with error handling and retry logic.
 
         Args:
             url: URL to fetch
@@ -181,7 +190,7 @@ class ExternalDataSource(ABC):
             extra_headers: Optional additional headers to include
 
         Returns:
-            Parsed JSON response or None on failure.
+            Parsed JSON response or error dict on failure.
         """
         self._rate_limit_wait()
         self._request_count += 1
@@ -198,17 +207,45 @@ class ExternalDataSource(ABC):
         ssl_context = ssl.create_default_context()
 
         try:
-            with urllib.request.urlopen(req, timeout=timeout, context=ssl_context) as resp:
-                return json.loads(resp.read())
-        except urllib.error.HTTPError as e:
-            return {
-                "error": f"HTTP {e.code}: {e.reason}",
-                "status_code": e.code,
-            }
+            return self._fetch_with_retry(req, timeout, ssl_context)
+        except _RetryableHTTPError as e:
+            # All retries exhausted
+            return {"error": str(e)}
         except urllib.error.URLError as e:
             return {"error": f"URL error: {e.reason}"}
         except Exception as e:
             return {"error": str(e)}
+
+    @retry(
+        retry=retry_if_exception_type(_RetryableHTTPError),
+        wait=wait_exponential(multiplier=1, min=1, max=16),
+        stop=stop_after_attempt(5),
+        reraise=True,
+    )
+    def _fetch_with_retry(
+        self,
+        req: urllib.request.Request,
+        timeout: int,
+        ssl_context: ssl.SSLContext,
+    ) -> Optional[Dict]:
+        """Execute HTTP request with retry on transient failures (FDA-151).
+
+        Retries on HTTP 429, 500, 502, 503, 504 with exponential back-off.
+        Non-retryable HTTP errors (e.g. 404) return an error dict immediately.
+
+        Raises:
+            _RetryableHTTPError: On HTTP 429/5xx until retries are exhausted.
+        """
+        try:
+            with urllib.request.urlopen(req, timeout=timeout, context=ssl_context) as resp:
+                return json.loads(resp.read())
+        except urllib.error.HTTPError as e:
+            if e.code in _RETRYABLE_STATUS_CODES:
+                raise _RetryableHTTPError(f"HTTP {e.code}: {e.reason}")
+            return {
+                "error": f"HTTP {e.code}: {e.reason}",
+                "status_code": e.code,
+            }
 
     @abstractmethod
     def search(self, query: str, **kwargs) -> Dict[str, Any]:
@@ -325,6 +362,9 @@ class PubMedSource(ExternalDataSource):
     def __init__(self, cache_dir: Optional[Path] = None, api_key: Optional[str] = None):
         super().__init__("pubmed", cache_dir)
         self.api_key = api_key
+        # FDA-151: Bump rate limit 3→10 req/sec when NCBI API key is provided
+        if api_key:
+            self.rate_limit = 10.0
 
     def search(
         self,
@@ -581,7 +621,8 @@ class ExternalDataHub:
                 cache_dir=self.cache_dir / "clinicaltrials"
             ),
             "pubmed": PubMedSource(
-                cache_dir=self.cache_dir / "pubmed"
+                cache_dir=self.cache_dir / "pubmed",
+                api_key=os.environ.get("NCBI_API_KEY"),  # FDA-151: auto-load from env
             ),
             "patents": PatentsViewSource(
                 cache_dir=self.cache_dir / "patents"
