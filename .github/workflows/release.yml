@@ -1,475 +1,72 @@
-# FDA Tools - Release Automation
-# Creates GitHub releases with automated changelog generation
-# Publishes packages to PyPI and Docker registries
-
-name: Release Automation
+name: Release
 
 on:
   push:
     tags:
-      - 'v*.*.*'
-
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version to release (e.g., 5.37.0)'
-        required: true
-        type: string
-      prerelease:
-        description: 'Mark as pre-release'
-        required: false
-        type: boolean
-        default: false
-
-env:
-  PYTHON_VERSION: '3.11'
-  REGISTRY: ghcr.io
+      - 'v[0-9]+.[0-9]+.[0-9]+'   # e.g. v1.2.3
 
 permissions:
   contents: write
-  packages: write
-  id-token: write
 
 jobs:
-  # ==========================================================================
-  # Job 1: Prepare Release
-  # ==========================================================================
-  prepare-release:
-    name: Prepare Release
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-      tag_name: ${{ steps.version.outputs.tag_name }}
-      is_prerelease: ${{ steps.version.outputs.is_prerelease }}
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Extract version information
-        id: version
-        run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            VERSION="${{ github.event.inputs.version }}"
-            TAG_NAME="v${VERSION}"
-            IS_PRERELEASE="${{ github.event.inputs.prerelease }}"
-          else
-            TAG_NAME="${GITHUB_REF#refs/tags/}"
-            VERSION="${TAG_NAME#v}"
-            if [[ "$VERSION" =~ (alpha|beta|rc) ]]; then
-              IS_PRERELEASE="true"
-            else
-              IS_PRERELEASE="false"
-            fi
-          fi
-
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
-          echo "is_prerelease=${IS_PRERELEASE}" >> $GITHUB_OUTPUT
-
-          echo "Release version: ${VERSION}"
-          echo "Tag name: ${TAG_NAME}"
-          echo "Pre-release: ${IS_PRERELEASE}"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install tomli
-
-      - name: Verify version consistency
-        env:
-          EXPECTED_VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          PYPROJECT_VERSION=$(python -c "import tomli; print(tomli.load(open('pyproject.toml', 'rb'))['project']['version'])")
-
-          if [ "${PYPROJECT_VERSION}" != "${EXPECTED_VERSION}" ]; then
-            echo "::error::Version mismatch! Tag version (${EXPECTED_VERSION}) does not match pyproject.toml (${PYPROJECT_VERSION})"
-            exit 1
-          fi
-
-          echo "Version verification passed: ${EXPECTED_VERSION}"
-
-  # ==========================================================================
-  # Job 2: Build and Test Release
-  # ==========================================================================
-  build-release:
-    name: Build Release Artifacts
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    needs: prepare-release
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip setuptools wheel
-          pip install -e ".[test]"
-          pip install build twine
-
-      - name: Run full test suite
-        run: |
-          pytest plugins/fda_tools/tests/ \
-            -m "not slow and not e2e and not api" \
-            --cov=plugins/fda_tools/lib \
-            --cov=plugins/fda_tools/scripts \
-            --cov-report=xml \
-            --cov-report=term-missing \
-            -v
-
-      - name: Build distribution packages
-        run: |
-          python -m build
-          ls -lh dist/
-
-      - name: Check distribution metadata
-        run: |
-          twine check dist/*
-
-      - name: Test installation
-        run: |
-          python -m venv test-venv
-          source test-venv/bin/activate
-          pip install dist/*.whl
-          python -c "from fda_tools.lib import fda_api_client"
-          deactivate
-          rm -rf test-venv
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: python-package-distributions
-          path: dist/
-          retention-days: 90
-
-  # ==========================================================================
-  # Job 3: Generate Changelog
-  # ==========================================================================
-  generate-changelog:
-    name: Generate Changelog
+  # ── Generate changelog and create GitHub Release ──────────────────────────
+  release:
+    name: Create Release
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: prepare-release
-    outputs:
-      changelog: ${{ steps.changelog.outputs.changelog }}
 
     steps:
-      - name: Checkout code
+      - name: Checkout code (full history for changelog)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Generate changelog with git-cliff
+        uses: orhun/git-cliff-action@v3
+        id: cliff
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Generate changelog from git commits
-        id: changelog
+          config: cliff.toml
+          args: --verbose --latest --strip header
         env:
-          VERSION: ${{ needs.prepare-release.outputs.version }}
-        run: |
-          # Find previous tag
-          PREVIOUS_TAG=$(git tag --sort=-version:refname | grep -v "^${VERSION}$" | head -1)
-
-          if [ -z "$PREVIOUS_TAG" ]; then
-            echo "No previous tag found, using initial commit"
-            PREVIOUS_TAG=$(git rev-list --max-parents=0 HEAD)
-          fi
-
-          echo "Generating changelog from ${PREVIOUS_TAG} to ${VERSION}"
-
-          # Generate changelog
-          cat > RELEASE_NOTES.md << 'ENDEOF'
-          # Release Notes - FDA Tools v$VERSION
-
-          ## What's Changed
-
-          ENDEOF
-
-          # Group commits by type
-          echo "### Features" >> RELEASE_NOTES.md
-          git log ${PREVIOUS_TAG}..HEAD --pretty=format:"- %s (%h)" --grep="^feat" >> RELEASE_NOTES.md || echo "- No new features" >> RELEASE_NOTES.md
-          echo -e "\n" >> RELEASE_NOTES.md
-
-          echo "### Bug Fixes" >> RELEASE_NOTES.md
-          git log ${PREVIOUS_TAG}..HEAD --pretty=format:"- %s (%h)" --grep="^fix" >> RELEASE_NOTES.md || echo "- No bug fixes" >> RELEASE_NOTES.md
-          echo -e "\n" >> RELEASE_NOTES.md
-
-          echo "### Documentation" >> RELEASE_NOTES.md
-          git log ${PREVIOUS_TAG}..HEAD --pretty=format:"- %s (%h)" --grep="^docs" >> RELEASE_NOTES.md || echo "- No documentation updates" >> RELEASE_NOTES.md
-          echo -e "\n" >> RELEASE_NOTES.md
-
-          echo "### Other Changes" >> RELEASE_NOTES.md
-          git log ${PREVIOUS_TAG}..HEAD --pretty=format:"- %s (%h)" --grep="^chore\|^refactor\|^test\|^perf" >> RELEASE_NOTES.md || echo "- No other changes" >> RELEASE_NOTES.md
-          echo -e "\n" >> RELEASE_NOTES.md
-
-          # Add Docker info
-          cat >> RELEASE_NOTES.md << 'ENDEOF'
-
-          ## Docker Images
-
-          ```bash
-          docker pull ghcr.io/${{ github.repository }}:$VERSION
-          docker pull ghcr.io/${{ github.repository }}:latest
-          ```
-
-          ## Installation
-
-          ### PyPI (Python Package)
-          ```bash
-          pip install fda-tools==$VERSION
-          ```
-
-          ### From Source
-          ```bash
-          git clone https://github.com/${{ github.repository }}.git
-          cd fda-tools
-          git checkout v$VERSION
-          pip install -e ".[optional]"
-          ```
-
-          ## Verification
-
-          ```bash
-          # Verify installation
-          python -c "from fda_tools.lib import fda_api_client; print('FDA Tools installed successfully')"
-
-          # Check version
-          docker run --rm ghcr.io/${{ github.repository }}:$VERSION --version
-          ```
-
-          ---
-
-          **Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREVIOUS_TAG}...v$VERSION
-          ENDEOF
-
-          # Output for GitHub release
-          {
-            echo 'changelog<<CHANGELOG_EOF'
-            cat RELEASE_NOTES.md
-            echo 'CHANGELOG_EOF'
-          } >> $GITHUB_OUTPUT
-
-      - name: Upload changelog
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-notes
-          path: RELEASE_NOTES.md
-          retention-days: 90
-
-  # ==========================================================================
-  # Job 4: Create GitHub Release
-  # ==========================================================================
-  create-release:
-    name: Create GitHub Release
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: [prepare-release, build-release, generate-changelog]
-
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
+          OUTPUT: RELEASE_CHANGELOG.md
+          GITHUB_REPO: ${{ github.repository }}
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.prepare-release.outputs.tag_name }}
-          name: FDA Tools ${{ needs.prepare-release.outputs.version }}
-          body: ${{ needs.generate-changelog.outputs.changelog }}
+          body_path: RELEASE_CHANGELOG.md
+          tag_name: ${{ github.ref_name }}
+          name: "FDA Tools ${{ github.ref_name }}"
           draft: false
-          prerelease: ${{ needs.prepare-release.outputs.is_prerelease }}
-          files: |
-            python-package-distributions/*
-            release-notes/RELEASE_NOTES.md
+          prerelease: ${{ contains(github.ref_name, '-') }}
+
+  # ── Update CHANGELOG.md on master ─────────────────────────────────────────
+  update-changelog:
+    name: Update CHANGELOG.md
+    runs-on: ubuntu-latest
+    needs: release
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout master
+        uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  # ==========================================================================
-  # Job 5: Publish to PyPI
-  # ==========================================================================
-  publish-pypi:
-    name: Publish to PyPI
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: [prepare-release, build-release, create-release]
-    environment:
-      name: pypi
-      url: https://pypi.org/project/fda-tools/${{ needs.prepare-release.outputs.version }}
-    if: needs.prepare-release.outputs.is_prerelease == 'false'
-
-    steps:
-      - name: Download distribution artifacts
-        uses: actions/download-artifact@v4
+      - name: Generate full CHANGELOG.md
+        uses: orhun/git-cliff-action@v3
         with:
-          name: python-package-distributions
-          path: dist/
-
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
-          skip-existing: true
-
-  # ==========================================================================
-  # Job 6: Publish to TestPyPI (for pre-releases)
-  # ==========================================================================
-  publish-test-pypi:
-    name: Publish to TestPyPI
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: [prepare-release, build-release, create-release]
-    environment:
-      name: testpypi
-      url: https://test.pypi.org/project/fda-tools/${{ needs.prepare-release.outputs.version }}
-    if: needs.prepare-release.outputs.is_prerelease == 'true'
-
-    steps:
-      - name: Download distribution artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: python-package-distributions
-          path: dist/
-
-      - name: Publish to TestPyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          repository-url: https://test.pypi.org/legacy/
-          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
-          skip-existing: true
-
-  # ==========================================================================
-  # Job 7: Publish Docker Images
-  # ==========================================================================
-  publish-docker:
-    name: Publish Docker Images
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    needs: [prepare-release, create-release]
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Log in to Docker Hub (optional)
-        if: secrets.DOCKERHUB_USERNAME != ''
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Extract Docker metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: |
-            ${{ env.REGISTRY }}/${{ github.repository }}
-            ${{ secrets.DOCKERHUB_USERNAME }}/fda-tools
-          tags: |
-            type=semver,pattern={{version}},value=${{ needs.prepare-release.outputs.version }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ needs.prepare-release.outputs.version }}
-            type=semver,pattern={{major}},value=${{ needs.prepare-release.outputs.version }}
-            type=raw,value=latest,enable=${{ needs.prepare-release.outputs.is_prerelease == 'false' }}
-
-      - name: Build and push Docker images
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          build-args: |
-            PYTHON_VERSION=3.11
-            ENVIRONMENT=production
-            ENABLE_OPTIONAL_DEPS=true
-          platforms: linux/amd64,linux/arm64
-
-  # ==========================================================================
-  # Job 8: Post-Release Notifications
-  # ==========================================================================
-  notify-release:
-    name: Post-Release Notifications
-    runs-on: ubuntu-latest
-    needs: [prepare-release, create-release, publish-pypi, publish-docker]
-    if: always() && needs.create-release.result == 'success'
-
-    steps:
-      - name: Notify Slack
-        uses: slackapi/slack-github-action@v1
+          config: cliff.toml
+          args: --verbose
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          VERSION: ${{ needs.prepare-release.outputs.version }}
-          TAG_NAME: ${{ needs.prepare-release.outputs.tag_name }}
-          RELEASE_URL: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ needs.prepare-release.outputs.tag_name }}
+          OUTPUT: CHANGELOG.md
+          GITHUB_REPO: ${{ github.repository }}
+
+      - name: Commit updated CHANGELOG.md
+        uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          payload: |
-            {
-              "text": "New FDA Tools Release",
-              "blocks": [
-                {
-                  "type": "header",
-                  "text": {
-                    "type": "plain_text",
-                    "text": ":rocket: FDA Tools ${{ env.VERSION }} Released!"
-                  }
-                },
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*Release:* <${{ env.RELEASE_URL }}|${{ env.TAG_NAME }}>\n*PyPI:* https://pypi.org/project/fda-tools/${{ env.VERSION }}\n*Docker:* `ghcr.io/${{ github.repository }}:${{ env.VERSION }}`"
-                  }
-                },
-                {
-                  "type": "context",
-                  "elements": [
-                    {
-                      "type": "mrkdwn",
-                      "text": "Released by ${{ github.actor }}"
-                    }
-                  ]
-                }
-              ]
-            }
-
-      - name: Create Linear update (if configured)
-        if: secrets.LINEAR_API_KEY != ''
-        run: |
-          echo "Creating Linear update for release ${{ needs.prepare-release.outputs.version }}"
-          # Linear API call would go here
-
-      - name: Send email notification (if configured)
-        if: secrets.SENDGRID_API_KEY != ''
-        run: |
-          echo "Sending email notification for release ${{ needs.prepare-release.outputs.version }}"
-          # Email notification would go here
+          commit_message: "chore(release): Update CHANGELOG.md for ${{ github.ref_name }}"
+          file_pattern: CHANGELOG.md
+          branch: master
