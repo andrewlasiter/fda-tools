@@ -69,6 +69,7 @@ See the [full documentation](./plugins/fda-tools/README.md) for commands, agents
 - **Version**: 5.36.0
 - **Repository**: [GitHub](https://github.com/andrewlasiter/fda-tools)
 - **Issues**: [Report a bug](https://github.com/andrewlasiter/fda-tools/issues)
+- **Contributing**: [CONTRIBUTING.md](CONTRIBUTING.md)
 - **License**: MIT
 
 ## License
