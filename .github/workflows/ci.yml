@@ -536,7 +536,71 @@ jobs:
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
   # ==========================================================================
-  # Job 8: CI Summary & Status
+  # Job 8: Performance Benchmarks (non-blocking)
+  # Runs benchmarks and saves results as artifacts; compares against stored
+  # baselines when available.  Does not block CI on first run (no baselines).
+  # ==========================================================================
+  benchmarks:
+    name: Performance Benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Run on main branch pushes and PRs; never blocks CI
+    continue-on-error: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Restore stored baselines (if any)
+        uses: actions/cache@v4
+        with:
+          path: ~/.fda-510k-data/.performance
+          key: perf-baselines-${{ runner.os }}-${{ github.ref }}
+          restore-keys: |
+            perf-baselines-${{ runner.os }}-refs/heads/master
+
+      - name: Run benchmarks
+        id: benchmarks
+        run: |
+          python3 -m fda_tools.scripts.benchmark_runner \
+            --output benchmark-results.json \
+            --warn-ok \
+            || echo "::warning::Performance regressions detected — see benchmark-results.json"
+
+      - name: Record baselines (master branch only)
+        if: github.ref == 'refs/heads/master'
+        run: |
+          python3 -m fda_tools.scripts.benchmark_runner --record
+          echo "Baselines updated for master branch"
+
+      - name: Save baselines (master branch only)
+        if: github.ref == 'refs/heads/master'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.fda-510k-data/.performance
+          key: perf-baselines-${{ runner.os }}-${{ github.ref }}
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: benchmark-results.json
+          retention-days: 90
+
+  # ==========================================================================
+  # Job 9: CI Summary & Status
   # ==========================================================================
   ci-success:
     name: CI Pipeline Status
