@@ -33,16 +33,7 @@ import logging
 from functools import wraps
 from typing import Callable, Any, Optional, TypeVar, cast
 from datetime import datetime, timedelta
-from collections import deque
-
-try:
-    from fda_tools.lib.cross_process_rate_limiter import (
-        CrossProcessRateLimiter as _CrossProcessRateLimiter,
-    )
-    _CROSS_PROCESS_AVAILABLE = True
-except ImportError:
-    _CROSS_PROCESS_AVAILABLE = False
-    _CrossProcessRateLimiter = None  # type: ignore[assignment,misc]
+from fda_tools.lib.cross_process_rate_limiter import CrossProcessRateLimiter
 
 logger = logging.getLogger(__name__)
 
@@ -122,71 +113,8 @@ def with_retry(
 # Rate Limiter
 # ==================================================================
 
-class _FallbackRateLimiter:
-    """Rate limiter using sliding window algorithm (in-process only).
-
-    Used as a fallback when CrossProcessRateLimiter is unavailable.
-    New code should use CrossProcessRateLimiter directly.
-
-    Example:
-        rate_limiter = _FallbackRateLimiter(calls_per_minute=100)
-
-        # Use as context manager
-        with rate_limiter:
-            api_call()
-
-        # Or call directly
-        rate_limiter.wait_if_needed()
-    """
-
-    def __init__(self, calls_per_minute: int = 100, window_seconds: int = 60):
-        """Initialize rate limiter.
-
-        Args:
-            calls_per_minute: Maximum calls per minute
-            window_seconds: Time window in seconds
-        """
-        self.max_calls = calls_per_minute
-        self.window = window_seconds
-        self.calls: deque = deque()
-        self._lock = threading.Lock()
-
-    def wait_if_needed(self):
-        """Wait if rate limit would be exceeded (thread-safe)."""
-        while True:
-            with self._lock:
-                now = time.time()
-                # Remove calls outside the window
-                while self.calls and self.calls[0] < now - self.window:
-                    self.calls.popleft()
-                # Under limit: record this call and return
-                if len(self.calls) < self.max_calls:
-                    self.calls.append(now)
-                    return
-                # At limit: compute sleep time, release lock before sleeping
-                sleep_time = self.calls[0] + self.window - now + 0.001
-
-            if sleep_time > 0:
-                logger.debug(
-                    "Rate limit reached. Waiting %.1f seconds...",
-                    sleep_time
-                )
-                time.sleep(sleep_time)
-            # Re-check after waking (loop)
-
-    def __enter__(self):
-        """Context manager entry."""
-        self.wait_if_needed()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit."""
-        return False
-
-
-# Backward-compat alias: uses cross-process-safe limiter when available.
-# New code should import CrossProcessRateLimiter directly.
-RateLimiter = _CrossProcessRateLimiter if _CROSS_PROCESS_AVAILABLE else _FallbackRateLimiter
+# Backward-compat alias. New code should import CrossProcessRateLimiter directly.
+RateLimiter = CrossProcessRateLimiter
 
 
 # ==================================================================
@@ -394,12 +322,9 @@ class RobustAPIClient:
             failure_threshold: Circuit breaker threshold
             recovery_timeout: Circuit breaker recovery time
         """
-        if _CROSS_PROCESS_AVAILABLE:
-            self.rate_limiter: Any = _CrossProcessRateLimiter(  # type: ignore[call-arg]
-                requests_per_minute=calls_per_minute
-            )
-        else:
-            self.rate_limiter = _FallbackRateLimiter(calls_per_minute=calls_per_minute)
+        self.rate_limiter = CrossProcessRateLimiter(
+            requests_per_minute=calls_per_minute
+        )
         self.circuit_breaker = CircuitBreaker(
             failure_threshold=failure_threshold,
             recovery_timeout=recovery_timeout
