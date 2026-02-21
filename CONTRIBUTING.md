@@ -177,3 +177,65 @@ pip install -e ".[dev]"
 Ensure you installed with `pip install -e .` (not just `pip install`). The
 editable install links `plugins/fda_tools` into `sys.path` so imports resolve
 without `sys.path.insert()` hacks.
+
+---
+
+## Contributing Code
+
+### Branch naming
+
+Use the format `<type>/<ticket>-<short-description>`:
+
+```
+feat/fda-124-input-validators
+fix/gh-77-license-scan
+chore/update-deps
+```
+
+Common types: `feat`, `fix`, `refactor`, `docs`, `chore`, `test`.
+
+### Commit messages
+
+Follow the [Conventional Commits](https://www.conventionalcommits.org/) format:
+
+```
+<type>(<scope>): <short summary>
+
+[optional body]
+[optional footer]
+```
+
+Examples:
+
+```
+feat(validation): Add email validator to lib/input_validators (FDA-124)
+fix(ci): Pin Trivy action to avoid breaking changes
+docs: Update CONTRIBUTING with branch naming conventions
+```
+
+### Pull request checklist
+
+Before opening a PR, verify:
+
+- [ ] All tests pass: `pytest plugins/fda_tools/tests/ -v`
+- [ ] Pre-commit hooks pass: `pre-commit run --all-files`
+- [ ] New code is covered by tests
+- [ ] No new `sys.path.insert()` calls (use `pip install -e .` instead)
+- [ ] Imports use the `fda_tools.*` prefix, not relative paths
+- [ ] Sensitive data is not hard-coded (keys, passwords, PII)
+- [ ] Related Linear/GitHub issue is referenced in the PR body
+
+### Testing requirements
+
+- All new `lib/` modules require a corresponding `tests/test_<module>.py`
+- Minimum coverage for new files: aim for 80 %+ line coverage
+- Use `pytest-cov` to check: `pytest --cov=plugins/fda_tools/lib/<module> --cov-report=term-missing`
+
+### Code review
+
+PRs are reviewed for:
+
+1. Correctness and security (no injection, no path traversal, no hardcoded secrets)
+2. Test coverage
+3. Import hygiene (`fda_tools.*` prefix, no `sys.path` manipulation)
+4. Minimal diff — only changes directly related to the stated purpose
