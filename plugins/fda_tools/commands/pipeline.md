@@ -101,6 +101,7 @@ Steps are classified as **CRITICAL** or **NON-CRITICAL**:
 |------|------|-------------|------------|
 | 1 | Extract | **CRITICAL** | HALT pipeline — no data to work with |
 | 2 | Review | **CRITICAL** | HALT pipeline — predicate validation required for downstream |
+| 2.5 | Diversity Gate | NON-CRITICAL | Continue with DEGRADED warning if POOR diversity |
 | 3 | Safety | NON-CRITICAL | Continue with DEGRADED warning |
 | 4 | Guidance | NON-CRITICAL | Continue with DEGRADED warning |
 | 5 | Pre-Sub Plan | NON-CRITICAL | Continue with DEGRADED warning |
@@ -203,6 +204,55 @@ Report: "Step 1/7: Extract — {status} ({N} records in output.csv, {N} PDFs pro
 **On failure**: **CRITICAL — HALT PIPELINE.** Report: "PIPELINE HALTED: Step 2 (Review) failed. Predicate validation is required for SE comparison and submission planning. Error: {error}. Skipped steps: 3-7."
 
 Report: "Step 2/7: Review — {status} ({N} accepted, {N} rejected, {N} deferred)"
+
+### Step 2.5: Predicate Diversity Gate (FDA-130)
+
+**Runs after Step 2 completes successfully.** Checks whether the accepted predicate set has adequate diversity before continuing the pipeline. A low-diversity set increases SE rejection risk.
+
+**Skip condition**: Fewer than 2 accepted predicates in review.json.
+
+```python
+import json, sys, os
+
+# Load accepted predicates
+review_path = os.path.join(os.environ.get('PROJECT_DIR', '.'), 'review.json')
+predicates = []
+if os.path.exists(review_path):
+    review = json.load(open(review_path))
+    for k_num, v in review.get('predicates', {}).items():
+        if v.get('decision') == 'accepted':
+            predicates.append({
+                'k_number': k_num,
+                'manufacturer': v.get('manufacturer', ''),
+                'device_name': v.get('device_name', ''),
+                'clearance_date': v.get('clearance_date', ''),
+                'product_code': v.get('product_code', ''),
+                'decision_description': v.get('decision_description', ''),
+                'contact_country': v.get('contact_country', ''),
+            })
+
+if len(predicates) >= 2:
+    try:
+        from fda_tools.lib.predicate_diversity import PredicateDiversityAnalyzer
+        result = PredicateDiversityAnalyzer(predicates).analyze()
+        score = result.get('total_score', 0)
+        grade = result.get('grade', '?')
+        print(f"DIVERSITY_GATE:score={score}|grade={grade}|n_predicates={len(predicates)}")
+    except Exception as e:
+        print(f"DIVERSITY_GATE:error|{e}")
+else:
+    print(f"DIVERSITY_GATE:skipped|n_predicates={len(predicates)}")
+```
+
+**If diversity score < 40 (POOR)**: Log a DEGRADED warning in the pipeline report:
+> ⚠ DIVERSITY WARNING: Accepted predicates scored {score}/100 ({grade}). SE arguments built on a low-diversity predicate set risk FDA questions about equivalence validity. Consider adding predicates from different manufacturers or technology generations via `/fda:research --depth deep`.
+
+**If diversity score 40-59 (FAIR)**: Log a NON-CRITICAL note:
+> ℹ Predicate diversity: FAIR ({score}/100). Acceptable, but broader predicate diversity strengthens SE arguments.
+
+**If diversity score ≥ 60 (GOOD/EXCELLENT)**: Log silently in audit log only.
+
+Report in pipeline completion summary: "Step 2.5: Diversity Gate — {GOOD|FAIR|POOR} ({score}/100, {N} predicates)"
 
 ### Step 3/7: Safety Intelligence
 
@@ -311,6 +361,7 @@ STEP RESULTS
 
   1. Extract            ✓  {details}
   2. Review             ✓  {details}
+  2.5 Diversity Gate    ✓  {score}/100 — {grade} ({N} predicates)
   3. Safety             ⚠  DEGRADED — {details}
   4. Guidance           ✓  {details}
   5. Pre-Sub Plan       ✓  {details}
