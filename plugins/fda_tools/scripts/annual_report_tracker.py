@@ -308,7 +308,7 @@ class AnnualReportTracker:
     # ------------------------------------------------------------------
 
     def _parse_date(self, date_str: str) -> Optional[datetime]:
-        """Parse a date string from FDA format.
+        """Parse a date string from FDA format. Delegates to shared parse_fda_date() utility.
 
         Args:
             date_str: Date string in YYYYMMDD or YYYY-MM-DD format.
@@ -316,24 +316,8 @@ class AnnualReportTracker:
         Returns:
             Parsed datetime or None.
         """
-        if not date_str:
-            return None
-
-        # Try YYYYMMDD format (FDA default)
-        try:
-            return datetime.strptime(date_str[:8], "%Y%m%d")
-        except (ValueError, TypeError) as e:
-            # Expected: try next format
-            print(f"Warning: _parse_date YYYYMMDD format failed for {date_str!r}: {e}", file=sys.stderr)
-
-        # Try YYYY-MM-DD format
-        try:
-            return datetime.strptime(date_str[:10], "%Y-%m-%d")
-        except (ValueError, TypeError) as e:
-            # Expected: unrecognized date format
-            print(f"Warning: _parse_date all formats failed for {date_str!r}: {e}", file=sys.stderr)
-
-        return None
+        from fda_tools.lib.import_helpers import parse_fda_date
+        return parse_fda_date(date_str)
 
     def _generate_due_dates(
         self,

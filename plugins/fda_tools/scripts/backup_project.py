@@ -48,11 +48,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-try:
+from fda_tools.lib.import_helpers import try_optional_import
+_tqdm_result = try_optional_import('tqdm', package_name='tqdm')
+TQDM_AVAILABLE = _tqdm_result.success
+if TQDM_AVAILABLE:
     from tqdm import tqdm
-    TQDM_AVAILABLE = True
-except ImportError:
-    TQDM_AVAILABLE = False
 
 # Import project directory resolution
 from fda_data_store import get_projects_dir
