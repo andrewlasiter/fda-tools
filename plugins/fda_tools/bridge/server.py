@@ -98,7 +98,18 @@ PLUGIN_ROOT = Path(__file__).parent.parent
 COMMANDS_DIR = PLUGIN_ROOT / "commands"
 SCRIPTS_DIR = PLUGIN_ROOT / "scripts"
 
-# Add scripts directory to Python path for imports
+# Security gateway (lazy-initialized on first use to avoid circular imports)
+_security_gateway: Optional[Any] = None
+
+
+def _get_security_gateway() -> Any:
+    """Return the shared SecurityGateway instance, creating it if needed."""
+    global _security_gateway
+    if _security_gateway is None:
+        from fda_tools.bridge.security_gateway import SecurityGateway
+        _security_gateway = SecurityGateway(audit_log_func=audit_log_entry)
+    return _security_gateway
+
 
 # Server startup time for uptime calculation
 SERVER_START_TIME = time.time()
@@ -1046,6 +1057,31 @@ async def execute_command(
     session = create_session(request_obj.user_id, request_obj.session_id)
     session_id = session["session_id"]
 
+    # Security gateway: classify data and enforce channel access control (FDA-117)
+    gateway = _get_security_gateway()
+    decision = gateway.evaluate(
+        command=request_obj.command,
+        args=request_obj.args or "",
+        channel=request_obj.channel,
+        user_id=request_obj.user_id,
+        session_id=session_id,
+        context=request_obj.context or "",
+    )
+
+    if decision.should_block:
+        return ExecuteResponse(
+            success=False,
+            error=(
+                f"Command '{request_obj.command}' blocked: "
+                f"CONFIDENTIAL data not permitted on '{request_obj.channel}' channel. "
+                "Use file output or a local terminal for confidential operations."
+            ),
+            classification=decision.classification,
+            llm_provider="none",
+            warnings=decision.warnings,
+            session_id=session_id,
+        )
+
     # Audit log
     audit_log_entry("command_execute", {
         "command": request_obj.command,
@@ -1053,6 +1089,7 @@ async def execute_command(
         "user_id": request_obj.user_id,
         "session_id": session_id,
         "channel": request_obj.channel,
+        "classification": decision.classification,
     })
 
     # Execute command
@@ -1064,6 +1101,13 @@ async def execute_command(
             session_id=session_id,
             channel=request_obj.channel,
         )
+
+        # Merge security decision into result
+        result["classification"] = decision.classification
+        result["llm_provider"] = decision.llm_provider
+        if decision.warnings:
+            result.setdefault("warnings", [])
+            result["warnings"] = list(result["warnings"]) + decision.warnings
 
         return ExecuteResponse(**result)
 
@@ -1077,7 +1121,7 @@ async def execute_command(
         return ExecuteResponse(
             success=False,
             error=sanitized_error,  # Sanitized message (no internal paths)
-            classification="PUBLIC",
+            classification=decision.classification,
             llm_provider="none",
             session_id=session_id,
         )
