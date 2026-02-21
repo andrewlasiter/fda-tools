@@ -223,6 +223,19 @@ class RefreshAuditLogger:
             )
         return str(log_path)
 
+    def log_event(
+        self,
+        event_type: str,
+        details: Optional[Dict] = None,
+    ) -> None:
+        """Log a generic named event (used by blue-green workflow)."""
+        entry = {
+            "event": event_type,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "details": details or {},
+        }
+        self._entries.append(entry)
+
     def get_entries(self, session_id: Optional[str] = None) -> List[Dict]:
         """Get audit log entries, optionally filtered by session."""
         if session_id:
@@ -1028,13 +1041,12 @@ class DataRefreshOrchestrator:
 
             try:
                 # Apply update to GREEN database via update_coordinator
-                success = self.update_coordinator.apply_update_to_green(
+                applied = self.update_coordinator.apply_updates(
                     endpoint="pma",
-                    record_id=pma_number,
-                    data=delta
+                    record_ids=[pma_number],
                 )
 
-                if not success:
+                if not applied:
                     conflicts.append({
                         "pma_number": pma_number,
                         "reason": "update_failed",
@@ -1068,7 +1080,7 @@ class DataRefreshOrchestrator:
             return {"postgres_enabled": False}
 
         try:
-            stats = self.update_coordinator.get_database_stats()
+            stats = self.update_coordinator.get_status()
             return {
                 "postgres_enabled": True,
                 "active_db": stats.get("active_db"),
