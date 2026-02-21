@@ -152,38 +152,39 @@ newly available capacity is shared fairly among all waiters.
 
 ---
 
-## Tuning Guide (for PERF-004 / FDA-211)
+## Tuning Guide (PERF-004 / FDA-211 — Completed)
 
-### When to reduce POLL_INTERVAL
+### Empirical Comparison (FDA-211, 2026-02-21)
 
-Reduce `POLL_INTERVAL` if:
+All 4 candidates were benchmarked on WSL2/tmpfs (6 workers for S2, 100 samples for S3):
 
-- Scenario 3 p99 latency is high relative to per-request budget.
-- Processes are frequently idle but slow to acquire (observed via `get_stats()`).
-- `total_waits` / `total_requests` ratio > 50% at steady state.
+| POLL_INTERVAL | Jitter range | S3 p50 | S3 p99 | S2 spread | S2 pass | **Verdict** |
+|---------------|-------------|--------|--------|-----------|---------|-------------|
+| `0.05s` | 0.025–0.05s | 0.40ms | 2.10ms | 0.094s | ❌ FAIL | Too small — jitter bunches retries |
+| `0.10s` | 0.05–0.10s | 0.52ms | 2.25ms | 0.079s | ❌ FAIL | Too small — jitter bunches retries |
+| **`0.25s`** ✓ | **0.125–0.25s** | **0.32ms** | **1.90ms** | **0.248s** | **✓ PASS** | **Optimal — passes all scenarios** |
+| `0.50s` | 0.25–0.50s | 0.39ms | 1.39ms | 0.507s | ✓ PASS | Passes, but slower rate-limit recovery |
 
-**Candidate values:**
+**Decision:** Keep `POLL_INTERVAL = 0.25s`.
 
-| POLL_INTERVAL | Jitter range | Notes |
-|---------------|-------------|-------|
-| `0.25s` (current) | 0.125–0.25s | Chosen without profiling (FDA-200) |
-| `0.10s` | 0.05–0.10s | Reduce latency at 240 req/min; higher CPU |
-| `0.05s` | 0.025–0.05s | Aggressive polling; acceptable on local SSD |
+- Values below 0.25s **fail** the thundering-herd test because the jitter range
+  `[POLL_INTERVAL×0.5, POLL_INTERVAL×1.0]` is too narrow — processes cluster.
+- `0.25s` provides adequate spread (≥ 0.1s) with the best p50 of all passing candidates.
+- `0.50s` passes but adds 250ms latency when a rate-limit slot opens (unacceptable
+  at 240 req/min = 4 req/sec).
 
-### When to increase POLL_INTERVAL
+### When to revisit POLL_INTERVAL
 
-Increase `POLL_INTERVAL` if:
-
-- Scenario 2 spread is < 0.1s even with multiple processes (synchronised
-  retries persist despite jitter; larger jitter range needed).
-- Lock file I/O is on a slow shared filesystem (NFS, DrvFs/WSL) where
-  frequent lock attempts cause measurable overhead.
+Re-benchmark if:
+- Production process count increases beyond 8 concurrent workers.
+- Filesystem changes (NFS, DrvFs) slow lock acquisition significantly.
+- Rate limit changes substantially (e.g., openFDA revises limits).
 
 ### How to apply a change
 
 1. Edit `POLL_INTERVAL` in `plugins/fda_tools/lib/cross_process_rate_limiter.py:65`.
 2. Re-run all 4 benchmark scenarios.
-3. Compare spread (S2) and p99 latency (S3) before/after.
+3. Verify S2 spread > `POLL_INTERVAL × 0.4` (the S2 threshold scales with the value).
 4. Document results in this file under "Benchmark History" below.
 
 ---
@@ -193,6 +194,10 @@ Increase `POLL_INTERVAL` if:
 | Date | Branch | POLL_INTERVAL | S1 total | S2 spread | S3 p99 | S4 patient |
 |------|--------|---------------|----------|-----------|--------|------------|
 | 2026-02-20 | `master` (FDA-210) | 0.25s | 120/121 ✓ | 0.24–0.40s ✓ | 1.3–7.8ms ✓ | ≥2/16 ✓ |
+| 2026-02-21 | `master` (FDA-211) | 0.05s | — | 0.094s ❌ | — | — |
+| 2026-02-21 | `master` (FDA-211) | 0.10s | — | 0.079s ❌ | — | — |
+| 2026-02-21 | `master` (FDA-211) | **0.25s ✓** | — | **0.248s ✓** | **1.90ms ✓** | — |
+| 2026-02-21 | `master` (FDA-211) | 0.50s | — | 0.507s ✓ | 1.39ms ✓ | — |
 
 > S1 = total slots acquired vs window capacity (120/min).
 > S2 = time spread of 8 concurrent processes' first acquisitions.
@@ -210,5 +215,5 @@ Increase `POLL_INTERVAL` if:
 |-------|-------|--------|
 | FDA-200 | Consolidate rate limiters | Done |
 | FDA-209 | Remove `_FallbackRateLimiter` dead code | Done |
-| **FDA-210** | **Benchmark CrossProcessRateLimiter (PERF-001)** | **In Progress** |
-| FDA-211 | Tune POLL_INTERVAL (PERF-004) | Backlog — blocked by FDA-210 |
+| FDA-210 | Benchmark CrossProcessRateLimiter (PERF-001) | Done |
+| **FDA-211** | **Tune POLL_INTERVAL (PERF-004)** | **In Progress** |
