@@ -172,6 +172,33 @@ try:
         print("DIVERSITY:insufficient")
 except Exception:
     print("DIVERSITY:unavailable")
+
+# PMA pathway detection (FDA-109)
+import re as _re
+is_pma = False
+pma_number = None
+pma_draft_count = 0
+
+pma_data_dir = os.path.join(proj_dir, "pma_data")
+if os.path.isdir(pma_data_dir) and os.listdir(pma_data_dir):
+    is_pma = True
+
+dp_path = os.path.join(proj_dir, "device_profile.json")
+if os.path.exists(dp_path):
+    dp = json.load(open(dp_path))
+    pma_num = dp.get("pma_number") or dp.get("p_number")
+    if pma_num and _re.match(r'^P\d{6}', str(pma_num)):
+        is_pma = True
+        pma_number = pma_num
+
+pma_drafts = glob.glob(os.path.join(proj_dir, "pma_draft_*.md"))
+pma_draft_count = len(pma_drafts)
+if pma_draft_count > 0:
+    is_pma = True
+
+print(f"IS_PMA:{is_pma}")
+print(f"PMA_NUMBER:{pma_number or 'N/A'}")
+print(f"PMA_DRAFT_COUNT:{pma_draft_count}")
 PYEOF
 ```
 
@@ -234,6 +261,21 @@ PREDICATE REVIEW
   {If no review.json:}
   ✗  Not yet reviewed — run /fda:review --project {name}
 
+{If IS_PMA:True — replace PREDICATE REVIEW with PMA STATUS:}
+PMA STATUS (21 CFR Part 814)
+────────────────────────────────────────
+
+  Pathway:    PMA — Class III Device
+  Reference:  {PMA_NUMBER if known, else N/A}
+  Drafts:     {PMA_DRAFT_COUNT}/8 mandatory sections drafted
+
+  {If pma_data/ present:}  Comparable PMAs:  ✓ Intelligence data loaded
+  {If pma_data/ missing:}  Comparable PMAs:  ✗ Run /fda:pma-search first
+  {If clinical_requirements.json exists:}  Clinical mapping: ✓ Study design mapped
+  {If clinical_requirements.json missing:} Clinical mapping: ✗ Run /fda:clinical-requirements
+
+  ⚠ PMA requires pivotal clinical trial data. 180–360 day FDA review expected.
+
 DRAFTED SECTIONS ({N}/18)
 ────────────────────────────────────────
 
@@ -271,7 +313,7 @@ NEXT STEPS
 
   {Context-aware recommendations based on what's missing}
 
-  Examples:
+  Examples (510k pathway):
   - "Run /fda:review --project NAME to accept predicates" (if no review.json)
   - "Run /fda:smart-predicates --project NAME to improve predicate ranking" (if diversity < 60)
   - "Run /fda:research --depth deep to find more diverse predicates" (if diversity POOR)
@@ -280,6 +322,15 @@ NEXT STEPS
   - "Run /fda:consistency --project NAME to validate cross-document alignment" (if no consistency report)
   - "Run /fda:assemble --project NAME to package for submission" (if ≥80% complete)
   - "Run /fda:pre-check --project NAME to simulate FDA review" (if SRI ≥70)
+
+  Examples (PMA pathway — show these if IS_PMA:True):
+  - "Run /fda:pma-search --pma {PMA_NUMBER} to load comparable PMA intelligence" (if pma_data/ missing)
+  - "Run /fda:clinical-requirements --pma {PMA_NUMBER} to map clinical study design" (if clinical mapping missing)
+  - "Run /fda:pma-draft ssed --project NAME to generate SSED draft" (if SSED missing)
+  - "Run /fda:pma-draft clinical --project NAME to generate clinical section" (if clinical draft missing)
+  - "Run /fda:pma-timeline --product-code {CODE} to get approval timeline prediction" (if timeline missing)
+  - "Run /fda:pma-supplements --pma {PMA_NUMBER} to track supplement history" (if supplements missing)
+  - "Schedule FDA Q-Sub meeting before filing PMA" (if PRI < 60)
 
 ────────────────────────────────────────
   This report is AI-generated from public FDA data.

@@ -50,7 +50,8 @@ You are running the **full FDA 510(k) pipeline** end-to-end. This command orches
 
 From `$ARGUMENTS`, extract:
 
-- **Product code** (required) — 3-letter FDA product code (e.g., OVE, KGN, QBJ)
+- **Product code** (required for 510(k)) — 3-letter FDA product code (e.g., OVE, KGN, QBJ)
+- `--pma NUMBER` — **PMA pathway flag**: Routes to PMA pipeline instead of 510(k) (e.g., `--pma P170019`)
 - `--project NAME` (required for full pipeline) — Project name for organizing outputs
 - `--device-description TEXT` — Description of the user's device (used to populate placeholders)
 - `--intended-use TEXT` — Proposed indications for use (used to populate placeholders)
@@ -62,6 +63,27 @@ From `$ARGUMENTS`, extract:
 If no `--project` provided, auto-generate from product code: `{CODE}_{YYYY}` (e.g., `OVE_2026`).
 
 If no `--years` provided, default to last 5 years.
+
+## Pathway Detection (FDA-109)
+
+**Before any pipeline steps**, determine the regulatory pathway:
+
+```python
+# Pathway detection logic
+pma_flag = "--pma" in arguments  # e.g., --pma P170019
+pma_number = extract_pma_number(arguments)  # P-number pattern
+
+if pma_flag or pma_number:
+    pathway = "PMA"
+    # Route to PMA Pipeline below
+else:
+    pathway = "510k"
+    # Continue with standard 510(k) pipeline steps
+```
+
+**If PMA pathway detected**: Skip Steps 1-7 below and execute the **PMA Pipeline** section instead.
+
+**If 510(k) pathway**: Continue with standard pipeline (Steps 0-7).
 
 ## Resolve API Key
 
@@ -400,3 +422,186 @@ Append a sources table to every output showing which external APIs were queried 
 - **Step dependency failure**: Log which steps were affected, continue with available data
 - **API unavailable**: Note in summary, continue with flat-file data
 - **All steps fail**: Present error summary with troubleshooting suggestions
+
+---
+
+## PMA Pipeline (FDA-109)
+
+**Activated when**: `--pma NUMBER` flag is present in arguments.
+
+PMA submissions follow 21 CFR Part 814 requirements and differ significantly from 510(k):
+- **No predicate device**: PMA requires valid scientific evidence, not SE to a predicate
+- **Clinical data required**: Pivotal clinical trial data is mandatory for most Class III devices
+- **Manufacturing review**: Full GMP inspection is standard
+- **Post-approval**: PMA devices require supplements, annual reports, and PAS tracking
+
+### PMA Step Criticality
+
+| Step | Name | Criticality | On Failure |
+|------|------|-------------|------------|
+| P1 | PMA Search & Intelligence | **CRITICAL** | HALT — no comparable PMA data for context |
+| P2 | Clinical Requirements | NON-CRITICAL | Continue with DEGRADED — clinical section will be skeletal |
+| P3 | Draft Sections | NON-CRITICAL | Continue with DEGRADED — user must draft manually |
+| P4 | Supplement Tracking | NON-CRITICAL | Continue with DEGRADED |
+| P5 | Timeline Prediction | NON-CRITICAL | Continue with DEGRADED |
+| P6 | Approval Probability | NON-CRITICAL | Continue with DEGRADED |
+| P7 | PMA Gap Analysis | NON-CRITICAL | Continue with DEGRADED |
+
+### PMA Step P1: Search & Intelligence
+
+**Command**: `/fda:pma-search --pma {PMA_NUMBER} --product-code {CODE} --intelligence --download-ssed`
+
+**Skip condition**: `$PROJECT_DIR/pma_data/` directory exists with at least one JSON file.
+
+**Produces**: `pma_data/*.json`, `ssed_cache/*.json`, intelligence_report.md
+
+**On failure**: **CRITICAL — HALT PMA PIPELINE.** Report: "PMA PIPELINE HALTED: Could not locate PMA {PMA_NUMBER}. Verify the PMA number is valid and the FDA API is accessible."
+
+Report: "PMA Step P1: Search & Intelligence — {status} ({N} comparable PMAs found, SSED: {downloaded/not downloaded})"
+
+### PMA Step P2: Clinical Requirements Mapping
+
+**Command**: `/fda:clinical-requirements --pma {PMA_NUMBER} --product-code {CODE}`
+
+**Skip condition**: `$PROJECT_DIR/clinical_requirements.json` exists.
+
+**Produces**: `clinical_requirements.json` with study design precedent from comparable PMAs.
+
+**On failure**: NON-CRITICAL — Log warning, continue. Clinical section will require full manual population.
+
+Report: "PMA Step P2: Clinical Requirements — {status} (study type: {design}, enrollment: {N}, follow-up: {duration})"
+
+### PMA Step P3: Generate PMA Section Drafts
+
+**Command**: `/fda:pma-draft --all --project {PROJECT} --pma {PMA_NUMBER} --device-description {DESC} --intended-use {IFU}`
+
+**Generates all mandatory PMA sections:**
+- `pma_draft_device-description.md`
+- `pma_draft_ssed.md`
+- `pma_draft_clinical.md`
+- `pma_draft_manufacturing.md`
+- `pma_draft_preclinical.md`
+- `pma_draft_biocompatibility.md`
+- `pma_draft_cover-letter.md`
+- `pma_draft_summary.md`
+
+**On failure**: NON-CRITICAL — Report which sections failed to generate. User must draft manually.
+
+Report: "PMA Step P3: Draft Sections — {status} ({N}/{total} sections generated, {todo_count} [TODO:] items)"
+
+### PMA Step P4: Supplement Tracking
+
+**Command**: `/fda:pma-supplements --pma {PMA_NUMBER}`
+
+**Skip condition**: `$PROJECT_DIR/supplement_history.json` exists.
+
+**Produces**: `supplement_history.json` — lifecycle of supplements for the reference PMA.
+
+**On failure**: NON-CRITICAL — Log warning. Note that supplement tracking context is unavailable.
+
+Report: "PMA Step P4: Supplement Tracking — {status} ({N} supplements found for {PMA_NUMBER})"
+
+### PMA Step P5: Timeline Prediction
+
+**Command**: `/fda:pma-timeline --product-code {CODE}`
+
+**Skip condition**: `$PROJECT_DIR/timeline_prediction.json` exists.
+
+**Produces**: `timeline_prediction.json` — predicted review duration and milestone timeline.
+
+**On failure**: NON-CRITICAL — Log warning. Timeline section of planning report will use historical averages.
+
+Report: "PMA Step P5: Timeline Prediction — {status} (predicted review: {N} months, approval probability: {pct}%)"
+
+### PMA Step P6: Approval Probability
+
+**Command**: `/fda:approval-probability --pma {PMA_NUMBER} --product-code {CODE}`
+
+**Skip condition**: `$PROJECT_DIR/approval_probability.json` exists.
+
+**Produces**: `approval_probability.json` — risk score and key success factors.
+
+**On failure**: NON-CRITICAL — Log warning.
+
+Report: "PMA Step P6: Approval Probability — {status} (score: {N}/100, risk tier: {LOW|MEDIUM|HIGH})"
+
+### PMA Step P7: Gap Analysis
+
+After completing P1-P6, run PMA gap analysis:
+
+```python
+import json, os, glob
+
+pdir = os.environ.get('PROJECT_DIR', '.')
+
+# Check all expected PMA draft files
+required_sections = [
+    "pma_draft_device-description.md",
+    "pma_draft_ssed.md",
+    "pma_draft_clinical.md",
+    "pma_draft_manufacturing.md",
+    "pma_draft_preclinical.md",
+    "pma_draft_biocompatibility.md",
+    "pma_draft_cover-letter.md",
+    "pma_draft_summary.md",
+]
+
+gaps = []
+for section in required_sections:
+    fpath = os.path.join(pdir, section)
+    if not os.path.exists(fpath):
+        gaps.append(f"MISSING:{section}")
+    else:
+        with open(fpath) as f:
+            content = f.read()
+        todos = content.count("[TODO:")
+        inserts = content.count("[INSERT:")
+        citations = content.count("[CITATION NEEDED]")
+        print(f"SECTION:{section}|todos={todos}|inserts={inserts}|citations={citations}")
+
+for g in gaps:
+    print(g)
+```
+
+Report the gap analysis: which sections are missing, total [TODO:] and [INSERT:] counts.
+
+### PMA Pipeline Completion Report
+
+```
+  FDA PMA Pipeline Completion Report
+  {CODE} — {device_name} | PMA Reference: {PMA_NUMBER}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Generated: {date} | Project: {PROJECT_NAME} | v5.22.0
+
+PATHWAY: PMA (21 CFR Part 814) — Class III Device
+
+PMA STEP RESULTS
+────────────────────────────────────────
+
+  P1. Search & Intelligence  ✓  {N} comparable PMAs, SSED downloaded
+  P2. Clinical Requirements  ✓  {study_type}, N={enrollment}, {months} follow-up
+  P3. Draft Sections         ✓  {N}/8 sections, {todo} TODOs, {insert} INSERTs
+  P4. Supplement Tracking    ✓  {N} supplements for {PMA_NUMBER}
+  P5. Timeline Prediction    ✓  {months} months predicted review
+  P6. Approval Probability   ✓  {score}/100 ({tier} risk)
+  P7. Gap Analysis           ✓  {gaps} gaps identified
+
+CRITICAL NEXT STEPS (PMA submissions require extensive manual input)
+────────────────────────────────────────
+
+  1. Populate clinical data in pma_draft_clinical.md with actual study results
+  2. Complete all [INSERT:] items with real manufacturing/test data
+  3. Resolve [TODO:] items with your RA professional and biostatistician
+  4. Engage FDA Pre-Submission Meeting (Q-Sub) before finalizing PMA
+  5. Conduct IDE review if clinical trials are planned
+  6. Allow 180-day standard review (360-day if panel required)
+
+⚠ PMA submissions require substantially more data than 510(k). AI-generated
+  drafts serve only as structural templates — all clinical and test data must
+  come from validated studies.
+
+────────────────────────────────────────
+  This report is AI-generated from public FDA data.
+  Verify independently. Not regulatory advice.
+────────────────────────────────────────
+```
