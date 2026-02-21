@@ -23,6 +23,7 @@ from fda_tools.lib.import_helpers import safe_import, try_optional_import, Impor
 import logging
 import importlib
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Optional, List, Callable
 
 logger = logging.getLogger(__name__)
@@ -359,6 +360,42 @@ def try_import_with_alternatives(*module_names: str) -> ImportResult:
     return safe_import(first_name, alternative_names=alternatives)
 
 
+def parse_fda_date(date_str: str) -> Optional[datetime]:
+    """Parse an FDA date string in YYYYMMDD or YYYY-MM-DD format.
+
+    Consolidates the duplicate _parse_date() implementations previously found
+    in pas_monitor.py and annual_report_tracker.py.
+
+    Args:
+        date_str: Date string in YYYYMMDD (FDA default) or YYYY-MM-DD format.
+
+    Returns:
+        Parsed datetime object, or None if input is empty or parsing fails.
+
+    Examples:
+        parse_fda_date("20240615")   # -> datetime(2024, 6, 15)
+        parse_fda_date("2024-06-15") # -> datetime(2024, 6, 15)
+        parse_fda_date("")           # -> None
+        parse_fda_date("bad-input")  # -> None (with debug log)
+    """
+    if not date_str:
+        return None
+
+    # Try YYYYMMDD format (FDA default)
+    try:
+        return datetime.strptime(date_str[:8], "%Y%m%d")
+    except (ValueError, TypeError):
+        logger.debug("parse_fda_date: YYYYMMDD format failed for %r, trying ISO format", date_str)
+
+    # Try YYYY-MM-DD format
+    try:
+        return datetime.strptime(date_str[:10], "%Y-%m-%d")
+    except (ValueError, TypeError):
+        logger.debug("parse_fda_date: all formats failed for %r", date_str)
+
+    return None
+
+
 __all__ = [
     'ImportResult',
     'safe_import',
@@ -366,4 +403,5 @@ __all__ = [
     'safe_import_from',
     'conditional_import',
     'try_import_with_alternatives',
+    'parse_fda_date',
 ]

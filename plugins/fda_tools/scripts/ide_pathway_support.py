@@ -67,7 +67,10 @@ import urllib.request
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-try:
+from fda_tools.lib.import_helpers import try_optional_import
+_tenacity_result = try_optional_import('tenacity', package_name='tenacity')
+_HAS_TENACITY = _tenacity_result.success
+if _HAS_TENACITY:
     from tenacity import (
         retry,
         stop_after_attempt,
@@ -75,9 +78,6 @@ try:
         before_sleep_log,
         after_log,
     )
-    _HAS_TENACITY = True
-except ImportError:
-    _HAS_TENACITY = False
 
 logger = logging.getLogger(__name__)
 

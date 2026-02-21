@@ -1422,20 +1422,9 @@ class PASMonitor:
     # ------------------------------------------------------------------
 
     def _parse_date(self, date_str: str) -> Optional[datetime]:
-        """Parse date string."""
-        if not date_str:
-            return None
-        try:
-            return datetime.strptime(date_str[:8], "%Y%m%d")
-        except (ValueError, TypeError) as e:
-            # Expected: try next format
-            print(f"Warning: _parse_date YYYYMMDD format failed for {date_str!r}: {e}", file=sys.stderr)
-        try:
-            return datetime.strptime(date_str[:10], "%Y-%m-%d")
-        except (ValueError, TypeError) as e:
-            # Expected: unrecognized date format
-            print(f"Warning: _parse_date all formats failed for {date_str!r}: {e}", file=sys.stderr)
-        return None
+        """Parse date string. Delegates to shared parse_fda_date() utility."""
+        from fda_tools.lib.import_helpers import parse_fda_date
+        return parse_fda_date(date_str)
 
     def _save_report(self, pma_number: str, report: Dict) -> None:
         """Save PAS report to cache."""

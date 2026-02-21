@@ -51,11 +51,10 @@ from trend_visualization import (  # type: ignore
 )
 
 # Import similarity cache stats for reporting
-try:
-    from similarity_cache import get_cache_stats  # type: ignore
-    CACHE_STATS_AVAILABLE = True
-except ImportError:
-    CACHE_STATS_AVAILABLE = False
+from fda_tools.lib.import_helpers import safe_import
+_cache_stats_result = safe_import('fda_tools.scripts.similarity_cache', 'get_cache_stats')
+CACHE_STATS_AVAILABLE = _cache_stats_result.success
+get_cache_stats = _cache_stats_result.module if CACHE_STATS_AVAILABLE else None
 
 
 # ---------------------------------------------------------------------------
