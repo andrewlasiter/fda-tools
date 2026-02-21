@@ -5,9 +5,19 @@ Alert delivery module for FDA Monitor.
 Supports webhook (POST) and stdout (JSON) delivery.
 Reads alert JSON from ~/fda-510k-data/monitor_alerts/.
 Config from ~/.claude/fda-tools.local.md.
+
+Audit logging (FDA-122 / 21 CFR Part 11):
+  Every delivery attempt is durably recorded to a JSON Lines audit log.
+  Logs rotate daily and when a single file reaches MAX_AUDIT_FILE_BYTES.
+  Files older than AUDIT_RETENTION_DAYS are automatically pruned.
+  Use query_audit_log() / export_audit_csv() for compliance reports.
 """
 
+import csv
+import fcntl
+import gzip
 import ipaddress
+import io
 import json
 import os
 import re
@@ -16,12 +26,273 @@ import ssl
 import sys
 import urllib.parse
 import urllib.request
-from datetime import datetime, date, timezone
+from datetime import datetime, date, timedelta, timezone
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 
 DEFAULT_ALERT_DIR = os.path.expanduser("~/fda-510k-data/monitor_alerts")
+DEFAULT_AUDIT_DIR = os.path.expanduser("~/fda-510k-data/monitor_alerts/audit")
 SETTINGS_PATH = os.path.expanduser("~/.claude/fda-tools.local.md")
+
+# Audit log limits (FDA-122)
+MAX_AUDIT_FILE_BYTES: int = 100 * 1024 * 1024   # 100 MB per log file
+AUDIT_RETENTION_DAYS: int = 1095                 # 3 years (21 CFR Part 11)
+
+
+# ============================================================================
+# Audit Logger (FDA-122 / 21 CFR Part 11)
+# ============================================================================
+
+class AuditLogger:
+    """Persistent, append-only audit log for FDA alert deliveries.
+
+    Each delivery attempt produces one JSON Lines record written durably
+    to disk via an ``fcntl`` exclusive lock + atomic append.
+
+    File naming convention:
+        ``audit_YYYY-MM-DD.jsonl``       — active log for today
+        ``audit_YYYY-MM-DD_001.jsonl``   — size-rotation overflow files
+        ``audit_YYYY-MM-DD.jsonl.gz``    — compressed archive of completed days
+
+    Retention:
+        Files older than ``AUDIT_RETENTION_DAYS`` (1095 days / 3 years) are
+        automatically deleted to comply with FDA data-retention policies.
+
+    Args:
+        log_dir: Directory for audit files.  Created on first write.
+    """
+
+    def __init__(self, log_dir: Optional[str] = None) -> None:
+        self.log_dir = Path(log_dir or DEFAULT_AUDIT_DIR)
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    def append(self, record: Dict[str, Any]) -> None:
+        """Write *record* as a JSON line to today's audit file.
+
+        Acquires an exclusive ``fcntl`` lock on the log file before
+        writing so concurrent processes cannot interleave partial records.
+
+        Args:
+            record: Audit event dict.  A ``"logged_at"`` field is added
+                automatically if not already present.
+        """
+        self.log_dir.mkdir(parents=True, exist_ok=True)
+
+        if "logged_at" not in record:
+            record = {**record, "logged_at": datetime.now(timezone.utc).isoformat()}
+
+        line = json.dumps(record, ensure_ascii=False) + "\n"
+        encoded = line.encode("utf-8")
+
+        log_path = self._active_log_path()
+
+        # Acquire exclusive lock, append, release.
+        with open(log_path, "ab") as fh:
+            try:
+                fcntl.flock(fh, fcntl.LOCK_EX)
+                fh.write(encoded)
+            finally:
+                fcntl.flock(fh, fcntl.LOCK_UN)
+
+        # Trigger rotation if file now exceeds the size limit.
+        if log_path.stat().st_size >= MAX_AUDIT_FILE_BYTES:
+            self._rotate(log_path)
+
+    def prune(self) -> List[str]:
+        """Delete audit files older than ``AUDIT_RETENTION_DAYS``.
+
+        Returns:
+            List of file names that were deleted.
+        """
+        if not self.log_dir.exists():
+            return []
+
+        cutoff = datetime.now(timezone.utc).date() - timedelta(days=AUDIT_RETENTION_DAYS)
+        deleted: List[str] = []
+
+        for f in self.log_dir.iterdir():
+            if not f.name.startswith("audit_"):
+                continue
+            file_date = self._date_from_filename(f.name)
+            if file_date and file_date < cutoff:
+                f.unlink(missing_ok=True)
+                deleted.append(f.name)
+
+        return deleted
+
+    def query(
+        self,
+        since: Optional[str] = None,
+        until: Optional[str] = None,
+        status: Optional[str] = None,
+        method: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Read audit records matching the given filters.
+
+        Args:
+            since: ISO date string (inclusive lower bound on ``logged_at``).
+            until: ISO date string (inclusive upper bound on ``logged_at``).
+            status: Filter by ``status`` field (e.g. ``"success"``, ``"failed"``).
+            method: Filter by ``method`` field (e.g. ``"webhook"``, ``"stdout"``).
+
+        Returns:
+            List of matching audit record dicts, sorted by ``logged_at``.
+        """
+        records: List[Dict[str, Any]] = []
+
+        for log_path in self._all_log_paths():
+            for line in self._read_lines(log_path):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rec = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+
+                logged_at = rec.get("logged_at", "")
+                if since and logged_at < since:
+                    continue
+                if until and logged_at > until:
+                    continue
+                if status and rec.get("status") != status:
+                    continue
+                if method and rec.get("method") != method:
+                    continue
+                records.append(rec)
+
+        records.sort(key=lambda r: r.get("logged_at", ""))
+        return records
+
+    def export_csv(
+        self,
+        records: List[Dict[str, Any]],
+        output_path: Optional[str] = None,
+    ) -> str:
+        """Export *records* to CSV format.
+
+        Args:
+            records: List of audit record dicts (e.g. from :meth:`query`).
+            output_path: File path to write.  If ``None``, returns the CSV
+                as a string.
+
+        Returns:
+            CSV text (also written to *output_path* if provided).
+        """
+        if not records:
+            return ""
+
+        # Collect all keys across records, keeping a stable order.
+        fieldnames: List[str] = []
+        seen: set = set()
+        priority = ["logged_at", "method", "status", "alert_count",
+                    "response_code", "recipient", "error"]
+        for key in priority:
+            if key not in seen:
+                fieldnames.append(key)
+                seen.add(key)
+        for rec in records:
+            for key in rec:
+                if key not in seen:
+                    fieldnames.append(key)
+                    seen.add(key)
+
+        buf = io.StringIO()
+        writer = csv.DictWriter(buf, fieldnames=fieldnames, extrasaction="ignore")
+        writer.writeheader()
+        for rec in records:
+            writer.writerow({k: rec.get(k, "") for k in fieldnames})
+
+        csv_text = buf.getvalue()
+
+        if output_path:
+            Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+            Path(output_path).write_text(csv_text, encoding="utf-8")
+
+        return csv_text
+
+    # ------------------------------------------------------------------
+    # Private helpers
+    # ------------------------------------------------------------------
+
+    def _active_log_path(self) -> Path:
+        """Return the path for today's active log file."""
+        today = date.today().isoformat()
+        base = self.log_dir / f"audit_{today}.jsonl"
+        if not base.exists():
+            return base
+
+        # If today's base file already exceeds the limit, find or create
+        # the next numbered overflow file.
+        if base.stat().st_size < MAX_AUDIT_FILE_BYTES:
+            return base
+
+        idx = 1
+        while True:
+            candidate = self.log_dir / f"audit_{today}_{idx:03d}.jsonl"
+            if not candidate.exists() or candidate.stat().st_size < MAX_AUDIT_FILE_BYTES:
+                return candidate
+            idx += 1
+
+    def _rotate(self, log_path: Path) -> None:
+        """Gzip-compress *log_path* to an archive alongside it."""
+        archive = log_path.with_suffix(log_path.suffix + ".gz")
+        try:
+            with open(log_path, "rb") as src, gzip.open(archive, "wb") as dst:
+                dst.write(src.read())
+            log_path.unlink()
+        except OSError:
+            pass  # Rotation is best-effort; original file preserved on failure
+
+    def _all_log_paths(self) -> List[Path]:
+        """Return all plain and gzip'd audit log paths, oldest first."""
+        if not self.log_dir.exists():
+            return []
+        paths = [
+            f for f in self.log_dir.iterdir()
+            if f.name.startswith("audit_") and f.suffix in (".jsonl", ".gz")
+        ]
+        paths.sort(key=lambda p: p.name)
+        return paths
+
+    @staticmethod
+    def _date_from_filename(name: str) -> Optional[date]:
+        """Extract a :class:`date` from an audit filename."""
+        m = re.match(r"audit_(\d{4}-\d{2}-\d{2})", name)
+        if not m:
+            return None
+        try:
+            return date.fromisoformat(m.group(1))
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _read_lines(log_path: Path) -> List[str]:
+        """Read lines from a plain or gzip'd log file."""
+        try:
+            if log_path.suffix == ".gz":
+                with gzip.open(log_path, "rt", encoding="utf-8") as fh:
+                    return fh.readlines()
+            with open(log_path, encoding="utf-8") as fh:
+                return fh.readlines()
+        except OSError:
+            return []
+
+
+# Module-level default logger (may be replaced in tests).
+_default_audit_logger: Optional[AuditLogger] = None
+
+
+def _get_audit_logger() -> AuditLogger:
+    """Return (or lazily create) the module-level :class:`AuditLogger`."""
+    global _default_audit_logger
+    if _default_audit_logger is None:
+        _default_audit_logger = AuditLogger()
+    return _default_audit_logger
 
 
 # ============================================================================
@@ -324,13 +595,19 @@ def send_stdout(alerts, cron_mode=False):
     return {"success": True, "message": f"Output {len(alerts)} alerts to stdout"}
 
 
-def deliver_alerts(alerts, method="stdout", settings=None, **kwargs):
+def deliver_alerts(alerts, method="stdout", settings=None, audit_logger=None, **kwargs):
     """Deliver alerts via the specified method.
+
+    Every delivery attempt is recorded to the persistent audit log
+    (FDA-122 / 21 CFR Part 11).  Use ``audit_logger=...`` to override the
+    logger in tests; pass ``audit_logger=False`` to disable logging.
 
     Args:
         alerts: List of alert dicts.
         method: One of 'webhook', 'stdout'.
         settings: Config dict (loaded from file if None).
+        audit_logger: :class:`AuditLogger` instance, ``False`` to disable, or
+            ``None`` to use the module default.
         **kwargs: Additional args passed to the delivery function.
 
     Returns:
@@ -349,11 +626,45 @@ def deliver_alerts(alerts, method="stdout", settings=None, **kwargs):
         return {"success": True, "message": f"No alerts above {threshold} threshold"}
 
     if method == "webhook":
-        return send_webhook(filtered, settings, **kwargs)
+        result = send_webhook(filtered, settings, **kwargs)
     elif method == "stdout":
-        return send_stdout(filtered, **kwargs)
+        result = send_stdout(filtered, **kwargs)
     else:
-        return {"success": False, "error": f"Unknown delivery method: {method}"}
+        result = {"success": False, "error": f"Unknown delivery method: {method}"}
+
+    # --- Audit log (FDA-122 / 21 CFR Part 11) ---------------------------
+    if audit_logger is not False:
+        logger = audit_logger if isinstance(audit_logger, AuditLogger) else _get_audit_logger()
+        _severity_counts = {}
+        for a in filtered:
+            sev = a.get("severity", "info")
+            _severity_counts[sev] = _severity_counts.get(sev, 0) + 1
+
+        audit_record: Dict[str, Any] = {
+            "method": method,
+            "alert_count": len(filtered),
+            "severity_counts": _severity_counts,
+            "status": "success" if result.get("success") else "failed",
+            "message": result.get("message"),
+            "error": result.get("error"),
+        }
+        if method == "webhook":
+            webhook_url = kwargs.get("webhook_url") or (settings or {}).get("webhook_url", "")
+            # Redact credentials from URL before storing
+            try:
+                parsed = urllib.parse.urlparse(webhook_url or "")
+                audit_record["recipient"] = parsed.netloc  # host:port only, no path/token
+            except Exception:
+                audit_record["recipient"] = ""
+
+        try:
+            logger.append(audit_record)
+            # Opportunistically prune old files on each write (cheap if no old files).
+            logger.prune()
+        except Exception as exc:  # noqa: BLE001 — audit failure must not break delivery
+            print(f"Warning: Audit log write failed: {exc}", file=sys.stderr)
+
+    return result
 
 
 def main():
