@@ -1,0 +1,29 @@
+{
+  "project_name": "02-samd-digital-pathology",
+  "product_code": "QKQ",
+  "pathway": "traditional",
+  "accepted_predicates": [
+    {
+      "k_number": "K242244",
+      "device_name": "FullFocus Digital Pathology System",
+      "applicant": "Philips Healthcare",
+      "decision_date": "2024-07-22",
+      "similarity_score": 0.88,
+      "selected_as_primary": true,
+      "notes": "Same product code, same intended use (WSI viewer + AI-assisted ROI detection), same safety class B IEC 62304 lifecycle"
+    },
+    {
+      "k_number": "K231104",
+      "device_name": "Aperio ePathology Solution",
+      "applicant": "Leica Biosystems",
+      "decision_date": "2023-10-31",
+      "similarity_score": 0.79,
+      "selected_as_primary": false,
+      "notes": "Supporting predicate for WSI display functionality; no AI component"
+    }
+  ],
+  "se_conclusion": "PathSight AI is substantially equivalent to K242244 (FullFocus Digital Pathology System). Both devices are SaMD providing whole-slide image viewing and AI-assisted region-of-interest detection as decision support for pathologists, cleared under 21 CFR 892.2050 with IEC 62304 software lifecycle documentation.",
+  "sri_score": 61,
+  "review_date": "2026-02-01",
+  "reviewer_notes": "SaMD submission. Cybersecurity documentation required per FDA 2023 guidance. Software documentation package (IEC 62304 lifecycle records) must be complete. Clinical validation data must include sensitivity/specificity with confidence intervals on an independent test set."
+}

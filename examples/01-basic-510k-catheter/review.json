@@ -1,0 +1,29 @@
+{
+  "project_name": "01-basic-510k-catheter",
+  "product_code": "DQY",
+  "pathway": "traditional",
+  "accepted_predicates": [
+    {
+      "k_number": "K241335",
+      "device_name": "Amplatzer Piccolo Delivery System",
+      "applicant": "St. Jude Medical",
+      "decision_date": "2024-04-02",
+      "similarity_score": 0.91,
+      "selected_as_primary": true,
+      "notes": "Same product code, similar French size, same intended procedure type"
+    },
+    {
+      "k_number": "K231892",
+      "device_name": "Arrow Percutaneous Catheter",
+      "applicant": "Teleflex Medical",
+      "decision_date": "2023-09-14",
+      "similarity_score": 0.84,
+      "selected_as_primary": false,
+      "notes": "Supporting predicate for material/sterilization comparison"
+    }
+  ],
+  "se_conclusion": "The ExaCath-4 Percutaneous Catheter System is substantially equivalent to K241335 (Amplatzer Piccolo Delivery System). Both devices share the same intended use (percutaneous cardiovascular delivery), same technological characteristics (flexible catheter with hemostasis valve, EO sterilization), and the same product code DQY under 21 CFR 870.1250.",
+  "sri_score": 72,
+  "review_date": "2026-02-01",
+  "reviewer_notes": "Strong predicate match. Ensure shelf-life data and biocompatibility summary are included in final submission."
+}

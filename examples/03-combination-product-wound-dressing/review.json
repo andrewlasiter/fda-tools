@@ -1,0 +1,20 @@
+{
+  "project_name": "03-combination-product-wound-dressing",
+  "product_code": "FRO",
+  "pathway": "traditional",
+  "accepted_predicates": [
+    {
+      "k_number": "K243166",
+      "device_name": "Mepilex Border Ag Antimicrobial Foam Dressing",
+      "applicant": "Molnlycke Health Care",
+      "decision_date": "2024-08-20",
+      "similarity_score": 0.86,
+      "selected_as_primary": true,
+      "notes": "Same product code (FRO), same device class (U — combination product with OTC drug), polyurethane foam + silver antimicrobial construction, same wound indications"
+    }
+  ],
+  "se_conclusion": "HealGuard-Ag is substantially equivalent to K243166 (Mepilex Border Ag). Both devices are antimicrobial polyurethane foam wound dressings with a silver-based drug component, cleared under product code FRO. Device-led combination product; drug component (silver sulfadiazine 1%) is OTC-monograph compliant per 21 CFR 333 Subpart D.",
+  "sri_score": 55,
+  "review_date": "2026-02-01",
+  "reviewer_notes": "Combination product (device primary mode of action). Drug component must comply with OTC antimicrobial monograph (21 CFR 333). Separate drug CMC package not required for monograph-compliant OTC drug components. Class U — no predicate regulation number required. Shelf life testing with accelerated aging and moisture barrier validation required."
+}

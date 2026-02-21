@@ -1,0 +1,52 @@
+{
+  "device_name": "Digital Pathology Viewer and AI Analysis Software",
+  "trade_name": "PathSight AI",
+  "applicant": "Example Digital Health Inc.",
+  "product_code": "QKQ",
+  "intended_use": "PathSight AI is intended to digitize, store, manage, and display whole-slide pathology images and to provide AI-assisted identification of regions of interest (ROIs) for review by a qualified pathologist. The software is not intended to replace pathologist interpretation and is intended as a decision-support tool only.",
+  "device_description": "PathSight AI is a Software as a Medical Device (SaMD) that runs on validated hardware workstations (Windows 10/11, 64-bit, ≥32 GB RAM). The software includes: (1) a DICOM-compliant whole-slide image (WSI) viewer with pan/zoom/annotation tools; (2) a cloud-based AI inference engine (U-Net architecture, trained on 50,000 de-identified slides) that highlights ROIs for hematoxylin-eosin (H&E) stained tissue; (3) a case management module for pathologist workflow integration; and (4) an audit trail module for 21 CFR Part 11 compliance. The AI model outputs probability heat maps overlaid on the slide image; final diagnostic interpretation remains with the reviewing pathologist.",
+  "device_class": "2",
+  "regulation_number": "892.2050",
+  "review_panel": "RA",
+  "implant_flag": "N",
+  "classification_device_name": "Medical Image Analyzer",
+  "materials": [],
+  "dimensions": null,
+  "sterilization_method": "N/A",
+  "sterilization_text": "Software device — not applicable.",
+  "electrical": false,
+  "software_level": "Major",
+  "samd": true,
+  "cybersecurity_required": true,
+  "iec_62304_lifecycle": true,
+  "extracted_sections": {
+    "device_description": "PathSight AI is a SaMD running on validated workstations...",
+    "intended_use": "PathSight AI is intended to digitize, store, manage, and display whole-slide pathology images...",
+    "software": "Software lifecycle per IEC 62304:2006+AMD1:2015. Safety class B. Cybersecurity per FDA 2023 guidance.",
+    "performance_testing": "Clinical validation on 500-slide independent test set. Sensitivity 94.2%, specificity 97.1% for ROI detection vs. pathologist consensus."
+  },
+  "peer_devices": [
+    {
+      "k_number": "K242244",
+      "device_name": "FullFocus Digital Pathology System",
+      "applicant": "Philips Healthcare",
+      "product_code": "QKQ",
+      "date_received": "2024-03-10",
+      "decision": "SESE",
+      "decision_date": "2024-07-22",
+      "review_time_days": 134
+    },
+    {
+      "k_number": "K231104",
+      "device_name": "Aperio ePathology Solution",
+      "applicant": "Leica Biosystems",
+      "product_code": "QKQ",
+      "date_received": "2023-04-05",
+      "decision": "SESE",
+      "decision_date": "2023-10-31",
+      "review_time_days": 209
+    }
+  ],
+  "created_at": "2026-02-01T09:00:00Z",
+  "source": "example"
+}

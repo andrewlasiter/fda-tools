@@ -1,0 +1,57 @@
+{
+  "device_name": "Antimicrobial Wound Dressing with Silver Sulfadiazine",
+  "trade_name": "HealGuard-Ag",
+  "applicant": "Example Wound Care Corp.",
+  "product_code": "FRO",
+  "intended_use": "HealGuard-Ag is intended for use as a primary wound dressing for the management of partial and full-thickness wounds including burns (second degree), chronic wounds (diabetic foot ulcers, pressure injuries), and donor sites. The silver sulfadiazine drug component provides antimicrobial activity to reduce wound bioburden.",
+  "device_description": "HealGuard-Ag is a combination product (device primary mode of action) consisting of: (1) a non-adherent polyurethane foam wound contact layer impregnated with 1% silver sulfadiazine (SSD) cream; (2) an absorbent polyurethane foam core; and (3) a semi-occlusive polyurethane film outer backing with moisture vapor transmission rate (MVTR) of 800–1200 g/m²/24h. Available sizes: 10×10 cm, 15×15 cm, 20×20 cm. The device is supplied sterile (gamma irradiation, 25 kGy) and latex-free.",
+  "device_class": "U",
+  "regulation_number": "",
+  "review_panel": "SU",
+  "implant_flag": "N",
+  "classification_device_name": "Wound Dressing",
+  "combination_product": true,
+  "drug_component": {
+    "name": "Silver Sulfadiazine",
+    "concentration": "1%",
+    "route": "topical",
+    "otc": true,
+    "otc_monograph": "21 CFR 333 Subpart D (Topical Antimicrobial Products)"
+  },
+  "materials": [
+    "Polyurethane foam (wound contact layer and absorbent core)",
+    "Silver sulfadiazine 1% (drug component)",
+    "Polyurethane film (outer backing)",
+    "Acrylic adhesive border (hypoallergenic)"
+  ],
+  "dimensions": {
+    "sizes_cm": ["10x10", "15x15", "20x20"],
+    "foam_thickness_mm": 4.5,
+    "mvtr_g_per_m2_per_24h": "800-1200"
+  },
+  "sterilization_method": "gamma",
+  "sterilization_text": "Sterilized by gamma irradiation at 25 kGy minimum dose per ISO 11137-1. SAL 10^-6.",
+  "electrical": false,
+  "shelf_life_months": 24,
+  "extracted_sections": {
+    "device_description": "HealGuard-Ag is a combination product consisting of a polyurethane foam wound contact layer impregnated with 1% silver sulfadiazine...",
+    "intended_use": "HealGuard-Ag is intended for use as a primary wound dressing for the management of partial and full-thickness wounds...",
+    "sterility": "Sterilized by gamma irradiation at 25 kGy per ISO 11137-1.",
+    "biocompatibility": "ISO 10993-1 evaluation. Cytotoxicity, sensitization, and skin irritation testing completed. SSD ingredient OTC-monograph compliant.",
+    "labeling": "OTC labeling per 21 CFR 333 Subpart D (antimicrobial) and 21 CFR 880.5900 (wound dressing)."
+  },
+  "peer_devices": [
+    {
+      "k_number": "K243166",
+      "device_name": "Mepilex Border Ag Antimicrobial Foam Dressing",
+      "applicant": "Molnlycke Health Care",
+      "product_code": "FRO",
+      "date_received": "2024-05-01",
+      "decision": "SESE",
+      "decision_date": "2024-08-20",
+      "review_time_days": 111
+    }
+  ],
+  "created_at": "2026-02-01T09:00:00Z",
+  "source": "example"
+}

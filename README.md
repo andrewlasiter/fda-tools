@@ -64,6 +64,25 @@ See the [full documentation](./plugins/fda-tools/README.md) for commands, agents
 - **[Changelog](CHANGELOG.md)** - Release history and version updates
 - **[Full Plugin Documentation](./plugins/fda-tools/README.md)** - Detailed command reference and advanced features
 
+## Try It Now — Example Projects
+
+Three worked examples cover the most common 510(k) scenarios:
+
+| Example | Device type | Key topics |
+|---------|-------------|-----------|
+| [Example 1 — Catheter](examples/01-basic-510k-catheter/) | Hardware (DQY) | Predicate matching, EO sterilization |
+| [Example 2 — AI Software](examples/02-samd-digital-pathology/) | SaMD (QKQ) | IEC 62304, cybersecurity, clinical validation |
+| [Example 3 — Combination Product](examples/03-combination-product-wound-dressing/) | Combo (FRO) | OTC monograph, Class U, device-led |
+
+```bash
+# Load Example 1 and run a readiness check (~5 minutes):
+cp examples/01-basic-510k-catheter/device_profile.json \
+   ~/.fda-510k-data/projects/example-catheter/
+/fda-tools:pre-check --project example-catheter
+```
+
+See [`examples/README.md`](examples/README.md) for the full guide.
+
 ## Shell Completion
 
 Tab-completion is available for all `fda-*` CLI commands in bash and zsh.
