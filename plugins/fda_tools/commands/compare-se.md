@@ -650,6 +650,42 @@ grep "KNUMBER" ~/fda-510k-data/extraction/pmn96cur.txt 2>/dev/null
 
 Extract: applicant, decision date, product code, decision code, review time, submission type, summary/statement.
 
+## Step 2.75: Rank Predicates by Algorithmic Score (FDA-130)
+
+**Before generating the SE table**, rank the loaded predicates using the `PredicateRanker` to determine which predicate should appear first (left-most) in the comparison table. The highest-ranked predicate becomes the **primary predicate** — it receives the most prominent position and is explicitly labeled as the recommended primary.
+
+```python
+import json, sys, os
+
+project_dir = os.environ.get('PROJECT_DIR', '.')
+
+try:
+    from fda_tools.lib.predicate_ranker import PredicateRanker
+    ranker = PredicateRanker(project_dir)
+    ranked = ranker.rank_predicates()
+    if ranked:
+        for i, item in enumerate(ranked, 1):
+            k = item.get('k_number', '?')
+            score = item.get('total_score', 0)
+            strength = item.get('strength', '?')
+            print(f"RANKED_PREDICATE:{i}|{k}|score={score}|strength={strength}")
+    else:
+        print("RANKED_PREDICATE:no_data")
+except Exception as e:
+    print(f"RANKED_PREDICATE:error|{e}")
+```
+
+**Column ordering rule**: When generating the SE comparison table in Step 4, order the predicate columns left-to-right by descending rank score. Label the highest-ranked predicate column as:
+```
+Predicate: K{num} ({Company}) ★ PRIMARY
+```
+And add a one-line note below the table header:
+```
+Note: Predicates ordered by FDA-compliant confidence score (highest left). ★ indicates recommended primary predicate.
+```
+
+If ranking is unavailable (error or no review.json), use the original order from `--predicates` argument with no reordering.
+
 ## Step 3: Extract Key Characteristics from Predicate Text
 
 For each predicate/reference device text, apply the **3-tier section detection system from `references/section-patterns.md`** to extract sections. **Note:** Predicate PDFs (especially older or poor-quality scans) often require Tier 2 OCR-tolerant matching — apply the OCR substitution table before giving up on a heading.

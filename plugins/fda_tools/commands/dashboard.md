@@ -148,6 +148,30 @@ print(f"TRACEABILITY:{'yes' if os.path.exists(os.path.join(proj_dir, 'traceabili
 # eSTAR export
 estar_files = glob.glob(os.path.join(proj_dir, "estar_export_*.xml"))
 print(f"ESTAR_EXPORT:{len(estar_files)}")
+
+# Predicate diversity score (FDA-130)
+try:
+    from fda_tools.lib.predicate_diversity import PredicateDiversityAnalyzer
+    predicates = []
+    if os.path.exists(review_path):
+        for k_num, v in preds.items():
+            if v.get("decision") == "accepted":
+                predicates.append({
+                    "k_number": k_num,
+                    "manufacturer": v.get("manufacturer", ""),
+                    "device_name": v.get("device_name", ""),
+                    "clearance_date": v.get("clearance_date", ""),
+                    "product_code": v.get("product_code", ""),
+                    "decision_description": v.get("decision_description", ""),
+                    "contact_country": v.get("contact_country", ""),
+                })
+    if len(predicates) >= 2:
+        result = PredicateDiversityAnalyzer(predicates).analyze()
+        print(f"DIVERSITY:{result.get('total_score', 0)}|{result.get('grade', '?')}")
+    else:
+        print("DIVERSITY:insufficient")
+except Exception:
+    print("DIVERSITY:unavailable")
 PYEOF
 ```
 
@@ -204,6 +228,8 @@ PREDICATE REVIEW
   {If review.json exists:}
   Mode: {mode} | Accepted: {N} | Rejected: {N} | Deferred: {N}
   Top predicates: {list top 3 by score}
+  {If diversity score available:}
+  Diversity: {score}/100 — {grade}  {⚠ LOW if <40 | ℹ FAIR if 40-59 | ✓ GOOD if ≥60}
 
   {If no review.json:}
   ✗  Not yet reviewed — run /fda:review --project {name}
@@ -247,6 +273,8 @@ NEXT STEPS
 
   Examples:
   - "Run /fda:review --project NAME to accept predicates" (if no review.json)
+  - "Run /fda:smart-predicates --project NAME to improve predicate ranking" (if diversity < 60)
+  - "Run /fda:research --depth deep to find more diverse predicates" (if diversity POOR)
   - "Run /fda:draft --project NAME to generate remaining sections" (if <50% drafted)
   - "Fill in 12 [TODO:] items in draft_device-description.md" (if TODOs exist)
   - "Run /fda:consistency --project NAME to validate cross-document alignment" (if no consistency report)

@@ -588,6 +588,116 @@ If the user provided `--intended-use`, compare their intended use against the in
 
 If the user provided `--device-description` with novel features not found in the primary product code, include a **Secondary Predicates** section with candidates from other product codes that support those features.
 
+## Step 4.25: Predicate Intelligence — Algorithmic Ranking & Diversity (FDA-130)
+
+**After identifying predicate candidates**, run algorithmic scoring and diversity analysis using the `predicate_ranker` and `predicate_diversity` library modules. This supplements the citation-frequency ranking in Step 4 with FDA-compliant confidence scoring and set-level diversity assessment.
+
+**Skip condition**: Fewer than 2 predicate candidates found. If only 1 predicate exists, skip ranking (diversity requires ≥2).
+
+```python
+import json, sys, os
+from pathlib import Path
+
+# Locate plugin root
+try:
+    installed = os.path.expanduser('~/.claude/plugins/installed_plugins.json')
+    plugin_root = ''
+    if os.path.exists(installed):
+        d = json.load(open(installed))
+        for k, v in d.get('plugins', {}).items():
+            if k.startswith('fda-tools@'):
+                for e in v:
+                    p = e.get('installPath', '')
+                    if os.path.isdir(p):
+                        plugin_root = p
+                        break
+    if plugin_root:
+        lib_dir = os.path.join(plugin_root, 'plugins', 'fda_tools', 'lib')
+        if lib_dir not in sys.path:
+            sys.path.insert(0, os.path.join(plugin_root, 'plugins'))
+except Exception:
+    pass
+
+# --- Ranking ---
+try:
+    from fda_tools.lib.predicate_ranker import PredicateRanker
+    project_dir = os.environ.get('PROJECT_DIR', '.')
+    ranker = PredicateRanker(project_dir)
+    ranked = ranker.rank_predicates()
+    if ranked:
+        print("RANKING:available")
+        for i, item in enumerate(ranked[:5], 1):
+            k = item.get('k_number', '?')
+            score = item.get('total_score', 0)
+            strength = item.get('strength', '?')
+            flags = ','.join(item.get('risk_flags', [])) or 'none'
+            print(f"RANK:{i}|{k}|score={score}|strength={strength}|flags={flags}")
+    else:
+        print("RANKING:no_data")
+except Exception as e:
+    print(f"RANKING:error|{e}")
+
+# --- Diversity ---
+try:
+    from fda_tools.lib.predicate_diversity import PredicateDiversityAnalyzer
+
+    # Load accepted predicates from review.json
+    review_path = os.path.join(os.environ.get('PROJECT_DIR', '.'), 'review.json')
+    predicates = []
+    if os.path.exists(review_path):
+        review = json.load(open(review_path))
+        for k_num, v in review.get('predicates', {}).items():
+            if v.get('decision') == 'accepted':
+                predicates.append({
+                    'k_number': k_num,
+                    'manufacturer': v.get('manufacturer', ''),
+                    'device_name': v.get('device_name', ''),
+                    'clearance_date': v.get('clearance_date', ''),
+                    'product_code': v.get('product_code', ''),
+                    'decision_description': v.get('decision_description', ''),
+                    'contact_country': v.get('contact_country', ''),
+                })
+
+    if len(predicates) >= 2:
+        analyzer = PredicateDiversityAnalyzer(predicates)
+        result = analyzer.analyze()
+        score = result.get('total_score', 0)
+        grade = result.get('grade', '?')
+        warning = result.get('warning', '')
+        mfr_score = result.get('manufacturer_score', 0)
+        age_score = result.get('age_score', 0)
+        tech_score = result.get('technology_score', 0)
+        print(f"DIVERSITY:score={score}|grade={grade}|manufacturer={mfr_score}|technology={tech_score}|age={age_score}|warning={warning}")
+    else:
+        print("DIVERSITY:insufficient_predicates")
+except Exception as e:
+    print(f"DIVERSITY:error|{e}")
+```
+
+**Display the results** in this format after the manual ranking section:
+
+```
+PREDICATE INTELLIGENCE
+──────────────────────────────────────────
+
+Algorithmic Ranking (FDA-Compliant Confidence Scoring):
+  Rank 1: K{num} — {strength} ({score} pts) {flags}
+  Rank 2: K{num} — {strength} ({score} pts) {flags}
+  ...
+
+Predicate Set Diversity: {score}/100 — {grade}
+  Manufacturer variety:  {N}/30
+  Technology breadth:    {N}/30
+  Age spread:            {N}/25
+
+  {If grade POOR or FAIR}: ⚠ LOW DIVERSITY — Consider adding predicates from
+  different manufacturers or technology generations to strengthen SE argument.
+
+  {If grade GOOD or EXCELLENT}: ✓ Diversity looks healthy for SE argument.
+```
+
+**Reconcile with citation ranking**: If algorithmic rank differs significantly from citation-frequency rank, note the discrepancy and recommend the algorithmically highest-scored predicate as primary (it uses FDA's own SE criteria).
+
 ## Step 4.5: Automatically Fetch Key Predicate Summaries
 
 **CRITICAL: Do NOT ask the user to download PDFs separately.** After identifying the top 3-5 predicate candidates, check if their summary text is available. If not, **fetch it yourself**.
