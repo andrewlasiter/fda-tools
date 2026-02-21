@@ -65,6 +65,108 @@ From `$ARGUMENTS`, extract:
 - If `--project` missing and NOT `--full-auto`: ask the user for a project name
 - If `--project` missing and `--full-auto`: **ERROR**: "In --full-auto mode, --project is required."
 
+## PMA Pathway Detection (FDA-109)
+
+Before running 510(k) review simulation, check whether the project is a PMA:
+
+```bash
+python3 << 'PYEOF'
+import os, json, glob, re
+
+proj_dir = os.path.expanduser("~/fda-510k-data/projects/PROJECT")  # Replace
+
+# PMA indicators:
+# 1. pma_data/ directory exists
+# 2. device_profile.json has pma_number or p_number field
+# 3. query.json has pma_number
+# 4. pma_draft_*.md files exist
+
+is_pma = False
+pma_number = None
+
+pma_dir = os.path.join(proj_dir, "pma_data")
+if os.path.isdir(pma_dir) and os.listdir(pma_dir):
+    is_pma = True
+
+dp = os.path.join(proj_dir, "device_profile.json")
+if os.path.exists(dp):
+    with open(dp) as f:
+        data = json.load(f)
+    pma_num = data.get("pma_number") or data.get("p_number")
+    if pma_num and re.match(r'^P\d{6}', str(pma_num)):
+        is_pma = True
+        pma_number = pma_num
+
+pma_drafts = glob.glob(os.path.join(proj_dir, "pma_draft_*.md"))
+if pma_drafts:
+    is_pma = True
+
+print(f"IS_PMA:{is_pma}")
+print(f"PMA_NUMBER:{pma_number or 'unknown'}")
+print(f"PMA_DRAFTS:{len(pma_drafts)}")
+PYEOF
+```
+
+**If `IS_PMA:True`**: Apply PMA Readiness Scoring below instead of 510(k) pre-check.
+
+### PMA Readiness Scoring
+
+For PMA projects, apply the **PMA Readiness Index (PRI)** — a simplified scoring that reflects the substantially higher bar of PMA review:
+
+**PMA Section Completion Score** (60 pts):
+
+| Section | Points | Condition |
+|---------|--------|-----------|
+| SSED (pma_draft_ssed.md) | 15 | File exists, >500 words |
+| Clinical (pma_draft_clinical.md) | 15 | File exists, >500 words |
+| Device Description | 10 | pma_draft_device-description.md exists |
+| Manufacturing | 10 | pma_draft_manufacturing.md exists |
+| Preclinical | 10 | pma_draft_preclinical.md exists |
+
+**PMA Intelligence Score** (25 pts):
+- PMA intelligence data present (pma_data/): 10 pts
+- Clinical requirements mapped: 10 pts
+- Timeline prediction available: 5 pts
+
+**PMA Risk Flags** (penalties):
+- [INSERT:] items in SSED or clinical sections: -3 pts each (max -15)
+- No clinical data source: -10 pts
+- Timeline >360 days predicted: -5 pts warning
+
+Calculate PRI score and present:
+
+```
+PMA READINESS INDEX
+────────────────────────────────────────
+
+  PRI: {score}/100 — {tier}
+
+  Tiers: READY (80+) | NEAR-READY (60-79) | IN-PROGRESS (40-59) | EARLY (0-39)
+
+SECTION STATUS
+  SSED:              {✓/✗} ({words} words, {inserts} inserts)
+  Clinical:          {✓/✗} ({words} words)
+  Device Description:{✓/✗}
+  Manufacturing:     {✓/✗}
+  Preclinical:       {✓/✗}
+
+INTELLIGENCE DATA
+  Comparable PMAs:   {N} found
+  Clinical mapping:  {available/missing}
+  Timeline:          {months} months predicted
+
+⚠ PMA CRITICAL REMINDER: FDA reviews PMA applications for 180-360 days.
+  Pivotal clinical trial data is mandatory. Pre-submission meetings (Q-Sub)
+  are strongly recommended before filing.
+
+NEXT STEPS
+  {context-aware recommendations}
+```
+
+**If `IS_PMA:False`**: Continue with standard 510(k) pre-check below.
+
+---
+
 ## Step 1: Gather Project Data
 
 ### Resolve project directory
