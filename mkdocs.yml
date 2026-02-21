@@ -52,6 +52,9 @@ nav:
     - Installation: docs/INSTALLATION.md
     - Quick Start: docs/QUICK_START.md
     - Contributing: CONTRIBUTING.md
+  - Developer Docs:
+    - Architecture: docs/ARCHITECTURE.md
+    - Developer Guide: docs/DEVELOPER_GUIDE.md
   - API Reference:
     - Overview: api/index.md
     - Core:
