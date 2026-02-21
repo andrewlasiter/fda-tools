@@ -193,7 +193,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
-          pip install bandit[toml] safety detect-secrets
+          pip install bandit[toml] safety detect-secrets pip-licenses
 
       - name: Run Bandit security scanner
         run: |
@@ -215,6 +215,18 @@ jobs:
         run: |
           echo "::group::Secret Detection"
           detect-secrets scan --baseline .secrets.baseline
+          echo "::endgroup::"
+
+      - name: Run license compliance check
+        run: |
+          echo "::group::License Compliance Check"
+          pip-licenses --format=json --output-file=license-report.json || true
+          # Flag GPL/AGPL/LGPL licenses that require review
+          if pip-licenses --format=plain | grep -E "GPL|AGPL|LGPL"; then
+            echo "::warning::Copyleft licenses detected — manual review required"
+          else
+            echo "License check passed: no copyleft licenses found"
+          fi
           echo "::endgroup::"
 
       - name: Run Trivy vulnerability scanner
@@ -241,6 +253,7 @@ jobs:
             bandit-report.json
             safety-report.json
             trivy-results.sarif
+            license-report.json
           retention-days: 30
 
   # ==========================================================================
