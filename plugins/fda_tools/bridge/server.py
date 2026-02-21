@@ -43,9 +43,11 @@ import json
 import logging
 import os
 import re
+import resource
 import secrets
 import shlex
 import sys
+import threading
 import time
 import uuid
 from datetime import datetime, timezone
@@ -109,6 +111,23 @@ PENDING_QUESTIONS: Dict[str, List[Dict[str, Any]]] = {}
 
 # Audit log (for production, use append-only file or database)
 AUDIT_LOG: List[Dict[str, Any]] = []
+
+# ============================================================
+# Metrics State (FDA-141)
+# ============================================================
+
+_metrics_lock = threading.Lock()
+_total_requests: int = 0
+_total_errors: int = 0
+# Sliding window of recent response durations (max 1000 entries)
+_request_durations_ms: List[float] = []
+_last_request_time: Optional[float] = None
+_consecutive_health_failures: int = 0
+
+# Alert thresholds (configurable via environment)
+ALERT_HEALTH_FAILURE_COUNT = int(os.getenv("FDA_BRIDGE_ALERT_HEALTH_FAILURES", "3"))
+ALERT_ERROR_RATE_PCT = float(os.getenv("FDA_BRIDGE_ALERT_ERROR_RATE_PCT", "10.0"))
+ALERT_RESPONSE_TIME_MS = int(os.getenv("FDA_BRIDGE_ALERT_RESPONSE_TIME_MS", "5000"))
 
 # ============================================================
 # Logging Configuration
@@ -443,17 +462,13 @@ async def require_api_key(api_key: Optional[str] = Security(api_key_header)) -> 
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
-    """Log all incoming requests with timing and sanitized details."""
+    """Log all incoming requests with timing, sanitized details, and metrics tracking."""
+    global _total_requests, _total_errors, _last_request_time
     start = time.time()
     client_ip = request.client.host if request.client else "unknown"
     method = request.method
     path = request.url.path
 
-    # Log request (sanitize headers)
-    headers_safe = {
-        k: (v[:4] + "...REDACTED" if k.lower() in ('x-api-key', 'authorization') and len(v) > 4 else v)
-        for k, v in request.headers.items()
-    }
     logger.info(f"REQ {method} {path} from={client_ip}")
 
     response = await call_next(request)
@@ -461,8 +476,18 @@ async def log_requests(request: Request, call_next):
     duration_ms = int((time.time() - start) * 1000)
     logger.info(f"RES {method} {path} status={response.status_code} duration={duration_ms}ms")
 
-    # Audit log for non-health endpoints
-    if path != "/health":
+    # Track metrics (FDA-141)
+    with _metrics_lock:
+        _total_requests += 1
+        _last_request_time = time.time()
+        if response.status_code >= 400:
+            _total_errors += 1
+        _request_durations_ms.append(float(duration_ms))
+        if len(_request_durations_ms) > 1000:
+            _request_durations_ms.pop(0)
+
+    # Audit log for non-health/metrics endpoints
+    if path not in ("/health", "/ready", "/metrics"):
         audit_log_entry("http_request", {
             "method": method,
             "path": path,
@@ -753,6 +778,62 @@ def execute_fda_command(
 
 
 # ============================================================
+# Alert Helpers (FDA-141)
+# ============================================================
+
+def _check_alerts() -> List[Dict[str, Any]]:
+    """Return active alerts based on current metrics thresholds.
+
+    Checks:
+    - Error rate > ALERT_ERROR_RATE_PCT (default 10%)
+    - Response time p95 > ALERT_RESPONSE_TIME_MS (default 5000ms)
+    - Consecutive health check failures >= ALERT_HEALTH_FAILURE_COUNT (default 3)
+    """
+    alerts: List[Dict[str, Any]] = []
+
+    with _metrics_lock:
+        total = _total_requests
+        errors = _total_errors
+        durations = list(_request_durations_ms)
+        consecutive = _consecutive_health_failures
+
+    if total > 0:
+        error_rate = errors / total * 100
+        if error_rate > ALERT_ERROR_RATE_PCT:
+            alerts.append({
+                "type": "high_error_rate",
+                "severity": "WARNING",
+                "threshold_pct": ALERT_ERROR_RATE_PCT,
+                "current_pct": round(error_rate, 2),
+                "message": f"Error rate {error_rate:.1f}% exceeds threshold {ALERT_ERROR_RATE_PCT}%",
+            })
+
+    if durations:
+        sorted_durations = sorted(durations)
+        p95_index = max(0, int(len(sorted_durations) * 0.95) - 1)
+        p95_ms = sorted_durations[p95_index]
+        if p95_ms > ALERT_RESPONSE_TIME_MS:
+            alerts.append({
+                "type": "slow_responses",
+                "severity": "WARNING",
+                "threshold_ms": ALERT_RESPONSE_TIME_MS,
+                "current_p95_ms": round(p95_ms, 0),
+                "message": f"p95 response time {p95_ms:.0f}ms exceeds threshold {ALERT_RESPONSE_TIME_MS}ms",
+            })
+
+    if consecutive >= ALERT_HEALTH_FAILURE_COUNT:
+        alerts.append({
+            "type": "consecutive_health_failures",
+            "severity": "CRITICAL",
+            "threshold": ALERT_HEALTH_FAILURE_COUNT,
+            "current": consecutive,
+            "message": f"Health check has failed {consecutive} consecutive times",
+        })
+
+    return alerts
+
+
+# ============================================================
 # API Endpoints
 # ============================================================
 
@@ -774,13 +855,14 @@ async def health_check(request: Request):
     Health check endpoint (UNAUTHENTICATED).
 
     Returns server status, version, uptime, available commands,
-    and LLM provider availability. Does not expose sensitive data.
+    LLM provider availability, and active alerts. Does not expose sensitive data.
+    Returns 200 when healthy, 200 with alerts when degraded.
     """
+    global _consecutive_health_failures
     uptime_seconds = int(time.time() - SERVER_START_TIME)
     commands = list_available_commands()
 
-    # Check LLM provider availability
-    # For now, these are placeholders. In production, would actually check endpoints.
+    # LLM provider availability (placeholder — real checks would ping endpoints)
     llm_providers = {
         "ollama": {
             "available": False,
@@ -796,16 +878,135 @@ async def health_check(request: Request):
         },
     }
 
+    # Gather active alerts
+    alerts = _check_alerts()
+    status = "degraded" if alerts else "healthy"
+
+    # Reset consecutive failure counter on successful health check
+    with _metrics_lock:
+        _consecutive_health_failures = 0
+
+    with _metrics_lock:
+        last_req = _last_request_time
+
     return {
-        "status": "healthy",
+        "status": status,
         "version": SERVER_VERSION,
         "auth_required": True,
         "rate_limiting": _HAS_SLOWAPI,
         "uptime_seconds": uptime_seconds,
         "llm_providers": llm_providers,
-        "security_config_hash": None,  # Would be computed from security config file
+        "security_config_hash": None,
         "sessions_active": len(SESSIONS),
         "commands_available": len(commands),
+        "last_request_at": (
+            datetime.fromtimestamp(last_req, timezone.utc).isoformat()
+            if last_req else None
+        ),
+        "alerts": alerts,
+        "alerts_active": len(alerts),
+    }
+
+
+@app.get("/ready")
+async def readiness_check():
+    """
+    Readiness check endpoint (UNAUTHENTICATED).
+
+    Verifies the server is ready to handle requests:
+    - Commands directory accessible
+    - Scripts directory accessible
+    - API key configured
+
+    Returns 200 if ready, 503 if any dependency is unavailable.
+    """
+    global _consecutive_health_failures
+    issues: List[str] = []
+
+    if not COMMANDS_DIR.exists():
+        issues.append("commands_dir_missing")
+    if not SCRIPTS_DIR.exists():
+        issues.append("scripts_dir_missing")
+    if _BRIDGE_API_KEY is None and os.getenv("FDA_BRIDGE_API_KEY") is None:
+        issues.append("api_key_not_configured")
+
+    if issues:
+        with _metrics_lock:
+            _consecutive_health_failures += 1
+        return JSONResponse(
+            status_code=503,
+            content={"ready": False, "issues": issues},
+        )
+
+    return {"ready": True, "issues": []}
+
+
+@app.get("/metrics")
+@_rate_limit(RATE_LIMIT_DEFAULT)
+async def get_metrics(
+    request: Request,
+    api_key: str = Depends(require_api_key),
+):
+    """
+    Metrics endpoint (AUTHENTICATED).
+
+    Returns:
+    - Request counts and error rate
+    - Response time statistics (avg, p50, p95, p99)
+    - Session count
+    - Memory usage
+    - Active alert count
+    """
+    with _metrics_lock:
+        total = _total_requests
+        errors = _total_errors
+        durations = list(_request_durations_ms)
+        last_req = _last_request_time
+
+    error_rate_pct = round(errors / total * 100, 2) if total > 0 else 0.0
+
+    # Response time percentiles
+    sorted_durations = sorted(durations) if durations else []
+    n = len(sorted_durations)
+
+    def _percentile(pct: float) -> float:
+        if not sorted_durations:
+            return 0.0
+        idx = max(0, int(n * pct) - 1)
+        return round(sorted_durations[idx], 1)
+
+    avg_ms = round(sum(durations) / n, 1) if n > 0 else 0.0
+
+    # Memory usage (RSS in MB)
+    memory_mb = round(
+        resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024, 1
+    )
+
+    alerts = _check_alerts()
+
+    return {
+        "requests": {
+            "total": total,
+            "errors": errors,
+            "error_rate_pct": error_rate_pct,
+        },
+        "response_time_ms": {
+            "avg": avg_ms,
+            "p50": _percentile(0.50),
+            "p95": _percentile(0.95),
+            "p99": _percentile(0.99),
+            "samples": n,
+        },
+        "sessions": {
+            "active": len(SESSIONS),
+        },
+        "memory_mb": memory_mb,
+        "last_request_at": (
+            datetime.fromtimestamp(last_req, timezone.utc).isoformat()
+            if last_req else None
+        ),
+        "alerts_active": len(alerts),
+        "uptime_seconds": int(time.time() - SERVER_START_TIME),
     }
 
 
