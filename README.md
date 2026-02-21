@@ -64,6 +64,33 @@ See the [full documentation](./plugins/fda-tools/README.md) for commands, agents
 - **[Changelog](CHANGELOG.md)** - Release history and version updates
 - **[Full Plugin Documentation](./plugins/fda-tools/README.md)** - Detailed command reference and advanced features
 
+## Shell Completion
+
+Tab-completion is available for all `fda-*` CLI commands in bash and zsh.
+
+**Bash** (one-time, current shell):
+```bash
+source tools/completions/fda-tools.bash
+```
+
+**Bash** (permanent):
+```bash
+echo 'source /path/to/fda-tools/tools/completions/fda-tools.bash' >> ~/.bashrc
+```
+
+**Zsh** (permanent — add before `compinit` in `~/.zshrc`):
+```zsh
+fpath=(/path/to/fda-tools/tools/completions $fpath)
+autoload -Uz compinit && compinit
+```
+
+**System-wide install** (requires sudo):
+```bash
+make completion-install
+```
+
+Completion scripts live in [`tools/completions/`](tools/completions/).
+
 ## Quick Links
 
 - **Installation**: `claude plugin install fda-tools@fda-tools`
