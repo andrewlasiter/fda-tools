@@ -449,22 +449,27 @@ class TestTypeScriptSkillIntegration:
 
     def test_fda_validate_tool_exists(self):
         """Test that fda_validate TypeScript tool exists"""
-        tool_file = Path(__file__).parent.parent / "openclaw-skill" / "tools" / "fda_validate.ts"
+        # openclaw-skill lives at repo root (4 levels up from this test file)
+        skill_root = Path(__file__).parent.parent.parent.parent / "openclaw-skill"
+        tool_file = skill_root / "tools" / "fda_validate.ts"
         assert tool_file.exists(), "fda_validate.ts should exist"
 
     def test_fda_analyze_tool_exists(self):
         """Test that fda_analyze TypeScript tool exists"""
-        tool_file = Path(__file__).parent.parent / "openclaw-skill" / "tools" / "fda_analyze.ts"
+        skill_root = Path(__file__).parent.parent.parent.parent / "openclaw-skill"
+        tool_file = skill_root / "tools" / "fda_analyze.ts"
         assert tool_file.exists(), "fda_analyze.ts should exist"
 
     def test_fda_draft_tool_exists(self):
         """Test that fda_draft TypeScript tool exists"""
-        tool_file = Path(__file__).parent.parent / "openclaw-skill" / "tools" / "fda_draft.ts"
+        skill_root = Path(__file__).parent.parent.parent.parent / "openclaw-skill"
+        tool_file = skill_root / "tools" / "fda_draft.ts"
         assert tool_file.exists(), "fda_draft.ts should exist"
 
     def test_bridge_client_exists(self):
         """Test that bridge client TypeScript module exists"""
-        client_file = Path(__file__).parent.parent / "openclaw-skill" / "bridge" / "client.ts"
+        skill_root = Path(__file__).parent.parent.parent.parent / "openclaw-skill"
+        client_file = skill_root / "bridge" / "client.ts"
 
         if not client_file.exists():
             pytest.skip("Bridge client not implemented yet")
@@ -473,7 +478,8 @@ class TestTypeScriptSkillIntegration:
 
     def test_bridge_types_exists(self):
         """Test that bridge type definitions exist"""
-        types_file = Path(__file__).parent.parent / "openclaw-skill" / "bridge" / "types.ts"
+        skill_root = Path(__file__).parent.parent.parent.parent / "openclaw-skill"
+        types_file = skill_root / "bridge" / "types.ts"
 
         if not types_file.exists():
             pytest.skip("Bridge types not implemented yet")
