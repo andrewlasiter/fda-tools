@@ -442,6 +442,16 @@ def calculate_gap_analysis_confidence(gap_results: Dict[str, Any],
     """
     scores = {}
 
+    # Weights (40/30/20/10) reflect the relative auditor workload needed to fill each gap:
+    # - Data completeness (40%) is the biggest driver because missing fields block every
+    #   downstream analysis (SE comparison, standards mapping, draft generation).
+    # - Predicate quality (30%) is second because a weak predicate chain can invalidate
+    #   the entire 510(k) regardless of how complete the device profile is.
+    # - Gap clarity (20%) measures how actionable the detected gaps are; vague gaps
+    #   require manual RA review whereas specific gaps have known remediation paths.
+    # - Cross-validation (10%) is a bonus signal: when three independent gap detectors
+    #   agree, the overall result is more trustworthy.
+
     # Factor 1: Data Completeness (40 points max)
     total_fields = (len(GapAnalyzer.HIGH_PRIORITY_FIELDS) +
                    len(GapAnalyzer.MEDIUM_PRIORITY_FIELDS) +
@@ -465,7 +475,9 @@ def calculate_gap_analysis_confidence(gap_results: Dict[str, Any],
 
     if not weak_predicates or (len(weak_predicates) == 1 and
                                weak_predicates[0].get('k_number') == 'N/A'):
-        # No predicates analyzed
+        # No predicates analyzed yet — assign a neutral mid-range score (15/30) rather
+        # than 0 so that submissions in early stages aren't penalized for not having
+        # run /review yet. The gap report will flag missing predicates as HIGH priority.
         predicate_score = 15  # Neutral score
     elif high_priority_weak == 0:
         # All predicates good quality

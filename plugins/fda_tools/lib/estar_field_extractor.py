@@ -340,7 +340,9 @@ class EStarFieldExtractor:
         # Look for table rows after header
         table_started = False
         for line in se_md.split('\n'):
-            # Skip until we find table header
+            # Detect the SE comparison table header by looking for the standard column
+            # headings used by /fda-tools:compare-se ("Characteristic") and the legacy
+            # /fda-tools:draft format ("Feature"). Any other markdown table is ignored.
             if '|' in line and ('Characteristic' in line or 'Feature' in line):
                 table_started = True
                 continue
@@ -360,6 +362,11 @@ class EStarFieldExtractor:
                         'characteristic': parts[0],
                         'subject': parts[1] if len(parts) > 1 else '',
                         'predicate': parts[2] if len(parts) > 2 else '',
+                        # Default to 'SE' when the fourth column is absent: the SE comparison
+                        # table format from compare-se.md always records explicit assessments,
+                        # but older manually-created tables may omit the column. Defaulting
+                        # to 'SE' (Substantially Equivalent) is safe because this method is
+                        # only called after /review has already accepted the predicate.
                         'assessment': parts[3] if len(parts) > 3 else 'SE'
                     }
                     comparison_rows.append(row)

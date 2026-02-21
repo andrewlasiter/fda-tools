@@ -185,10 +185,16 @@ class PredicateRanker:
             predicate_tech = predicate.get('technological_characteristics', '')
             tech_similarity = self.calculate_text_similarity(subject_tech, predicate_tech)
 
-            # Enhanced IFU overlap score (replaces +5 bonus with data-driven score)
+            # Enhanced IFU overlap score: scale TF-IDF cosine similarity (0.0–1.0) to a
+            # 0–5 point bonus, matching the +5 cap in the FDA-compliant confidence-scoring spec.
+            # IFU gets 5 pts because same intended use is a hard 510(k) requirement
+            # (21 CFR 807.87(f)); a high bonus here reflects that requirement.
             ifu_bonus = min(int(ifu_similarity['tfidf_similarity'] * 5), 5)
 
-            # Tech similarity bonus (not in original system, but valuable)
+            # Tech similarity bonus caps at +3 (not in original spec).
+            # Lower cap than IFU because different-but-safe tech characteristics are
+            # permitted under 21 CFR 807.87(f)(2), so tech similarity is informative
+            # but not determinative of SE.
             tech_bonus = min(int(tech_similarity['tfidf_similarity'] * 3), 3)
 
             # Total score = base + IFU bonus + tech bonus
