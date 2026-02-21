@@ -61,7 +61,12 @@ WINDOW_SIZE_SECONDS = 60
 # Maximum wait time before giving up (seconds)
 MAX_WAIT_SECONDS = 120
 
-# Polling interval when waiting for rate limit (seconds)
+# Polling interval for fcntl.flock retry and jitter base (seconds).
+# Jitter applied on each BlockingIOError: sleep = POLL_INTERVAL * rand(0.5, 1.0)
+# Range: [0.125s, 0.25s].  Empirically chosen via PERF-004 benchmark (FDA-211):
+#   0.05s / 0.10s → thundering-herd jitter spread too small (< 0.10s threshold)
+#   0.25s         → passes all benchmarks, optimal balance of latency & spread ✓
+#   0.50s         → passes, but slower recovery when rate-limit slot opens
 POLL_INTERVAL = 0.25
 
 # Rate limit validation bounds (Security Hardening - FDA-86)
