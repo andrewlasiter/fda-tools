@@ -87,8 +87,14 @@ ttl_classification = 2592000  # 30 days
 ttl_recall = 86400        # 1 day
 ttl_maude = 86400         # 1 day
 ttl_pma = 2592000         # 30 days
-ttl_literature = 2592000  # 30 days
 ttl_similarity = 604800   # 7 days
+
+# Per-cache-type TTLs for CacheManager (FDA-135)
+ttl_openfda = 2592000     # 30 days  (openFDA API responses)
+ttl_literature = 7776000  # 90 days  (PubMed articles — rarely change)
+ttl_safety = 604800       # 7 days   (MAUDE adverse events — must be fresh)
+ttl_pma_ssed = 5184000    # 60 days  (PMA SSED documents)
+ttl_clinicaltrials = 86400  # 1 day  (ClinicalTrials.gov)
 
 [rate_limiting]
 # Rate limiting configuration
