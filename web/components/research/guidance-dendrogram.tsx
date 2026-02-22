@@ -202,10 +202,10 @@ export function GuidanceDendrogram({
     if (!initialised && clusters.length > 0) {
       const c = new Set<string>();
       // collapse leaf clusters (depth ≥ 2) by default
-      function collapseDeep(n: TreeNodeData, depth: number) {
+      const collapseDeep = (n: TreeNodeData, depth: number): void => {
         if (depth >= 2) c.add(n.id);
         n.children.forEach(ch => collapseDeep(ch, depth + 1));
-      }
+      };
       root.children.forEach(ch => collapseDeep(ch, 1));
       setCollapsed(c);
       setInitialised(true);

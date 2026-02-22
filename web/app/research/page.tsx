@@ -109,7 +109,7 @@ const DEMO_ANNOTATIONS: Annotation[] = [
 ];
 
 const DEMO_RELATED: RelatedDocument[] = [
-  { id: "r1", title: "FDA Guidance: Infusion Pumps 510(k)", docType: "guidance", reference: "FDA-2014-D-0798", relevance: 94 },
+  { title: "FDA Guidance: Infusion Pumps 510(k)", docType: "guidance", reference: "FDA-2014-D-0798", relevance: 94 },
 ];
 
 const DEMO_CLUSTERS: GuidanceCluster[] = [
@@ -220,7 +220,7 @@ export default function ResearchPage() {
       {/* Left tab rail */}
       <nav
         aria-label="Research Hub tabs"
-        className="w-14 border-r border-border flex flex-col items-center py-3 gap-1 shrink-0 bg-muted/20"
+        className="w-14 md:w-14 border-r border-border flex flex-col items-center py-3 gap-1 shrink-0 bg-muted/20"
       >
         {TABS.map(tab => (
           <button
@@ -289,13 +289,15 @@ export default function ResearchPage() {
 
             <div className="flex-1 h-full overflow-hidden">
               <GuidanceInlineViewer
-                documentTitle="Infusion Pumps 510(k) Submissions"
-                documentReference="FDA-2014-D-0798"
+                title="Infusion Pumps 510(k) Submissions"
+                reference="FDA-2014-D-0798"
+                docType="guidance"
+                pdfUrl="#"
                 totalPages={24}
-                passages={DEMO_PASSAGES}
+                highlights={DEMO_PASSAGES}
                 annotations={DEMO_ANNOTATIONS}
-                relatedDocuments={DEMO_RELATED}
-                onCite={(passage) => console.log("Cite", passage.excerpt.slice(0, 30))}
+                related={DEMO_RELATED}
+                onCiteCopied={(citation) => console.log("Cite", citation.slice(0, 30))}
                 className="h-full"
               />
             </div>
@@ -316,14 +318,13 @@ export default function ResearchPage() {
         {/* Citations — full width */}
         {activeTab === "citations" && (
           <CitationManager
-            initialCitations={DEMO_CITATIONS}
-            projectSections={[
-              "Device Description §3",
-              "SE Discussion §2.1",
-              "Testing §4.2",
-              "Labeling §7",
+            citations={DEMO_CITATIONS}
+            submissionSections={[
+              { id: "s3", label: "Device Description §3" },
+              { id: "s4", label: "SE Discussion §2.1" },
+              { id: "s5", label: "Testing §4.2" },
+              { id: "s6", label: "Labeling §7" },
             ]}
-            onAddToSubmission={(id) => console.log("Add to submission", id)}
             onRemove={(id) => console.log("Remove", id)}
             className="h-full"
           />

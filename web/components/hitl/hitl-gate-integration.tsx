@@ -363,8 +363,8 @@ export function HitlGateIntegration({
                             selectedGate === gateAfter.id && "ring-2 ring-offset-2 ring-offset-background",
                           )}
                           style={{
-                            ringColor: GATE_COLORS[(gateAfter.id - 1) % GATE_COLORS.length],
-                          }}
+                            "--ring-color": GATE_COLORS[(gateAfter.id - 1) % GATE_COLORS.length],
+                          } as React.CSSProperties}
                           title={`Gate ${gateAfter.id}: ${gateAfter.label}`}
                         >
                           <span className={cn("text-sm", GATE_STATUS[gateAfter.status].text)}>
