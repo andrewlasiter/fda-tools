@@ -13,6 +13,7 @@
     "voltagent-core-dev@voltagent-subagents": true,
     "ralphex@ralphex": true,
     "fda-tools@fda-tools": true,
-    "hookify@claude-plugins-official": true
+    "hookify@claude-plugins-official": true,
+    "rust-analyzer-lsp@claude-plugins-official": true
   }
 }

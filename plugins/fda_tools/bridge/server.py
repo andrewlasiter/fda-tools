@@ -1413,6 +1413,177 @@ async def execute_tool(
         raise HTTPException(status_code=500, detail=sanitized)
 
 
+# ============================================================
+# Research Endpoints (FDA-233)
+# ============================================================
+
+
+class ResearchSearchRequest(BaseModel):
+    """POST /research/search request body."""
+    query:     str   = Field(..., min_length=1, max_length=500)
+    top_k:     int   = Field(default=10, ge=1, le=50)
+    threshold: float = Field(default=0.70, ge=0.0, le=1.0)
+
+
+class ResearchSearchResult(BaseModel):
+    """Single guidance chunk result."""
+    id:          str
+    doc_id:      str
+    doc_title:   str
+    doc_url:     str
+    chunk_index: int
+    content:     str
+    similarity:  float
+
+
+class ResearchSearchResponse(BaseModel):
+    """POST /research/search response body."""
+    query:   str
+    count:   int
+    results: List[ResearchSearchResult] = Field(default_factory=list)
+    model:   str
+    error:   Optional[str] = None
+
+
+@app.post("/research/search")
+@_rate_limit(RATE_LIMIT_DEFAULT)
+async def research_search(
+    body:    ResearchSearchRequest,
+    request: Request,
+    api_key: str = Depends(require_api_key),
+):
+    """
+    Semantic search over FDA guidance chunks (AUTHENTICATED).
+
+    Embeds the query using all-MiniLM-L6-v2 and returns the top-k
+    guidance document chunks ranked by cosine similarity.
+    """
+    try:
+        from fda_tools.lib.guidance_search import GuidanceSearcher
+        searcher = GuidanceSearcher()
+        resp = searcher.search(
+            query=body.query,
+            top_k=body.top_k,
+            threshold=body.threshold,
+        )
+        return {
+            "query":   resp.query,
+            "count":   resp.count,
+            "results": [
+                {
+                    "id":          r.id,
+                    "doc_id":      r.doc_id,
+                    "doc_title":   r.doc_title,
+                    "doc_url":     r.doc_url,
+                    "chunk_index": r.chunk_index,
+                    "content":     r.content,
+                    "similarity":  r.similarity,
+                }
+                for r in resp.results
+            ],
+            "model": resp.model,
+            "error": resp.error,
+        }
+    except Exception as e:
+        logger.error("Research search error: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=sanitize_error_for_client(e, context="research/search"),
+        )
+
+
+@app.get("/research/signals/{product_code}")
+@_rate_limit(RATE_LIMIT_DEFAULT)
+async def research_signals(
+    product_code: str,
+    request:      Request,
+    days:         int   = 90,
+    threshold:    float = 2.0,
+    api_key:      str   = Depends(require_api_key),
+):
+    """
+    Run MAUDE signal detection for a product code (AUTHENTICATED).
+
+    Returns z-score based signals plus CUSUM analysis.
+    """
+    if not product_code.isalnum() or len(product_code) > 10:
+        raise HTTPException(status_code=422, detail="Invalid product_code")
+    if not (1 <= days <= 730):
+        raise HTTPException(status_code=422, detail="days must be 1-730")
+
+    try:
+        from fda_tools.scripts.signal_detector import detect_signals
+        return detect_signals(
+            product_code=product_code.upper(),
+            days=days,
+            threshold=threshold,
+        )
+    except Exception as e:
+        logger.error("Signal detection error (%s): %s", product_code, e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=sanitize_error_for_client(e, context=f"signals/{product_code}"),
+        )
+
+
+@app.get("/research/clusters")
+@_rate_limit(RATE_LIMIT_DEFAULT)
+async def research_clusters(
+    request: Request,
+    force:   bool = False,
+    api_key: str  = Depends(require_api_key),
+):
+    """
+    Run Ward-linkage clustering on guidance document embeddings (AUTHENTICATED).
+
+    Returns cluster labels, per-cluster document lists, and scipy dendrogram
+    icoord/dcoord coordinates for D3.js rendering.
+    Re-clusters only when the guidance index changes (12-hour file cache).
+    """
+    try:
+        from fda_tools.scripts.guidance_cluster import cluster_guidance, _serialize
+        result = cluster_guidance(force=force)
+        return _serialize(result)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        logger.error("Clustering error: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=sanitize_error_for_client(e, context="research/clusters"),
+        )
+
+
+@app.get("/research/freshness")
+@_rate_limit(RATE_LIMIT_DEFAULT)
+async def research_freshness(
+    request: Request,
+    force:   bool = False,
+    api_key: str  = Depends(require_api_key),
+):
+    """
+    Check freshness of indexed FDA guidance documents (AUTHENTICATED).
+
+    Sends conditional HEAD requests to each document's source URL and
+    compares ETags / Last-Modified headers to detect stale content.
+    Returns a FreshnessReport with per-document status.
+    """
+    try:
+        import dataclasses
+        from fda_tools.lib.guidance_freshness import GuidanceFreshnessChecker
+        checker = GuidanceFreshnessChecker()
+        report  = checker.check_freshness(force=force)
+        data    = dataclasses.asdict(report)
+        data["freshness_pct"] = report.freshness_pct
+        return data
+    except Exception as e:
+        logger.error("Freshness check error: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=sanitize_error_for_client(e, context="research/freshness"),
+        )
+
+
 @app.get("/audit/integrity")
 @_rate_limit(RATE_LIMIT_DEFAULT)
 async def verify_audit_integrity(
