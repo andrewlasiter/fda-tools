@@ -181,9 +181,9 @@ export default function DashboardPage() {
   const inFdaReview = PROJECTS.filter(p => p.stage === "FDA_REVIEW" || p.stage === "SUBMIT").length;
 
   return (
-    <div className="min-h-screen bg-background">
+    <main className="bg-background" style={{ minHeight: "calc(100vh - 64px)" }}>
       {/* Page header */}
-      <div className="border-b border-border px-6 py-4">
+      <header className="border-b border-border px-6 py-4">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-lg font-bold text-foreground">Dashboard</h1>
@@ -200,7 +200,7 @@ export default function DashboardPage() {
             </button>
           </div>
         </div>
-      </div>
+      </header>
 
       <div className="px-6 py-5 space-y-6 max-w-7xl mx-auto">
         {/* KPI row */}
@@ -255,6 +255,6 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
