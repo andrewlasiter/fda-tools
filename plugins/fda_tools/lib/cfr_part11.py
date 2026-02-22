@@ -482,12 +482,33 @@ class Part11ComplianceReport:
         ))
 
         # §11.10(i) — Training records exist
-        has_training = cfg.get("training_records_exist", False)
+        # Supports both legacy bool flag and richer training_count/topics from
+        # training_records.TrainingRecordStore.compliance_summary().
+        has_training  = cfg.get("training_records_exist", False)
+        train_count   = cfg.get("training_count", 0)
+        train_topics  = cfg.get("part11_topics_covered", [])
+        train_users   = cfg.get("training_users", [])
+        # Either legacy flag OR explicit count satisfies the check
+        compliant     = has_training or train_count > 0
+        if compliant and train_topics:
+            evidence = (
+                f"Training records: {train_count} record(s), "
+                f"{len(train_users)} user(s). Part 11 topics covered: "
+                + ", ".join(train_topics)
+            )
+        elif compliant:
+            evidence = f"Training records present ({train_count or 'legacy flag'})"
+        else:
+            evidence = "No training records found — §11.10(i) requires documented training"
         findings.append(Part11Finding(
             control  = "§11.10(i) — Training records",
-            status   = "PASS" if has_training else "FAIL",
-            evidence = "Training records present" if has_training else "No training records found",
-            remediation = "Document user training on 21 CFR Part 11 procedures" if not has_training else "",
+            status   = "PASS" if compliant else "FAIL",
+            evidence = evidence,
+            remediation = (
+                "Add training records via POST /compliance/training. "
+                "Cover topics: part_11_overview, electronic_signatures, "
+                "audit_trail_management per §11.10(i)."
+            ) if not compliant else "",
         ))
 
         return cls(

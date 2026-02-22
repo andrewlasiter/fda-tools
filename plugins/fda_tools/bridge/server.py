@@ -60,6 +60,21 @@ from fda_tools.lib.subprocess_helpers import (
     SubprocessAllowlistError,
 )
 
+# FDA-312: Training records — §11.10(i) compliance
+from fda_tools.lib.training_records import training_store, TrainingTopic, PART_11_CORE_TOPICS
+
+# FDA-319: eSTAR XML export — lazy import to avoid startup overhead
+_estar_generate_xml = None  # populated on first call to export_estar_xml
+
+
+def _get_estar_generate_xml():
+    """Lazy-load generate_xml from estar_xml.py (heavy pikepdf/bs4 deps optional)."""
+    global _estar_generate_xml
+    if _estar_generate_xml is None:
+        from fda_tools.scripts.estar_xml import generate_xml  # type: ignore[import]
+        _estar_generate_xml = generate_xml
+    return _estar_generate_xml
+
 from fastapi import FastAPI, HTTPException, Request, Security, Depends  # type: ignore
 from fastapi.middleware.cors import CORSMiddleware  # type: ignore
 from fastapi.security import APIKeyHeader  # type: ignore
@@ -1903,6 +1918,253 @@ async def get_hitl_gate(
         "record":            record,
         "escalated":         escalated,
         "escalation_reason": escalation_reason,
+    }
+
+
+# ============================================================
+# FDA-312 — 21 CFR Part 11 Training Records [§11.10(i)]
+# ============================================================
+
+class TrainingRecordRequest(BaseModel):
+    """Request body for POST /compliance/training."""
+    user_id:      str           = Field(..., description="User email or ID")
+    user_name:    str           = Field(..., min_length=2, max_length=100)
+    topic:        str           = Field(
+        ...,
+        description=(
+            "Training topic. Core Part 11 topics: "
+            + ", ".join(sorted(PART_11_CORE_TOPICS))
+        ),
+    )
+    trainer_id:   Optional[str] = Field(default=None, description="Trainer user ID / email")
+    trainer_name: Optional[str] = Field(default=None, description="Trainer display name")
+    score:        Optional[int] = Field(default=None, ge=0, le=100, description="Assessment score (0–100)")
+    certificate_id: Optional[str] = Field(default=None, description="Certificate ID or number")
+    completed_at: Optional[str] = Field(default=None, description="Completion ISO timestamp (defaults to now)")
+    notes:        str           = Field(default="", max_length=2000)
+
+
+@app.post("/compliance/training")
+@_rate_limit(RATE_LIMIT_DEFAULT)
+async def add_training_record(
+    body:    TrainingRecordRequest,
+    request: Request,
+    api_key: str = Depends(require_api_key),
+):
+    """
+    Add a 21 CFR Part 11 training record (AUTHENTICATED).
+
+    Records that satisfy §11.10(i) must cover at least one of:
+    part_11_overview, electronic_signatures, audit_trail_management,
+    access_control, or system_validation.
+
+    In-memory MVP (Sprint 32). Sprint 33 migrates to PostgreSQL.
+    """
+    record_id = training_store.add(body.model_dump())
+    audit_log_entry("training_record_added", {
+        "user_id":   body.user_id,
+        "topic":     body.topic,
+        "record_id": record_id,
+    })
+    is_core = body.topic in PART_11_CORE_TOPICS
+    return {
+        "record_id":    record_id,
+        "user_id":      body.user_id,
+        "topic":        body.topic,
+        "is_core_topic": is_core,
+        "part11_compliant": training_store.has_part11_training(body.user_id),
+        "message": (
+            "Training record added. §11.10(i) satisfied for this user."
+            if is_core else
+            "Training record added. Add a core Part 11 topic to satisfy §11.10(i)."
+        ),
+    }
+
+
+@app.get("/compliance/training")
+@_rate_limit(RATE_LIMIT_DEFAULT)
+async def list_training_records(
+    user_id: Optional[str] = None,
+    request: Request = None,  # type: ignore[assignment]
+    api_key: str = Depends(require_api_key),
+):
+    """
+    List 21 CFR Part 11 training records (AUTHENTICATED).
+
+    Optional query param `user_id` filters by specific user.
+    Returns compliance summary including §11.10(i) status.
+    """
+    summary = training_store.compliance_summary(user_id)
+    records = training_store.list(user_id)
+    return {
+        **summary,
+        "records": records,
+        "part11_compliant": summary["training_records_exist"],
+        "section": "§11.10(i) — Education, training, and experience",
+    }
+
+
+# ============================================================
+# FDA-319: eSTAR XML Export
+# ============================================================
+
+#: Valid eSTAR template types (FDA form IDs: 4062 nIVD, 4078 IVD, 5064 PreSTAR)
+_ESTAR_VALID_TEMPLATES: frozenset = frozenset({"nIVD", "IVD", "PreSTAR"})
+_ESTAR_VALID_FMTS: frozenset = frozenset({"real", "legacy"})
+
+
+class EStarExportRequest(BaseModel):
+    """Request body for POST /documents/{session_id}/export/estar."""
+
+    project_root: str = Field(
+        ...,
+        description=(
+            "Absolute path to the project directory containing "
+            "device_profile.json, review.json, and draft_*.md files."
+        ),
+    )
+    template_type: str = Field(
+        default="nIVD",
+        description=(
+            "eSTAR template type: "
+            "'nIVD' (FDA 4062, non-IVD — default), "
+            "'IVD' (FDA 4078), or "
+            "'PreSTAR' (FDA 5064, Pre-Submission)."
+        ),
+    )
+    fmt: str = Field(
+        default="real",
+        description=(
+            "XML format: 'real' for actual eSTAR field path IDs (default), "
+            "'legacy' for old form1.* names."
+        ),
+    )
+
+
+@app.post("/documents/{session_id}/export/estar")
+@_rate_limit(RATE_LIMIT_EXECUTE)
+async def export_estar_xml(
+    session_id: str,
+    body: EStarExportRequest,
+    request: Request,
+    api_key: str = Depends(require_api_key),
+):
+    """
+    Generate an eSTAR-compatible XML file from project data (FDA-319, AUTHENTICATED).
+
+    Reads device_profile.json, review.json, draft_*.md, query.json, and
+    import_data.json from project_root and produces FDA eSTAR XML for import
+    into the official FDA eSTAR PDF template in Adobe Acrobat.
+
+    Returns the generated XML inline plus the on-disk file path.
+    Compatible with FDA 4062 (nIVD), FDA 4078 (IVD), FDA 5064 (PreSTAR).
+    """
+    # ── Validate template_type and fmt ───────────────────────────────────────
+    if body.template_type not in _ESTAR_VALID_TEMPLATES:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Invalid template_type '{body.template_type}'. "
+                f"Must be one of: {', '.join(sorted(_ESTAR_VALID_TEMPLATES))}"
+            ),
+        )
+    if body.fmt not in _ESTAR_VALID_FMTS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid fmt '{body.fmt}'. Must be 'real' or 'legacy'.",
+        )
+
+    # ── Resolve and validate project_root (path traversal protection) ────────
+    try:
+        project_root = Path(body.project_root).expanduser().resolve()
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Invalid project_root: {exc}")
+
+    if not project_root.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Project directory not found: {project_root}",
+        )
+    if not project_root.is_dir():
+        raise HTTPException(
+            status_code=422,
+            detail=f"project_root must be a directory: {project_root}",
+        )
+
+    # ── Verify project has data files (mirrors estar_xml.py validation) ──────
+    data_files = [
+        f for f in project_root.iterdir()
+        if f.is_file() and f.suffix in {".json", ".csv", ".md"}
+    ]
+    if not data_files:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Project directory has no data files: {project_root}. "
+                "Run /fda:import or /fda:extract first to populate project data."
+            ),
+        )
+
+    # ── Generate eSTAR XML ────────────────────────────────────────────────────
+    output_file = project_root / f"estar_export_{body.template_type}.xml"
+    generate_xml = _get_estar_generate_xml()
+
+    try:
+        saved_path = generate_xml(
+            project_root,
+            body.template_type,
+            str(output_file),
+            body.fmt,
+        )
+    except SystemExit as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"eSTAR XML generation failed (exit code {exc.code}). "
+                   "Check project data files.",
+        )
+    except Exception as exc:
+        logger.exception("eSTAR XML generation error for session %s", session_id)
+        raise HTTPException(
+            status_code=500,
+            detail=f"eSTAR XML generation error: {exc}",
+        )
+
+    # ── Read generated XML and return ────────────────────────────────────────
+    try:
+        xml_content = output_file.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=500,
+            detail=f"eSTAR XML was not written to expected path: {output_file}",
+        )
+
+    xml_size_kb = round(len(xml_content.encode()) / 1024, 1)
+    data_sources = [f.name for f in data_files if f.suffix == ".json"]
+
+    audit_log_entry("estar_xml_exported", {
+        "session_id":    session_id,
+        "project_root":  str(project_root),
+        "template_type": body.template_type,
+        "fmt":           body.fmt,
+        "output_file":   str(saved_path),
+        "xml_size_kb":   xml_size_kb,
+    })
+
+    return {
+        "session_id":    session_id,
+        "template_type": body.template_type,
+        "fmt":           body.fmt,
+        "output_file":   str(saved_path),
+        "xml_size_kb":   xml_size_kb,
+        "data_sources":  data_sources,
+        "xml_content":   xml_content,
+        "next_steps": [
+            "1. Open the official eSTAR template PDF in Adobe Acrobat",
+            "2. Go to Form > Import Data (or Tools > Prepare Form > Import Data)",
+            f"3. Select: {saved_path}",
+            "4. Review populated fields for accuracy",
+            "5. Add attachments (test reports, images) manually",
+        ],
     }
 
 
