@@ -1,0 +1,96 @@
+{
+  "name": "mdrp-desktop",
+  "version": "1.0.0",
+  "description": "Medical Device Regulatory Platform — Desktop Edition (Electron)",
+  "main": "src/main.js",
+  "scripts": {
+    "start":       "electron .",
+    "build":       "electron-builder build",
+    "build:win":   "electron-builder build --win",
+    "build:mac":   "electron-builder build --mac",
+    "build:linux": "electron-builder build --linux",
+    "pack":        "electron-builder --dir",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "author": "MDRP",
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "electron-log":    "^5.2.0",
+    "electron-store":  "^10.0.0",
+    "electron-updater": "^6.3.0"
+  },
+  "devDependencies": {
+    "electron":         "^31.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId":       "com.mdrp.desktop",
+    "productName": "MDRP Desktop",
+    "copyright":   "Copyright © 2025 MDRP",
+    "asar":        true,
+    "files": [
+      "src/**/*",
+      "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../plugins",
+        "to":   "api",
+        "filter": ["**/*", "!**/__pycache__/**", "!**/*.pyc"]
+      },
+      {
+        "from": "../web/.next",
+        "to":   "web/.next"
+      },
+      {
+        "from": "../web/public",
+        "to":   "web/public"
+      }
+    ],
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] }
+      ],
+      "icon":              "assets/icon.ico",
+      "certificateFile":   "${env.WIN_CSC_LINK}",
+      "certificatePassword": "${env.WIN_CSC_KEY_PASSWORD}"
+    },
+    "mac": {
+      "target": [
+        { "target": "dmg",  "arch": ["x64", "arm64"] },
+        { "target": "zip",  "arch": ["x64", "arm64"] }
+      ],
+      "icon":                  "assets/icon.icns",
+      "hardenedRuntime":       true,
+      "gatekeeperAssess":      false,
+      "entitlements":          "assets/entitlements.mac.plist",
+      "entitlementsInherit":   "assets/entitlements.mac.plist",
+      "identity":              "${env.APPLE_IDENTITY}",
+      "notarize": {
+        "teamId": "${env.APPLE_TEAM_ID}"
+      }
+    },
+    "linux": {
+      "target": [
+        { "target": "AppImage", "arch": ["x64"] },
+        { "target": "deb",      "arch": ["x64"] }
+      ],
+      "icon":     "assets/icon.png",
+      "category": "Office"
+    },
+    "nsis": {
+      "oneClick":           false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon":      "assets/icon.ico",
+      "uninstallerIcon":    "assets/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "publish": {
+      "provider": "github",
+      "owner":    "andrewlasiter",
+      "repo":     "fda-tools"
+    }
+  }
+}

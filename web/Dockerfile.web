@@ -1,0 +1,57 @@
+# FDA-260  [ONPREM-003] Next.js 14 production Docker image
+# =========================================================
+# Multi-stage build: deps → build → runner
+# Final image: node:20-alpine with only the production artefacts
+
+# ── Stage 1: Install dependencies ────────────────────────────────────────────
+FROM node:20-alpine AS deps
+WORKDIR /app
+
+# Install build tools for native modules
+RUN apk add --no-cache libc6-compat
+
+COPY package.json package-lock.json* ./
+RUN npm ci --only=production
+
+# ── Stage 2: Build Next.js app ────────────────────────────────────────────────
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+# Build-time environment variables (baked into static bundle)
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_APP_ENV=production
+
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+ENV NEXT_PUBLIC_APP_ENV=${NEXT_PUBLIC_APP_ENV}
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+
+RUN npm run build
+
+# ── Stage 3: Production runner ────────────────────────────────────────────────
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+
+# Non-root user for security
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser  --system --uid 1001 nextjs
+
+COPY --from=builder /app/public          ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static    ./.next/static
+
+USER nextjs
+
+EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD wget -q -O /dev/null http://localhost:3000/api/health || exit 1
+
+CMD ["node", "server.js"]

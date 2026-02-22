@@ -1,0 +1,117 @@
+# FDA-260  [ONPREM-003] Docker Compose production bundle (frontend + API + DB)
+# =============================================================================
+# Production overlay for the MDRP on-premise deployment.
+#
+# Usage
+# -----
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# What this adds to the base docker-compose.yml
+# -----------------------------------------------
+# 1. `web`         — Next.js 14 frontend served by Node.js (port 3000)
+# 2. `nginx`       — Reverse proxy: terminates TLS, routes /api/ → bridge-server
+# 3. `traefik`     — Ingress controller (optional profile: "traefik")
+#
+# Environment variables required (.env file or OS env)
+# -----------------------------------------------------
+#   MDRP_DOMAIN          Domain name (e.g. mdrp.yourcompany.com)
+#   SSL_CERT_PATH        Path to TLS certificate file on host
+#   SSL_KEY_PATH         Path to TLS private key file on host
+#   NEXTAUTH_SECRET      Next.js auth secret (random 32-byte hex)
+#   SUPABASE_URL         Supabase project URL (optional, for cloud sync)
+#   SUPABASE_ANON_KEY    Supabase anon key (optional)
+#   FDA_BRIDGE_API_KEY   Internal API key (must match bridge-server env)
+# -----------------------------------------------------------------------
+
+services:
+
+  # ── Next.js 14 frontend ───────────────────────────────────────────────────
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile.web
+      args:
+        NEXT_PUBLIC_API_URL:    "http://nginx/api"
+        NEXT_PUBLIC_APP_ENV:    "production"
+    container_name: mdrp_web
+    environment:
+      NEXTAUTH_URL:    "https://${MDRP_DOMAIN:-localhost}"
+      NEXTAUTH_SECRET: "${NEXTAUTH_SECRET}"
+      SUPABASE_URL:    "${SUPABASE_URL:-}"
+      SUPABASE_ANON_KEY: "${SUPABASE_ANON_KEY:-}"
+      # Internal API base URL (server-side Next.js → bridge-server)
+      INTERNAL_API_URL: "http://bridge-server:18790"
+    depends_on:
+      bridge-server:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - fda-network
+    expose:
+      - "3000"
+
+  # ── Nginx reverse proxy ───────────────────────────────────────────────────
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: mdrp_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.prod.conf:/etc/nginx/conf.d/default.conf:ro
+      - "${SSL_CERT_PATH:-./nginx/certs/localhost.crt}:/etc/nginx/ssl/cert.pem:ro"
+      - "${SSL_KEY_PATH:-./nginx/certs/localhost.key}:/etc/nginx/ssl/key.pem:ro"
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      web:
+        condition: service_healthy
+      bridge-server:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - fda-network
+
+  # ── Optional Traefik ingress (profile: "traefik") ─────────────────────────
+
+  traefik:
+    image: traefik:v3.0
+    container_name: mdrp_traefik
+    command:
+      - "--api.insecure=false"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:-admin@example.com}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - letsencrypt:/letsencrypt
+    restart: unless-stopped
+    networks:
+      - fda-network
+    profiles:
+      - traefik   # Start with: docker compose --profile traefik up -d
+
+volumes:
+  nginx_logs:
+  letsencrypt:
+
+# Inherits fda-network from docker-compose.yml base file
