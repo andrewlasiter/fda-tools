@@ -136,7 +136,14 @@ class ElectronicSignature:
             meaning:      Stated intent of the signature.
             signing_key:  HMAC key (hex). Defaults to `CFR_PART11_SIGNING_KEY` env var.
         """
-        key = signing_key or os.environ.get("CFR_PART11_SIGNING_KEY", secrets.token_hex(32))
+        key = signing_key or os.environ.get("CFR_PART11_SIGNING_KEY", "")
+        if not key:
+            raise ValueError(
+                "CFR_PART11_SIGNING_KEY is not configured. "
+                "Set the environment variable to a stable HMAC key before signing. "
+                "Ephemeral keys are forbidden — they make signatures unverifiable, "
+                "violating 21 CFR §11.50 and §11.70."
+            )
         timestamp = datetime.now(timezone.utc).isoformat()
         payload = f"{record_hash}|{signer_id}|{meaning}|{timestamp}".encode("utf-8")
         sig_hex = hmac.new(key.encode("utf-8"), payload, hashlib.sha256).hexdigest()
