@@ -1,9 +1,12 @@
 /**
- * FDA-250 / FDA-251  [FE-012 + FE-013] Document Studio
- * ======================================================
- * Two-panel 510(k) section editor:
- *  - Left  (flex-1): TipTap rich-text editor with auto-save
- *  - Right (w-80):   AI inline suggestions panel (accept/reject)
+ * FDA-250 / FDA-251 / FDA-252 / FDA-253  [FE-012–FE-015] Document Studio
+ * =========================================================================
+ * Three-panel 510(k) section editor (Sprint 7 + Sprint 8):
+ *  - Left  (flex-1):   TipTap rich-text editor with auto-save (FDA-250)
+ *  - Right (w-80):     Two-tab sidebar:
+ *       "AI"      → AI inline suggestions, accept/reject (FDA-251)
+ *       "History" → Version history with LCS diff view (FDA-253)
+ *  - Bottom drawer:    eSTAR XML preview pane, collapsible (FDA-252)
  *
  * Suggestion application
  * ----------------------
@@ -14,6 +17,11 @@
  *
  * - Non-empty originalText → regex-replace first match in current HTML
  * - Empty originalText     → append as a new paragraph
+ *
+ * Version capture
+ * ---------------
+ * `captureVersion(html)` is called from `handleSave` so every successful
+ * save snapshots the document state for diffing.
  */
 
 "use client";
@@ -22,7 +30,7 @@ import { useState, useCallback } from "react";
 import { useParams }             from "next/navigation";
 import Link                      from "next/link";
 import {
-  ArrowLeft, Download, FileCode2, Layers,
+  ArrowLeft, Download, Layers, Sparkles, Clock,
 } from "lucide-react";
 import { Button }          from "@/components/ui/button";
 import { DocumentEditor }  from "@/components/editor/document-editor";
@@ -31,6 +39,12 @@ import {
   DEMO_SUGGESTIONS,
   type AiSuggestion,
 } from "@/components/editor/ai-suggestions";
+import { EstarPreview }    from "@/components/editor/estar-preview";
+import {
+  VersionHistory,
+  useVersionHistory,
+} from "@/components/editor/version-history";
+import { cn } from "@/lib/utils";
 
 // ── Section display names ─────────────────────────────────────────────────────
 
@@ -48,6 +62,10 @@ function getSectionName(id: string): string {
   return SECTION_NAMES[id] ?? id.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+// ── Sidebar tab type ──────────────────────────────────────────────────────────
+
+type SidebarTab = "ai" | "history";
+
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function DocumentStudioPage() {
@@ -55,10 +73,14 @@ export default function DocumentStudioPage() {
   const sectionId  = typeof params.id === "string" ? params.id : "default";
   const sectionName = getSectionName(sectionId);
 
-  // Editor HTML content — shared between editor and suggestion applicator
+  // Editor HTML content — shared between editor, eSTAR preview, and suggestion applicator
   const [content,      setContent]      = useState("");
   const [suggestions,  setSuggestions]  = useState<AiSuggestion[]>(DEMO_SUGGESTIONS);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [sidebarTab,   setSidebarTab]   = useState<SidebarTab>("ai");
+
+  // Version history
+  const { versions, captureVersion } = useVersionHistory(20);
 
   // ── Suggestion handlers ───────────────────────────────────────────────────
 
@@ -98,10 +120,22 @@ export default function DocumentStudioPage() {
     }, 1200);
   };
 
-  // Auto-save (demo — in production: POST /documents/{sectionId})
-  const handleSave = async (_html: string): Promise<void> => {
+  // ── Save handler: persists content + captures version snapshot ────────────
+
+  const handleSave = async (html: string): Promise<void> => {
+    // Production: POST /documents/{sectionId}
     await new Promise<void>((resolve) => setTimeout(resolve, 400));
+    captureVersion(html);
   };
+
+  // ── Restore from version history ─────────────────────────────────────────
+
+  const handleRestore = useCallback(
+    (version: { html: string }) => {
+      setContent(version.html);
+    },
+    [],
+  );
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -127,10 +161,6 @@ export default function DocumentStudioPage() {
 
         <div className="flex items-center gap-2 flex-shrink-0">
           <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
-            <FileCode2 className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Preview XML</span>
-          </Button>
-          <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
             <Download className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Export</span>
           </Button>
@@ -143,29 +173,81 @@ export default function DocumentStudioPage() {
         </div>
       </header>
 
-      {/* ── Two-panel body ──────────────────────────────────────────────────── */}
+      {/* ── Main area: editor + sidebar ─────────────────────────────────────── */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
 
-        {/* Left: rich text editor */}
-        <main className="flex-1 min-w-0 overflow-y-auto bg-muted/10 p-4 sm:p-6">
-          <DocumentEditor
-            key={sectionId}
-            initialContent={content}
-            sectionType={sectionId}
-            onSave={handleSave}
-            onChange={setContent}
-          />
+        {/* Left: rich text editor + eSTAR preview below */}
+        <main className="flex-1 min-w-0 flex flex-col overflow-hidden bg-muted/10">
+          {/* Editor scrolls independently */}
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6">
+            <DocumentEditor
+              key={sectionId}
+              initialContent={content}
+              sectionType={sectionId}
+              onSave={handleSave}
+              onChange={setContent}
+            />
+          </div>
+
+          {/* eSTAR XML preview — collapsible panel anchored to bottom of editor area */}
+          <div className="flex-shrink-0 border-t border-border px-4 py-3 bg-background">
+            <EstarPreview
+              htmlContent={content}
+              sectionType={sectionId}
+              deviceName="Subject Device"
+              submissionId="K000000"
+            />
+          </div>
         </main>
 
-        {/* Right: AI suggestions panel */}
-        <aside className="hidden lg:flex flex-col w-80 flex-shrink-0 border-l border-border bg-card overflow-y-auto p-4">
-          <AiSuggestionsPanel
-            suggestions={suggestions}
-            isLoading={isRefreshing}
-            onAccept={handleAccept}
-            onReject={handleReject}
-            onRefresh={handleRefresh}
-          />
+        {/* Right: tabbed sidebar — AI suggestions + Version history */}
+        <aside className="hidden lg:flex flex-col w-80 flex-shrink-0 border-l border-border bg-card overflow-hidden">
+          {/* Sidebar tab bar */}
+          <div className="flex-shrink-0 flex border-b border-border">
+            <button
+              onClick={() => setSidebarTab("ai")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium border-b-2 transition-colors",
+                sidebarTab === "ai"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              AI Suggestions
+            </button>
+            <button
+              onClick={() => setSidebarTab("history")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium border-b-2 transition-colors",
+                sidebarTab === "history"
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Clock className="h-3.5 w-3.5" />
+              History
+            </button>
+          </div>
+
+          {/* Sidebar content */}
+          <div className="flex-1 overflow-y-auto p-4">
+            {sidebarTab === "ai" && (
+              <AiSuggestionsPanel
+                suggestions={suggestions}
+                isLoading={isRefreshing}
+                onAccept={handleAccept}
+                onReject={handleReject}
+                onRefresh={handleRefresh}
+              />
+            )}
+            {sidebarTab === "history" && (
+              <VersionHistory
+                versions={versions}
+                onRestore={handleRestore}
+              />
+            )}
+          </div>
         </aside>
       </div>
     </div>
