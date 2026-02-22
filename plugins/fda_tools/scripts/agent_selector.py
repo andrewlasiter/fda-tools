@@ -762,7 +762,7 @@ class MLAgentSelector(AgentSelector):
         force_retrain: bool = False,
     ) -> None:
         super().__init__(registry)
-        from orchestrator_history import OrchestratorHistory  # local import to avoid cycles
+        from fda_tools.scripts.orchestrator_history import OrchestratorHistory  # deferred to avoid circular imports
         self._history = OrchestratorHistory(
             data_dir=history_path.parent if history_path else None
         )
