@@ -3,12 +3,14 @@
 /**
  * Root Providers
  * ==============
- * Wraps the application with global context providers:
- *   - AuthProvider      — Supabase session state (FDA-225)
+ * Wraps the application with all global context providers:
+ *   - ThemeProvider    — next-themes dark/light mode
  *   - QueryClientProvider — React Query for API data fetching (FDA-226)
+ *   - AuthProvider     — Supabase session state (FDA-225)
  */
 
 import React from "react";
+import { ThemeProvider } from "next-themes";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/contexts/auth-context";
 
@@ -28,8 +30,15 @@ const queryClient = new QueryClient({
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>{children}</AuthProvider>
-    </QueryClientProvider>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange
+    >
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>{children}</AuthProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 }
