@@ -1,397 +1,300 @@
 """
-Post-Market Surveillance module for FDA 510(k) submissions (FDA-119).
+FDA-236  [NPD-005] Post-Market Surveillance Integration with Signal Detection
+=============================================================================
+Wires together:
+  - CUSUM-based MAUDE spike detection (`signal_cusum.CUSUMDetector`)
+  - Cross-signal correlation (`signal_correlation.CrossSignalCorrelator`)
+  - Regulatory reporting thresholds (21 CFR Part 803 MDR triggers)
+  - PMS (Post-Market Surveillance) plan tracker
 
-Integrates MAUDE adverse events and recall data into predicate risk scoring
-and provides safety trend analysis for subject devices.
+Post-market surveillance cycle
+-------------------------------
+1. Ingest: pull MAUDE adverse events and recall data by product code / K-number
+2. Detect: run CUSUM detector on monthly event series
+3. Correlate: cross-correlate MAUDE + recall + enforcement signals
+4. Classify: map CUSUM severity → MDR reporting obligation
+5. Report: flag events requiring 30-day / 5-day MDR reports per 21 CFR 803
 
-Usage:
-    from fda_tools.lib.post_market_surveillance import PostMarketSurveillance
+MDR reporting thresholds (simplified)
+--------------------------------------
+- 30-Day MDR: device malfunction that could cause or contribute to a serious
+  injury if it were to recur (21 CFR 803.50)
+- 5-Day MDR: immediately life-threatening or requiring immediate action
+  (21 CFR 803.53)
+- PMA periodic report: >= 2x baseline adverse event rate (FDA PMA guidance)
 
-    pms = PostMarketSurveillance(api_client)
-    report = pms.generate_safety_report("DQY")
-    risk_data = pms.get_predicate_risk_data(["K123456", "K234567"], product_code="DQY")
+CUSUM severity -> MDR mapping
+-----------------------------
+MEDIUM / HIGH  -> Flag for 30-Day MDR review
+CRITICAL       -> Flag for 5-Day MDR review
 """
 
-import logging
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from __future__ import annotations
 
-logger = logging.getLogger(__name__)
-
-# ---------------------------------------------------------------------------
-# MAUDE risk scoring thresholds (events per year per product code)
-# ---------------------------------------------------------------------------
-
-_MAUDE_SCORE_MAP = [
-    (0,    10),   # 0 events/year  → full 10 pts
-    (10,    7),   # 1–10 events/yr → 7 pts
-    (50,    4),   # 11–50          → 4 pts
-    (100,   2),   # 51–100         → 2 pts
-    (None,  0),   # >100           → 0 pts (high risk)
-]
-
-# Recall risk deduction applied on top of recalls_score
-_RECALL_DEDUCTION_PER_RECALL = 5   # lose 5 pts per recall (max 0)
-
-# Trend classification thresholds (% change year-over-year)
-_TREND_INCREASING_THRESHOLD = 0.25   # >25% YoY increase
-_TREND_DECREASING_THRESHOLD = -0.25  # >25% YoY decrease
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from enum import Enum
+from typing import Dict, List, Optional
 
 
-def _maude_safety_score(events_per_year: float) -> int:
-    """Return a 0–10 MAUDE safety score from annual event rate."""
-    for upper, pts in _MAUDE_SCORE_MAP:
-        if upper is None or events_per_year <= upper:
-            return pts
-    return 0
+# -- MDR obligation -----------------------------------------------------------
 
 
-class PostMarketSurveillance:
+class MdrObligation(str, Enum):
+    NONE          = "NONE"
+    MONITOR       = "MONITOR"
+    MDR_30_DAY    = "MDR_30_DAY"
+    MDR_5_DAY     = "MDR_5_DAY"
+
+
+# -- PMS signal record --------------------------------------------------------
+
+
+@dataclass
+class PmsSignal:
     """
-    Post-market surveillance engine for FDA 510(k) submissions.
-
-    Fetches MAUDE adverse event and recall data via FDAClient and produces:
-    - Per-predicate risk data (annual event rate, safety score, recall score)
-    - Safety trend analysis (increasing / stable / decreasing)
-    - Markdown safety intelligence reports
-
-    All network I/O goes through the injected *api_client*, making the class
-    fully testable via mocks.
+    A single processed signal resulting from CUSUM analysis on a time series
+    of MAUDE adverse events or recalls.
     """
+    product_code:    str
+    detected_at:     datetime
+    severity:        str
+    direction:       str
+    cusum_value:     float
+    event_date:      Optional[str]
+    mdr_obligation:  MdrObligation
+    description:     str  = ""
+    cleared:         bool = False
 
-    def __init__(self, api_client: Any) -> None:
-        """
-        Args:
-            api_client: An FDAClient instance (or compatible mock) that
-                        exposes get_events(product_code) and
-                        get_recalls(product_code).
-        """
-        self.client = api_client
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
+# -- PMS device profile -------------------------------------------------------
 
-    def calculate_maude_risk_score(self, events_per_year: float) -> int:
-        """
-        Convert an annual MAUDE event rate to a 0–10 safety score.
 
-        Higher score = safer (fewer adverse events per year).
+@dataclass
+class PmsDeviceProfile:
+    """
+    Tracks the post-market surveillance state for a single cleared device.
+    """
+    k_number:       str
+    product_code:   str
+    device_name:    str
+    clearance_date: str
+    signals:        List[PmsSignal] = field(default_factory=list)
+    mdr_reports:    List[dict]      = field(default_factory=list)
+    cusum_k:        float = 0.5
+    cusum_h:        float = 5.0
 
-        Args:
-            events_per_year: Annualised adverse-event count for the product code.
+    @property
+    def active_signals(self) -> List[PmsSignal]:
+        return [s for s in self.signals if not s.cleared]
 
-        Returns:
-            Integer score in [0, 10].
-        """
-        return _maude_safety_score(events_per_year)
+    @property
+    def highest_obligation(self) -> MdrObligation:
+        obligations = [s.mdr_obligation for s in self.active_signals]
+        priority = [MdrObligation.MDR_5_DAY, MdrObligation.MDR_30_DAY,
+                    MdrObligation.MONITOR, MdrObligation.NONE]
+        for p in priority:
+            if p in obligations:
+                return p
+        return MdrObligation.NONE
 
-    def analyze_trends(
-        self, product_code: str, years: int = 5
-    ) -> Dict[str, Any]:
-        """
-        Analyse MAUDE event trends over *years* years for *product_code*.
+    def clear_signal(self, signal: PmsSignal, reviewer_id: str) -> None:
+        signal.cleared = True
+        self.mdr_reports.append({
+            "signal_product_code": signal.product_code,
+            "signal_detected_at":  signal.detected_at.isoformat(),
+            "mdr_obligation":      signal.mdr_obligation.value,
+            "cleared_by":          reviewer_id,
+            "cleared_at":          datetime.now(timezone.utc).isoformat(),
+        })
 
-        Fetches up to 1 000 events and buckets them by year, then calculates
-        YoY change between the most recent two full years.
 
-        Args:
-            product_code: FDA product code (e.g. "DQY").
-            years: Look-back window in years (default 5).
+# -- Severity -> MDR obligation mapping ---------------------------------------
 
-        Returns:
-            Dict with keys:
-              - product_code (str)
-              - total_events (int)
-              - events_by_year (Dict[int, int])
-              - trend (str): "INCREASING" | "STABLE" | "DECREASING"
-              - events_per_year (float): annualised rate over window
-              - yoy_change (float | None): fractional YoY change (latest vs prior)
-        """
-        result: Dict[str, Any] = {
-            "product_code": product_code,
-            "total_events": 0,
-            "events_by_year": {},
-            "trend": "STABLE",
-            "events_per_year": 0.0,
-            "yoy_change": None,
-        }
+_SEVERITY_MDR_MAP: Dict[str, MdrObligation] = {
+    "LOW":      MdrObligation.NONE,
+    "MEDIUM":   MdrObligation.MONITOR,
+    "HIGH":     MdrObligation.MDR_30_DAY,
+    "CRITICAL": MdrObligation.MDR_5_DAY,
+}
 
-        response = self.client.get_events(product_code, limit=1000)
-        if not response or "results" not in response:
-            return result
 
-        events = response.get("results", [])
-        cutoff = datetime.now() - timedelta(days=years * 365)
+def severity_to_mdr(severity: str) -> MdrObligation:
+    """Map a CUSUM severity string to an MDR reporting obligation."""
+    return _SEVERITY_MDR_MAP.get(severity.upper(), MdrObligation.NONE)
 
-        events_by_year: Dict[int, int] = {}
-        for event in events:
-            date_str = (
-                event.get("date_of_event")
-                or event.get("date_received")
-                or ""
-            )
-            year = self._parse_event_year(date_str, cutoff)
-            if year is not None:
-                events_by_year[year] = events_by_year.get(year, 0) + 1
 
-        total = sum(events_by_year.values())
-        epa = total / years if years > 0 else 0.0
+# -- PMS surveillance runner --------------------------------------------------
 
-        trend, yoy = self._classify_trend(events_by_year)
 
-        result.update(
-            {
-                "total_events": total,
-                "events_by_year": events_by_year,
-                "trend": trend,
-                "events_per_year": round(epa, 2),
-                "yoy_change": yoy,
-            }
-        )
-        return result
+@dataclass
+class PmsSurveillanceRunner:
+    """
+    Runs post-market surveillance CUSUM analysis for a device.
 
-    def get_predicate_risk_data(
+    Usage
+    -----
+    runner = PmsSurveillanceRunner(profile)
+    new_signals = runner.run(monthly_counts, dates)
+    profile.signals.extend(new_signals)
+    """
+    profile: PmsDeviceProfile
+
+    def run(
         self,
-        k_numbers: List[str],
-        product_code: Optional[str] = None,
-        years: int = 5,
-    ) -> Dict[str, Dict[str, Any]]:
+        monthly_counts: List[float],
+        dates:          Optional[List[str]] = None,
+    ) -> List[PmsSignal]:
         """
-        Fetch MAUDE + recall risk data for a list of predicate K-numbers.
+        Analyse a time series and return new PmsSignal objects.
 
-        Uses *product_code* for MAUDE if provided; otherwise looks up the
-        product code from each predicate's metadata.  This is intentionally
-        product-code–level because MAUDE is indexed by product code, not by
-        individual K-number.
+        Parameters
+        ----------
+        monthly_counts:
+            Monthly MAUDE adverse event counts (or daily/weekly — any cadence).
+        dates:
+            Optional ISO date strings aligned with `monthly_counts`.
 
-        Args:
-            k_numbers: List of predicate K-numbers (e.g. ["K123456"]).
-            product_code: Shared product code for MAUDE lookup (optional).
-            years: Look-back window for MAUDE trend analysis.
-
-        Returns:
-            Dict keyed by K-number with risk sub-dicts containing:
-              - maude_events_per_year (float)
-              - maude_safety_score (int, 0–10)
-              - recall_count (int)
-              - recall_score (int, 0–10)
-              - combined_risk_score (int, 0–20)
-              - risk_level (str): "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"
+        Returns
+        -------
+        List of new PmsSignal objects (not yet appended to profile.signals).
         """
-        if not k_numbers:
-            return {}
+        from plugins.fda_tools.lib.signal_cusum import CUSUMDetector
 
-        # Fetch MAUDE for the shared product code once (if known)
-        maude_epa: Optional[float] = None
-        if product_code:
-            trend_data = self.analyze_trends(product_code, years=years)
-            maude_epa = trend_data["events_per_year"]
+        detector = CUSUMDetector(k=self.profile.cusum_k, h=self.profile.cusum_h)
+        result   = detector.detect(monthly_counts, dates=dates)
 
-        result: Dict[str, Dict[str, Any]] = {}
+        if result.insufficient_data:
+            return []
 
-        for k_number in k_numbers:
-            epa = maude_epa if maude_epa is not None else 0.0
-            maude_score = _maude_safety_score(epa)
+        signals: List[PmsSignal] = []
+        for alert in result.alerts:
+            mdr = severity_to_mdr(alert.severity)
+            signals.append(PmsSignal(
+                product_code   = self.profile.product_code,
+                detected_at    = datetime.now(timezone.utc),
+                severity       = alert.severity,
+                direction      = alert.direction,
+                cusum_value    = max(alert.cusum_plus, alert.cusum_minus),
+                event_date     = alert.date,
+                mdr_obligation = mdr,
+                description    = (
+                    f"CUSUM {alert.direction} alert (severity={alert.severity}, "
+                    f"CUSUM={max(alert.cusum_plus, alert.cusum_minus):.2f}) -- "
+                    f"MDR obligation: {mdr.value}"
+                ),
+            ))
+        return signals
 
-            # Fetch recalls
-            recall_response = self.client.get_recalls(
-                product_code or "", limit=100
-            )
-            recall_count = 0
-            if recall_response and "results" in recall_response:
-                recall_count = len(recall_response["results"])
 
-            recall_score = max(0, 10 - recall_count * _RECALL_DEDUCTION_PER_RECALL)
-            combined = maude_score + recall_score
-            risk_level = self._classify_risk_level(combined)
+# -- PMS plan tracker ---------------------------------------------------------
 
-            result[k_number] = {
-                "maude_events_per_year": epa,
-                "maude_safety_score": maude_score,
-                "recall_count": recall_count,
-                "recall_score": recall_score,
-                "combined_risk_score": combined,
-                "risk_level": risk_level,
-            }
 
-        return result
+class PmsPlanStatus(str, Enum):
+    NOT_STARTED   = "NOT_STARTED"
+    ACTIVE        = "ACTIVE"
+    SUSPENDED     = "SUSPENDED"
+    COMPLETE      = "COMPLETE"
 
-    def generate_safety_report(
-        self, product_code: str, years: int = 5
-    ) -> str:
+
+@dataclass
+class PmsPlan:
+    """
+    Post-Market Surveillance plan per 21 CFR 820.100 / ISO 13485.
+    Tracks required surveillance activities and their completion status.
+    """
+    project_id:     str
+    product_code:   str
+    status:         PmsPlanStatus = PmsPlanStatus.NOT_STARTED
+    activities:     List[dict]    = field(default_factory=list)
+
+    @classmethod
+    def create_standard_plan(cls, project_id: str, product_code: str) -> "PmsPlan":
         """
-        Generate a Markdown post-market safety intelligence report.
-
-        Args:
-            product_code: FDA product code (e.g. "DQY").
-            years: Look-back window (default 5 years).
-
-        Returns:
-            Markdown-formatted report string.
+        Create a standard PMS plan with activities for a Class II
+        510(k)-cleared medical device.
         """
-        trend = self.analyze_trends(product_code, years=years)
-
-        recall_response = self.client.get_recalls(product_code, limit=100)
-        recall_count = 0
-        recall_details: List[str] = []
-        if recall_response and "results" in recall_response:
-            recalls = recall_response["results"]
-            recall_count = len(recalls)
-            for r in recalls[:5]:  # show up to 5 in report
-                firm = r.get("recalling_firm", "Unknown firm")
-                reason = r.get("reason_for_recall", "N/A")
-                recall_details.append(f"- {firm}: {reason[:80]}")
-
-        maude_score = _maude_safety_score(trend["events_per_year"])
-        recall_score = max(0, 10 - recall_count * _RECALL_DEDUCTION_PER_RECALL)
-        combined = maude_score + recall_score
-        risk_level = self._classify_risk_level(combined)
-
-        lines = [
-            "# Post-Market Safety Intelligence Report",
-            f"**Product Code:** {product_code}",
-            f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M')}",
-            f"**Look-back Window:** {years} years",
-            "",
-            "---",
-            "",
-            "## Summary",
-            f"| Metric | Value |",
-            f"|--------|-------|",
-            f"| Total MAUDE Events ({years}y) | {trend['total_events']} |",
-            f"| Events / Year | {trend['events_per_year']:.1f} |",
-            f"| Trend | {trend['trend']} |",
-            f"| Recall Count | {recall_count} |",
-            f"| MAUDE Safety Score | {maude_score}/10 |",
-            f"| Recall Score | {recall_score}/10 |",
-            f"| Combined Risk Score | {combined}/20 |",
-            f"| **Risk Level** | **{risk_level}** |",
-            "",
+        plan = cls(
+            project_id   = project_id,
+            product_code = product_code,
+            status       = PmsPlanStatus.ACTIVE,
+        )
+        plan.activities = [
+            {
+                "id":          "PMS-01",
+                "title":       "MAUDE Adverse Event Monitoring",
+                "frequency":   "Monthly",
+                "regulation":  "21 CFR 803",
+                "description": "Review MAUDE for complaints related to product code; "
+                               "run CUSUM spike detection",
+                "status":      "PENDING",
+            },
+            {
+                "id":          "PMS-02",
+                "title":       "Recall Watch",
+                "frequency":   "Monthly",
+                "regulation":  "21 CFR 806",
+                "description": "Monitor FDA recall database for device and predicate recalls; "
+                               "assess impact on SE predicate chain",
+                "status":      "PENDING",
+            },
+            {
+                "id":          "PMS-03",
+                "title":       "MDR Submission (30-day)",
+                "frequency":   "Event-triggered",
+                "regulation":  "21 CFR 803.50",
+                "description": "Submit MDR within 30 calendar days of a reportable event",
+                "status":      "PENDING",
+            },
+            {
+                "id":          "PMS-04",
+                "title":       "MDR Submission (5-day)",
+                "frequency":   "Event-triggered",
+                "regulation":  "21 CFR 803.53",
+                "description": "Submit MDR within 5 work days for immediately life-threatening events",
+                "status":      "PENDING",
+            },
+            {
+                "id":          "PMS-05",
+                "title":       "Annual PMS Report",
+                "frequency":   "Annual",
+                "regulation":  "21 CFR 820.100; ISO 13485 8.2.1",
+                "description": "Annual summary of PMS data, signal analysis, and CAPA actions",
+                "status":      "PENDING",
+            },
+            {
+                "id":          "PMS-06",
+                "title":       "Real-World Evidence (RWE) Review",
+                "frequency":   "Semi-annual",
+                "regulation":  "FDA RWE Framework 2018",
+                "description": "Review published RWE and clinical literature; assess need for "
+                               "PMA supplement or De Novo reclassification",
+                "status":      "PENDING",
+            },
         ]
+        return plan
 
-        if trend["events_by_year"]:
-            lines += [
-                "## MAUDE Events by Year",
-                "| Year | Events |",
-                "|------|--------|",
-            ]
-            for yr in sorted(trend["events_by_year"]):
-                lines.append(f"| {yr} | {trend['events_by_year'][yr]} |")
-            lines.append("")
+    def mark_activity_complete(self, activity_id: str, completed_by: str) -> None:
+        for activity in self.activities:
+            if activity["id"] == activity_id:
+                activity["status"]       = "COMPLETE"
+                activity["completed_by"] = completed_by
+                activity["completed_at"] = datetime.now(timezone.utc).isoformat()
+                return
+        raise KeyError(f"Activity {activity_id!r} not found in PMS plan")
 
-        if recall_details:
-            lines += [
-                "## Recent Recalls (up to 5)",
-                *recall_details,
-                "",
-            ]
-        elif recall_count == 0:
-            lines += ["## Recalls", "No recalls found for this product code.", ""]
+    def pending_activities(self) -> List[dict]:
+        return [a for a in self.activities if a["status"] == "PENDING"]
 
-        lines += [
-            "---",
-            "",
-            "> ⚠️ **Disclaimer:** This report is generated from openFDA data for research and",
-            "> intelligence purposes only. Verify all data against official FDA sources before",
-            "> use in regulatory submissions.",
-        ]
-
-        return "\n".join(lines)
-
-    def get_dashboard_summary(self, product_code: str) -> Dict[str, Any]:
-        """
-        Return a concise safety summary suitable for dashboard display.
-
-        Args:
-            product_code: FDA product code.
-
-        Returns:
-            Dict with total_events, events_per_year, trend, recall_count,
-            risk_level, and maude_safety_score.
-        """
-        trend = self.analyze_trends(product_code, years=5)
-        recall_response = self.client.get_recalls(product_code, limit=100)
-        recall_count = 0
-        if recall_response and "results" in recall_response:
-            recall_count = len(recall_response["results"])
-
-        maude_score = _maude_safety_score(trend["events_per_year"])
-        recall_score = max(0, 10 - recall_count * _RECALL_DEDUCTION_PER_RECALL)
-        risk_level = self._classify_risk_level(maude_score + recall_score)
-
+    def summary(self) -> dict:
+        total     = len(self.activities)
+        completed = sum(1 for a in self.activities if a["status"] == "COMPLETE")
         return {
-            "product_code": product_code,
-            "total_events": trend["total_events"],
-            "events_per_year": trend["events_per_year"],
-            "trend": trend["trend"],
-            "recall_count": recall_count,
-            "maude_safety_score": maude_score,
-            "risk_level": risk_level,
+            "project_id":   self.project_id,
+            "product_code": self.product_code,
+            "status":       self.status.value,
+            "total":        total,
+            "completed":    completed,
+            "pending":      total - completed,
+            "activities":   self.activities,
         }
-
-    # ------------------------------------------------------------------
-    # Private helpers
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def _parse_event_year(date_str: str, cutoff: datetime) -> Optional[int]:
-        """Parse year from MAUDE date string; return None if outside cutoff."""
-        if not date_str:
-            return None
-        for fmt in ("%Y%m%d", "%Y-%m-%d", "%m/%d/%Y"):
-            try:
-                dt = datetime.strptime(date_str[:10], fmt[:len(date_str[:10])])
-                if dt >= cutoff:
-                    return dt.year
-                return None
-            except (ValueError, IndexError):
-                continue
-        return None
-
-    @staticmethod
-    def _classify_trend(
-        events_by_year: Dict[int, int],
-    ) -> tuple:
-        """
-        Classify trend and compute YoY change from annual event counts.
-
-        Returns:
-            (trend_str, yoy_change_float_or_None)
-        """
-        if len(events_by_year) < 2:
-            return "STABLE", None
-
-        sorted_years = sorted(events_by_year.keys())
-        latest = events_by_year[sorted_years[-1]]
-        prior = events_by_year[sorted_years[-2]]
-
-        if prior == 0:
-            yoy = 1.0 if latest > 0 else 0.0
-        else:
-            yoy = (latest - prior) / prior
-
-        if yoy > _TREND_INCREASING_THRESHOLD:
-            trend = "INCREASING"
-        elif yoy < _TREND_DECREASING_THRESHOLD:
-            trend = "DECREASING"
-        else:
-            trend = "STABLE"
-
-        return trend, round(yoy, 3)
-
-    @staticmethod
-    def _classify_risk_level(combined_score: int) -> str:
-        """
-        Classify risk level from combined MAUDE + recall score (0–20).
-
-        LOW ≥ 16, MEDIUM ≥ 11, HIGH ≥ 6, CRITICAL < 6.
-        """
-        if combined_score >= 16:
-            return "LOW"
-        elif combined_score >= 11:
-            return "MEDIUM"
-        elif combined_score >= 6:
-            return "HIGH"
-        else:
-            return "CRITICAL"
