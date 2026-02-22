@@ -147,6 +147,96 @@ export interface AuditIntegrityResponse {
   verified_at: string;
 }
 
+// ── FDA-309: HITL gate types ───────────────────────────────────────────────
+
+export type HitlDecision = "approved" | "rejected" | "deferred";
+
+/** Authorized reviewer roles for HITL gate signing. */
+export type HitlReviewerRole =
+  | "RA_LEAD"
+  | "PRINCIPAL_RA"
+  | "QA_MANAGER"
+  | "REGULATORY_DIRECTOR"
+  | "VP_REGULATORY";
+
+export interface HitlGateSignRequest {
+  session_id:    string;
+  gate_id:       number;        // 1–5
+  decision:      HitlDecision;
+  rationale:     string;        // min 10 chars
+  reviewer_id:   string;        // user email / UUID
+  reviewer_name: string;
+  reviewer_role: HitlReviewerRole;
+  sri?:          number;        // 0–100
+}
+
+export interface HitlGateSignResponse {
+  gate_id:        number;
+  session_id:     string;
+  decision:       HitlDecision;
+  signed_at:      string;       // ISO 8601 UTC
+  record_hash:    string;       // SHA-256 of canonical record
+  signature_hash: string;       // HMAC-SHA256 (or "UNSIGNED:…" if key not set)
+  reviewer_name:  string;
+  reviewer_role:  string;
+  cryptographic:  boolean;      // true when CFR_PART11_SIGNING_KEY is set
+  audit_entry:    string;
+}
+
+export interface HitlGateRecord {
+  gate_id:        number;
+  session_id:     string;
+  decision:       HitlDecision;
+  rationale:      string;
+  reviewer_id:    string;
+  reviewer_name:  string;
+  reviewer_role:  string;
+  sri:            number;
+  record_hash:    string;
+  signature_hash: string;
+  signed_at:      string;
+  cryptographic:  boolean;
+}
+
+export interface HitlGateStatusResponse {
+  gate_id:           number;
+  session_id:        string;
+  status:            HitlDecision | "pending";
+  record:            HitlGateRecord | null;
+  escalated:         boolean;
+  escalation_reason: string | null;
+}
+
+// ── FDA-311: Research Search types ─────────────────────────────────────────
+
+/** Sources that can be included in a unified research search. */
+export type ResearchSource = "510k" | "guidance" | "maude" | "recalls";
+
+export interface ResearchSearchRequest {
+  query:         string;
+  sources?:      ResearchSource[];   // defaults to ["510k", "guidance", "maude"]
+  limit?:        number;             // max per source, 1–50 (default 10)
+  product_code?: string;             // optional FDA product code filter
+}
+
+export interface ResearchHit {
+  id:       string;
+  title:    string;
+  source:   ResearchSource;
+  score:    number;              // 0–1 relevance estimate
+  excerpt:  string;
+  metadata: Record<string, unknown>;
+  url:      string | null;
+}
+
+export interface ResearchSearchResponse {
+  results:          ResearchHit[];
+  total:            number;
+  sources_searched: ResearchSource[];
+  query:            string;
+  duration_ms:      number;
+}
+
 // ── Axios instance factory ─────────────────────────────────────────────────
 
 function createAxiosInstance(): AxiosInstance {
@@ -309,6 +399,42 @@ export const fdaApi = {
       .get<AuditIntegrityResponse>("/audit/integrity", config)
       .then((r) => r.data);
   },
+
+  // -- Research Search (FDA-311) --------------------------------------------
+
+  searchResearch(
+    body: ResearchSearchRequest,
+    config?: AxiosRequestConfig
+  ): Promise<ResearchSearchResponse> {
+    return getAxiosInstance()
+      .post<ResearchSearchResponse>("/research/search", body, config)
+      .then((r) => r.data);
+  },
+
+  // -- HITL Gate (FDA-309) --------------------------------------------------
+
+  signHitlGate(
+    gateId: number,
+    body: HitlGateSignRequest,
+    config?: AxiosRequestConfig
+  ): Promise<HitlGateSignResponse> {
+    return getAxiosInstance()
+      .post<HitlGateSignResponse>(`/hitl/gate/${gateId}/sign`, body, config)
+      .then((r) => r.data);
+  },
+
+  getHitlGate(
+    gateId: number,
+    sessionId: string,
+    config?: AxiosRequestConfig
+  ): Promise<HitlGateStatusResponse> {
+    return getAxiosInstance()
+      .get<HitlGateStatusResponse>(`/hitl/gate/${gateId}`, {
+        params: { session_id: sessionId },
+        ...config,
+      })
+      .then((r) => r.data);
+  },
 } as const;
 
 // ── React Query hooks ──────────────────────────────────────────────────────
@@ -322,6 +448,8 @@ export const queryKeys = {
   session:     (id: string) => ["fda", "session", id] as const,
   questions:   (id: string) => ["fda", "questions", id] as const,
   audit:       ["fda", "audit", "integrity"]      as const,
+  research:    (q: string, sources: string[]) =>
+                 ["fda", "research", q, ...sources] as const,
 } as const;
 
 // -- useHealth ---------------------------------------------------------------
@@ -434,5 +562,56 @@ export function useExecute() {
 export function useAnswerQuestion(sessionId: string) {
   return useMutation<AnswerResponse, FDAClientError, AnswerRequest>({
     mutationFn: (body) => fdaApi.answerQuestion(sessionId, body),
+  });
+}
+
+// -- useSignHitlGate (mutation) — FDA-309 ------------------------------------
+
+/**
+ * Mutation hook for signing a HITL gate decision.
+ * Requires the reviewer to hold one of the authorized RA roles.
+ *
+ * @example
+ *   const sign = useSignHitlGate()
+ *   sign.mutateAsync({ session_id: "abc", gate_id: 2, decision: "approved",
+ *                      rationale: "Predicate selection validated.", ... })
+ */
+export function useSignHitlGate() {
+  return useMutation<HitlGateSignResponse, FDAClientError, { gateId: number; body: HitlGateSignRequest }>({
+    mutationFn: ({ gateId, body }) => fdaApi.signHitlGate(gateId, body),
+  });
+}
+
+/**
+ * Query hook to get current HITL gate status (with 24h escalation check).
+ */
+export function useHitlGateStatus(
+  gateId: number,
+  sessionId: string,
+  options?: Omit<UseQueryOptions<HitlGateStatusResponse>, "queryKey" | "queryFn">
+) {
+  return useQuery<HitlGateStatusResponse>({
+    queryKey:        ["fda", "hitl", "gate", gateId, sessionId],
+    queryFn:         () => fdaApi.getHitlGate(gateId, sessionId),
+    enabled:         Boolean(sessionId) && gateId >= 1 && gateId <= 5,
+    refetchInterval: 60_000,  // poll every 60s to detect escalation
+    ...options,
+  });
+}
+
+// -- useResearchSearch (mutation) — FDA-311 ----------------------------------
+
+/**
+ * Mutation hook for unified FDA research search.
+ *
+ * Using a mutation (not a query) so the search only fires on explicit submit.
+ *
+ * @example
+ *   const search = useResearchSearch()
+ *   search.mutateAsync({ query: "infusion pump", sources: ["510k", "guidance"] })
+ */
+export function useResearchSearch() {
+  return useMutation<ResearchSearchResponse, FDAClientError, ResearchSearchRequest>({
+    mutationFn: (body) => fdaApi.searchResearch(body),
   });
 }
