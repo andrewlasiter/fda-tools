@@ -328,12 +328,12 @@ export function AgenticControlPanel({
   }
 
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn("space-y-4", className)} role="region" aria-label="Agentic Control Panel">
       {/* Header + Emergency Stop */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h2 className="text-sm font-semibold text-foreground">Agentic Control Panel</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <p className="text-xs text-muted-foreground mt-0.5" aria-live="polite" aria-atomic="true">
             {agentStats.running} running · {agentStats.waiting} awaiting approval · {agentStats.errors} errors
           </p>
         </div>
@@ -341,17 +341,19 @@ export function AgenticControlPanel({
         {stopped ? (
           <button
             onClick={handleEmergencyResume}
+            aria-label="Resume all halted agents"
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#1A7F4B] text-white text-[11px] font-bold hover:bg-[#1A7F4B]/90 transition-colors"
           >
-            <span className="text-base leading-none">▶</span>
+            <span className="text-base leading-none" aria-hidden="true">▶</span>
             Resume All Agents
           </button>
         ) : (
           <button
             onClick={handleEmergencyStop}
+            aria-label="Emergency stop — halt all running agents immediately"
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive text-white text-[11px] font-bold hover:bg-destructive/90 transition-colors"
           >
-            <span className="text-base leading-none font-mono">■</span>
+            <span className="text-base leading-none font-mono" aria-hidden="true">■</span>
             Emergency Stop
           </button>
         )}

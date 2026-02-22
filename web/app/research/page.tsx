@@ -18,6 +18,7 @@
 
 import React, { useState } from "react";
 import { cn } from "@/lib/utils";
+import { useResearchSearch, type ResearchHit, type ResearchSource } from "@/lib/api-client";
 
 // Research Hub components
 import { PredicateSelection,    type PredicateDevice }   from "@/components/research/predicate-selection";
@@ -109,7 +110,7 @@ const DEMO_ANNOTATIONS: Annotation[] = [
 ];
 
 const DEMO_RELATED: RelatedDocument[] = [
-  { id: "r1", title: "FDA Guidance: Infusion Pumps 510(k)", docType: "guidance", reference: "FDA-2014-D-0798", relevance: 94 },
+  { title: "FDA Guidance: Infusion Pumps 510(k)", docType: "guidance", reference: "FDA-2014-D-0798", relevance: 94 },
 ];
 
 const DEMO_CLUSTERS: GuidanceCluster[] = [
@@ -171,39 +172,186 @@ const DEMO_CITATIONS: Citation[] = [
   },
 ];
 
-// ── Search panel placeholder ────────────────────────────────────────────────
+// ── Source badge ─────────────────────────────────────────────────────────────
+
+const SOURCE_CONFIG: Record<ResearchSource, { label: string; color: string; bg: string }> = {
+  "510k":     { label: "510(k)",   color: "#005EA2", bg: "bg-[#005EA2]/10" },
+  guidance:   { label: "Guidance", color: "#1A7F4B", bg: "bg-[#1A7F4B]/10" },
+  maude:      { label: "MAUDE",    color: "#B45309", bg: "bg-[#B45309]/10" },
+  recalls:    { label: "Recall",   color: "#C5191B", bg: "bg-[#C5191B]/10" },
+};
+
+function SourceBadge({ source }: { source: ResearchSource }) {
+  const cfg = SOURCE_CONFIG[source] ?? { label: source, color: "#666", bg: "bg-muted" };
+  return (
+    <span
+      className={cn("text-[9px] font-semibold px-1.5 py-0.5 rounded uppercase tracking-wide", cfg.bg)}
+      style={{ color: cfg.color }}
+    >
+      {cfg.label}
+    </span>
+  );
+}
+
+// ── Result card ──────────────────────────────────────────────────────────────
+
+function SearchResultCard({ hit }: { hit: ResearchHit }) {
+  const pct = Math.round(hit.score * 100);
+  return (
+    <article className="rounded-lg border border-border bg-card p-3 hover:border-[#005EA2]/30 transition-colors">
+      <div className="flex items-start gap-2 mb-1.5">
+        <SourceBadge source={hit.source} />
+        <p className="text-[11px] font-semibold text-foreground leading-tight flex-1 min-w-0">
+          {hit.title}
+        </p>
+        <span className="text-[9px] font-mono text-muted-foreground flex-shrink-0">{pct}%</span>
+      </div>
+      {hit.excerpt && (
+        <p className="text-[10px] text-muted-foreground leading-relaxed line-clamp-3">
+          {hit.excerpt}
+        </p>
+      )}
+      {hit.url && (
+        <a
+          href={hit.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[9px] text-[#005EA2] hover:underline mt-1 inline-block cursor-pointer"
+        >
+          View document →
+        </a>
+      )}
+    </article>
+  );
+}
+
+// ── Search panel (FDA-311 — live) ─────────────────────────────────────────────
+
+const ALL_SOURCES: ResearchSource[] = ["510k", "guidance", "maude", "recalls"];
 
 function SearchPanel() {
-  const [query, setQuery] = useState("");
+  const [query, setQuery]       = useState("");
+  const [submitted, setSubmitted] = useState("");
+  const [sources, setSources]   = useState<ResearchSource[]>(["510k", "guidance", "maude"]);
+  const search = useResearchSearch();
+
+  function handleSubmit() {
+    const q = query.trim();
+    if (!q) return;
+    setSubmitted(q);
+    search.mutate({ query: q, sources, limit: 10 });
+  }
+
+  function toggleSource(src: ResearchSource) {
+    setSources(prev =>
+      prev.includes(src) ? prev.filter(s => s !== src) : [...prev, src]
+    );
+  }
+
   return (
-    <div className="flex flex-col h-full p-6">
+    <div className="flex flex-col h-full p-6 overflow-hidden">
       <h2 className="text-sm font-semibold text-foreground mb-1">Unified Research Search</h2>
-      <p className="text-[11px] text-muted-foreground mb-4">
-        Semantic search across 510(k) submissions, FDA guidance, MAUDE, recalls, and PubMed.
+      <p className="text-[11px] text-muted-foreground mb-3">
+        Search across 510(k) clearances, FDA guidance, MAUDE adverse events, and recalls.
       </p>
-      <div className="flex gap-2">
+
+      {/* Query input */}
+      <div className="flex gap-2 mb-2">
         <input
           type="search"
           value={query}
           onChange={e => setQuery(e.target.value)}
-          placeholder="Search 510(k) database, guidance documents, MAUDE…"
+          onKeyDown={e => e.key === "Enter" && handleSubmit()}
+          placeholder="e.g. infusion pump, glucose monitor, catheter…"
           className="flex-1 px-3 py-2 text-[12px] rounded-lg border border-border bg-background outline-none focus:border-[#005EA2]/50 text-foreground placeholder:text-muted-foreground"
         />
         <button
-          disabled={!query.trim()}
+          onClick={handleSubmit}
+          disabled={!query.trim() || search.isPending}
           className="px-4 py-2 bg-[#005EA2] text-white text-[11px] font-semibold rounded-lg disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed hover:bg-[#005EA2]/90 transition-colors"
         >
-          Search
+          {search.isPending ? "…" : "Search"}
         </button>
       </div>
-      <div className="flex-1 flex items-center justify-center mt-8">
-        <div className="text-center">
-          <p className="text-[40px] mb-3 opacity-20">⌕</p>
-          <p className="text-[12px] font-medium text-foreground">Powered by pgvector cosine search</p>
-          <p className="text-[11px] text-muted-foreground mt-1">
-            Enter a query to search across all FDA data sources simultaneously.
-          </p>
-        </div>
+
+      {/* Source toggles */}
+      <div className="flex gap-1.5 mb-4 flex-wrap">
+        {ALL_SOURCES.map(src => {
+          const cfg = SOURCE_CONFIG[src];
+          const active = sources.includes(src);
+          return (
+            <button
+              key={src}
+              onClick={() => toggleSource(src)}
+              className={cn(
+                "text-[9px] font-semibold px-2 py-1 rounded uppercase tracking-wide border transition-colors cursor-pointer",
+                active ? cn(cfg.bg, "border-transparent") : "border-border text-muted-foreground bg-background"
+              )}
+              style={active ? { color: cfg.color } : {}}
+            >
+              {cfg.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Results */}
+      <div className="flex-1 overflow-y-auto space-y-2">
+        {/* Empty state */}
+        {!search.data && !search.isPending && !search.isError && (
+          <div className="flex flex-col items-center justify-center h-full text-center">
+            <p className="text-[32px] mb-3 opacity-15 select-none" aria-hidden="true">⌕</p>
+            <p className="text-[12px] font-medium text-foreground">Live FDA database search</p>
+            <p className="text-[11px] text-muted-foreground mt-1 max-w-xs">
+              Enter a device name or clinical term above. Results come from openFDA APIs
+              and the FDA guidance corpus.
+            </p>
+          </div>
+        )}
+
+        {/* Loading */}
+        {search.isPending && (
+          <div className="flex items-center justify-center h-32">
+            <div className="flex gap-1.5" role="status" aria-label="Searching">
+              {[0, 1, 2].map(i => (
+                <div
+                  key={i}
+                  className="w-2 h-2 rounded-full bg-[#005EA2] animate-bounce"
+                  style={{ animationDelay: `${i * 120}ms` }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Error */}
+        {search.isError && (
+          <div className="rounded-lg border border-[#C5191B]/30 bg-[#C5191B]/5 p-3 text-[11px] text-[#C5191B]" role="alert">
+            Search failed — bridge server may be offline. Check that the FDA bridge is running on port 18790.
+          </div>
+        )}
+
+        {/* Results */}
+        {search.data && (
+          <>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[10px] text-muted-foreground">
+                {search.data.total} result{search.data.total !== 1 ? "s" : ""} for &ldquo;{submitted}&rdquo;
+                &nbsp;·&nbsp;{search.data.duration_ms.toFixed(0)}ms
+                &nbsp;·&nbsp;{search.data.sources_searched.join(", ")}
+              </p>
+            </div>
+            {search.data.results.length === 0 ? (
+              <p className="text-[11px] text-muted-foreground text-center py-8">
+                No results found. Try different keywords or add more data sources.
+              </p>
+            ) : (
+              search.data.results.map((hit, i) => (
+                <SearchResultCard key={`${hit.source}-${hit.id}-${i}`} hit={hit} />
+              ))
+            )}
+          </>
+        )}
       </div>
     </div>
   );
@@ -213,14 +361,14 @@ function SearchPanel() {
 
 export default function ResearchPage() {
   const [activeTab, setActiveTab] = useState<TabId>("predicates");
-  const [selectedKNumber, setSelectedKNumber] = useState<string | null>(null);
+  const [_selectedKNumber, setSelectedKNumber] = useState<string | null>(null);
 
   return (
     <div className="flex h-[calc(100vh-64px)] bg-background">
       {/* Left tab rail */}
       <nav
         aria-label="Research Hub tabs"
-        className="w-14 border-r border-border flex flex-col items-center py-3 gap-1 shrink-0 bg-muted/20"
+        className="w-14 md:w-14 border-r border-border flex flex-col items-center py-3 gap-1 shrink-0 bg-muted/20"
       >
         {TABS.map(tab => (
           <button
@@ -289,13 +437,15 @@ export default function ResearchPage() {
 
             <div className="flex-1 h-full overflow-hidden">
               <GuidanceInlineViewer
-                documentTitle="Infusion Pumps 510(k) Submissions"
-                documentReference="FDA-2014-D-0798"
+                title="Infusion Pumps 510(k) Submissions"
+                reference="FDA-2014-D-0798"
+                docType="guidance"
+                pdfUrl="#"
                 totalPages={24}
-                passages={DEMO_PASSAGES}
+                highlights={DEMO_PASSAGES}
                 annotations={DEMO_ANNOTATIONS}
-                relatedDocuments={DEMO_RELATED}
-                onCite={(passage) => console.log("Cite", passage.excerpt.slice(0, 30))}
+                related={DEMO_RELATED}
+                onCiteCopied={(citation) => console.log("Cite", citation.slice(0, 30))}
                 className="h-full"
               />
             </div>
@@ -316,14 +466,13 @@ export default function ResearchPage() {
         {/* Citations — full width */}
         {activeTab === "citations" && (
           <CitationManager
-            initialCitations={DEMO_CITATIONS}
-            projectSections={[
-              "Device Description §3",
-              "SE Discussion §2.1",
-              "Testing §4.2",
-              "Labeling §7",
+            citations={DEMO_CITATIONS}
+            submissionSections={[
+              { id: "s3", label: "Device Description §3" },
+              { id: "s4", label: "SE Discussion §2.1" },
+              { id: "s5", label: "Testing §4.2" },
+              { id: "s6", label: "Labeling §7" },
             ]}
-            onAddToSubmission={(id) => console.log("Add to submission", id)}
             onRemove={(id) => console.log("Remove", id)}
             className="h-full"
           />

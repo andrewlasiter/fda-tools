@@ -60,6 +60,21 @@ from fda_tools.lib.subprocess_helpers import (
     SubprocessAllowlistError,
 )
 
+# FDA-312: Training records — §11.10(i) compliance
+from fda_tools.lib.training_records import training_store, TrainingTopic, PART_11_CORE_TOPICS
+
+# FDA-319: eSTAR XML export — lazy import to avoid startup overhead
+_estar_generate_xml = None  # populated on first call to export_estar_xml
+
+
+def _get_estar_generate_xml():
+    """Lazy-load generate_xml from estar_xml.py (heavy pikepdf/bs4 deps optional)."""
+    global _estar_generate_xml
+    if _estar_generate_xml is None:
+        from fda_tools.scripts.estar_xml import generate_xml  # type: ignore[import]
+        _estar_generate_xml = generate_xml
+    return _estar_generate_xml
+
 from fastapi import FastAPI, HTTPException, Request, Security, Depends  # type: ignore
 from fastapi.middleware.cors import CORSMiddleware  # type: ignore
 from fastapi.security import APIKeyHeader  # type: ignore
@@ -1297,6 +1312,55 @@ class ToolExecuteRequest(BaseModel):
     params: Dict[str, Any] = Field(default_factory=dict, description="Tool-specific parameters")
 
 
+# ── FDA-311: Research Search models ─────────────────────────────────────────
+
+# ── FDA-309: HITL gate models ────────────────────────────────────────────────
+
+#: Roles that are authorized to cryptographically sign HITL gate decisions.
+HITL_AUTHORIZED_ROLES: frozenset = frozenset({
+    "RA_LEAD", "PRINCIPAL_RA", "QA_MANAGER", "REGULATORY_DIRECTOR", "VP_REGULATORY"
+})
+
+#: In-memory HITL gate store — keyed by "{session_id}:{gate_id}".
+#: In Sprint 32, this migrates to the PostgreSQL append-only audit table.
+_HITL_GATE_STORE: Dict[str, Dict[str, Any]] = {}
+_HITL_GATE_LOCK = threading.Lock()
+
+
+class HitlGateSignRequest(BaseModel):
+    """Request body for POST /hitl/gate/{gate_id}/sign."""
+    session_id:    str  = Field(..., description="Active project session ID")
+    gate_id:       int  = Field(..., ge=1, le=5, description="HITL gate number (1–5)")
+    decision:      str  = Field(..., description="One of: approved | rejected | deferred")
+    rationale:     str  = Field(..., min_length=10, max_length=2000)
+    reviewer_id:   str  = Field(..., description="Reviewer user ID / email")
+    reviewer_name: str  = Field(..., min_length=2, max_length=100)
+    reviewer_role: str  = Field(..., description=f"Authorized role: {', '.join(sorted(HITL_AUTHORIZED_ROLES))}")
+    sri:           int  = Field(default=0, ge=0, le=100, description="Submission Readiness Index at time of signing")
+
+
+class ResearchSearchBody(BaseModel):
+    """Request body for POST /research/search."""
+    query: str = Field(..., min_length=2, max_length=500, description="Search query text")
+    sources: List[str] = Field(
+        default=["510k", "guidance", "maude"],
+        description="Data sources: '510k', 'guidance', 'maude', 'recalls'",
+    )
+    limit: int = Field(default=10, ge=1, le=50, description="Max results per source")
+    product_code: Optional[str] = Field(default=None, description="Optional FDA product code filter")
+
+
+class ResearchHit(BaseModel):
+    """A single search result from any FDA data source."""
+    id: str
+    title: str
+    source: str          # "510k" | "guidance" | "maude" | "recalls"
+    score: float         # 0–1 relevance estimate
+    excerpt: str
+    metadata: Dict[str, Any]
+    url: Optional[str] = None
+
+
 @app.post("/tool/execute")
 @_rate_limit(RATE_LIMIT_DEFAULT)
 async def execute_tool(
@@ -1429,6 +1493,678 @@ async def verify_audit_integrity(
         "valid": True,
         "entries_checked": len(AUDIT_LOG),
         "violations": [],
+    }
+
+
+# ── FDA-311: Guidance corpus (keyword-ranked fallback until pgvector is seeded)
+
+_GUIDANCE_CORPUS: List[Dict[str, Any]] = [
+    {"id": "g001", "title": "Infusion Pumps — 510(k) Submissions",
+     "kw": ["infusion", "pump", "iv", "fluid", "intravenous", "drip"],
+     "cfr": "21 CFR 880.5860", "date": "2014-11-26",
+     "url": "https://www.fda.gov/media/89381/download"},
+    {"id": "g002", "title": "Human Factors Guidance for Infusion Pumps",
+     "kw": ["infusion", "pump", "human factors", "usability", "hfe", "ife"],
+     "cfr": None, "date": "2020-03-12", "url": None},
+    {"id": "g003", "title": "Cybersecurity in Medical Devices (2023)",
+     "kw": ["cyber", "security", "software", "network", "connected", "wireless", "samd", "patch"],
+     "cfr": None, "date": "2023-09-26",
+     "url": "https://www.fda.gov/media/153659/download"},
+    {"id": "g004", "title": "Software as a Medical Device (SaMD) — Clinical Evaluation",
+     "kw": ["software", "samd", "clinical evaluation", "ai", "ml", "algorithm", "digital"],
+     "cfr": None, "date": "2019-10-03", "url": None},
+    {"id": "g005", "title": "Biocompatibility — ISO 10993 Considerations",
+     "kw": ["biocompatibility", "iso 10993", "material", "cytotoxicity", "sensitization", "tissue"],
+     "cfr": "21 CFR 820", "date": "2020-06-16",
+     "url": "https://www.fda.gov/media/135020/download"},
+    {"id": "g006", "title": "Cardiac Pacemakers — 510(k) Submissions",
+     "kw": ["pacemaker", "cardiac", "implant", "heart", "rhythm", "icd", "device therapy"],
+     "cfr": "21 CFR 870.3610", "date": "2021-04-13", "url": None},
+    {"id": "g007", "title": "Diagnostic Ultrasound Systems",
+     "kw": ["ultrasound", "diagnostic", "imaging", "echo", "doppler", "transducer"],
+     "cfr": "21 CFR 892.1550", "date": "2019-09-09", "url": None},
+    {"id": "g008", "title": "510(k) Program: Evaluating Substantial Equivalence",
+     "kw": ["510k", "substantial equivalence", "predicate", "se", "comparison", "submission"],
+     "cfr": None, "date": "2014-07-28",
+     "url": "https://www.fda.gov/media/82395/download"},
+    {"id": "g009", "title": "De Novo Classification Process",
+     "kw": ["de novo", "classification", "novel", "generic type", "special controls", "risk"],
+     "cfr": None, "date": "2021-10-05",
+     "url": "https://www.fda.gov/media/72668/download"},
+    {"id": "g010", "title": "Orthopedic Non-Spinal Metallic Bone Screws",
+     "kw": ["orthopedic", "bone screw", "fixation", "metal", "implant", "fracture", "spine"],
+     "cfr": "21 CFR 888.3040", "date": "1997-06-30", "url": None},
+    {"id": "g011", "title": "In Vitro Diagnostic Devices — 510(k) Submissions",
+     "kw": ["ivd", "in vitro", "diagnostic", "assay", "laboratory", "analyte", "reagent"],
+     "cfr": "21 CFR 862", "date": "2018-08-06", "url": None},
+    {"id": "g012", "title": "Sterility Assurance for Conventional Ethylene Oxide Sterilization",
+     "kw": ["sterilization", "sterility", "eto", "ethylene oxide", "iso 11135", "sah"],
+     "cfr": "21 CFR 820.75", "date": "2019-03-28", "url": None},
+    {"id": "g013", "title": "Design Controls — Quality System Regulation",
+     "kw": ["design control", "quality", "validation", "verification", "dhr", "dhf", "risk management"],
+     "cfr": "21 CFR 820.30", "date": "1997-11-23", "url": None},
+    {"id": "g014", "title": "Clinical Performance Studies for IVD Devices",
+     "kw": ["clinical", "performance", "ivd", "study", "sensitivity", "specificity", "ppv"],
+     "cfr": None, "date": "2023-06-22", "url": None},
+    {"id": "g015", "title": "Factors to Consider When Making Benefit-Risk Determinations",
+     "kw": ["benefit", "risk", "determination", "probability", "harm", "severity", "clinical"],
+     "cfr": None, "date": "2019-08-21", "url": None},
+]
+
+
+def _match_guidance_keywords(query: str, limit: int = 5) -> List["ResearchHit"]:
+    """Score guidance corpus against query keywords; return top-N results."""
+    q_lower = query.lower()
+    q_tokens = set(re.sub(r"[^\w\s]", " ", q_lower).split())
+    hits = []
+    for doc in _GUIDANCE_CORPUS:
+        kw_matches = sum(
+            1 for kw in doc["kw"]
+            if kw in q_lower or any(t in kw for t in q_tokens if len(t) > 3)
+        )
+        if kw_matches == 0:
+            continue
+        score = min(0.95, 0.5 + kw_matches * 0.12)
+        hits.append(ResearchHit(
+            id=doc["id"],
+            title=doc["title"],
+            source="guidance",
+            score=round(score, 2),
+            excerpt=f"FDA Guidance Document — {doc.get('cfr', 'General')} — {doc['date']}",
+            metadata={
+                "cfr": doc.get("cfr"),
+                "issue_date": doc["date"],
+            },
+            url=doc.get("url"),
+        ))
+    hits.sort(key=lambda h: h.score, reverse=True)
+    return hits[:limit]
+
+
+@app.post("/research/search")
+@_rate_limit(RATE_LIMIT_DEFAULT)
+async def research_search(
+    body: ResearchSearchBody,
+    request: Request,
+    api_key: str = Depends(require_api_key),
+):
+    """
+    Unified FDA research search (AUTHENTICATED).
+
+    Searches across openFDA 510(k) database, MAUDE adverse events,
+    and a keyword-ranked FDA guidance corpus.  Pgvector cosine search
+    will replace the guidance tier once embeddings are seeded (FDA-315).
+    """
+    import httpx  # local import — available via FastAPI dependency chain
+
+    t0 = time.monotonic()
+    results: List[Dict[str, Any]] = []
+    sources_searched: List[str] = []
+    query = body.query.strip()
+
+    audit_log_entry("research_search", {"query": query[:100], "sources": body.sources})
+
+    async with httpx.AsyncClient(timeout=8.0, follow_redirects=True) as client:
+
+        # ── 510(k) database ──────────────────────────────────────────────────
+        if "510k" in body.sources:
+            try:
+                search_str = f'device_name:"{query}"'
+                if body.product_code:
+                    search_str += f"+AND+product_code:{body.product_code}"
+                r = await client.get(
+                    "https://api.fda.gov/device/510k.json",
+                    params={"search": search_str, "limit": min(body.limit, 10)},
+                )
+                if r.status_code == 200:
+                    for item in r.json().get("results", []):
+                        results.append(ResearchHit(
+                            id=item.get("k_number", ""),
+                            title=f'{item.get("device_name", "Unknown")} ({item.get("k_number", "")})',
+                            source="510k",
+                            score=0.85,
+                            excerpt=(
+                                f'Applicant: {item.get("applicant", "N/A")}. '
+                                f'Decision: {item.get("decision_description", "N/A")}. '
+                                f'Date: {item.get("decision_date_str", "N/A")}.'
+                            ),
+                            metadata={
+                                "k_number": item.get("k_number"),
+                                "applicant": item.get("applicant"),
+                                "product_code": item.get("product_code"),
+                                "decision_date": item.get("decision_date_str"),
+                                "device_class": item.get("device_class"),
+                                "decision_code": item.get("decision_code"),
+                            },
+                            url=None,
+                        ).model_dump())
+                    sources_searched.append("510k")
+            except Exception as exc:
+                logger.warning("510k search failed: %s", exc)
+
+        # ── MAUDE adverse events ─────────────────────────────────────────────
+        if "maude" in body.sources:
+            try:
+                r = await client.get(
+                    "https://api.fda.gov/device/event.json",
+                    params={
+                        "search": f'device.brand_name:"{query}"',
+                        "limit": min(body.limit, 5),
+                    },
+                )
+                if r.status_code == 200:
+                    for item in r.json().get("results", []):
+                        mdr_text = ""
+                        mdr_entries = item.get("mdr_text") or []
+                        if mdr_entries:
+                            mdr_text = str(mdr_entries[0].get("text", ""))[:200]
+                        results.append(ResearchHit(
+                            id=item.get("report_number", ""),
+                            title=(
+                                f'MDR {item.get("report_number", "")}: '
+                                f'{item.get("event_type", "Adverse Event")} — '
+                                f'{item.get("date_report", "")}'
+                            ),
+                            source="maude",
+                            score=0.70,
+                            excerpt=mdr_text or "No narrative text available.",
+                            metadata={
+                                "report_number": item.get("report_number"),
+                                "event_type": item.get("event_type"),
+                                "date_report": item.get("date_report"),
+                                "remedial_action": item.get("remedial_action"),
+                            },
+                            url=None,
+                        ).model_dump())
+                    sources_searched.append("maude")
+            except Exception as exc:
+                logger.warning("MAUDE search failed: %s", exc)
+
+        # ── Recalls ──────────────────────────────────────────────────────────
+        if "recalls" in body.sources:
+            try:
+                r = await client.get(
+                    "https://api.fda.gov/device/recall.json",
+                    params={
+                        "search": f'product_description:"{query}"',
+                        "limit": min(body.limit, 5),
+                    },
+                )
+                if r.status_code == 200:
+                    for item in r.json().get("results", []):
+                        results.append(ResearchHit(
+                            id=item.get("recall_number", ""),
+                            title=f'Recall {item.get("recall_number", "")}: {item.get("recalling_firm", "")}',
+                            source="recalls",
+                            score=0.75,
+                            excerpt=item.get("reason_for_recall", "")[:200],
+                            metadata={
+                                "recall_number": item.get("recall_number"),
+                                "recalling_firm": item.get("recalling_firm"),
+                                "recall_class": item.get("recall_class"),
+                                "status": item.get("status"),
+                            },
+                            url=None,
+                        ).model_dump())
+                    sources_searched.append("recalls")
+            except Exception as exc:
+                logger.warning("Recall search failed: %s", exc)
+
+    # ── Guidance (keyword corpus) ────────────────────────────────────────────
+    if "guidance" in body.sources:
+        guidance_hits = _match_guidance_keywords(query, limit=min(body.limit, 5))
+        results.extend([h.model_dump() for h in guidance_hits])
+        if guidance_hits:
+            sources_searched.append("guidance")
+
+    duration_ms = round((time.monotonic() - t0) * 1000, 1)
+    return {
+        "results": results,
+        "total": len(results),
+        "sources_searched": sources_searched,
+        "query": query,
+        "duration_ms": duration_ms,
+    }
+
+
+# ── FDA-309: HITL gate endpoints ─────────────────────────────────────────────
+
+@app.post("/hitl/gate/{gate_id}/sign")
+@_rate_limit(RATE_LIMIT_DEFAULT)
+async def sign_hitl_gate(
+    gate_id: int,
+    body: HitlGateSignRequest,
+    request: Request,
+    api_key: str = Depends(require_api_key),
+):
+    """
+    Cryptographically sign a HITL gate decision (AUTHENTICATED).
+
+    Validates that the reviewer holds an authorized RA role, computes a
+    SHA-256 record hash, and applies HMAC-SHA256 via ElectronicSignature
+    (21 CFR §11.50/§11.70).  Stores the signed record in the in-memory
+    HITL gate store (PostgreSQL migration target: Sprint 32).
+
+    Authorized roles: RA_LEAD, PRINCIPAL_RA, QA_MANAGER, REGULATORY_DIRECTOR, VP_REGULATORY
+    """
+    # ── Role-based access control ────────────────────────────────────────────
+    role_upper = body.reviewer_role.upper().replace(" ", "_")
+    if role_upper not in HITL_AUTHORIZED_ROLES:
+        audit_log_entry("hitl_gate_access_denied", {
+            "gate_id":       gate_id,
+            "reviewer_role": body.reviewer_role,
+            "reason":        "unauthorized_role",
+        })
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                f"Role '{body.reviewer_role}' is not authorized to sign HITL gates. "
+                f"Authorized roles: {', '.join(sorted(HITL_AUTHORIZED_ROLES))}"
+            ),
+        )
+
+    # ── Path/body gate_id consistency ────────────────────────────────────────
+    if gate_id != body.gate_id:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Path gate_id ({gate_id}) must match body gate_id ({body.gate_id}).",
+        )
+
+    # ── Validate decision value ───────────────────────────────────────────────
+    valid_decisions = {"approved", "rejected", "deferred"}
+    if body.decision not in valid_decisions:
+        raise HTTPException(
+            status_code=422,
+            detail=f"decision must be one of: {', '.join(sorted(valid_decisions))}",
+        )
+
+    # ── Build canonical record for hashing ───────────────────────────────────
+    now = datetime.now(timezone.utc).isoformat()
+    record_content = json.dumps({
+        "gate_id":       gate_id,
+        "session_id":    body.session_id,
+        "decision":      body.decision,
+        "rationale":     body.rationale,
+        "reviewer_id":   body.reviewer_id,
+        "reviewer_role": role_upper,
+        "sri":           body.sri,
+        "timestamp":     now,
+    }, sort_keys=True)
+    record_hash = hashlib.sha256(record_content.encode("utf-8")).hexdigest()
+
+    # ── Cryptographic signing via 21 CFR Part 11 ─────────────────────────────
+    signing_key = os.environ.get("CFR_PART11_SIGNING_KEY", "")
+    signed_at = now
+    if signing_key:
+        try:
+            from fda_tools.lib.cfr_part11 import ElectronicSignature
+            sig = ElectronicSignature.sign(
+                record_hash  = record_hash,
+                signer_id    = body.reviewer_id,
+                signer_name  = body.reviewer_name,
+                meaning      = (
+                    f"HITL Gate {gate_id}: {body.decision.upper()} — "
+                    "Review and approval per 21 CFR Part 11 §11.50"
+                ),
+                signing_key  = signing_key,
+            )
+            signature_hash = sig.signature
+            signed_at = sig.timestamp
+        except Exception as sign_err:
+            logger.error("HITL signing error: %s", sign_err)
+            raise HTTPException(status_code=500, detail="Signature operation failed.")
+    else:
+        # Signing key not configured — record stored but flagged as unsigned.
+        # Production deployments MUST set CFR_PART11_SIGNING_KEY.
+        logger.warning(
+            "CFR_PART11_SIGNING_KEY not set — HITL gate %d stored without HMAC signature. "
+            "This does not satisfy 21 CFR §11.50 in production.", gate_id
+        )
+        signature_hash = f"UNSIGNED:{record_hash[:32]}"
+
+    # ── Persist gate decision ─────────────────────────────────────────────────
+    store_key = f"{body.session_id}:{gate_id}"
+    gate_record: Dict[str, Any] = {
+        "gate_id":        gate_id,
+        "session_id":     body.session_id,
+        "decision":       body.decision,
+        "rationale":      body.rationale,
+        "reviewer_id":    body.reviewer_id,
+        "reviewer_name":  body.reviewer_name,
+        "reviewer_role":  role_upper,
+        "sri":            body.sri,
+        "record_hash":    record_hash,
+        "signature_hash": signature_hash,
+        "signed_at":      signed_at,
+        "cryptographic":  bool(signing_key),
+    }
+    with _HITL_GATE_LOCK:
+        _HITL_GATE_STORE[store_key] = gate_record
+
+    audit_log_entry("hitl_gate_signed", {
+        "gate_id":       gate_id,
+        "session_id":    body.session_id,
+        "decision":      body.decision,
+        "reviewer_id":   body.reviewer_id,
+        "reviewer_role": role_upper,
+        "signature_prefix": signature_hash[:16] + "...",
+        "cryptographic": bool(signing_key),
+    })
+
+    return {
+        "gate_id":        gate_id,
+        "session_id":     body.session_id,
+        "decision":       body.decision,
+        "signed_at":      signed_at,
+        "record_hash":    record_hash,
+        "signature_hash": signature_hash,
+        "reviewer_name":  body.reviewer_name,
+        "reviewer_role":  role_upper,
+        "cryptographic":  bool(signing_key),
+        "audit_entry": (
+            f"Gate {gate_id} {body.decision.upper()} by {body.reviewer_name} "
+            f"({role_upper}) — 21 CFR Part 11 §11.50"
+        ),
+    }
+
+
+@app.get("/hitl/gate/{gate_id}")
+@_rate_limit(RATE_LIMIT_DEFAULT)
+async def get_hitl_gate(
+    gate_id: int,
+    session_id: str,
+    request: Request,
+    api_key: str = Depends(require_api_key),
+):
+    """
+    Retrieve HITL gate decision record for a session (AUTHENTICATED).
+
+    If the gate was deferred > 24 hours ago, an automatic escalation flag
+    is returned with the record.
+    """
+    store_key = f"{session_id}:{gate_id}"
+    with _HITL_GATE_LOCK:
+        record = _HITL_GATE_STORE.get(store_key)
+
+    if not record:
+        return {
+            "gate_id":   gate_id,
+            "session_id": session_id,
+            "status":    "pending",
+            "record":    None,
+            "escalated": False,
+        }
+
+    # 24h timeout escalation for deferred decisions
+    escalated = False
+    escalation_reason: Optional[str] = None
+    if record.get("decision") == "deferred":
+        try:
+            signed_dt = datetime.fromisoformat(record["signed_at"])
+            age_hours = (datetime.now(timezone.utc) - signed_dt).total_seconds() / 3600
+            if age_hours > 24:
+                escalated = True
+                escalation_reason = (
+                    f"Gate {gate_id} deferred {age_hours:.1f}h ago — "
+                    "automatic escalation to Regulatory Director per SOPs."
+                )
+        except (ValueError, KeyError):
+            pass
+
+    return {
+        "gate_id":           gate_id,
+        "session_id":        session_id,
+        "status":            record["decision"],
+        "record":            record,
+        "escalated":         escalated,
+        "escalation_reason": escalation_reason,
+    }
+
+
+# ============================================================
+# FDA-312 — 21 CFR Part 11 Training Records [§11.10(i)]
+# ============================================================
+
+class TrainingRecordRequest(BaseModel):
+    """Request body for POST /compliance/training."""
+    user_id:      str           = Field(..., description="User email or ID")
+    user_name:    str           = Field(..., min_length=2, max_length=100)
+    topic:        str           = Field(
+        ...,
+        description=(
+            "Training topic. Core Part 11 topics: "
+            + ", ".join(sorted(PART_11_CORE_TOPICS))
+        ),
+    )
+    trainer_id:   Optional[str] = Field(default=None, description="Trainer user ID / email")
+    trainer_name: Optional[str] = Field(default=None, description="Trainer display name")
+    score:        Optional[int] = Field(default=None, ge=0, le=100, description="Assessment score (0–100)")
+    certificate_id: Optional[str] = Field(default=None, description="Certificate ID or number")
+    completed_at: Optional[str] = Field(default=None, description="Completion ISO timestamp (defaults to now)")
+    notes:        str           = Field(default="", max_length=2000)
+
+
+@app.post("/compliance/training")
+@_rate_limit(RATE_LIMIT_DEFAULT)
+async def add_training_record(
+    body:    TrainingRecordRequest,
+    request: Request,
+    api_key: str = Depends(require_api_key),
+):
+    """
+    Add a 21 CFR Part 11 training record (AUTHENTICATED).
+
+    Records that satisfy §11.10(i) must cover at least one of:
+    part_11_overview, electronic_signatures, audit_trail_management,
+    access_control, or system_validation.
+
+    In-memory MVP (Sprint 32). Sprint 33 migrates to PostgreSQL.
+    """
+    record_id = training_store.add(body.model_dump())
+    audit_log_entry("training_record_added", {
+        "user_id":   body.user_id,
+        "topic":     body.topic,
+        "record_id": record_id,
+    })
+    is_core = body.topic in PART_11_CORE_TOPICS
+    return {
+        "record_id":    record_id,
+        "user_id":      body.user_id,
+        "topic":        body.topic,
+        "is_core_topic": is_core,
+        "part11_compliant": training_store.has_part11_training(body.user_id),
+        "message": (
+            "Training record added. §11.10(i) satisfied for this user."
+            if is_core else
+            "Training record added. Add a core Part 11 topic to satisfy §11.10(i)."
+        ),
+    }
+
+
+@app.get("/compliance/training")
+@_rate_limit(RATE_LIMIT_DEFAULT)
+async def list_training_records(
+    user_id: Optional[str] = None,
+    request: Request = None,  # type: ignore[assignment]
+    api_key: str = Depends(require_api_key),
+):
+    """
+    List 21 CFR Part 11 training records (AUTHENTICATED).
+
+    Optional query param `user_id` filters by specific user.
+    Returns compliance summary including §11.10(i) status.
+    """
+    summary = training_store.compliance_summary(user_id)
+    records = training_store.list(user_id)
+    return {
+        **summary,
+        "records": records,
+        "part11_compliant": summary["training_records_exist"],
+        "section": "§11.10(i) — Education, training, and experience",
+    }
+
+
+# ============================================================
+# FDA-319: eSTAR XML Export
+# ============================================================
+
+#: Valid eSTAR template types (FDA form IDs: 4062 nIVD, 4078 IVD, 5064 PreSTAR)
+_ESTAR_VALID_TEMPLATES: frozenset = frozenset({"nIVD", "IVD", "PreSTAR"})
+_ESTAR_VALID_FMTS: frozenset = frozenset({"real", "legacy"})
+
+
+class EStarExportRequest(BaseModel):
+    """Request body for POST /documents/{session_id}/export/estar."""
+
+    project_root: str = Field(
+        ...,
+        description=(
+            "Absolute path to the project directory containing "
+            "device_profile.json, review.json, and draft_*.md files."
+        ),
+    )
+    template_type: str = Field(
+        default="nIVD",
+        description=(
+            "eSTAR template type: "
+            "'nIVD' (FDA 4062, non-IVD — default), "
+            "'IVD' (FDA 4078), or "
+            "'PreSTAR' (FDA 5064, Pre-Submission)."
+        ),
+    )
+    fmt: str = Field(
+        default="real",
+        description=(
+            "XML format: 'real' for actual eSTAR field path IDs (default), "
+            "'legacy' for old form1.* names."
+        ),
+    )
+
+
+@app.post("/documents/{session_id}/export/estar")
+@_rate_limit(RATE_LIMIT_EXECUTE)
+async def export_estar_xml(
+    session_id: str,
+    body: EStarExportRequest,
+    request: Request,
+    api_key: str = Depends(require_api_key),
+):
+    """
+    Generate an eSTAR-compatible XML file from project data (FDA-319, AUTHENTICATED).
+
+    Reads device_profile.json, review.json, draft_*.md, query.json, and
+    import_data.json from project_root and produces FDA eSTAR XML for import
+    into the official FDA eSTAR PDF template in Adobe Acrobat.
+
+    Returns the generated XML inline plus the on-disk file path.
+    Compatible with FDA 4062 (nIVD), FDA 4078 (IVD), FDA 5064 (PreSTAR).
+    """
+    # ── Validate template_type and fmt ───────────────────────────────────────
+    if body.template_type not in _ESTAR_VALID_TEMPLATES:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Invalid template_type '{body.template_type}'. "
+                f"Must be one of: {', '.join(sorted(_ESTAR_VALID_TEMPLATES))}"
+            ),
+        )
+    if body.fmt not in _ESTAR_VALID_FMTS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid fmt '{body.fmt}'. Must be 'real' or 'legacy'.",
+        )
+
+    # ── Resolve and validate project_root (path traversal protection) ────────
+    try:
+        project_root = Path(body.project_root).expanduser().resolve()
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Invalid project_root: {exc}")
+
+    if not project_root.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Project directory not found: {project_root}",
+        )
+    if not project_root.is_dir():
+        raise HTTPException(
+            status_code=422,
+            detail=f"project_root must be a directory: {project_root}",
+        )
+
+    # ── Verify project has data files (mirrors estar_xml.py validation) ──────
+    data_files = [
+        f for f in project_root.iterdir()
+        if f.is_file() and f.suffix in {".json", ".csv", ".md"}
+    ]
+    if not data_files:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Project directory has no data files: {project_root}. "
+                "Run /fda:import or /fda:extract first to populate project data."
+            ),
+        )
+
+    # ── Generate eSTAR XML ────────────────────────────────────────────────────
+    output_file = project_root / f"estar_export_{body.template_type}.xml"
+    generate_xml = _get_estar_generate_xml()
+
+    try:
+        saved_path = generate_xml(
+            project_root,
+            body.template_type,
+            str(output_file),
+            body.fmt,
+        )
+    except SystemExit as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"eSTAR XML generation failed (exit code {exc.code}). "
+                   "Check project data files.",
+        )
+    except Exception as exc:
+        logger.exception("eSTAR XML generation error for session %s", session_id)
+        raise HTTPException(
+            status_code=500,
+            detail=f"eSTAR XML generation error: {exc}",
+        )
+
+    # ── Read generated XML and return ────────────────────────────────────────
+    try:
+        xml_content = output_file.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=500,
+            detail=f"eSTAR XML was not written to expected path: {output_file}",
+        )
+
+    xml_size_kb = round(len(xml_content.encode()) / 1024, 1)
+    data_sources = [f.name for f in data_files if f.suffix == ".json"]
+
+    audit_log_entry("estar_xml_exported", {
+        "session_id":    session_id,
+        "project_root":  str(project_root),
+        "template_type": body.template_type,
+        "fmt":           body.fmt,
+        "output_file":   str(saved_path),
+        "xml_size_kb":   xml_size_kb,
+    })
+
+    return {
+        "session_id":    session_id,
+        "template_type": body.template_type,
+        "fmt":           body.fmt,
+        "output_file":   str(saved_path),
+        "xml_size_kb":   xml_size_kb,
+        "data_sources":  data_sources,
+        "xml_content":   xml_content,
+        "next_steps": [
+            "1. Open the official eSTAR template PDF in Adobe Acrobat",
+            "2. Go to Form > Import Data (or Tools > Prepare Form > Import Data)",
+            f"3. Select: {saved_path}",
+            "4. Review populated fields for accuracy",
+            "5. Add attachments (test reports, images) manually",
+        ],
     }
 
 

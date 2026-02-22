@@ -23,6 +23,7 @@
 
 import React, { useState } from "react";
 import { cn } from "@/lib/utils";
+import { useSignHitlGate, type HitlReviewerRole } from "@/lib/api-client";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -75,6 +76,7 @@ export interface HitlGateIntegrationProps {
   gates:            HitlGate[];
   stages:           NpdStage[];
   projectName?:     string;
+  sessionId?:       string;   // FDA-309: bridge session ID for HITL signing
   onGateSubmit?:    (gateId: number, decision: "approved" | "rejected" | "deferred", rationale: string) => void;
   onViewAuditTrail?: () => void;
   className?:       string;
@@ -109,26 +111,65 @@ const GATE_COLORS = ["#005EA2", "#1A7F4B", "#7C3AED", "#B45309", "#C5191B"];
 
 // ── Gate Detail Panel ─────────────────────────────────────────────────────
 
+const HITL_ROLES: HitlReviewerRole[] = [
+  "RA_LEAD",
+  "PRINCIPAL_RA",
+  "QA_MANAGER",
+  "REGULATORY_DIRECTOR",
+  "VP_REGULATORY",
+];
+
 function GateDetailPanel({
   gate,
+  sessionId,
   onClose,
   onSubmit,
 }: {
-  gate:     HitlGate;
-  onClose:  () => void;
-  onSubmit: (decision: "approved" | "rejected" | "deferred", rationale: string) => void;
+  gate:       HitlGate;
+  sessionId?: string;
+  onClose:    () => void;
+  onSubmit:   (decision: "approved" | "rejected" | "deferred", rationale: string) => void;
 }) {
-  const [decision,  setDecision]  = useState<"approved" | "rejected" | "deferred">("approved");
-  const [rationale, setRationale] = useState("");
-  const [submitted, setSubmitted] = useState(false);
-  const sc  = GATE_STATUS[gate.status];
+  const [decision,      setDecision]      = useState<"approved" | "rejected" | "deferred">("approved");
+  const [rationale,     setRationale]     = useState("");
+  const [reviewerName,  setReviewerName]  = useState("");
+  const [reviewerRole,  setReviewerRole]  = useState<HitlReviewerRole>("RA_LEAD");
+  const [signatureHash, setSignatureHash] = useState<string | null>(null);
+  const signGate = useSignHitlGate();
+  const sc    = GATE_STATUS[gate.status];
   const color = GATE_COLORS[(gate.id - 1) % GATE_COLORS.length];
   const allMet = gate.prerequisites.every(p => p.met);
 
-  function handleSubmit() {
-    if (!rationale.trim()) return;
-    setSubmitted(true);
+  async function handleSubmit() {
+    if (!rationale.trim() || !reviewerName.trim()) return;
+
+    // Always call the parent callback for local state update
     onSubmit(decision, rationale);
+
+    // If a session is active, send to bridge for cryptographic signing
+    if (sessionId) {
+      try {
+        const result = await signGate.mutateAsync({
+          gateId: gate.id,
+          body: {
+            session_id:    sessionId,
+            gate_id:       gate.id,
+            decision,
+            rationale:     rationale.trim(),
+            reviewer_id:   reviewerName.toLowerCase().replace(/\s+/g, "."),
+            reviewer_name: reviewerName.trim(),
+            reviewer_role: reviewerRole,
+            sri:           gate.sri ?? 0,
+          },
+        });
+        setSignatureHash(result.signature_hash);
+      } catch {
+        // Backend unavailable — decision recorded locally only
+        setSignatureHash(null);
+      }
+    } else {
+      setSignatureHash(null);
+    }
   }
 
   return (
@@ -206,9 +247,11 @@ function GateDetailPanel({
         )}
 
         {/* Review form (only if pending / in_review and prerequisites met) */}
-        {(gate.status === "pending" || gate.status === "in_review") && allMet && !submitted && (
+        {(gate.status === "pending" || gate.status === "in_review") && allMet && !signGate.isSuccess && (
           <div className="space-y-3 border-t border-border pt-4">
-            <p className="text-[10px] font-bold text-foreground uppercase tracking-wider">Submit Review</p>
+            <p className="text-[10px] font-bold text-foreground uppercase tracking-wider">
+              Submit Review — 21 CFR Part 11
+            </p>
 
             {/* Decision buttons */}
             <div className="grid grid-cols-3 gap-2">
@@ -217,7 +260,7 @@ function GateDetailPanel({
                   key={d}
                   onClick={() => setDecision(d)}
                   className={cn(
-                    "py-2 rounded-lg border text-[10px] font-bold transition-colors",
+                    "py-2 rounded-lg border text-[10px] font-bold transition-colors cursor-pointer",
                     decision === d
                       ? d === "approved" ? "bg-[#1A7F4B] text-white border-[#1A7F4B]"
                         : d === "rejected" ? "bg-destructive text-white border-destructive"
@@ -230,26 +273,56 @@ function GateDetailPanel({
               ))}
             </div>
 
+            {/* Reviewer identity (required for Part 11 §11.50) */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[9px] font-medium text-foreground block mb-1">
+                  Reviewer Name <span className="text-destructive">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={reviewerName}
+                  onChange={e => setReviewerName(e.target.value)}
+                  placeholder="Full name"
+                  className="w-full text-[11px] rounded-md border border-border bg-background px-2 py-1.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-[#005EA2]"
+                />
+              </div>
+              <div>
+                <label className="text-[9px] font-medium text-foreground block mb-1">
+                  Role <span className="text-destructive">*</span>
+                </label>
+                <select
+                  value={reviewerRole}
+                  onChange={e => setReviewerRole(e.target.value as HitlReviewerRole)}
+                  className="w-full text-[11px] rounded-md border border-border bg-background px-2 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-[#005EA2] cursor-pointer"
+                >
+                  {HITL_ROLES.map(r => (
+                    <option key={r} value={r}>{r.replace(/_/g, " ")}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             {/* Rationale */}
             <div>
-              <label className="text-[10px] font-medium text-foreground block mb-1">
+              <label className="text-[9px] font-medium text-foreground block mb-1">
                 Rationale <span className="text-destructive">*</span>
               </label>
               <textarea
                 value={rationale}
                 onChange={e => setRationale(e.target.value)}
                 rows={3}
-                placeholder="Describe the basis for this decision (21 CFR Part 11 required)..."
+                placeholder="Describe the basis for this decision (21 CFR Part 11 required)…"
                 className="w-full text-[11px] rounded-lg border border-border bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-1 focus:ring-[#005EA2]"
               />
             </div>
 
             <button
               onClick={handleSubmit}
-              disabled={!rationale.trim()}
-              className="w-full py-2.5 rounded-lg bg-[#005EA2] text-white text-[11px] font-bold hover:bg-[#005EA2]/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              disabled={!rationale.trim() || !reviewerName.trim() || signGate.isPending}
+              className="w-full py-2.5 rounded-lg bg-[#005EA2] text-white text-[11px] font-bold hover:bg-[#005EA2]/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
             >
-              Submit Review (21 CFR Part 11)
+              {signGate.isPending ? "Signing…" : "Sign & Submit (21 CFR §11.50)"}
             </button>
           </div>
         )}
@@ -257,16 +330,26 @@ function GateDetailPanel({
         {!allMet && (gate.status === "pending" || gate.status === "in_review") && (
           <div className="rounded-lg border border-[#B45309]/30 bg-[#B45309]/5 px-3 py-2.5">
             <p className="text-[10px] text-[#B45309] font-medium">
-              ⚠ Prerequisites not fully met — complete all required steps before reviewing
+              Prerequisites not fully met — complete all required steps before reviewing
             </p>
           </div>
         )}
 
-        {submitted && (
-          <div className="rounded-lg border border-[#1A7F4B]/30 bg-[#1A7F4B]/5 px-3 py-2.5">
+        {signGate.isSuccess && (
+          <div className="rounded-lg border border-[#1A7F4B]/30 bg-[#1A7F4B]/5 px-3 py-2.5 space-y-1">
             <p className="text-[10px] text-[#1A7F4B] font-medium">
-              ✓ Review submitted · Audit record created · Signature logged
+              Gate {gate.id} {decision.toUpperCase()} — Audit record created · 21 CFR §11.50 signed
             </p>
+            {signatureHash && (
+              <p className="text-[9px] font-mono text-muted-foreground truncate" title={signatureHash}>
+                HMAC: {signatureHash.slice(0, 32)}…
+              </p>
+            )}
+            {!signatureHash && (
+              <p className="text-[9px] text-[#B45309]">
+                CFR_PART11_SIGNING_KEY not set — decision recorded without cryptographic signature.
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -280,6 +363,7 @@ export function HitlGateIntegration({
   gates,
   stages,
   projectName,
+  sessionId,
   onGateSubmit,
   onViewAuditTrail,
   className,
@@ -363,8 +447,8 @@ export function HitlGateIntegration({
                             selectedGate === gateAfter.id && "ring-2 ring-offset-2 ring-offset-background",
                           )}
                           style={{
-                            ringColor: GATE_COLORS[(gateAfter.id - 1) % GATE_COLORS.length],
-                          }}
+                            "--ring-color": GATE_COLORS[(gateAfter.id - 1) % GATE_COLORS.length],
+                          } as React.CSSProperties}
                           title={`Gate ${gateAfter.id}: ${gateAfter.label}`}
                         >
                           <span className={cn("text-sm", GATE_STATUS[gateAfter.status].text)}>
@@ -449,6 +533,7 @@ export function HitlGateIntegration({
         return (
           <GateDetailPanel
             gate={gate}
+            sessionId={sessionId}
             onClose={() => setSelectedGate(null)}
             onSubmit={(decision, rationale) => handleGateSubmit(gate.id, decision, rationale)}
           />
