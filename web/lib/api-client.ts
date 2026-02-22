@@ -660,6 +660,78 @@ export function useSignals(productCode: string, days = 90) {
   });
 }
 
+// ── Research: clustering types / hooks (FDA-234) ─────────────────────────────
+
+export interface ClusterDoc {
+  doc_id:    string;
+  doc_title: string;
+  doc_url:   string;
+}
+
+export interface GuidanceCluster {
+  cluster_id: number;
+  label:      string;
+  doc_count:  number;
+  docs:       ClusterDoc[];
+}
+
+export interface DendrogramData {
+  icoord: number[][];
+  dcoord: number[][];
+  labels: string[];
+}
+
+export interface ClusterResult {
+  k:            number;
+  n_docs:       number;
+  generated_at: string;
+  cache_hash:   string;
+  clusters:     GuidanceCluster[];
+  dendrogram:   DendrogramData;
+}
+
+// ── Research: freshness types / hooks (FDA-235) ───────────────────────────────
+
+export interface DocFreshnessStatus {
+  doc_id:        string;
+  url:           string;
+  status:        "FRESH" | "STALE" | "UNKNOWN" | "ERROR";
+  reason:        string;
+  etag?:         string | null;
+  last_modified?: string | null;
+  checked_at?:   string | null;
+}
+
+export interface FreshnessReport {
+  generated_at:  string;
+  total_docs:    number;
+  fresh_count:   number;
+  stale_count:   number;
+  unknown_count: number;
+  error_count:   number;
+  freshness_pct: number;
+  stale_docs:    DocFreshnessStatus[];
+  unknown_docs:  DocFreshnessStatus[];
+}
+
+export function useClusters(force = false) {
+  return useQuery<ClusterResult, ApiError>({
+    queryKey: ["clusters", force],
+    queryFn:  () =>
+      apiFetch<ClusterResult>(`/research/clusters${force ? "?force=true" : ""}`),
+    staleTime: 60 * 60_000, // 1 hour — matches 12h server cache
+  });
+}
+
+export function useFreshness(force = false) {
+  return useQuery<FreshnessReport, ApiError>({
+    queryKey: ["freshness", force],
+    queryFn:  () =>
+      apiFetch<FreshnessReport>(`/research/freshness${force ? "?force=true" : ""}`),
+    staleTime: 30 * 60_000,
+  });
+}
+
 // ── Mutation hooks ────────────────────────────────────────────────────────────
 
 export function useExecuteCommand() {

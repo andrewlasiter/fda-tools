@@ -1526,6 +1526,64 @@ async def research_signals(
         )
 
 
+@app.get("/research/clusters")
+@_rate_limit(RATE_LIMIT_DEFAULT)
+async def research_clusters(
+    request: Request,
+    force:   bool = False,
+    api_key: str  = Depends(require_api_key),
+):
+    """
+    Run Ward-linkage clustering on guidance document embeddings (AUTHENTICATED).
+
+    Returns cluster labels, per-cluster document lists, and scipy dendrogram
+    icoord/dcoord coordinates for D3.js rendering.
+    Re-clusters only when the guidance index changes (12-hour file cache).
+    """
+    try:
+        from fda_tools.scripts.guidance_cluster import cluster_guidance, _serialize
+        result = cluster_guidance(force=force)
+        return _serialize(result)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        logger.error("Clustering error: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=sanitize_error_for_client(e, context="research/clusters"),
+        )
+
+
+@app.get("/research/freshness")
+@_rate_limit(RATE_LIMIT_DEFAULT)
+async def research_freshness(
+    request: Request,
+    force:   bool = False,
+    api_key: str  = Depends(require_api_key),
+):
+    """
+    Check freshness of indexed FDA guidance documents (AUTHENTICATED).
+
+    Sends conditional HEAD requests to each document's source URL and
+    compares ETags / Last-Modified headers to detect stale content.
+    Returns a FreshnessReport with per-document status.
+    """
+    try:
+        import dataclasses
+        from fda_tools.lib.guidance_freshness import GuidanceFreshnessChecker
+        checker = GuidanceFreshnessChecker()
+        report  = checker.check_freshness(force=force)
+        data    = dataclasses.asdict(report)
+        data["freshness_pct"] = report.freshness_pct
+        return data
+    except Exception as e:
+        logger.error("Freshness check error: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=sanitize_error_for_client(e, context="research/freshness"),
+        )
+
+
 @app.get("/audit/integrity")
 @_rate_limit(RATE_LIMIT_DEFAULT)
 async def verify_audit_integrity(
