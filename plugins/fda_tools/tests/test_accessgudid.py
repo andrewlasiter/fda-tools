@@ -1,4 +1,4 @@
-"""Tests for v5.9.0: AccessGUDID v3 API integration (enhanced /fda:udi command).
+"""Tests for AccessGUDID v3 API integration (enhanced /fda:udi command).
 
 Validates command enhancements, reference doc, and plugin metadata.
 """
@@ -152,12 +152,12 @@ class TestAccessGUDIDReference:
 
 
 class TestPluginVersionAndCounts59:
-    """Test plugin.json reflects v5.9.0."""
+    """Test plugin.json reflects current version."""
 
-    def test_version_is_5_9_0(self):
+    def test_version_is_5_36_0(self):
         with open(PLUGIN_JSON) as f:
             data = json.load(f)
-        assert data["version"] == '5.22.0'
+        assert data["version"] == '5.36.0'
 
     def test_skill_md_mentions_accessgudid(self):
         """AccessGUDID is documented in SKILL.md resources, not plugin.json description."""
